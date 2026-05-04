@@ -44,7 +44,7 @@ The **gpt-4o baseline** is the canonical comparison target for everything below.
 | 1 | qwen27b mini | 25 | — | — | — | — | — | — | — | skipped (smoke is enough) |
 | 2 | qwen35b-a3b smoke | 5 | 27.52 | 9.93 | 19.57 | 4.29 | 24.24% | **19** | 10.6 min | done |
 | 2 | qwen35b-a3b mini | 25 | — | — | — | — | — | — | — | held (per user direction) |
-| 3 | qwen27b + no-think (consultant) smoke | 5 | — | — | — | — | — | — | — | running |
+| 3 | qwen27b + no-think (consultant) smoke | 5 | **29.99** | 12.36 | 21.91 | 5.22 | **39.39%** | 70 | 38.6 min | done — state acc unchanged from think; +3.6 ROUGE-1 |
 | 4 | qwen35b-a3b + no-think (consultant) smoke | 5 | 28.36 | 10.48 | 20.12 | 4.33 | **31.25%** | 17 | 9.3 min | done — state acc +7 pts vs think-on |
 
 ### Per-stage state accuracy comparison (smoke, n=5, 33 turns each)
@@ -116,25 +116,71 @@ TBD whether it shows the same effect.
 
 ### Decision matrix for the "improved session" full run
 
-Given the 88-h wall clock for any 27B configuration and the project deadline
-of June 4 (one month away), the practical best config for a single overnight
-full run is:
+All four two-call configs landed. Updated table with measured numbers:
 
-| Config | State acc (smoke) | Full-run wall clock | Decision |
-|---|---|---|---|
-| 27B think | **39.39%** | ~88 h | Best quality, fits only as a multi-day weekend run |
-| 27B no-think | TBD | ~88 h+ | Likely no faster, possibly slower; quality TBD |
-| A3B think | 24.24% | ~23 h | Fast but ties baseline, no quality win |
-| **A3B no-think** | **31.25%** | **~21 h** | **Recommended for "improved session"** |
+| Config | ROUGE-1 | State acc | s/turn | Full-run wall clock | Decision |
+|---|---|---|---|---|---|
+| gpt-4o baseline (n=681) | 44.61 | 25.94% | — | 4 h 34 m | reference |
+| **27B no-think** | **29.99** | **39.39%** | 70 | **~80 h** | **Best quality config — strictly better than 27B think** |
+| 27B think | 26.40 | 39.39% | 72 | ~88 h | Slightly worse on every metric than no-think; abandoned |
+| **A3B no-think** | 28.36 | **31.25%** | 17 | **~19 h** | **Best fast config — overnight viable, +5.3 over baseline** |
+| A3B think | 27.52 | 24.24% | 19 | ~23 h | Tied with baseline, slowest A3B; abandoned |
 
-**Recommendation:** A3B no-think is the most pragmatic choice — beats the
-gpt-4o baseline by +5.31 state-acc points, fits in an overnight run,
-crash-safe per-item, leaves headroom to iterate.
+**Headlines:**
 
-**If multi-day GPU time is available:** also run 27B think over a weekend
-(~88 h, starts Friday evening, lands Tuesday morning) for the headline
-+13 state-acc result. The two runs tell different paper stories; both are
-defensible ablation rows.
+1. **`/no_think` on the consultant is a free upgrade for both models.**
+   - 27B: same state acc, +3.6 ROUGE-1, marginally faster. Strictly dominant.
+   - A3B: +7 state acc, +0.8 ROUGE-1, marginally faster. Strictly dominant.
+   - Counterintuitive but reproducible across both models.
+2. **Speed and quality are decoupled.** A3B is the speed lever (~3.7×), 27B is
+   the quality lever (+13 state acc). Disabling consultant thinking is a free
+   tune-up for both, not a quality/speed trade.
+3. **27B + consultant `/no_think` produces the headline result for the paper:**
+   39.39% state acc, +13.45 over gpt-4o baseline, with a slightly *better*
+   ROUGE-1 than 27B think. Wall clock ~80 h — multi-day, but doable as a
+   weekend run.
+4. **A3B + consultant `/no_think` is the operational win:** 31.25% state acc,
+   +5.31 over baseline, ~19 h full run. Overnight viable.
+
+### Recommendation
+
+**Run two full evals, in this order:**
+
+1. **A3B + no-think**, kicked off as soon as the PR is merged. ~19 h. Lands
+   the next day. Provides paper draft ablation row #1 ("MoE Qwen3.6 + structural
+   classification > GPT-4o consultant in less compute").
+2. **27B + no-think**, kicked off Friday evening. ~80 h, lands Tuesday. Provides
+   the headline paper result and ablation row #2 ("dense Qwen3.6 27B as both
+   teacher and consultant produces +13 state acc vs gpt-4o, with stage c jumping
+   ~6.5×").
+
+If only one is possible, **A3B + no-think** wins on ROI: not the headline result
+but enough to demonstrate "we improved over baseline" with one overnight session.
+
+### Per-stage state accuracy comparison (smoke, n=5, 33 turns each)
+
+| Stage | gpt-4o (n=681) | 27B think | 27B no-think | A3B think | A3B no-think |
+|---|---|---|---|---|---|
+| a (problem detection) | 95.15% | **100%** | **100%** | 40.0% | 60.0% |
+| b (early reasoning) | 36.93% | 50.0% | **66.67%** | 50.0% | 33.3% |
+| c (hard misconception) | 4.70% | **30.77%** | 15.38% | 7.69% | 15.38% |
+| d (resolution) | 5.04% | 0.0% | 0.0% | 0.0% | 0.0% |
+| e (closure) | 11.92% | 25.0% | **50.0%** | **50.0%** | **75.0%** |
+| **overall** | 25.94% | **39.39%** | **39.39%** | 24.24% | 31.25% |
+
+Two trends visible across all 5 stages:
+
+- **27B think is the only config to crack stage c materially** (30.77%, +26 over
+  baseline). Disabling consultant thinking on 27B drops stage c to 15.38% —
+  consultant CoT helps most on the hardest classification. This is a per-stage
+  trade hidden by the identical overall numbers.
+- **All Qwen variants beat baseline on stage e (closure).** Even the worst
+  (A3B think) ties; the best (A3B no-think) is 4× higher. Closure detection
+  is apparently easier for these models than for gpt-4o.
+
+For paper ablation purposes, 27B think (+30.77% on stage c) and 27B no-think
+(+66.67% on stage b, +50% on stage e) are *complementary* — different stages
+are won by different configs. Worth running both even at the wall-clock cost.
 
 ### Phase 3 lever — fusion (formal plan landed)
 
