@@ -160,9 +160,15 @@ def _strip_fences(text: str) -> str:
 
 
 def _parse_json(text: str) -> dict:
-    """Parse JSON with recovery for truncated responses (missing closing braces)."""
+    """Parse JSON with recovery for truncated responses or trailing content."""
     text = _strip_fences(text)
-    for suffix in ("", "}", "}]}", "]}", "}]}"):
+    # raw_decode tolerates extra content after the first valid JSON object
+    try:
+        obj, _ = json.JSONDecoder().raw_decode(text)
+        return obj
+    except json.JSONDecodeError:
+        pass
+    for suffix in ("}", "}]}", "]}", "}]}"):
         try:
             return json.loads(text + suffix)
         except json.JSONDecodeError:
@@ -177,11 +183,19 @@ def _parse_json(text: str) -> dict:
 # so stripping the array entirely is safer. Options are already in the options field.
 _INLINE_ARRAY_RE = re.compile(r'\s*\[(?:"[^"]*"|\'[^\']*\')(?:,\s*(?:"[^"]*"|\'[^\']*\'))*\]')
 
+# Some true/false records have bare "Yes", "No" (or Chinese equiv) without brackets.
+# Strip those too — they duplicate the options field and trigger model quote issues.
+_BRACKETLESS_BOOL_RE = re.compile(  # \x22 = ASCII double-quote; avoids smart-quote corruption
+    r"\s*\x22(?:Yes|No|True|False|对|错|是|否)\x22\s*,\s*\x22(?:Yes|No|True|False|对|错|是|否)\x22|\s*'(?:Yes|No|True|False|对|错|是|否)\s*,\s*'(?:Yes|No|True|False|对|错|是|否)'"
+)
+
 
 def _safe_quotes(obj: object) -> object:
     """Strip inline option arrays and remaining ASCII double-quotes from string values."""
     if isinstance(obj, str):
-        return _INLINE_ARRAY_RE.sub("", obj).replace('"', "'").replace("“", "'").replace("”", "'")
+        s = _INLINE_ARRAY_RE.sub("", obj)
+        s = _BRACKETLESS_BOOL_RE.sub("", s)
+        return s.replace('"', "'").replace(""", "'").replace(""", "'")
     if isinstance(obj, list):
         return [_safe_quotes(x) for x in obj]
     if isinstance(obj, dict):
@@ -213,6 +227,12 @@ def _build_payload(record: dict) -> str:
 _ESCAPE_REMINDER = (
     "\n\nIMPORTANT: your previous response contained invalid JSON. "
     'If any translated text contains double-quote characters, escape them as \\" in the JSON output.'
+)
+
+_FIELDS_REMINDER = (
+    "\n\nIMPORTANT: your previous response was missing fields. "
+    "Every turn in the dialogue array MUST include BOTH a 'student' field AND a 'teacher' field. "
+    "Do not split student and teacher into separate turns."
 )
 
 
@@ -262,9 +282,9 @@ def translate_record(client: OpenAI, model: str, record: dict, retries: int = 3)
     if THINKING_BUDGET == 0:
         extra["chat_template_kwargs"] = {"enable_thinking": False}
     last_err: Exception | None = None
+    last_reminder = ""
     for attempt in range(retries):
-        # After the first JSON failure, remind the model to escape quotes.
-        user_prompt = prompt if attempt == 0 else prompt + _ESCAPE_REMINDER
+        user_prompt = prompt + last_reminder
         try:
             resp = client.chat.completions.create(
                 model=model,
@@ -279,13 +299,27 @@ def translate_record(client: OpenAI, model: str, record: dict, retries: int = 3)
             result = _parse_json(resp.choices[0].message.content)
             expected = len(record["dialogue"])
             result["dialogue"] = _merge_split_turns(result.get("dialogue", []), expected)
-            got = len(result.get("dialogue", []))
+            turns = result.get("dialogue", [])
+            got = len(turns)
             if got < expected:
                 raise ValueError(f"dialogue truncated: got {got} turns, expected {expected}")
+            missing_fields = [
+                i
+                for i, t in enumerate(turns[:expected])
+                if "teacher" not in t or "student" not in t
+            ]
+            if missing_fields:
+                raise ValueError(f"turns missing student/teacher fields: {missing_fields}")
             return result
         except Exception as e:
             last_err = e
             if attempt < retries - 1:
+                # Choose reminder based on failure type
+                msg = str(e)
+                if "missing student/teacher" in msg:
+                    last_reminder = _FIELDS_REMINDER
+                else:
+                    last_reminder = _ESCAPE_REMINDER
                 time.sleep(2**attempt)
     raise RuntimeError(f"id={record['id']} failed after {retries} attempts: {last_err}")
 
@@ -548,6 +582,16 @@ def main() -> None:
         translated_ids = set()
         results = []
         action_cache = {}
+
+    # When retranslating specific IDs, remove their old entries so we don't get duplicates.
+    if args.ids:
+        retranslate_ids = set(args.ids)
+        old_count = len(results)
+        results = [r for r in results if r["id"] not in retranslate_ids]
+        translated_ids -= retranslate_ids
+        removed = old_count - len(results)
+        if removed:
+            _log(f"  Cleared {removed} old entries for re-translation")
 
     # Build action lookup table; on resume, catch any strings missing from the checkpoint cache.
     all_actions = sorted({t["action"] for row in dataset for t in row["dialogue"]})
