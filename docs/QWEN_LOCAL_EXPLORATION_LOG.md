@@ -182,6 +182,72 @@ For paper ablation purposes, 27B think (+30.77% on stage c) and 27B no-think
 (+66.67% on stage b, +50% on stage e) are *complementary* — different stages
 are won by different configs. Worth running both even at the wall-clock cost.
 
+### Decision gate — required mini runs before full-run commitment
+
+Smoke n=5 (~33 turns) is too noisy for production decisions. Before we commit
+to a multi-hour full n=681 run, we need n=25 mini runs (~150 turns each) to
+validate the smoke deltas. Mini runs are the gating step between exciting
+smoke results and ship-it confidence.
+
+#### Open questions the smokes can't answer
+
+- [ ] **Does fusion's state-accuracy lift hold at n=25?** 27B fusion smoke
+      showed +7.5 over its two-call sibling; could be n=5 sampling noise.
+- [ ] **Is the stage-c regression in 27B fusion (-15 vs 27B think two-call) real
+      or noise?** Stage c is the hardest classification (22 states). If real,
+      it's a per-stage trade-off worth ablating in the paper.
+- [ ] **Is stage d at 25% (27B fusion) reproducible?** Two-call always got 0%
+      on stage d. First-time hit could be n=5 luck on dialogues that contain
+      d-turns matching the model's biases.
+- [ ] **Does fusion's -46% wall-clock win scale?** Striking on n=5; n=25 is
+      a more reliable per-turn average and includes longer dialogues.
+- [ ] **What's the unified_fallback_count distribution at n=25?** Smoke step 1
+      had 0/32 fallbacks — but n=5 may not surface rare schema-edge-case
+      dialogues (off-topic student input, edge-case state transitions).
+
+#### Mini-run TODO list (gated on smoke completion)
+
+After all 4 fusion smokes land, the immediate next step is *not* a full run —
+it's a targeted set of mini runs to confirm or contradict smoke findings:
+
+- [ ] **TODO M1 — Top fusion variant mini.** Pick the smoke's best fusion
+      config by combined state-acc + wall-clock. Run mini (n=25). Likely
+      candidate after smoke evidence so far: 27B fusion think.
+      Estimated time: 1.5–2 h on 27B; 30–40 min on A3B.
+- [ ] **TODO M2 — 2nd-best fusion variant mini.** Run mini for direct
+      head-to-head against TODO M1. Most likely an A3B fusion variant for the
+      "speed lever" comparison.
+- [ ] **TODO M3 (optional) — Best two-call comparator mini.** Run n=25 on the
+      best-smoke two-call config (27B no-think) to establish a reliable
+      two-call-vs-fusion delta at n=25 confidence. Skip if M1/M2 results are
+      decisive.
+
+#### Decision criteria for promoting from mini to full
+
+| Mini result | Action |
+|---|---|
+| State acc within ±3 pts of smoke AND wall-clock within ±10% AND fallback rate <5% | Greenlight full run |
+| State acc drops >5 pts vs smoke | Investigate per-stage profile; if isolated, examine prompt; if uniform, fall back to two-call |
+| Wall-clock loses speedup (>30% slower than smoke projects) | Investigate context-length scaling; may need shorter prompts |
+| Fallback rate >5% | Audit failed turns; tighten prompt or schema before full commit |
+| Stage c regression confirmed at n=25 | Both think and no-think viable; pick by paper story (per-stage trade-off becomes an explicit ablation row) |
+
+#### Suggested sequencing once smokes are done
+
+1. Identify top 1–2 fusion variants by smoke ranking (combined state-acc +
+   wall-clock score).
+2. Run mini for those (TODO M1, M2). Total budget: 2–3 h.
+3. Compare mini-vs-smoke deltas; identify any per-stage regressions.
+4. Optional: mini run on best two-call comparator (TODO M3).
+5. Make full-run decision with mini-confidence numbers.
+6. Full run on the winner.
+
+This is a hard gate. Skipping straight from smoke to full-run on n=5 evidence
+is the kind of move that burns 20+ hours of GPU on a config that the n=25 data
+would have caught as a regression.
+
+---
+
 ### Phase 3 lever — fusion (formal plan landed)
 
 The next obvious move after "tune the existing two-call pipeline" is
