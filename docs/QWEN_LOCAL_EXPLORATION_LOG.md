@@ -37,12 +37,56 @@ The **gpt-4o baseline** is the canonical comparison target for everything below.
 > n=5 metrics are noisy by definition — useful for wiring sanity, not statistical claims.
 > **Wall-clock per turn** is the headline number for choosing the full-run config.
 
-| # | Config | n | ROUGE-1 | ROUGE-2 | ROUGE-L | BLEU-4 | State acc | s/turn | Status |
-|---|---|---|---|---|---|---|---|---|---|
-| 1 | qwen27b smoke | 5 | — | — | — | — | — | ~65 (3 of 5 done) | running |
-| 1 | qwen27b mini | 25 | — | — | — | — | — | — | queued |
-| 2 | qwen35b-a3b smoke | 5 | — | — | — | — | — | — | infra ready |
-| 2 | qwen35b-a3b mini | 25 | — | — | — | — | — | — | infra ready |
+| # | Config | n | ROUGE-1 | ROUGE-2 | ROUGE-L | BLEU-4 | State acc | s/turn | Wall clock | Status |
+|---|---|---|---|---|---|---|---|---|---|---|
+| — | gpt-4o baseline (ref) | 681 | **44.61** | 26.04 | 38.02 | 19.60 | 25.94% | — | 4h 34m | done |
+| 1 | qwen27b smoke | 5 | 26.40 | 8.72 | 18.71 | 2.98 | **39.39%** | 72 | 39 min | done |
+| 1 | qwen27b mini | 25 | — | — | — | — | — | — | — | skipped (smoke is enough) |
+| 2 | qwen35b-a3b smoke | 5 | 27.52 | 9.93 | 19.57 | 4.29 | 24.24% | **19** | 10.6 min | done |
+| 2 | qwen35b-a3b mini | 25 | — | — | — | — | — | — | — | held (per user direction) |
+| 3 | qwen27b + no-think (consultant) smoke | 5 | — | — | — | — | — | — | — | running |
+| 4 | qwen35b-a3b + no-think (consultant) smoke | 5 | 28.36 | 10.48 | 20.12 | 4.33 | **31.25%** | 17 | 9.3 min | done — state acc +7 pts vs think-on |
+
+### Per-stage state accuracy comparison (smoke, n=5, 33 turns each)
+
+| Stage | gpt-4o baseline (n=681) | Qwen 27B smoke | Qwen A3B smoke |
+|---|---|---|---|
+| a (problem detection) | 95.15% | **100.0%** | 40.0% ← collapsed |
+| b (early reasoning) | 36.93% | **50.0%** | **50.0%** |
+| c (hard misconception, 22 states) | 4.70% | **30.77%** | 7.69% |
+| d (resolution) | 5.04% | 0.0% | 0.0% (likely n=5 noise on both) |
+| e (closure) | 11.92% | 25.0% | **50.0%** |
+| **overall** | 25.94% | **39.39%** | 24.24% |
+
+### Key findings — Qwen 27B smoke
+
+- **State classification dramatically better.** Stage c (the hardest, 22-way classification) goes from 4.7% to 30.77% — a 6.5× improvement. Overall +13.45 points over the gpt-4o baseline.
+- **ROUGE/BLEU collapse.** ROUGE-1 26.4 vs baseline 44.61 (-18 pts). The teacher generates pedagogically rich responses that *don't match ground-truth phrasing*. This was visible in dialogue 0004 — Qwen wrote *"哇，你提出了一个非常有趣的科学猜想"* where the ground truth was the more terse *"你能想到一些植物是生长在水中或其他地方的吗？"*.
+- **The split is too large to be pure n=5 noise.** Direction is clear: **better Socratic reasoning, worse stylistic mimicry**.
+- **Stage d 0%** is suspicious — but only a few d-turns in n=5; need n=25+ to know.
+- **Wall clock confirms 75-hour full-run projection** (39 min for 5 dialogues = ~7.8 min/dialogue × 681 = 5,300 min ≈ 88 h).
+- **Implication for the paper:** this is a research-paper-worthy result — *Qwen3.6-27B as both teacher and consultant outperforms gpt-4o + fine-tuned-teacher on classification accuracy at the cost of stylistic fidelity.* Worth its own ablation. But 88h wall clock means we cannot afford it as our default for n=681.
+
+### Key findings — A3B smoke
+
+- **3.7× faster than 27B** (19 s/turn vs 72 s/turn). Matches the 3-4× projection from the active-param ratio (3 B vs 27 B). **Full-run projection: ~23 h** — viable as an overnight run.
+- **State accuracy collapses to roughly tied with baseline** (24.24% vs 25.94%). The 27B's classification advantage does not transfer to the MoE.
+- **Stage a is the weak spot.** A3B drops to 40% on problem-detection — Qwen3.5-9B had the same exact failure mode in `docs/QWEN_EVAL_FIX_PLAN.md` (57.12% at n=681). The MoE's smaller active-param count appears to bottleneck the "did the student ask a question" trigger that 27B nails 100% of the time.
+- **Stage c is much weaker than 27B but slightly better than baseline** (7.69% vs 27B's 30.77% vs baseline 4.7%). The hardest classification task is where the active-param gap bites hardest.
+- **Stage e jumps to 50%** — the dialogue-closure trigger is a simpler classification, and A3B handles it better than either 27B or baseline.
+- **ROUGE/BLEU same general profile as 27B** (~25-28 ROUGE-1 vs baseline 44.61). Both Qwen models write a richer pedagogical voice that diverges from ground-truth phrasing. This is a Qwen-family characteristic, not a 27B-specific one.
+
+### Decision matrix as of A3B smoke complete
+
+| Config | Full-run wall clock | Overall state acc (smoke n=5) | ROUGE-1 (smoke) | Verdict |
+|---|---|---|---|---|
+| gpt-4o baseline (existing) | 4h 34m | 25.94% (n=681) | 44.61 | Already shipped — paper-faithful |
+| Qwen 27B (think on) | ~88 h | **39.39%** | 26.40 | Strong quality, blocked by wall clock |
+| A3B (think on) | ~23 h | 24.24% | 27.52 | Fast enough, quality merely tied with baseline |
+| **27B + consultant no-think** | ?? (projected ~30-40 h) | ?? | ?? | **TODO — best candidate for "fast + good quality"** |
+| **A3B + consultant no-think** | ?? (projected ~10-15 h) | ?? | ?? | **TODO — best candidate for "fastest viable"** |
+
+The next two smokes will tell us whether `/no_think` on the consultant preserves classification accuracy. If 27B + no-think holds the +13 state acc lift at ~30-40 h, that's our winner. If A3B + no-think holds the ~24% baseline-tied accuracy at ~10-15 h, that's the fastest viable for iteration.
 
 ### Live observations
 

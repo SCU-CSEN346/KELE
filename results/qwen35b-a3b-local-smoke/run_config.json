@@ -1,0 +1,13 @@
+{
+  "experiment": "qwen35b-a3b-local-smoke",
+  "teacher_model": "Qwen 35B A3B",
+  "teacher_base_url": "http://localhost:8080/v1",
+  "consultant_model": "Qwen 35B A3B",
+  "consultant_base_url": "http://localhost:8080/v1",
+  "max_teaching_rounds": 8,
+  "total_dialogues": 5,
+  "completed": 5,
+  "total_elapsed_seconds": 635.76,
+  "started_at": "2026-05-04 10:41:36",
+  "finished_at": "2026-05-04 10:52:12"
+}

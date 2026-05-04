@@ -29,32 +29,40 @@ ROOT="$(pwd)"
 MODE=""
 KEEP_SERVER=false
 DO_COMPARE=true
+NOTHINK=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     smoke|mini|full) MODE="$1"; shift ;;
     --keep-server)   KEEP_SERVER=true; shift ;;
     --no-compare)    DO_COMPARE=false; shift ;;
+    --nothink)       NOTHINK=true; shift ;;
     -h|--help)
       sed -n '2,16p' "$0"
       exit 0 ;;
     *)
       echo "Unknown arg: $1" >&2
-      echo "Usage: $0 {smoke|mini|full} [--keep-server] [--no-compare]" >&2
+      echo "Usage: $0 {smoke|mini|full} [--keep-server] [--no-compare] [--nothink]" >&2
       exit 1 ;;
   esac
 done
 
 if [[ -z "$MODE" ]]; then
-  echo "Usage: $0 {smoke|mini|full} [--keep-server] [--no-compare]" >&2
+  echo "Usage: $0 {smoke|mini|full} [--keep-server] [--no-compare] [--nothink]" >&2
   exit 1
 fi
 
 # ── Mode config ───────────────────────────────────────────────────────────────
+EXPERIMENT="qwen35b-a3b-local"
+SUFFIX=""
+if $NOTHINK; then
+  EXPERIMENT="qwen35b-a3b-local-nothink"
+  SUFFIX="-nothink"
+fi
 case "$MODE" in
-  smoke) N=5;   OUT_DIR="results/qwen35b-a3b-local-smoke"; SUBCMD="test"     ;;
-  mini)  N=25;  OUT_DIR="results/qwen35b-a3b-local-mini";  SUBCMD="test"     ;;
-  full)  N=0;   OUT_DIR="results/qwen35b-a3b-local";       SUBCMD="evaluate" ;;
+  smoke) N=5;   OUT_DIR="results/qwen35b-a3b-local-smoke${SUFFIX}"; SUBCMD="test"     ;;
+  mini)  N=25;  OUT_DIR="results/qwen35b-a3b-local-mini${SUFFIX}";  SUBCMD="test"     ;;
+  full)  N=0;   OUT_DIR="results/qwen35b-a3b-local${SUFFIX}";       SUBCMD="evaluate" ;;
 esac
 
 # ── Constants / env-overridable paths ─────────────────────────────────────────
@@ -64,15 +72,17 @@ WEIGHT_FILE="${QWEN35B_WEIGHT_FILE:-Qwen3.6-35B-A3B-UD-Q4_K_M.gguf}"
 EXPECTED_ALIAS="Qwen 35B A3B"
 PORT="${PORT:-8080}"
 LLAMA_URL="http://localhost:${PORT}"
-CONFIG_FILE="configs/qwen35b-a3b-local.env"
+CONFIG_FILE="configs/${EXPERIMENT}.env"
 BASELINE_DIR="results/baseline"
 
 # ── Pre-flight ────────────────────────────────────────────────────────────────
 echo "=== Qwen 35B-A3B Eval Orchestrator ==="
 echo "Mode:      $MODE  (n=$N, subcmd=$SUBCMD)"
+echo "Experiment:$EXPERIMENT"
 echo "Output:    $OUT_DIR"
 echo "Compare:   $DO_COMPARE  (vs $BASELINE_DIR)"
 echo "Keep srv:  $KEEP_SERVER"
+echo "Nothink:   $NOTHINK"
 echo "---"
 
 preflight_check() {
@@ -219,10 +229,10 @@ fi
 
 if [[ "$SUBCMD" == "test" ]]; then
   $INHIBIT poetry run python -m src.project.kele \
-    --experiment qwen35b-a3b-local test --n "$N" --output "$OUT_DIR"
+    --experiment "$EXPERIMENT" test --n "$N" --output "$OUT_DIR"
 else
   $INHIBIT poetry run python -m src.project.kele \
-    --experiment qwen35b-a3b-local evaluate --output "$OUT_DIR"
+    --experiment "$EXPERIMENT" evaluate --output "$OUT_DIR"
 fi
 
 echo
