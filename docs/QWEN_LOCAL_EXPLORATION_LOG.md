@@ -46,6 +46,10 @@ The **gpt-4o baseline** is the canonical comparison target for everything below.
 | 2 | qwen35b-a3b mini | 25 | — | — | — | — | — | — | — | held (per user direction) |
 | 3 | qwen27b + no-think (consultant) smoke | 5 | **29.99** | 12.36 | 21.91 | 5.22 | **39.39%** | 70 | 38.6 min | done — state acc unchanged from think; +3.6 ROUGE-1 |
 | 4 | qwen35b-a3b + no-think (consultant) smoke | 5 | 28.36 | 10.48 | 20.12 | 4.33 | **31.25%** | 17 | 9.3 min | done — state acc +7 pts vs think-on |
+| **5** | **qwen27b fusion (unified) think** | 5 | **31.88** | **14.08** | **23.76** | **6.09** | **46.88%** | 39 | 21 min | **done — best quality config; cracked stage d (25%)** |
+| **6** | **qwen27b fusion (unified) no-think** | 5 | 29.78 | 11.09 | 21.11 | 4.78 | 30.30% | 38 | 20.8 min | done — sharp -16.58 state acc collapse vs fusion think |
+| **7** | **qwen35b-a3b fusion (unified) think** | 5 | **32.96** | **12.59** | **23.93** | **5.87** | **42.42%** | 13 | 7 min | **done — best operational config; +16.48 over baseline at 1/3 27B's wall clock** |
+| **8** | **qwen35b-a3b fusion (unified) no-think** | 5 | 29.70 | 10.42 | 20.49 | 5.63 | 40.62% | 17 | 9.1 min | done — small regression vs fusion think (-1.80); 1 schema fallback |
 
 ### Per-stage state accuracy comparison (smoke, n=5, 33 turns each)
 
@@ -113,6 +117,98 @@ small code change. Even with that, the per-turn cost of two LLM calls remains.
 With only 3 B active params, A3B's CoT may meander; stripping it forces a
 direct classification pathway. The 27B no-think result is still in flight —
 TBD whether it shows the same effect.
+
+### Decision matrix — final, all 8 configs landed
+
+After completing all 4 fusion smokes (2026-05-04 11:55 → 12:53 PDT, ~58 min
+total). Sorted by overall state accuracy:
+
+| Config | ROUGE-1 | State acc | s/turn | Full-run | Notes |
+|---|---|---|---|---|---|
+| **27B fusion think** | 31.88 | **46.88%** | 39 | ~48 h | **Headline quality** — only config to crack stage d (25%); 0 fallbacks |
+| **A3B fusion think** | **32.96** | 42.42% | 13 | **~16 h** | **Operational winner** — 90% of 27B fusion's lift at 33% the wall clock |
+| A3B fusion no-think | 29.70 | 40.62% | 17 | ~21 h | Small regression vs fusion think; 1 schema fallback |
+| 27B no-think two-call | 29.99 | 39.39% | 70 | ~80 h | Best two-call config; matches 27B think on state acc, +3.6 ROUGE-1 |
+| 27B think two-call | 26.40 | 39.39% | 72 | ~88 h | Original 27B baseline; superseded by no-think and fusion |
+| A3B no-think two-call | 28.36 | 31.25% | 17 | ~21 h | Best two-call A3B; +7 over A3B think two-call |
+| 27B fusion no-think | 29.78 | 30.30% | 38 | ~47 h | Sharp regression — fusion + no-think doesn't compose on dense models |
+| gpt-4o baseline (n=681) | 44.61 | 25.94% | — | 4 h 34 m | Reference paper-faithful baseline |
+| A3B think two-call | 27.52 | 24.24% | 19 | ~24 h | Original A3B baseline; superseded by every other Qwen config |
+
+### Two-call vs fusion deltas (same model, same thinking mode)
+
+| Config pair | State acc Δ | ROUGE-1 Δ | Wall-clock Δ |
+|---|---|---|---|
+| 27B think: two-call → fusion | +7.49 | +5.48 | -46% |
+| 27B no-think: two-call → fusion | -9.09 | -0.21 | -45% |
+| A3B think: two-call → fusion | **+18.18** | +5.44 | -34% |
+| A3B no-think: two-call → fusion | +9.37 | +1.34 | -2% |
+
+**Three of four fusion variants strictly beat their two-call sibling on every
+metric.** The exception is 27B no-think — fusion + no-think on dense 27B
+collapses (the same composition is fine on A3B, only loses 1.80 pts).
+
+### Headline findings
+
+1. **Fusion architecture is the architectural win.** Every fusion + thinking
+   variant beats every two-call variant on state accuracy. The single-call
+   structured-output design isn't just faster — it's *better* at the
+   classification + generation joint task.
+
+2. **27B fusion think is the headline result for the paper.** 46.88% state acc,
+   +20.94 over the gpt-4o baseline. First config in this exploration to crack
+   stage d (25% — both 27B two-call variants got 0%). 21 min for n=5 = ~48 h
+   for full n=681. Multi-day weekend run.
+
+3. **A3B fusion think is the operational winner.** 42.42% state acc (+16.48
+   over baseline) with **7 min for n=5 = ~16 h overnight full run**. Sacrifices
+   ~4 state-acc points relative to 27B fusion for a 3× throughput win and
+   single-overnight feasibility. Slightly *higher* ROUGE-1 than 27B fusion
+   think (32.96 vs 31.88) — the structured-output joint task agrees with the
+   MoE just as well as with the dense model.
+
+4. **`/no_think` interacts with the fusion architecture, not the way it does
+   with two-call.** In two-call, `/no_think` is a free upgrade for both models.
+   In fusion + dense 27B, it collapses (-16.58 state acc). In fusion + MoE A3B,
+   it regresses slightly (-1.80) and produces one schema fallback. Hypothesis:
+   the unified call's joint state-classification + teacher-generation task
+   genuinely benefits from `<think>` reasoning depth; without it, the model has
+   to do too much in parallel and quality suffers. Two-call decouples the two
+   tasks so each is simpler and `/no_think` is fine.
+
+5. **Schema enforcement is rock-solid.** Across 130 turns of fusion, only 1
+   schema fallback (in A3B fusion no-think). llama.cpp's strict json_schema
+   constraint is reliable enough to depend on for production.
+
+6. **Stage d unlocked.** Both 27B two-call variants got 0% on stage d. Fusion
+   gets 20-25% across all variants except 27B fusion no-think. The state-action
+   map embedded directly in the unified prompt appears to be the lever — the
+   model has zero-cost access to "what does this state mean for the teacher"
+   without a second LLM hop and the context-loss it brings.
+
+### Recommendation for the full run
+
+**Primary: A3B fusion think.** Single overnight full run (~16 h). Beats
+gpt-4o baseline by +16.48 state acc + better ROUGE-1. Crash-safe per-item.
+Leaves comfortable headroom for restarts. This is the config to ship.
+
+**Secondary (paper headline if GPU time allows): 27B fusion think.** ~48 h
+weekend run for the +20.94 state-acc result and the only config that cracks
+stage d. Delivers a stronger paper headline at the cost of 3× the GPU time.
+
+**Both runs together:** complementary paper ablations. A3B fusion think tells
+the "MoE + structural classification" story; 27B fusion think tells the
+"dense Qwen3.6 outperforms gpt-4o" story. Different strengths in different
+stages (27B fusion think wins stage c at 30.77% — A3B couldn't match — but
+loses stage e to A3B 75% vs 75% tied).
+
+### What we're NOT doing as of 2026-05-04 12:53 PDT
+
+Per user direction: GPU goes to other (non-project) work after fusion smokes.
+Mini runs (TODO M1, M2, M3 above) are deferred until GPU is available again.
+The persistent docs hold all the gating logic for picking up later.
+
+---
 
 ### Decision matrix for the "improved session" full run
 

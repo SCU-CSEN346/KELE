@@ -1,0 +1,15 @@
+{
+  "experiment": "qwen35b-a3b-local-smoke-unified-nothink",
+  "teacher_model": "Qwen 35B A3B",
+  "teacher_base_url": "http://localhost:8080/v1",
+  "consultant_model": "Qwen 35B A3B",
+  "consultant_base_url": "http://localhost:8080/v1",
+  "max_teaching_rounds": 8,
+  "unified": true,
+  "total_dialogues": 5,
+  "completed": 5,
+  "total_elapsed_seconds": 547.27,
+  "started_at": "2026-05-04 12:44:30",
+  "finished_at": "2026-05-04 12:53:38",
+  "unified_fallback_count": 1
+}
