@@ -39,7 +39,8 @@ These can be identified by `translation_meta.model = "claude-sonnet-4-6"`.
 |---|---|
 | KELE paper | https://aclanthology.org/2025.findings-emnlp.888/ |
 | KELE GitHub | https://github.com/yuanpan1020/KELE |
-| SocratTeachLLM model | https://huggingface.co/yuanpan/SocratTeachLLM |
+| SocratTeachLLM (original) | https://huggingface.co/yuanpan/SocratTeachLLM |
+| SocratTeachLLM (copy w/ expanded README) | https://huggingface.co/ulises-c/SocratTeachLLM |
 | Original Chinese dataset | https://huggingface.co/datasets/ulises-c/SocratDataset |
 | Translation + evaluation code | https://github.com/ulises-c/csen-346 |
 

@@ -29,6 +29,11 @@ The original SocratDataset was distributed as a JSON file in the KELE GitHub rep
 - Context: CSEN 346 (Natural Language Processing), Santa Clara University
 - Upload repository: https://github.com/ulises-c/csen-346
 
+## Model Trained on This Dataset
+
+- Original fine-tuned model: https://huggingface.co/yuanpan/SocratTeachLLM
+- Copy with expanded README: https://huggingface.co/ulises-c/SocratTeachLLM
+
 ## English Translation
 
 An English translation of this dataset is available at:
