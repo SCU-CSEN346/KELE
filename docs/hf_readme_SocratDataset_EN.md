@@ -187,7 +187,7 @@ The original Chinese dataset (SocratDataset) was produced by the KELE research t
 
 ## Citation
 
-If you use this dataset, please cite the original KELE paper and credit the translation:
+If you use this dataset, please cite **both** the original KELE paper and the translation:
 
 ```bibtex
 @inproceedings{peng-etal-2025-kele,
@@ -197,9 +197,17 @@ If you use this dataset, please cite the original KELE paper and credit the tran
   year      = {2025},
   url       = {https://aclanthology.org/2025.findings-emnlp.888/}
 }
-```
 
-English translation by Ulises Chavarria — [github.com/ulises-c/csen-346](https://github.com/ulises-c/csen-346)
+@misc{chavarria-2025-socratdataset-en,
+  author    = {Chavarria, Ulises},
+  title     = {{SocratDataset-EN}: English Translation of {SocratDataset}},
+  year      = {2025},
+  url       = {https://huggingface.co/datasets/ulises-c/SocratDataset-EN},
+  note      = {English translation of SocratDataset (Peng et al., 2025).
+               Translation pipeline: github.com/ulises-c/csen-346.
+               CSEN 346, Santa Clara University.}
+}
+```
 
 ---
 

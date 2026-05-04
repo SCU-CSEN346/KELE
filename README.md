@@ -8,7 +8,7 @@ This project reproduces and extends **KELE**, a multi-agent framework for struct
 - **SocratTeachLLM model (our fork):** https://huggingface.co/ulises-c/SocratTeachLLM
 - **SocratTeachLLM model (original):** https://huggingface.co/yuanpan/SocratTeachLLM
 - **SocratDataset (Chinese):** https://huggingface.co/datasets/ulises-c/SocratDataset
-- **SocratDataset-en (English, planned):** https://huggingface.co/datasets/ulises-c/SocratDataset-en
+- **SocratDataset-EN (English):** https://huggingface.co/datasets/ulises-c/SocratDataset-EN
 
 ## Hugging Face
 
@@ -18,11 +18,11 @@ We host both the teacher model and the dataset on Hugging Face under `ulises-c/`
 |---|---|---|
 | SocratTeachLLM (model) | [ulises-c/SocratTeachLLM](https://huggingface.co/ulises-c/SocratTeachLLM) | Live |
 | SocratDataset (Chinese) | [ulises-c/SocratDataset](https://huggingface.co/datasets/ulises-c/SocratDataset) | Live |
-| SocratDataset-en (English) | [ulises-c/SocratDataset-en](https://huggingface.co/datasets/ulises-c/SocratDataset-en) | Planned — see [`docs/TRANSLATION_PLAN.md`](docs/TRANSLATION_PLAN.md) |
+| SocratDataset-EN (English) | [ulises-c/SocratDataset-EN](https://huggingface.co/datasets/ulises-c/SocratDataset-EN) | Live — see [`docs/TRANSLATION_PLAN.md`](docs/TRANSLATION_PLAN.md) |
 
 **What we use HF for:**
 - Downloading SocratTeachLLM for local serving (`hf download ulises-c/SocratTeachLLM`)
-- Hosting SocratDataset — 6,803 Chinese Socratic math tutoring dialogues with 30-state cognitive labels
+- Hosting SocratDataset — 6,803 Chinese Socratic science tutoring dialogues with 34-strategy / 5-stage SocRule labels
 - Free inference via the [Inference Providers API](https://huggingface.co/docs/inference-providers/en/index) (rate-limited, no local GPU needed for quick tests)
 - Model versioning — experiment checkpoints and variants can be pushed as separate revisions
 

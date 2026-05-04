@@ -286,8 +286,8 @@ Key observations:
 
 | Step | Action | Status |
 |---|---|---|
-| 1 | Translate SocratDataset (Chinese → English) | In progress — full run running |
-| 2 | Publish `ulises-c/SocratDataset-EN` to HuggingFace | Blocked on step 1 |
+| 1 | Translate SocratDataset (Chinese → English) | **Complete** — 6,803/6,803 records, zero Chinese characters remaining |
+| 2 | Publish `ulises-c/SocratDataset-EN` to HuggingFace | **Complete** — live at [ulises-c/SocratDataset-EN](https://huggingface.co/datasets/ulises-c/SocratDataset-EN) |
 | 3 | Run B.3 on ARC-Easy + OpenBookQA to filter and enrich | Planned |
 | 4 | Run B.4 on filtered questions to generate dialogues | Planned |
 | 5 | Score with B.5 rubric; drop low-quality dialogues | Planned |

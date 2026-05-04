@@ -2,6 +2,8 @@
 
 **CSEN 346 · Santa Clara University**
 
+**Status: Complete** — `ulises-c/SocratDataset-EN` is live on HuggingFace with all 6,803 records translated and zero Chinese characters remaining in any field. See the [HuggingFace README](hf_readme_SocratDataset_EN.md) for full methodology documentation.
+
 Goal: produce `ulises-c/SocratDataset-EN` — an English translation of the original Chinese SocratDataset, preserving all structural annotations intact, suitable for training and evaluating an English-language KELE system.
 
 ---
@@ -71,48 +73,45 @@ Pre-translated as hardcoded lookup tables in `translate_dataset.py`:
 
 ## 4. Translation hardware and model
 
+**As built:**
+
 | Setting | Value |
 |---|---|
 | GPU | AMD Radeon AI PRO R9700 · 32 GB VRAM · RDNA 4 · ROCm |
-| **Model** | **Qwen3.5-27B** |
-| **Quantization** | **Q4_K_M (~16.5 GB VRAM)** |
-| Context window | 262,144 tokens natively |
-| Inference stack | vLLM + ROCm |
+| **Model** | **Qwen3.5-9B-UD-Q4_K_XL** |
+| **Quantization** | **Q4_K_XL (unsloth dynamic, 4-bit)** |
+| Inference stack | llama.cpp |
+| Throughput | ~370–390 records/hour |
+| Total runtime | ~18 hours for 6,803 records |
 
-**Why Qwen3.5-27B Q4_K_M:**
-- Uses ~16.5 GB of 32 GB, leaving headroom for KV cache on long batches
-- Qwen series leads Chinese↔English translation benchmarks among open models
-- Q4_K_M is within ~0.5–1% perplexity of BF16 — effectively lossless for translation
-- Released Feb 2026; throughput-optimized (vs. Qwen3.6 which is reasoning-focused — lower throughput for batch work)
+**Original plan (Qwen3.5-27B Q4_K_M via vLLM):** The 27B model was chosen for quality, but the 9B proved sufficient for translation fidelity at roughly 3× the throughput. vLLM ROCm support for RDNA 4 had driver issues at run time; llama.cpp was used instead.
 
 **Alternatives considered:**
 
-| Model | Q4_K_M VRAM | Notes |
-|---|---|---|
-| Qwen3.6-27B-Instruct | ~16.8 GB | Latest (Apr 2026), reasoning-focused — good quality, lower throughput |
-| Qwen3.5-35B-A3B-Instruct | ~21 GB | MoE, 3B active — fast, but tighter on VRAM |
-| Gemma 4 27B INT8 | ~26 GB | Previous recommendation; Qwen edges it for Chinese |
+| Model | Notes |
+|---|---|
+| Qwen3.5-27B Q4_K_M | Original plan; ~16.5 GB VRAM; slightly higher fidelity, 3× slower |
+| Qwen3.6-27B-Instruct | Latest at time of run; reasoning-focused — lower throughput for batch work |
+| Gemma 4 27B INT8 | ~26 GB VRAM; Qwen edges it for Chinese↔English |
 
 **Qwen-MT:** Alibaba's `qwen-mt-turbo` is RL-tuned specifically for translation and reportedly competitive with GPT-4.1. It is **API-only** (Alibaba Cloud) — no open weights for local deployment.
-
-**ROCm note:** AMD's "Day 0 support" targets AMD Instinct (MI300X/MI325X, CDNA). The R9700 is RDNA 4. vLLM ROCm support for RDNA 4 is validated through existing project runs; run the smoke test before the full overnight job.
 
 ---
 
 ## 5. Script: `src/project/translate_dataset.py`
 
-### Configuration block (edit before running)
+### Configuration block (as built)
 
 ```python
 PUSH_TO_HUB: bool = True                # auto-upload dataset + checkpoints to HF
 HF_REPO: str = "ulises-c/SocratDataset-EN"
-HF_CHECKPOINT_EVERY: int = 500          # upload checkpoint to HF every N records (0 to disable)
-LOCAL_CHECKPOINT_EVERY: int = 50        # save local checkpoint every N records
-MODEL: str = "Qwen/Qwen3.5-27B"
-BASE_URL: str = "http://localhost:8000/v1"
+HF_CHECKPOINT_EVERY: int = 50           # upload checkpoint to HF every N records
+LOCAL_CHECKPOINT_EVERY: int = 5         # save local checkpoint every N records
+MODEL: str = "Qwen3.5-9B-UD-Q4_K_XL.gguf"
+BASE_URL: str = "http://localhost:8080/v1"  # llama.cpp server
 INPUT_PATH: str = "references/KELE/SocratDataset.json"
-OUTPUT_PATH: str = "references/KELE/SocratDataset-EN.json"
-CHECKPOINT_PATH: str = "references/KELE/translate_checkpoint.json"
+OUTPUT_PATH: str = "data/SocratDataset-EN.json"
+CHECKPOINT_PATH: str = "data/translate_checkpoint.json"
 ```
 
 ### CLI usage
@@ -143,8 +142,8 @@ Two-tier checkpoint design:
 
 | Tier | Frequency | Location | Purpose |
 |---|---|---|---|
-| **Local** | Every 50 records | `references/KELE/translate_checkpoint.json` | Fast recovery from script crash / Ctrl-C |
-| **HuggingFace** | Every 500 records | `ulises-c/SocratDataset-EN/translate_checkpoint.json` | Recovery if the whole machine dies overnight |
+| **Local** | Every 5 records | `data/translate_checkpoint.json` | Fast recovery from script crash / Ctrl-C |
+| **HuggingFace** | Every 50 records | `ulises-c/SocratDataset-EN/translate_checkpoint.json` | Recovery if the whole machine dies overnight |
 
 The HF checkpoint uploads the same JSON (translated records so far + action cache) as a repo file via `huggingface_hub.upload_file()`. To resume after a machine failure:
 
@@ -188,7 +187,7 @@ Each row is translated as a single structured prompt containing all LLM-translat
 
 **Batch size:** 1 record per request initially (conservative). The 262K context window easily fits 5–10 records; experiment after confirming baseline quality on the smoke test.
 
-**Estimated throughput:** Qwen3.5-27B Q4_K_M on the R9700 at ~400–700 tok/s. Each record produces ~400–800 translated tokens. At 550 tok/s: ~6,800 × 600 tokens / 550 tok/s ≈ **~2–4 hours** for the full dataset.
+**Actual throughput:** Qwen3.5-9B-UD-Q4_K_XL via llama.cpp on the R9700 achieved **~370–390 records/hour**, completing all 6,803 records in approximately 18 hours over two overnight runs.
 
 ---
 

@@ -27,7 +27,7 @@ The following files have been translated from Chinese to English for readability
 | `consultant_teacher_socratic_teaching_system.py` | Translated — comments, docstrings, prompts, and UI strings       |
 | `README.md`                                      | Translated — see `README_CN.md` for the original Chinese version |
 | `README_CN.md`                                   | Original Chinese README, preserved unmodified                    |
-| `SocratDataset.json`                             | Untranslated — dataset content remains in Chinese                |
+| `SocratDataset.json`                             | Untranslated — dataset content remains in Chinese (English translation at [ulises-c/SocratDataset-EN](https://huggingface.co/datasets/ulises-c/SocratDataset-EN)) |
 
 ## Note
 

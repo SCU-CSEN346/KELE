@@ -33,6 +33,32 @@ IDs: **1328, 1639, 2655, 2766, 3524, 3532, 4162, 6313, 6437**
 
 These can be identified by `translation_meta.model = "claude-sonnet-4-6"`.
 
+## How to Cite This Translation
+
+```bibtex
+@misc{chavarria-2025-socratdataset-en,
+  author    = {Chavarria, Ulises},
+  title     = {{SocratDataset-EN}: English Translation of {SocratDataset}},
+  year      = {2025},
+  url       = {https://huggingface.co/datasets/ulises-c/SocratDataset-EN},
+  note      = {English translation of SocratDataset (Peng et al., 2025).
+               Translation pipeline: github.com/ulises-c/csen-346.
+               CSEN 346, Santa Clara University.}
+}
+```
+
+The KELE paper must also be cited:
+
+```bibtex
+@inproceedings{peng-etal-2025-kele,
+  title     = {{KELE}: A Multi-Agent Framework for Structured {S}ocratic Teaching with Large Language Models},
+  author    = {Peng, Yuan and others},
+  booktitle = {Findings of the Association for Computational Linguistics: EMNLP 2025},
+  year      = {2025},
+  url       = {https://aclanthology.org/2025.findings-emnlp.888/}
+}
+```
+
 ## Related Resources
 
 | Resource | Link |
