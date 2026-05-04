@@ -1,7 +1,10 @@
 .PHONY: help run install-hooks slurm \
         post-eval-shutdown run-eval \
         eval-qwen27b-smoke eval-qwen27b-mini eval-qwen27b-full \
-        serve-both serve-dual-gpu serve-consultant serve-gemma4 serve-qwen27b serve-socratteachllm serve-teacher-online \
+        eval-qwen35b-a3b-smoke eval-qwen35b-a3b-mini eval-qwen35b-a3b-full \
+        serve-both serve-dual-gpu serve-consultant serve-gemma4 \
+        serve-qwen27b serve-qwen35b-a3b \
+        serve-socratteachllm serve-teacher-online \
         setup-l40s pre-commit start-local-tl-server
 
 # Default target
@@ -23,12 +26,16 @@ help:
 	@echo "  serve-consultant      Run scripts/serve_consultant.sh"
 	@echo "  serve-gemma4          Run scripts/serve_gemma4.sh"
 	@echo "  serve-qwen27b         Run scripts/serve_qwen27b_q5.sh (Qwen3.6-27B Q5, dual-role teacher+consultant)"
+	@echo "  serve-qwen35b-a3b     Run scripts/serve_qwen35b_a3b.sh (Qwen3.6-35B-A3B MoE, ~3x faster than 27B)"
 	@echo "  serve-socratteachllm  Run scripts/serve_socratteachllm.sh"
 	@echo "  serve-teacher-online  Run scripts/serve_teacher_online.sh"
 	@echo "  start-local-tl-server  Start local llama.cpp server for dataset translation (Qwen3.5-9B)"
 	@echo "  eval-qwen27b-smoke    Run scripts/eval_qwen27b.sh smoke (n=5,   ~5 min)"
 	@echo "  eval-qwen27b-mini     Run scripts/eval_qwen27b.sh mini  (n=25,  ~15 min)"
-	@echo "  eval-qwen27b-full     Run scripts/eval_qwen27b.sh full  (n=681, ~6-7 h)"
+	@echo "  eval-qwen27b-full     Run scripts/eval_qwen27b.sh full  (n=681, ~75 h — measured)"
+	@echo "  eval-qwen35b-a3b-smoke Run scripts/eval_qwen35b_a3b.sh smoke (n=5,   ~2 min projected)"
+	@echo "  eval-qwen35b-a3b-mini  Run scripts/eval_qwen35b_a3b.sh mini  (n=25,  ~5 min projected)"
+	@echo "  eval-qwen35b-a3b-full  Run scripts/eval_qwen35b_a3b.sh full  (n=681, ~20-30 h projected)"
 	@echo ""
 	@echo "  WAVE HPC (SLURM):"
 	@echo "  slurm                 git pull + sbatch wave_eval.slurm + print status"
@@ -116,6 +123,18 @@ eval-qwen27b-mini:
 
 eval-qwen27b-full:
 	bash scripts/eval_qwen27b.sh full
+
+serve-qwen35b-a3b:
+	bash scripts/serve_qwen35b_a3b.sh
+
+eval-qwen35b-a3b-smoke:
+	bash scripts/eval_qwen35b_a3b.sh smoke
+
+eval-qwen35b-a3b-mini:
+	bash scripts/eval_qwen35b_a3b.sh mini
+
+eval-qwen35b-a3b-full:
+	bash scripts/eval_qwen35b_a3b.sh full
 
 # ── WAVE HPC ──────────────────────────────────────────────────────────────────
 
