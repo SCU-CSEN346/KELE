@@ -1,6 +1,7 @@
 .PHONY: help run install-hooks slurm \
         post-eval-shutdown run-eval \
-        serve-both serve-dual-gpu serve-consultant serve-gemma4 serve-socratteachllm serve-teacher-online \
+        eval-qwen27b-smoke eval-qwen27b-mini eval-qwen27b-full \
+        serve-both serve-dual-gpu serve-consultant serve-gemma4 serve-qwen27b serve-socratteachllm serve-teacher-online \
         setup-l40s pre-commit start-local-tl-server
 
 # Default target
@@ -21,9 +22,13 @@ help:
 	@echo "  serve-dual-gpu        Run scripts/serve_dual_gpu.sh (2 GPUs, teacher→GPU0 consultant→GPU1)"
 	@echo "  serve-consultant      Run scripts/serve_consultant.sh"
 	@echo "  serve-gemma4          Run scripts/serve_gemma4.sh"
+	@echo "  serve-qwen27b         Run scripts/serve_qwen27b_q5.sh (Qwen3.6-27B Q5, dual-role teacher+consultant)"
 	@echo "  serve-socratteachllm  Run scripts/serve_socratteachllm.sh"
 	@echo "  serve-teacher-online  Run scripts/serve_teacher_online.sh"
 	@echo "  start-local-tl-server  Start local llama.cpp server for dataset translation (Qwen3.5-9B)"
+	@echo "  eval-qwen27b-smoke    Run scripts/eval_qwen27b.sh smoke (n=5,   ~5 min)"
+	@echo "  eval-qwen27b-mini     Run scripts/eval_qwen27b.sh mini  (n=25,  ~15 min)"
+	@echo "  eval-qwen27b-full     Run scripts/eval_qwen27b.sh full  (n=681, ~6-7 h)"
 	@echo ""
 	@echo "  WAVE HPC (SLURM):"
 	@echo "  slurm                 git pull + sbatch wave_eval.slurm + print status"
@@ -91,6 +96,9 @@ serve-consultant:
 serve-gemma4:
 	bash scripts/serve_gemma4.sh
 
+serve-qwen27b:
+	bash scripts/serve_qwen27b_q5.sh
+
 serve-socratteachllm:
 	bash scripts/serve_socratteachllm.sh
 
@@ -99,6 +107,15 @@ serve-teacher-online:
 
 start-local-tl-server:
 	bash scripts/start_tl_server.sh
+
+eval-qwen27b-smoke:
+	bash scripts/eval_qwen27b.sh smoke
+
+eval-qwen27b-mini:
+	bash scripts/eval_qwen27b.sh mini
+
+eval-qwen27b-full:
+	bash scripts/eval_qwen27b.sh full
 
 # ── WAVE HPC ──────────────────────────────────────────────────────────────────
 
