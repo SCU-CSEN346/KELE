@@ -88,6 +88,79 @@ The **gpt-4o baseline** is the canonical comparison target for everything below.
 
 The next two smokes will tell us whether `/no_think` on the consultant preserves classification accuracy. If 27B + no-think holds the +13 state acc lift at ~30-40 h, that's our winner. If A3B + no-think holds the ~24% baseline-tied accuracy at ~10-15 h, that's the fastest viable for iteration.
 
+### Realization after no-think smokes — speed lever was wrong
+
+After running both no-think smokes, the *teacher* turns out to dominate
+wall-clock time, not the consultant. Disabling consultant thinking gives only
+modest speed savings:
+
+| Config | s/turn | Δ vs think variant |
+|---|---|---|
+| 27B think | 72 | (baseline) |
+| 27B no-think | ~90+ (cold-cached, may settle) | possibly **slower**, not faster |
+| A3B think | 19 | (baseline) |
+| A3B no-think | 17 | -10% (modest) |
+
+**Implication:** to actually speed up either model, we need teacher-side
+thinking disabled too — or we need a **structural** change like collapsing the
+two-call pipeline into one. The consultant-thinking knob is plumbed through
+`socratic_teaching_system.py:312` (prepends `/no_think`); the equivalent for
+the teacher (`socrates_teacher` at line 388) does not exist and would need a
+small code change. Even with that, the per-turn cost of two LLM calls remains.
+
+**The unexpectedly good news from no-think smokes:** A3B + consultant no-think
+*beats* its own with-think variant on state accuracy (24.24% → 31.25%, +7 pts).
+With only 3 B active params, A3B's CoT may meander; stripping it forces a
+direct classification pathway. The 27B no-think result is still in flight —
+TBD whether it shows the same effect.
+
+### Decision matrix for the "improved session" full run
+
+Given the 88-h wall clock for any 27B configuration and the project deadline
+of June 4 (one month away), the practical best config for a single overnight
+full run is:
+
+| Config | State acc (smoke) | Full-run wall clock | Decision |
+|---|---|---|---|
+| 27B think | **39.39%** | ~88 h | Best quality, fits only as a multi-day weekend run |
+| 27B no-think | TBD | ~88 h+ | Likely no faster, possibly slower; quality TBD |
+| A3B think | 24.24% | ~23 h | Fast but ties baseline, no quality win |
+| **A3B no-think** | **31.25%** | **~21 h** | **Recommended for "improved session"** |
+
+**Recommendation:** A3B no-think is the most pragmatic choice — beats the
+gpt-4o baseline by +5.31 state-acc points, fits in an overnight run,
+crash-safe per-item, leaves headroom to iterate.
+
+**If multi-day GPU time is available:** also run 27B think over a weekend
+(~88 h, starts Friday evening, lands Tuesday morning) for the headline
++13 state-acc result. The two runs tell different paper stories; both are
+defensible ablation rows.
+
+### Phase 3 lever — fusion (formal plan landed)
+
+The next obvious move after "tune the existing two-call pipeline" is
+*eliminate the second call entirely* by merging consultant + teacher into one
+structured-output call. This is the **Consultant-Teacher Fusion** plan from
+`docs/IMPROVEMENT_PLAN.md` #4 and `docs/QWEN27B_LOCAL_PLAN.md` Phase 3 — both
+foreshadowed at the start of this exploration. With both agents already on
+the same llama.cpp server, this is now primarily a code change rather than
+infra work.
+
+**Formal plan: [`docs/SOCRATIC_FUSION_PLAN.md`](SOCRATIC_FUSION_PLAN.md).**
+
+Highlights:
+- llama.cpp accepts strict `json_schema` response_format (verified live).
+- Qwen3.6 surfaces thinking via separate `reasoning_content` field — CoT does
+  not pollute structured output.
+- Projected wall clock: 27B from ~88 h → ~50–60 h; A3B from ~23 h → ~12–15 h.
+- Implementation is a new `SocraticTeachingSystemUnified` subclass + a
+  `--unified` flag on `kele.py`; orchestrator plumbing is one line per script.
+- Hardest design issue is state-coherence after Python glue override. Plan
+  defaults to "trust the model's response, log divergence rate, revisit if
+  high" (Option A in the plan).
+- Validation cadence: smoke (n=5) on A3B unified vs A3B two-call (already in
+  hand) → mini (n=25) → full (n=681).
+
 ### Live observations
 
 **2026-05-04 10:00 — Qwen 27B Q5 smoke kicked off (warm server reuse after cold-load fix)**

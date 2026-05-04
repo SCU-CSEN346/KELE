@@ -1,7 +1,9 @@
 .PHONY: help run install-hooks slurm \
         post-eval-shutdown run-eval \
         eval-qwen27b-smoke eval-qwen27b-mini eval-qwen27b-full \
+        eval-qwen27b-fusion-smoke eval-qwen27b-fusion-nothink-smoke \
         eval-qwen35b-a3b-smoke eval-qwen35b-a3b-mini eval-qwen35b-a3b-full \
+        eval-qwen35b-a3b-fusion-smoke eval-qwen35b-a3b-fusion-nothink-smoke \
         serve-both serve-dual-gpu serve-consultant serve-gemma4 \
         serve-qwen27b serve-qwen35b-a3b \
         serve-socratteachllm serve-teacher-online \
@@ -36,6 +38,12 @@ help:
 	@echo "  eval-qwen35b-a3b-smoke Run scripts/eval_qwen35b_a3b.sh smoke (n=5,   ~2 min projected)"
 	@echo "  eval-qwen35b-a3b-mini  Run scripts/eval_qwen35b_a3b.sh mini  (n=25,  ~5 min projected)"
 	@echo "  eval-qwen35b-a3b-full  Run scripts/eval_qwen35b_a3b.sh full  (n=681, ~20-30 h projected)"
+	@echo ""
+	@echo "  Fusion smoke targets (single-call architecture, see SOCRATIC_FUSION_PLAN.md):"
+	@echo "  eval-qwen27b-fusion-smoke           27B + unified (think on)"
+	@echo "  eval-qwen27b-fusion-nothink-smoke   27B + unified + no-think"
+	@echo "  eval-qwen35b-a3b-fusion-smoke         A3B + unified (think on)"
+	@echo "  eval-qwen35b-a3b-fusion-nothink-smoke A3B + unified + no-think"
 	@echo ""
 	@echo "  WAVE HPC (SLURM):"
 	@echo "  slurm                 git pull + sbatch wave_eval.slurm + print status"
@@ -135,6 +143,22 @@ eval-qwen35b-a3b-mini:
 
 eval-qwen35b-a3b-full:
 	bash scripts/eval_qwen35b_a3b.sh full
+
+# ── Fusion smoke targets (single-call architecture) ──────────────────────────
+# See docs/SOCRATIC_FUSION_PLAN.md. Each writes to a distinct results/ dir
+# so all four can coexist alongside the existing two-call smoke results.
+
+eval-qwen27b-fusion-smoke:
+	bash scripts/eval_qwen27b.sh smoke --unified
+
+eval-qwen27b-fusion-nothink-smoke:
+	bash scripts/eval_qwen27b.sh smoke --unified --nothink
+
+eval-qwen35b-a3b-fusion-smoke:
+	bash scripts/eval_qwen35b_a3b.sh smoke --unified
+
+eval-qwen35b-a3b-fusion-nothink-smoke:
+	bash scripts/eval_qwen35b_a3b.sh smoke --unified --nothink
 
 # ── WAVE HPC ──────────────────────────────────────────────────────────────────
 

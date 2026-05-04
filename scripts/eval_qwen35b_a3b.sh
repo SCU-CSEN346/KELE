@@ -30,6 +30,7 @@ MODE=""
 KEEP_SERVER=false
 DO_COMPARE=true
 NOTHINK=false
+UNIFIED=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -37,27 +38,32 @@ while [[ $# -gt 0 ]]; do
     --keep-server)   KEEP_SERVER=true; shift ;;
     --no-compare)    DO_COMPARE=false; shift ;;
     --nothink)       NOTHINK=true; shift ;;
+    --unified)       UNIFIED=true; shift ;;
     -h|--help)
       sed -n '2,16p' "$0"
       exit 0 ;;
     *)
       echo "Unknown arg: $1" >&2
-      echo "Usage: $0 {smoke|mini|full} [--keep-server] [--no-compare] [--nothink]" >&2
+      echo "Usage: $0 {smoke|mini|full} [--keep-server] [--no-compare] [--nothink] [--unified]" >&2
       exit 1 ;;
   esac
 done
 
 if [[ -z "$MODE" ]]; then
-  echo "Usage: $0 {smoke|mini|full} [--keep-server] [--no-compare] [--nothink]" >&2
+  echo "Usage: $0 {smoke|mini|full} [--keep-server] [--no-compare] [--nothink] [--unified]" >&2
   exit 1
 fi
 
 # ── Mode config ───────────────────────────────────────────────────────────────
+# Output dir suffix is built up: -unified comes first, -nothink second.
 EXPERIMENT="qwen35b-a3b-local"
 SUFFIX=""
+if $UNIFIED; then
+  SUFFIX="${SUFFIX}-unified"
+fi
 if $NOTHINK; then
   EXPERIMENT="qwen35b-a3b-local-nothink"
-  SUFFIX="-nothink"
+  SUFFIX="${SUFFIX}-nothink"
 fi
 case "$MODE" in
   smoke) N=5;   OUT_DIR="results/qwen35b-a3b-local-smoke${SUFFIX}"; SUBCMD="test"     ;;
@@ -83,6 +89,7 @@ echo "Output:    $OUT_DIR"
 echo "Compare:   $DO_COMPARE  (vs $BASELINE_DIR)"
 echo "Keep srv:  $KEEP_SERVER"
 echo "Nothink:   $NOTHINK"
+echo "Unified:   $UNIFIED"
 echo "---"
 
 preflight_check() {
@@ -227,12 +234,17 @@ if command -v systemd-inhibit &>/dev/null; then
   INHIBIT="systemd-inhibit --what=sleep:idle --who=eval_qwen35b_a3b.sh --why=KELE-eval"
 fi
 
+EXTRA_KELE_ARGS=()
+if $UNIFIED; then EXTRA_KELE_ARGS+=(--unified); fi
+
 if [[ "$SUBCMD" == "test" ]]; then
   $INHIBIT poetry run python -m src.project.kele \
-    --experiment "$EXPERIMENT" test --n "$N" --output "$OUT_DIR"
+    --experiment "$EXPERIMENT" test --n "$N" --output "$OUT_DIR" \
+    "${EXTRA_KELE_ARGS[@]:-}"
 else
   $INHIBIT poetry run python -m src.project.kele \
-    --experiment "$EXPERIMENT" evaluate --output "$OUT_DIR"
+    --experiment "$EXPERIMENT" evaluate --output "$OUT_DIR" \
+    "${EXTRA_KELE_ARGS[@]:-}"
 fi
 
 echo
