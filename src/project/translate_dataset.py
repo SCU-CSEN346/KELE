@@ -235,6 +235,14 @@ _FIELDS_REMINDER = (
     "Do not split student and teacher into separate turns."
 )
 
+_CHINESE_REMINDER = (
+    "\n\nIMPORTANT: your previous response still contained Chinese characters in student/teacher "
+    "fields. Translate ALL Chinese text to English — including short phrases and technical terms. "
+    "Do not leave any Chinese characters in the output."
+)
+
+_CHINESE_RE = re.compile(r"[一-鿿]")
+
 
 def _merge_split_turns(turns: list[dict], expected: int) -> list[dict]:
     """Merge split turns when the model separates student/teacher into individual turns.
@@ -310,14 +318,22 @@ def translate_record(client: OpenAI, model: str, record: dict, retries: int = 3)
             ]
             if missing_fields:
                 raise ValueError(f"turns missing student/teacher fields: {missing_fields}")
+            chinese_turns = [
+                i
+                for i, t in enumerate(turns[:expected])
+                if _CHINESE_RE.search(t.get("student", "") + t.get("teacher", ""))
+            ]
+            if chinese_turns:
+                raise ValueError(f"Chinese characters remain in turns: {chinese_turns}")
             return result
         except Exception as e:
             last_err = e
             if attempt < retries - 1:
-                # Choose reminder based on failure type
                 msg = str(e)
                 if "missing student/teacher" in msg:
                     last_reminder = _FIELDS_REMINDER
+                elif "Chinese characters remain" in msg:
+                    last_reminder = _CHINESE_REMINDER
                 else:
                     last_reminder = _ESCAPE_REMINDER
                 time.sleep(2**attempt)
