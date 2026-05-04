@@ -16,11 +16,24 @@ RESOURCES_DIR = Path(__file__).resolve().parents[2] / "references" / "KELE"
 
 
 def create_system(
-    debug: bool | None = None, experiment: str | None = None
+    debug: bool | None = None,
+    experiment: str | None = None,
+    unified: bool = False,
 ) -> SocraticTeachingSystem:
-    """Create a SocraticTeachingSystem from environment config."""
+    """Create a SocraticTeachingSystem from environment config.
+
+    If unified=True, instantiates SocraticTeachingSystemUnified — the
+    single-call variant that fuses consultant + teacher into one
+    structured-output LLM call. See docs/SOCRATIC_FUSION_PLAN.md.
+    """
     cfg = load_config(experiment=experiment)
-    return SocraticTeachingSystem(
+    if unified:
+        from src.project.socratic_teaching_unified import SocraticTeachingSystemUnified
+
+        cls: type[SocraticTeachingSystem] = SocraticTeachingSystemUnified
+    else:
+        cls = SocraticTeachingSystem
+    return cls(
         consultant_api_key=cfg.consultant.api_key,
         consultant_base_url=cfg.consultant.base_url,
         consultant_model_name=cfg.consultant.model_name,
@@ -113,11 +126,15 @@ def run_batch_evaluation(
     limit: int | None = None,
     experiment: str | None = None,
     split: str = "test",
+    unified: bool = False,
 ) -> None:
     """Run the full evaluation pipeline on the dataset.
 
     Saves each dialogue result individually (crash-safe) and writes
     a progress log for monitoring.
+
+    If unified=True, uses the single-call fusion architecture
+    (see docs/SOCRATIC_FUSION_PLAN.md).
     """
     dataset = load_dataset(dataset_path, split=split)
     total = len(dataset)
@@ -127,7 +144,7 @@ def run_batch_evaluation(
     if limit is not None:
         dataset = dataset[:limit]
 
-    system = create_system(debug=False, experiment=experiment)
+    system = create_system(debug=False, experiment=experiment, unified=unified)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     dialogues_dir = output_dir / "dialogues"
@@ -211,12 +228,15 @@ def run_batch_evaluation(
         "consultant_model": cfg.consultant.model_name,
         "consultant_base_url": cfg.consultant.base_url,
         "max_teaching_rounds": cfg.max_teaching_rounds,
+        "unified": unified,
         "total_dialogues": len(dataset),
         "completed": completed,
         "total_elapsed_seconds": round(time.time() - start_time, 2),
         "started_at": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time)),
         "finished_at": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
+    if unified and hasattr(system, "_unified_fallback_count"):
+        run_config["unified_fallback_count"] = system._unified_fallback_count
     with open(output_dir / "run_config.json", "w") as f:
         json.dump(run_config, f, indent=2)
 
@@ -265,11 +285,23 @@ def main() -> None:
     )
     eval_parser.add_argument("--start-id", type=int, default=1, help="Resume from this dialogue ID")
     eval_parser.add_argument("--limit", type=int, default=None, help="Max dialogues to process")
+    eval_parser.add_argument(
+        "--unified",
+        action="store_true",
+        help="Use single-call fusion architecture (consultant + teacher in one LLM call). "
+        "See docs/SOCRATIC_FUSION_PLAN.md.",
+    )
 
     # Quick test mode — run on a handful of dialogues
     test_parser = sub.add_parser("test", help="Quick test with a few dialogues")
     test_parser.add_argument("--n", type=int, default=3, help="Number of dialogues to test")
     test_parser.add_argument("--output", type=Path, default=Path("results/test"))
+    test_parser.add_argument(
+        "--unified",
+        action="store_true",
+        help="Use single-call fusion architecture (consultant + teacher in one LLM call). "
+        "See docs/SOCRATIC_FUSION_PLAN.md.",
+    )
 
     args = parser.parse_args()
 
@@ -283,9 +315,15 @@ def main() -> None:
             limit=args.limit,
             experiment=args.experiment,
             split=args.split,
+            unified=args.unified,
         )
     elif args.command == "test":
-        run_batch_evaluation(args.output, limit=args.n, experiment=args.experiment)
+        run_batch_evaluation(
+            args.output,
+            limit=args.n,
+            experiment=args.experiment,
+            unified=args.unified,
+        )
     else:
         parser.print_help()
 

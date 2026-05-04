@@ -1,6 +1,12 @@
 .PHONY: help run install-hooks slurm \
         post-eval-shutdown run-eval \
-        serve-both serve-dual-gpu serve-consultant serve-gemma4 serve-socratteachllm serve-teacher-online \
+        eval-qwen27b-smoke eval-qwen27b-mini eval-qwen27b-full \
+        eval-qwen27b-fusion-smoke eval-qwen27b-fusion-nothink-smoke \
+        eval-qwen35b-a3b-smoke eval-qwen35b-a3b-mini eval-qwen35b-a3b-full \
+        eval-qwen35b-a3b-fusion-smoke eval-qwen35b-a3b-fusion-nothink-smoke \
+        serve-both serve-dual-gpu serve-consultant serve-gemma4 \
+        serve-qwen27b serve-qwen35b-a3b \
+        serve-socratteachllm serve-teacher-online \
         setup-l40s pre-commit start-local-tl-server
 
 # Default target
@@ -21,9 +27,23 @@ help:
 	@echo "  serve-dual-gpu        Run scripts/serve_dual_gpu.sh (2 GPUs, teacher→GPU0 consultant→GPU1)"
 	@echo "  serve-consultant      Run scripts/serve_consultant.sh"
 	@echo "  serve-gemma4          Run scripts/serve_gemma4.sh"
+	@echo "  serve-qwen27b         Run scripts/serve_qwen27b_q5.sh (Qwen3.6-27B Q5, dual-role teacher+consultant)"
+	@echo "  serve-qwen35b-a3b     Run scripts/serve_qwen35b_a3b.sh (Qwen3.6-35B-A3B MoE, ~3x faster than 27B)"
 	@echo "  serve-socratteachllm  Run scripts/serve_socratteachllm.sh"
 	@echo "  serve-teacher-online  Run scripts/serve_teacher_online.sh"
 	@echo "  start-local-tl-server  Start local llama.cpp server for dataset translation (Qwen3.5-9B)"
+	@echo "  eval-qwen27b-smoke    Run scripts/eval_qwen27b.sh smoke (n=5,   ~5 min)"
+	@echo "  eval-qwen27b-mini     Run scripts/eval_qwen27b.sh mini  (n=25,  ~15 min)"
+	@echo "  eval-qwen27b-full     Run scripts/eval_qwen27b.sh full  (n=681, ~75 h — measured)"
+	@echo "  eval-qwen35b-a3b-smoke Run scripts/eval_qwen35b_a3b.sh smoke (n=5,   ~2 min projected)"
+	@echo "  eval-qwen35b-a3b-mini  Run scripts/eval_qwen35b_a3b.sh mini  (n=25,  ~5 min projected)"
+	@echo "  eval-qwen35b-a3b-full  Run scripts/eval_qwen35b_a3b.sh full  (n=681, ~20-30 h projected)"
+	@echo ""
+	@echo "  Fusion smoke targets (single-call architecture, see SOCRATIC_FUSION_PLAN.md):"
+	@echo "  eval-qwen27b-fusion-smoke           27B + unified (think on)"
+	@echo "  eval-qwen27b-fusion-nothink-smoke   27B + unified + no-think"
+	@echo "  eval-qwen35b-a3b-fusion-smoke         A3B + unified (think on)"
+	@echo "  eval-qwen35b-a3b-fusion-nothink-smoke A3B + unified + no-think"
 	@echo ""
 	@echo "  WAVE HPC (SLURM):"
 	@echo "  slurm                 git pull + sbatch wave_eval.slurm + print status"
@@ -91,6 +111,9 @@ serve-consultant:
 serve-gemma4:
 	bash scripts/serve_gemma4.sh
 
+serve-qwen27b:
+	bash scripts/serve_qwen27b_q5.sh
+
 serve-socratteachllm:
 	bash scripts/serve_socratteachllm.sh
 
@@ -99,6 +122,43 @@ serve-teacher-online:
 
 start-local-tl-server:
 	bash scripts/start_tl_server.sh
+
+eval-qwen27b-smoke:
+	bash scripts/eval_qwen27b.sh smoke
+
+eval-qwen27b-mini:
+	bash scripts/eval_qwen27b.sh mini
+
+eval-qwen27b-full:
+	bash scripts/eval_qwen27b.sh full
+
+serve-qwen35b-a3b:
+	bash scripts/serve_qwen35b_a3b.sh
+
+eval-qwen35b-a3b-smoke:
+	bash scripts/eval_qwen35b_a3b.sh smoke
+
+eval-qwen35b-a3b-mini:
+	bash scripts/eval_qwen35b_a3b.sh mini
+
+eval-qwen35b-a3b-full:
+	bash scripts/eval_qwen35b_a3b.sh full
+
+# ── Fusion smoke targets (single-call architecture) ──────────────────────────
+# See docs/SOCRATIC_FUSION_PLAN.md. Each writes to a distinct results/ dir
+# so all four can coexist alongside the existing two-call smoke results.
+
+eval-qwen27b-fusion-smoke:
+	bash scripts/eval_qwen27b.sh smoke --unified
+
+eval-qwen27b-fusion-nothink-smoke:
+	bash scripts/eval_qwen27b.sh smoke --unified --nothink
+
+eval-qwen35b-a3b-fusion-smoke:
+	bash scripts/eval_qwen35b_a3b.sh smoke --unified
+
+eval-qwen35b-a3b-fusion-nothink-smoke:
+	bash scripts/eval_qwen35b_a3b.sh smoke --unified --nothink
 
 # ── WAVE HPC ──────────────────────────────────────────────────────────────────
 
