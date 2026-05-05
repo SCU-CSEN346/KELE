@@ -5,7 +5,10 @@
         eval-qwen27b-fusion-smoke eval-qwen27b-fusion-nothink-smoke \
         eval-qwen35b-a3b-smoke eval-qwen35b-a3b-mini eval-qwen35b-a3b-full \
         eval-qwen35b-a3b-fusion-smoke eval-qwen35b-a3b-fusion-nothink-smoke \
+        eval-gemma4-31b-smoke eval-gemma4-31b-mini eval-gemma4-31b-full \
+        eval-gemma4-31b-fusion-smoke \
         serve-both serve-dual-gpu serve-consultant serve-gemma4 \
+        serve-gemma4-31b \
         serve-qwen27b serve-qwen35b-a3b \
         serve-socratteachllm serve-teacher-online \
         setup-l40s start-local-tl-server
@@ -27,7 +30,8 @@ help:
 	@echo "  serve-both            Run scripts/serve_both.sh (single GPU, shared VRAM)"
 	@echo "  serve-dual-gpu        Run scripts/serve_dual_gpu.sh (2 GPUs, teacher→GPU0 consultant→GPU1)"
 	@echo "  serve-consultant      Run scripts/serve_consultant.sh"
-	@echo "  serve-gemma4          Run scripts/serve_gemma4.sh"
+	@echo "  serve-gemma4          Run scripts/serve_gemma4.sh (vLLM + Gemma-4-31B-IT-NVFP4, multi-server)"
+	@echo "  serve-gemma4-31b      Run scripts/serve_gemma4_31b_q5.sh (Gemma 4 31B Q5 GGUF, dual-role on llama.cpp)"
 	@echo "  serve-qwen27b         Run scripts/serve_qwen27b_q5.sh (Qwen3.6-27B Q5, dual-role teacher+consultant)"
 	@echo "  serve-qwen35b-a3b     Run scripts/serve_qwen35b_a3b.sh (Qwen3.6-35B-A3B MoE, ~3x faster than 27B)"
 	@echo "  serve-socratteachllm  Run scripts/serve_socratteachllm.sh"
@@ -39,12 +43,16 @@ help:
 	@echo "  eval-qwen35b-a3b-smoke Run scripts/eval_qwen35b_a3b.sh smoke (n=5,   ~2 min projected)"
 	@echo "  eval-qwen35b-a3b-mini  Run scripts/eval_qwen35b_a3b.sh mini  (n=25,  ~5 min projected)"
 	@echo "  eval-qwen35b-a3b-full  Run scripts/eval_qwen35b_a3b.sh full  (n=681, ~20-30 h projected)"
+	@echo "  eval-gemma4-31b-smoke  Run scripts/eval_gemma4_31b.sh smoke  (n=5)"
+	@echo "  eval-gemma4-31b-mini   Run scripts/eval_gemma4_31b.sh mini   (n=25)"
+	@echo "  eval-gemma4-31b-full   Run scripts/eval_gemma4_31b.sh full   (n=681)"
 	@echo ""
 	@echo "  Fusion smoke targets (single-call architecture, see SOCRATIC_FUSION_PLAN.md):"
 	@echo "  eval-qwen27b-fusion-smoke           27B + unified (think on)"
 	@echo "  eval-qwen27b-fusion-nothink-smoke   27B + unified + no-think"
 	@echo "  eval-qwen35b-a3b-fusion-smoke         A3B + unified (think on)"
 	@echo "  eval-qwen35b-a3b-fusion-nothink-smoke A3B + unified + no-think"
+	@echo "  eval-gemma4-31b-fusion-smoke          Gemma 4 31B + unified (Gemma has no thinking-mode)"
 	@echo ""
 	@echo "  WAVE HPC (SLURM):"
 	@echo "  slurm                 git pull + sbatch wave_eval.slurm + print status"
@@ -147,6 +155,9 @@ serve-consultant:
 serve-gemma4:
 	bash scripts/serve_gemma4.sh
 
+serve-gemma4-31b:
+	bash scripts/serve_gemma4_31b_q5.sh
+
 serve-qwen27b:
 	bash scripts/serve_qwen27b_q5.sh
 
@@ -180,6 +191,15 @@ eval-qwen35b-a3b-mini:
 eval-qwen35b-a3b-full:
 	bash scripts/eval_qwen35b_a3b.sh full
 
+eval-gemma4-31b-smoke:
+	bash scripts/eval_gemma4_31b.sh smoke
+
+eval-gemma4-31b-mini:
+	bash scripts/eval_gemma4_31b.sh mini
+
+eval-gemma4-31b-full:
+	bash scripts/eval_gemma4_31b.sh full
+
 # ── Fusion smoke targets (single-call architecture) ──────────────────────────
 # See docs/SOCRATIC_FUSION_PLAN.md. Each writes to a distinct results/ dir
 # so all four can coexist alongside the existing two-call smoke results.
@@ -195,6 +215,10 @@ eval-qwen35b-a3b-fusion-smoke:
 
 eval-qwen35b-a3b-fusion-nothink-smoke:
 	bash scripts/eval_qwen35b_a3b.sh smoke --unified --nothink
+
+# Gemma 4 has no thinking-mode equivalent, so only the --unified variant exists.
+eval-gemma4-31b-fusion-smoke:
+	bash scripts/eval_gemma4_31b.sh smoke --unified
 
 # ── WAVE HPC ──────────────────────────────────────────────────────────────────
 
