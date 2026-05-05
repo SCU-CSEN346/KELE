@@ -74,7 +74,6 @@ setup-repo:
 # ── Dual remote synchronization ────────────────────────────────────────────────────
 
 sync-mirror:
-	sync-mirror:
 	@CURRENT_BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
 	if [ "$$CURRENT_BRANCH" = "main" ]; then \
 		echo "Already on main. Performing standard pull/push sync..."; \
