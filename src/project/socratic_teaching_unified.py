@@ -37,12 +37,40 @@ SOCRATIC_STEP_SCHEMA: dict[str, Any] = {
         "state": {
             "type": "string",
             "enum": [
-                "a0", "a1",
-                "b2", "b3", "b4", "b5", "b6", "b7",
-                "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15",
-                "c16", "c17", "c18", "c19", "c20", "c21", "c22", "c23",
-                "c24", "c25", "c26", "c27", "c28", "c29",
-                "d30", "d31", "d32", "d33",
+                "a0",
+                "a1",
+                "b2",
+                "b3",
+                "b4",
+                "b5",
+                "b6",
+                "b7",
+                "c8",
+                "c9",
+                "c10",
+                "c11",
+                "c12",
+                "c13",
+                "c14",
+                "c15",
+                "c16",
+                "c17",
+                "c18",
+                "c19",
+                "c20",
+                "c21",
+                "c22",
+                "c23",
+                "c24",
+                "c25",
+                "c26",
+                "c27",
+                "c28",
+                "c29",
+                "d30",
+                "d31",
+                "d32",
+                "d33",
                 "e34",
             ],
         },
@@ -255,9 +283,7 @@ e34：学生正确给出题目答案
         """
         system_prompt = self._build_unified_system_prompt()
         user_input = (
-            "历史对话记录:\n"
-            f"{self.get_full_formatted_history()}\n\n"
-            f"当前学生输入: {student_input}\n"
+            f"历史对话记录:\n{self.get_full_formatted_history()}\n\n当前学生输入: {student_input}\n"
         )
 
         # The consultant_disable_thinking knob applies uniformly to the
@@ -345,7 +371,7 @@ e34：学生正确给出题目答案
             print(f"Unified call: state field missing or non-string: {result.get('state')!r}")
             return None
         if not isinstance(result.get("teacher_response"), str) or not result["teacher_response"]:
-            print(f"Unified call: teacher_response missing or empty")
+            print("Unified call: teacher_response missing or empty")
             return None
         if not isinstance(result.get("evaluation"), str):
             result["evaluation"] = ""
@@ -400,9 +426,7 @@ e34：学生正确给出题目答案
             if regressed:
                 emitted_state = state
                 state = previous_state
-                evaluation = (
-                    f"防止阶段回退：保持在{state}状态而不是回退到{emitted_state}"
-                )
+                evaluation = f"防止阶段回退：保持在{state}状态而不是回退到{emitted_state}"
                 # NOTE: per fusion plan §6 Option A, teacher_response stays
                 # as emitted; we trust the model's response even though state
                 # was overridden. Log so we can measure divergence rate later.
@@ -435,15 +459,11 @@ e34：学生正确给出题目答案
                     f"已达到教学阶段最大轮数限制({self.max_teaching_rounds}轮)，"
                     "强制转入规则建构阶段"
                 )
-        elif (
-            self.teaching_rounds == self.max_teaching_rounds
-            and state not in ("d33", "e34")
-        ):
+        elif self.teaching_rounds == self.max_teaching_rounds and state not in ("d33", "e34"):
             state = "d33"
             action = self.get_action_for_state("d33")
             evaluation = (
-                f"已达到教学阶段最大轮数限制({self.max_teaching_rounds}轮)，"
-                "强制转入规则建构阶段"
+                f"已达到教学阶段最大轮数限制({self.max_teaching_rounds}轮)，强制转入规则建构阶段"
             )
 
         if self.debug_mode:

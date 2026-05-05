@@ -1,4 +1,5 @@
-.PHONY: help run install-hooks slurm \
+.PHONY: help run install-hooks pre-commit sync-mirror setup setup-repo \
+		slurm \
         post-eval-shutdown run-eval \
         eval-qwen27b-smoke eval-qwen27b-mini eval-qwen27b-full \
         eval-qwen27b-fusion-smoke eval-qwen27b-fusion-nothink-smoke \
@@ -7,7 +8,7 @@
         serve-both serve-dual-gpu serve-consultant serve-gemma4 \
         serve-qwen27b serve-qwen35b-a3b \
         serve-socratteachllm serve-teacher-online \
-        setup-l40s pre-commit start-local-tl-server
+        setup-l40s start-local-tl-server
 
 # Default target
 help:
@@ -47,6 +48,39 @@ help:
 	@echo ""
 	@echo "  WAVE HPC (SLURM):"
 	@echo "  slurm                 git pull + sbatch wave_eval.slurm + print status"
+
+
+# ── Setup ─────────────────────────────────────────────────────────────────────
+
+setup: setup-repo install-hooks
+	@echo "This project requires Poetry for dependency management. Install Poetry from https://python-poetry.org/ and ensure it's on your PATH."
+	@echo "Setting up the project via poetry:"
+	poetry install
+	@echo ""
+	@echo "Then run 'make install-hooks' to set up git hooks for code quality checks on commit."
+
+setup-repo:
+	@echo "Configuring dual-push remotes..."
+	# Set the primary fetch/push URL
+	git remote set-url origin git@github.com:ulises-c/csen-346.git
+	# Add the secondary push URL (ignore error if it already exists)
+	git remote set-url --add --push origin git@github.com:ulises-c/csen-346.git 2>/dev/null || true
+	git remote set-url --add --push origin git@github.com:SCU-CSEN346/KELE.git 2>/dev/null || true
+	@echo "Ensuring local main branch exists and is tracked..."
+	git checkout main || git checkout -b main
+	git push -u origin main
+	@echo "Repository setup complete. Verify with 'git remote -v'."
+
+# ── Dual remote synchronization ────────────────────────────────────────────────────
+
+sync-mirror:
+	@echo "Syncing remote main to local main (Background Sync)..."
+	# Fetches from primary and updates local main without a checkout
+	git fetch origin main:main
+	@echo "Mirroring local main to all push remotes..."
+	# Pushes local main to both primary and SCU org
+	git push origin main:main --tags
+	@echo "Mirror sync successful."
 
 # ── Entry point ──────────────────────────────────────────────────────────────
 
