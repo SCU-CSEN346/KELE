@@ -79,6 +79,71 @@ The **gpt-4o baseline** is the canonical comparison target for everything below.
 
 ---
 
+## ROUGE diagnosis and forward path (added 2026-05-04 ~21:30 PDT, during full run)
+
+**Observed at n=54 (full run in flight):** ROUGE-1 32.05 vs gpt-4o baseline 44.61 — gap of -12.6 pts. ROUGE-2 -13.3, ROUGE-L -15.2, BLEU-4 -13.3. Same shape as smoke and mini. State-acc is +17 over baseline; ROUGE is the open weakness.
+
+### Why ROUGE is low
+
+**Style mismatch, not quality.** Qwen3.6 is instruction-tuned to be pedagogically rich:
+
+1. Affirmation preambles ("太棒了！", "非常好的问题！", "哇...")
+2. Contextual scaffolding before the Socratic prompt
+3. Synonyms over exact GT phrasing ("能想到" vs "能否想到")
+
+Smoke captured this exactly — Qwen wrote *"哇，你提出了一个非常有趣的科学猜想..."* before the actual question; GT was just *"你能想到一些植物是生长在水中或其他地方的吗？"*
+
+ROUGE-2 and ROUGE-L drop more than ROUGE-1 because they reward longer exact matches. The state-acc lift coexists with paraphrastic style — the model is doing valid Socratic work, just not in GT phrasing.
+
+### Would 27B help? No.
+
+Smoke data settles this — the dense 27B does **not** outperform A3B on ROUGE:
+
+| Config | ROUGE-1 (smoke) |
+|---|---|
+| 27B fusion think | 31.88 |
+| **A3B fusion think** | **32.96** ← higher than 27B |
+| 27B no-think two-call | 29.99 |
+| A3B no-think two-call | 28.36 |
+
+The ~12-pt gap is the Qwen-family stylistic posture, not a parameter-count issue. Both variants share the same instruction-tuning. **Running 27B will not move ROUGE meaningfully** — would buy maybe 1–2 pts at 3× the wall clock.
+
+### Three options considered
+
+**Option 1 — RULED OUT (VRAM constraint):** SocratTeachLLM teacher + Qwen consultant.
+
+- *Theory:* SocratTeachLLM generated the ground truth, so swapping it back into the teacher slot lifts ROUGE close to baseline by construction. Replace gpt-4o → Qwen-A3B as consultant to preserve the +17 state-acc lift.
+- *Why ruled out:* VRAM. The 2026-04-14 baseline (SocratTeachLLM 9B FP16 + Qwen3.5-2B consultant) already used 31.3/32.6 GB on the 5090 — *no headroom*. Replacing the 2B consultant with Qwen3.6-35B-A3B Q4 (20 GB weights alone) doesn't fit. SocratTeachLLM at FP16 (18 GB) + A3B Q4 (20 GB) = 38 GB just for weights, before KV. Even Q4-quantized SocratTeachLLM (~5–6 GB) + A3B Q4 + KV would be ~28–30 GB — fragile and untested.
+- *Conclusion:* infeasible on a single 32 GB GPU. Multi-server / model-swap paths are operationally too slow for n=681.
+
+**Option 2 — Prompt engineering for terse output style.**
+
+- Modify teacher system prompt to instruct: "Respond with one Socratic question. No preamble, no praise, no scaffolding. Match this style: [3-shot GT examples]."
+- Cost: prompt edit + smoke validation. ~30 min compute on top of existing infrastructure.
+- Risk: fights Qwen's native instruction-tuned posture; may degrade pedagogical quality (we already saw `/no_think` collapse fusion-27B by -16.58 state acc — strong steering can break joint tasks).
+- Reward: if it works, recovers ROUGE without changing the model — pure prompt cost.
+
+**Option 3 — LoRA fine-tune Qwen on SocratTeachLLM-style outputs.**
+
+- Treat train split as supervised pairs (student dialogue history → teacher response). PEFT-LoRA on 5090.
+- Only requires Qwen + adapter — no extra inference-time VRAM impact (adapter is ~10s of MB, can be merged or hot-loaded).
+- Cost: data prep + training script + eval harness. ~30 min training; 1–2 days engineering.
+- Cleanest research story: "off-the-shelf Qwen has a style mismatch; LoRA realigns the style while preserving the consultant's classification advantage."
+
+### Forward path (locked per Max 2026-05-04)
+
+**Options 2 and 3 are the paths forward.** Option 1 is ruled out by VRAM; 27B doesn't help. The 5/14 paper-draft strategy:
+
+1. **Option 2 first** — prompt-engineering experiment as a smoke run. Cheap, fast, validates whether style steering alone can recover ROUGE. Worth ~30 min to know before committing to LoRA.
+2. **Option 3 if Option 2 underperforms** — LoRA fine-tune is the principled play if prompt engineering can't close the gap. Higher engineering cost but cleaner paper result.
+3. **If both succeed:** paper has a 3-way ablation (off-the-shelf Qwen / prompt-engineered Qwen / LoRA-adapted Qwen) showing progressive ROUGE recovery while preserving state-acc lift.
+
+The 5/5 deliverable still rests on the current A3B fusion-think full run. ROUGE recovery is a 5/14 horizon problem — not gating tomorrow's commit.
+
+**Why this matters strategically:** the +17 state-acc lift is coming from the **Qwen consultant**, not the Qwen teacher. The teacher is where the ROUGE gap is born (style mismatch with SocratTeachLLM-generated GT). Options 2 and 3 both attack the teacher's output style without disturbing the consultant — the right surgical target.
+
+---
+
 ## Active session — 2026-05-04
 
 ### Configs queued for testing
