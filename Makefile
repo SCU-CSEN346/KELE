@@ -74,12 +74,15 @@ setup-repo:
 # ── Dual remote synchronization ────────────────────────────────────────────────────
 
 sync-mirror:
-	@echo "Syncing remote main to local main (Background Sync)..."
-	# Fetches from primary and updates local main without a checkout
-	git fetch origin main:main
-	@echo "Mirroring local main to all push remotes..."
-	# Pushes local main to both primary and SCU org
-	git push origin main:main --tags
+	sync-mirror:
+	@CURRENT_BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
+	if [ "$$CURRENT_BRANCH" = "main" ]; then \
+		echo "Already on main. Performing standard pull/push sync..."; \
+		git pull origin main && git push origin main --tags; \
+	else \
+		echo "On $$CURRENT_BRANCH. Performing background sync for main..."; \
+		git fetch origin main:main && git push origin main:main --tags; \
+	fi
 	@echo "Mirror sync successful."
 
 # ── Entry point ──────────────────────────────────────────────────────────────
