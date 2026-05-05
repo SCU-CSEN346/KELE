@@ -2,31 +2,6 @@
 
 **CSEN 346 · Santa Clara University · started 2026-05-04**
 
-> ## 🚧 RESUME HERE — next session
->
-> **Last session ended 2026-05-04 ~19:20 PDT** after running the A3B fusion-think mini gate (n=25, 145 turns, 29 min wall clock). Server torn down clean, GPU released.
->
-> **Mini gate result: SOFT PASS.** State acc landed at **35.17%** — 3.83 pts under the smoke-derived 39–46% tolerance band, but mini at 145 turns is the more reliable estimate (smoke n=5 was on the optimistic tail). Still beats gpt-4o baseline by **+9.23 pts**. Wall clock 12.0 s/turn ✓ within ±10%. Schema fallbacks **0/145 (0%)** ✓.
->
-> **Updated full-run projection for A3B fusion think:** 12.0 s/turn × ~4000 turns ≈ **13.3 h** overnight (was 16 h estimate from smoke).
->
-> **What's NOT done yet (waiting on Max's call):**
->
-> 1. **Full n=681 run on A3B fusion think** — gate cleared, projection is solid. Command: `bash scripts/eval_qwen35b_a3b.sh full --unified`. Best window is tonight to land before the **2026-05-05** 3rd-commit / Eval & Results deadline.
-> 2. **27B fusion-think mini (n=25)** — optional headline-result gate. ~1.5–2 h. Smoke promised 46.88% but with smoke→mini regression (~7 pts on A3B), 27B mini might land ~40%. Full run is ~48 h, blowing past 5/5; this option is for the 5/14 paper-draft deadline, not 5/5.
-> 3. **Recording/draft work**: Evaluation section can be drafted now using smoke + mini data; full run results slot in when they land.
->
-> **First thing to check on resume:**
-> - `git log --oneline | head` — confirm latest commits
-> - `ls results/qwen35b-a3b-local-mini-unified/` — mini results from this session
-> - `pgrep -af llama-server` — should be empty (we tore down on exit)
->
-> **Per-stage from the mini (vs gpt-4o baseline n=681):** a=88.0% (-7.15), b=32.14% (-4.79), **c=10.64% (+5.94)**, **d=13.04% (+8.00)**, **e=54.55% (+42.63)**. Mini cracks stage d (smoke had it at 0%). Stage e is dominant.
->
-> **Do not auto-trigger the full run.** Wait for Max's direction. The mini gate evidence and decision-tree options are in the new "Mini gate results" section below.
-
----
-
 ## Mini gate results — A3B fusion think (n=25)
 
 **Run timestamp:** 2026-05-04 18:47:02 → 19:16:14 PDT (29 min 6 s)
@@ -526,6 +501,49 @@ Highlights:
 | `results/qwen27b-local-smoke/` | 27B Q5 smoke (n=5) |
 | `results/qwen27b-local-mini/` | 27B Q5 mini (n=25) |
 | `results/qwen27b-local/` | 27B Q5 full (n=681) — not yet run |
-| `results/qwen35b-a3b-local-smoke/` | A3B smoke (n=5) — not yet run |
-| `results/qwen35b-a3b-local-mini/` | A3B mini (n=25) — not yet run |
+| `results/qwen35b-a3b-local-smoke/` | A3B smoke (n=5) — done 2026-05-04 |
+| `results/qwen35b-a3b-local-mini/` | A3B mini (n=25) — not yet run (think two-call) |
+| `results/qwen35b-a3b-local-mini-unified/` | A3B mini (n=25) fusion-think — done 2026-05-04 19:16 PDT |
 | `results/qwen35b-a3b-local/` | A3B full (n=681) — not yet run |
+| `results/qwen35b-a3b-local-unified/` | A3B full (n=681) fusion-think — IN PROGRESS once launched |
+
+---
+
+> ## 🚧 RESUME HERE — next session
+>
+> **Last session ended 2026-05-04 ~19:30 PDT.** Path A locked: A3B fusion-think full n=681 is the target run. Mini gate (n=25, 145 turns) cleared as a soft pass — 35.17% state acc, +9.23 over gpt-4o baseline, 0 schema fallbacks, 12.0 s/turn confirming the ~14 h overnight projection.
+>
+> **One launch command, no flags to second-guess:**
+>
+> ```
+> bash scripts/eval_qwen35b_a3b.sh full --unified
+> ```
+>
+> Use `run_in_background: true` from the Bash tool — the run exceeds tool timeout. The orchestrator boots llama-server, runs eval, tears down on exit. Crash-safe per-item via kele.py's resume.
+>
+> **State on resume — check in this order:**
+> 1. `pgrep -af llama-server` — is the full run still going? If yes, find the run log under `results/qwen35b-a3b-local-unified/run_<timestamp>.log` and `tail -50` it.
+> 2. `ls results/qwen35b-a3b-local-unified/` — if `metrics_summary.json` is present, the run finished. Read it and `results/qwen35b-a3b-local-unified/run_*.log` for the comparison output.
+> 3. `nvidia-smi --query-gpu=memory.used --format=csv,noheader` — confirms server state matches what `pgrep` says.
+>
+> **Where to find the gate evidence we relied on:**
+> - Mini results: `results/qwen35b-a3b-local-mini-unified/metrics_summary.json` and the "Mini gate results" section at the top of this doc
+> - Smoke results: `results/qwen35b-a3b-local-smoke-unified/`
+> - The "Decision tree for next steps" table is also in this doc — Path A was chosen
+>
+> **What lands when full run finishes:**
+> - `results/qwen35b-a3b-local-unified/metrics_summary.json` — headline numbers for n=681
+> - `results/qwen35b-a3b-local-unified/dialogues/*.json` — per-dialogue outputs (681 files)
+> - `results/comparison.json` updated automatically by the eval orchestrator
+> - `results/qwen35b-a3b-local-unified/run_<ts>.log` — full eval log including the per-stage breakdown table
+>
+> **Next decisions after the full run lands:**
+> 1. Append a "Full run results — A3B fusion think (n=681)" section to this doc with the canonical numbers.
+> 2. Update `memory/project_overview.md` with the n=681 state acc, ROUGE/BLEU, per-stage breakdown, total wall clock, and any anomalies.
+> 3. Decide on the **2026-05-14 paper-draft horizon**: kick off **27B fusion-think mini** (~1.5–2 h) as the next gate, then either 27B fusion-think full (~48 h, weekend run) for the headline result or stop with A3B as the operational config.
+> 4. Start drafting the Evaluation section of the paper using the n=681 numbers as the headline + smoke/mini as ablation context.
+>
+> **Hard rules:**
+> - Do NOT kick off the 27B mini or full while the A3B full is running — same GPU, same port 8080, only one Qwen variant fits at a time.
+> - Do NOT modify the eval scripts mid-run. If anything looks wrong, prefer reading state over killing the server.
+> - If the run was killed, the eval is per-item resumable: re-running the same command picks up from the last completed dialogue without re-doing work.
