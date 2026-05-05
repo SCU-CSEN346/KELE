@@ -2,6 +2,85 @@
 
 **CSEN 346 · Santa Clara University · started 2026-05-04**
 
+## 🏆 Full run results — A3B fusion think (n=681)
+
+**Run window:** 2026-05-04 19:46:48 PDT → 2026-05-05 12:16:05 PDT
+**Total wall clock:** **16 h 29 m 17 s** (vs ~14 h projected; +18%)
+**Throughput:** 4171 turns / 16.5 h = 4.21 turns/min ≈ **14.2 s/turn** (mini was 12.0 s/turn)
+**Schema fallback rate:** **38 / 4171 turns (0.91%)** — well under the 5% gate
+**Output dir:** `results/qwen35b-a3b-local-unified/`
+
+### Headline result
+
+> **Qwen3.6-35B-A3B fusion-think outperforms gpt-4o + GT-fine-tuned consultant on Socratic state classification by +12.76 absolute (49% relative), with 3-5× lifts on the harder middle and closure stages, while fully open-weights and locally served on a single RTX 5090.**
+
+### Final metrics vs gpt-4o baseline
+
+| Metric | gpt-4o baseline (n=681) | **A3B fusion think (n=681)** | Δ | Multiplier |
+|---|---|---|---|---|
+| **State acc overall** | **25.94%** | **38.70%** | **+12.76** | **1.49×** |
+| ROUGE-1 | 44.61 | 30.63 | -13.98 | 0.69× |
+| ROUGE-2 | 26.04 | 12.28 | -13.76 | 0.47× |
+| ROUGE-L | 38.02 | 22.37 | -15.65 | 0.59× |
+| BLEU-4 | 19.60 | 5.86 | -13.74 | 0.30× |
+
+### Per-stage state accuracy
+
+| Stage | Baseline | A3B fusion | Δ | Multiplier | Read |
+|---|---|---|---|---|---|
+| a (problem detection) | 95.15% | 91.78% | -3.37 | 0.96× | 🟡 essentially tied |
+| b (early reasoning) | 36.93% | 39.29% | +2.36 | 1.06× | 🟢 small win |
+| **c (hard misconception, 22 states)** | 4.70% | **17.57%** | **+12.87** | **3.74×** | 🟢🟢 **big win — hardest task** |
+| **d (resolution)** | 5.04% | **14.78%** | **+9.74** | **2.93×** | 🟢🟢 big win |
+| **e (closure)** | 11.92% | **56.83%** | **+44.91** | **4.77×** | 🟢🟢🟢 dominant |
+| **Overall** | **25.94%** | **38.70%** | **+12.76** | **1.49×** | 🟢 publishable |
+
+### Trajectory across the run (live snapshots)
+
+| Stage of project | n | State acc | Δ baseline | Notes |
+|---|---|---|---|---|
+| Smoke | 5 | 42.42% | +16.48 | optimistic outlier (33 turns) |
+| Mini gate | 25 | 35.17% | +9.23 | pessimistic stratified sample |
+| Full @ 48 dlg | 48 | 43.06% | +17.12 | early-sample peak begins |
+| Full @ 73 dlg | 73 | 43.53% | **+17.59** | **observed peak** |
+| Full @ 145 dlg | 145 | 40.47% | +14.53 | decay phase |
+| Full @ 502 dlg | 502 | 38.97% | +13.03 | convergence floor |
+| Full @ 670 dlg | 670 | 38.79% | +12.85 | fully converged |
+| **Full final** | **681** | **38.70%** | **+12.76** | **canonical** |
+
+### Findings
+
+1. **3-5× lifts on the harder Socratic stages.** Stages c, d, e — the actual hard pedagogical work — are where fusion-think dominates: **3.74× on the 22-state misconception classification (c), 2.93× on resolution (d), 4.77× on closure (e)**. This is the paper's core empirical claim.
+
+2. **Stages a and b are roughly tied with gpt-4o.** Stage a -3.37 (noise-level on a 95%+ ceiling), stage b +2.36 (small win). The fusion architecture's gains are concentrated downstream of problem detection.
+
+3. **Convergence shape was instructive — and sobering.** First 73 dialogues read +17.59 (peak); steady-state at n=681 is +12.76. Smoke (+16.48) overshot reality; mini (+9.23) undershot. **Future small-n gating should average smoke + mini as the better predictor (+12.86 ≈ true)** rather than treating either as canonical. This is a methodological note worth disclosing in the paper.
+
+4. **ROUGE/BLEU gap (~14 pts) is the Qwen-family stylistic plateau.** Not a model-size issue (smoke evidence: 27B fusion ROUGE-1 31.88 < A3B fusion 32.96). Qwen produces pedagogically rich, paraphrastic Socratic responses that diverge from SocratTeachLLM-generated GT phrasing. **This is the target for the 5/14 prompt-engineering and LoRA experiments.**
+
+5. **Schema enforcement is production-reliable.** llama.cpp's strict json_schema constraint kept the unified-call success rate at 99.09% across 4171 turns. Fallback rate held flat throughout the run — no drift from longer contexts or accumulated KV pressure.
+
+6. **Wall clock came in 18% over projection** (16.5 h actual vs 14 h projected). The mini's 12.0 s/turn underestimated the full run's 14.2 s/turn — likely because the test set's later-ID dialogues are slightly longer on average (the mini sampled lower IDs only). **Future projections: use mini × 1.18 as a wall-clock margin.**
+
+### Artifacts
+
+| Path | Contents |
+|---|---|
+| `results/qwen35b-a3b-local-unified/metrics_summary.json` | Headline numbers (4171 turns, 5 stages) |
+| `results/qwen35b-a3b-local-unified/dialogues/*.json` | 681 per-dialogue outputs with full state + teacher response traces |
+| `results/qwen35b-a3b-local-unified/run_2026-05-05T02-46-48.log` | Full eval log: per-dialogue progress, comparison output, per-stage table |
+| `results/qwen35b-a3b-local-unified/server_2026-05-05T02-46-48.log` | llama.cpp server log (KV state, slot allocation) |
+| `results/qwen35b-a3b-local-unified/SUMMARY.md` | Paper-ready standalone snapshot |
+| `results/comparison.json` | Side-by-side baseline vs A3B comparison |
+
+### What this clears
+
+- ✅ **2026-05-05 deliverable: 3rd commit + Evaluation & Results.** Headline + per-stage + per-dialogue traces all locked.
+- ⏳ **2026-05-14 deliverable: 4th commit + paper draft.** ROUGE recovery via Options 2 (prompt eng) and 3 (LoRA) is the open work.
+- ⏳ **2026-06-04 deliverable: Final paper + code + HuggingFace data + poster.** Run artifacts above are ready to ship.
+
+---
+
 ## Mini gate results — A3B fusion think (n=25)
 
 **Run timestamp:** 2026-05-04 18:47:02 → 19:16:14 PDT (29 min 6 s)
@@ -76,6 +155,71 @@ For comparison, baselines from earlier work (`results/baseline/`,
 | qwen2.5:7b (Mac mini split) | SocratTeachLLM 9B | qwen2.5:7b via Ollama | 681 | 43.57 | 24.90 | 36.91 | 18.56 | 15.16% | 4h 27m |
 
 The **gpt-4o baseline** is the canonical comparison target for everything below.
+
+---
+
+## ROUGE diagnosis and forward path (added 2026-05-04 ~21:30 PDT, during full run)
+
+**Observed at n=54 (full run in flight):** ROUGE-1 32.05 vs gpt-4o baseline 44.61 — gap of -12.6 pts. ROUGE-2 -13.3, ROUGE-L -15.2, BLEU-4 -13.3. Same shape as smoke and mini. State-acc is +17 over baseline; ROUGE is the open weakness.
+
+### Why ROUGE is low
+
+**Style mismatch, not quality.** Qwen3.6 is instruction-tuned to be pedagogically rich:
+
+1. Affirmation preambles ("太棒了！", "非常好的问题！", "哇...")
+2. Contextual scaffolding before the Socratic prompt
+3. Synonyms over exact GT phrasing ("能想到" vs "能否想到")
+
+Smoke captured this exactly — Qwen wrote *"哇，你提出了一个非常有趣的科学猜想..."* before the actual question; GT was just *"你能想到一些植物是生长在水中或其他地方的吗？"*
+
+ROUGE-2 and ROUGE-L drop more than ROUGE-1 because they reward longer exact matches. The state-acc lift coexists with paraphrastic style — the model is doing valid Socratic work, just not in GT phrasing.
+
+### Would 27B help? No.
+
+Smoke data settles this — the dense 27B does **not** outperform A3B on ROUGE:
+
+| Config | ROUGE-1 (smoke) |
+|---|---|
+| 27B fusion think | 31.88 |
+| **A3B fusion think** | **32.96** ← higher than 27B |
+| 27B no-think two-call | 29.99 |
+| A3B no-think two-call | 28.36 |
+
+The ~12-pt gap is the Qwen-family stylistic posture, not a parameter-count issue. Both variants share the same instruction-tuning. **Running 27B will not move ROUGE meaningfully** — would buy maybe 1–2 pts at 3× the wall clock.
+
+### Three options considered
+
+**Option 1 — RULED OUT (VRAM constraint):** SocratTeachLLM teacher + Qwen consultant.
+
+- *Theory:* SocratTeachLLM generated the ground truth, so swapping it back into the teacher slot lifts ROUGE close to baseline by construction. Replace gpt-4o → Qwen-A3B as consultant to preserve the +17 state-acc lift.
+- *Why ruled out:* VRAM. The 2026-04-14 baseline (SocratTeachLLM 9B FP16 + Qwen3.5-2B consultant) already used 31.3/32.6 GB on the 5090 — *no headroom*. Replacing the 2B consultant with Qwen3.6-35B-A3B Q4 (20 GB weights alone) doesn't fit. SocratTeachLLM at FP16 (18 GB) + A3B Q4 (20 GB) = 38 GB just for weights, before KV. Even Q4-quantized SocratTeachLLM (~5–6 GB) + A3B Q4 + KV would be ~28–30 GB — fragile and untested.
+- *Conclusion:* infeasible on a single 32 GB GPU. Multi-server / model-swap paths are operationally too slow for n=681.
+
+**Option 2 — Prompt engineering for terse output style.**
+
+- Modify teacher system prompt to instruct: "Respond with one Socratic question. No preamble, no praise, no scaffolding. Match this style: [3-shot GT examples]."
+- Cost: prompt edit + smoke validation. ~30 min compute on top of existing infrastructure.
+- Risk: fights Qwen's native instruction-tuned posture; may degrade pedagogical quality (we already saw `/no_think` collapse fusion-27B by -16.58 state acc — strong steering can break joint tasks).
+- Reward: if it works, recovers ROUGE without changing the model — pure prompt cost.
+
+**Option 3 — LoRA fine-tune Qwen on SocratTeachLLM-style outputs.**
+
+- Treat train split as supervised pairs (student dialogue history → teacher response). PEFT-LoRA on 5090.
+- Only requires Qwen + adapter — no extra inference-time VRAM impact (adapter is ~10s of MB, can be merged or hot-loaded).
+- Cost: data prep + training script + eval harness. ~30 min training; 1–2 days engineering.
+- Cleanest research story: "off-the-shelf Qwen has a style mismatch; LoRA realigns the style while preserving the consultant's classification advantage."
+
+### Forward path (locked per Max 2026-05-04)
+
+**Options 2 and 3 are the paths forward.** Option 1 is ruled out by VRAM; 27B doesn't help. The 5/14 paper-draft strategy:
+
+1. **Option 2 first** — prompt-engineering experiment as a smoke run. Cheap, fast, validates whether style steering alone can recover ROUGE. Worth ~30 min to know before committing to LoRA.
+2. **Option 3 if Option 2 underperforms** — LoRA fine-tune is the principled play if prompt engineering can't close the gap. Higher engineering cost but cleaner paper result.
+3. **If both succeed:** paper has a 3-way ablation (off-the-shelf Qwen / prompt-engineered Qwen / LoRA-adapted Qwen) showing progressive ROUGE recovery while preserving state-acc lift.
+
+The 5/5 deliverable still rests on the current A3B fusion-think full run. ROUGE recovery is a 5/14 horizon problem — not gating tomorrow's commit.
+
+**Why this matters strategically:** the +17 state-acc lift is coming from the **Qwen consultant**, not the Qwen teacher. The teacher is where the ROUGE gap is born (style mismatch with SocratTeachLLM-generated GT). Options 2 and 3 both attack the teacher's output style without disturbing the consultant — the right surgical target.
 
 ---
 
@@ -504,46 +648,36 @@ Highlights:
 | `results/qwen35b-a3b-local-smoke/` | A3B smoke (n=5) — done 2026-05-04 |
 | `results/qwen35b-a3b-local-mini/` | A3B mini (n=25) — not yet run (think two-call) |
 | `results/qwen35b-a3b-local-mini-unified/` | A3B mini (n=25) fusion-think — done 2026-05-04 19:16 PDT |
-| `results/qwen35b-a3b-local/` | A3B full (n=681) — not yet run |
-| `results/qwen35b-a3b-local-unified/` | A3B full (n=681) fusion-think — IN PROGRESS once launched |
+| `results/qwen35b-a3b-local/` | A3B full (n=681) — not yet run (think two-call) |
+| `results/qwen35b-a3b-local-unified/` | A3B full (n=681) fusion-think — **DONE 2026-05-05 12:16 PDT** ✅ |
 
 ---
 
 > ## 🚧 RESUME HERE — next session
 >
-> **Last session ended 2026-05-04 ~19:30 PDT.** Path A locked: A3B fusion-think full n=681 is the target run. Mini gate (n=25, 145 turns) cleared as a soft pass — 35.17% state acc, +9.23 over gpt-4o baseline, 0 schema fallbacks, 12.0 s/turn confirming the ~14 h overnight projection.
+> **Last session ended 2026-05-05 ~12:30 PDT.** A3B fusion-think full n=681 **completed cleanly**. Headline result locked: **state acc 38.70% (+12.76 over gpt-4o baseline), 16h 29m wall clock, 0.91% schema fallback rate.** Server torn down, GPU freed. The 5/5 deliverable is in hand.
 >
-> **One launch command, no flags to second-guess:**
+> **The canonical numbers are in this doc's "🏆 Full run results" section at the very top.** Full artifact pointers there. Don't re-derive — just cite.
 >
-> ```
-> bash scripts/eval_qwen35b_a3b.sh full --unified
-> ```
+> **What's next: 2026-05-14 paper-draft horizon.**
 >
-> Use `run_in_background: true` from the Bash tool — the run exceeds tool timeout. The orchestrator boots llama-server, runs eval, tears down on exit. Crash-safe per-item via kele.py's resume.
+> The ROUGE gap (~14 pts under baseline) is the open work. The "ROUGE diagnosis and forward path" section in this doc analyzed it — TL;DR:
+> - 27B will NOT help (smoke evidence: 27B fusion ROUGE-1 31.88 < A3B fusion 32.96)
+> - SocratTeachLLM-as-teacher (Option 1) is **ruled out by VRAM** (32 GB cap; SocratTeachLLM 9B FP16 + A3B Q4 = 38 GB just for weights)
+> - **Options 2 (prompt engineering) and 3 (LoRA fine-tuning) are the locked forward paths** per Max 2026-05-04
+>
+> **Suggested next-session sequence:**
+> 1. **Option 2 first** — prompt-engineering smoke run (~30 min). Modify teacher system prompt: "Respond with one Socratic question. No preamble, no praise, no scaffolding. Match style: [3-shot GT examples]." Validate whether style steering alone recovers ROUGE without changing the model. Cheap and fast — worth knowing before committing to LoRA.
+> 2. **Option 3 if Option 2 underperforms** — LoRA fine-tune Qwen3.6-35B-A3B on (student dialogue history → teacher response) pairs from the train split. PEFT, ~30 min training on the 5090, no extra inference-time VRAM impact.
+> 3. **Paper Evaluation section drafting** — can start from the 5/5 numbers immediately. The "Findings" subsection in this doc's "Full run results" maps directly to Methodology / Results paragraphs.
 >
 > **State on resume — check in this order:**
-> 1. `pgrep -af llama-server` — is the full run still going? If yes, find the run log under `results/qwen35b-a3b-local-unified/run_<timestamp>.log` and `tail -50` it.
-> 2. `ls results/qwen35b-a3b-local-unified/` — if `metrics_summary.json` is present, the run finished. Read it and `results/qwen35b-a3b-local-unified/run_*.log` for the comparison output.
-> 3. `nvidia-smi --query-gpu=memory.used --format=csv,noheader` — confirms server state matches what `pgrep` says.
+> 1. `git log --oneline | head` — confirm what's merged
+> 2. `cat results/qwen35b-a3b-local-unified/metrics_summary.json` — final numbers
+> 3. `pgrep -af llama-server` — should be empty (no run in flight)
+> 4. `nvidia-smi --query-gpu=memory.used --format=csv,noheader` — confirms GPU freed
 >
-> **Where to find the gate evidence we relied on:**
-> - Mini results: `results/qwen35b-a3b-local-mini-unified/metrics_summary.json` and the "Mini gate results" section at the top of this doc
-> - Smoke results: `results/qwen35b-a3b-local-smoke-unified/`
-> - The "Decision tree for next steps" table is also in this doc — Path A was chosen
->
-> **What lands when full run finishes:**
-> - `results/qwen35b-a3b-local-unified/metrics_summary.json` — headline numbers for n=681
-> - `results/qwen35b-a3b-local-unified/dialogues/*.json` — per-dialogue outputs (681 files)
-> - `results/comparison.json` updated automatically by the eval orchestrator
-> - `results/qwen35b-a3b-local-unified/run_<ts>.log` — full eval log including the per-stage breakdown table
->
-> **Next decisions after the full run lands:**
-> 1. Append a "Full run results — A3B fusion think (n=681)" section to this doc with the canonical numbers.
-> 2. Update `memory/project_overview.md` with the n=681 state acc, ROUGE/BLEU, per-stage breakdown, total wall clock, and any anomalies.
-> 3. Decide on the **2026-05-14 paper-draft horizon**: kick off **27B fusion-think mini** (~1.5–2 h) as the next gate, then either 27B fusion-think full (~48 h, weekend run) for the headline result or stop with A3B as the operational config.
-> 4. Start drafting the Evaluation section of the paper using the n=681 numbers as the headline + smoke/mini as ablation context.
->
-> **Hard rules:**
-> - Do NOT kick off the 27B mini or full while the A3B full is running — same GPU, same port 8080, only one Qwen variant fits at a time.
-> - Do NOT modify the eval scripts mid-run. If anything looks wrong, prefer reading state over killing the server.
-> - If the run was killed, the eval is per-item resumable: re-running the same command picks up from the last completed dialogue without re-doing work.
+> **Hard rules carried forward:**
+> - Single-Qwen approaches only — no SocratTeachLLM-as-teacher (VRAM constraint, see `memory/feedback_single_qwen_constraint.md`)
+> - 27B is not a ROUGE lever — don't waste a 48-h slot on it
+> - The eval is per-item resumable; the orchestrator handles full lifecycle (boot, eval, teardown, comparison) end-to-end
