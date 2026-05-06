@@ -10,6 +10,9 @@
 \usepackage{inconsolata}
 \usepackage{graphicx}
 \usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{url}
 
 \title{Reproducing and Extending KELE: A Multi-Agent Framework for Structured Socratic Teaching with LLMs}
 
@@ -26,6 +29,7 @@
 \begin{abstract}
 We reproduce and extend KELE \citep{peng2025kele}, a multi-agent framework for structured Socratic teaching with large language models. KELE decomposes Socratic dialogue into five teaching stages governed by SocRule, using a consultant--teacher architecture where one LLM selects teaching strategies and another generates responses. We reimplement the full pipeline, serve SocratTeachLLM locally via vLLM, and evaluate on the 681-dialogue test split of SocratDataset. Our primary reproduction with GPT-4o as live consultant achieves ROUGE-2 of 26.04 and BLEU-4 of 19.60. Working under a 32\,GB single-GPU compute budget that forecloses the canonical two-model stack, we develop a \emph{unified} architecture in which one open-weight backbone serves both roles through a single fusion structured-output call, eliminating per-run API spend and freeing VRAM for larger backbones. Across a smoke--mini--full progression spanning $\{$Qwen3.6-35B-A3B, Qwen 27B Q5, Gemma 4 31B$\} \times \{$think, no-think$\} \times \{$two-call, fusion$\}$, fusion-think uniformly dominates. Qwen3.6-35B-A3B fusion-think delivers a \textbf{+12.76-point absolute lift} in overall state accuracy on the full 681-dialogue test split (\textbf{1.49$\times$}, with 3--5$\times$ lifts on the harder middle and closure stages), and our headline candidate \textbf{Gemma 4 31B} surpasses A3B on every smoke and mini metric we measure, projecting a substantially higher full-run state accuracy at no additional cost. We also release \textbf{SocratDataset-EN}, a complete English translation of all 6,803 SocratDataset dialogues, at \url{https://huggingface.co/datasets/ulises-c/SocratDataset-EN}. Code and trained checkpoints are available at \url{https://github.com/ulises-c/csen-346} and \url{https://huggingface.co/ulises-c/SocratTeachLLM}.
 \end{abstract}
+\vspace{-0.8em}
 
 %% ============================================================
 %% SECTION 1 — INTRODUCTION
