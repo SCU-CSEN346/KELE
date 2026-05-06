@@ -85,7 +85,7 @@ def plot_headline(traj: list[dict], out_path: Path) -> None:
 
     # Annotate final
     ax.annotate(
-        f"final {final['state_acc_overall']:.2f}%\n(+{final['state_acc_overall']-BASELINE['state_acc_overall']:.2f} vs baseline)",
+        f"final {final['state_acc_overall']:.2f}%\n(+{final['state_acc_overall'] - BASELINE['state_acc_overall']:.2f} vs baseline)",
         xy=(final["n_dialogues"], final["state_acc_overall"]),
         xytext=(final["n_dialogues"] - 200, final["state_acc_overall"] - 5),
         fontsize=9,
@@ -114,9 +114,7 @@ def plot_headline(traj: list[dict], out_path: Path) -> None:
 
 def plot_full(traj: list[dict], out_path: Path) -> None:
     """Three-panel: overall state acc, per-stage state acc, ROUGE/BLEU."""
-    fig, (ax1, ax2, ax3) = plt.subplots(
-        3, 1, figsize=(12, 12), dpi=150, sharex=True
-    )
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 12), dpi=150, sharex=True)
 
     xs = [cp["n_dialogues"] for cp in traj]
     final = traj[-1]
@@ -146,7 +144,7 @@ def plot_full(traj: list[dict], out_path: Path) -> None:
     ax1.grid(True, alpha=0.25, linestyle=":")
     ax1.set_ylim(20, 50)
     ax1.annotate(
-        f"final {final['state_acc_overall']:.2f}% (+{final['state_acc_overall']-BASELINE['state_acc_overall']:.2f})",
+        f"final {final['state_acc_overall']:.2f}% (+{final['state_acc_overall'] - BASELINE['state_acc_overall']:.2f})",
         xy=(final["n_dialogues"], final["state_acc_overall"]),
         xytext=(final["n_dialogues"] - 200, final["state_acc_overall"] + 3),
         fontsize=9,
