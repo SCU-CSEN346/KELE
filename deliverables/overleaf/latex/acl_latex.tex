@@ -302,7 +302,7 @@ The mini run for Qwen 35B-A3B fusion-think ($n{=}25$, 145 turns, 29 minutes 5 se
   \label{tab:mini}
 \end{table}
 
-\subsection{Full run: Qwen 35B-A3B fusion-think (16h 29m, $n{=}681$)}
+\subsection{Full run: Qwen 35B-A3B fusion-think (16h 29m, \texorpdfstring{$n{=}681$}{n=681})}
 \label{sec:full}
 
 We launched the full evaluation at 19:46:53 PDT on 2026-05-04 and finished at 12:16:03 PDT the next day --- \textbf{16 h 29 m 10 s} of contiguous compute, 4{,}171 evaluated turns, and 38 schema-fallback turns ($0.91\%$, well under our $5\%$ schema-reliability gate). Per-turn time averaged $14.2$ seconds, $+18\%$ over the mini's 12.0\,s/turn. We retain $\times 1.18$ as the mini-to-full wall-clock margin for projection of subsequent overnight runs.
@@ -393,6 +393,7 @@ Table~\ref{tab:allruns} consolidates every run we executed, grouped by architect
 \begin{table*}[t]
   \centering
   \small
+  \resizebox{\textwidth}{!}{%
   \begin{tabular}{@{}llrrcccccr@{}}
     \toprule
     \textbf{Run} & \textbf{Config} & $\boldsymbol{n}$ & \textbf{turns} & \textbf{R-1} & \textbf{R-2} & \textbf{R-L} & \textbf{B-4} & \textbf{St.\ acc} & \textbf{Wall clock} \\
@@ -423,7 +424,8 @@ Table~\ref{tab:allruns} consolidates every run we executed, grouped by architect
     Gemma fusion think (mini) & fusion, think on           & 25 & 148 & 30.11 & 11.50 & 21.48 & 5.47 & \textbf{41.89\%} & 54m 33s \\
     \emph{Gemma fusion think (full)} & \emph{projected}    & \emph{681} & \emph{$\approx$4170} & --- & --- & --- & --- & \emph{$\approx$46.71\%} & \emph{$\approx$30h} \\
     \bottomrule
-  \end{tabular}
+  \end{tabular}%
+  }
   \caption{Complete experimental record. ``STL'' = SocratTeachLLM (teacher). All open-weight smoke/mini/full rows use a single backbone serving both consultant and teacher roles. The dashed line in the consultant sensitivity rows reflects that those runs were submitted as off-rig batch jobs (WAVE Slurm; M4 CPU+R9700) and detailed wall-clock is omitted. The projected Gemma full row is the open work for the next deliverable (\S\ref{sec:nextsteps}).}
   \label{tab:allruns}
 \end{table*}
