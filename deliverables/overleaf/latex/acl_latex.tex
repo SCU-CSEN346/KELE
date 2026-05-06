@@ -233,7 +233,7 @@ Each candidate configuration is gated through three escalating evaluation tiers 
 \subsection{Smoke matrix: identifying the best fusion configuration}
 \label{sec:smoke}
 
-Operating under the budget constraint of \S\ref{sec:budget}, we ran the full $\{$Qwen 27B Q5, Qwen3.6 35B-A3B$\} \times \{$two-call, fusion$\} \times \{$think, no-think$\}$ matrix at smoke scale to identify the strongest configuration before committing GPU-hours to mini and full runs. All eight cells use the same model serving both consultant and teacher roles. Table~\ref{tab:smoke-matrix} reports the eight smoke results.
+Operating under the budget constraint of \S\ref{sec:budget}, we ran the full $\{$Qwen 27B Q5, Qwen3.6 35B-A3B \citep{qwen2025qwen3}$\} \times \{$two-call, fusion$\} \times \{$think, no-think$\}$ matrix at smoke scale to identify the strongest configuration before committing GPU-hours to mini and full runs. All eight cells use the same model serving both consultant and teacher roles. Table~\ref{tab:smoke-matrix} reports the eight smoke results.
 
 \begin{table}[t]
   \centering
