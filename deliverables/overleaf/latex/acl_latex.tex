@@ -279,6 +279,7 @@ The mini run for Qwen 35B-A3B fusion-think ($n{=}25$, 145 turns, 29 minutes 5 se
 \begin{table}[t]
   \centering
   \small
+  \resizebox{\columnwidth}{!}{%
   \begin{tabular}{@{}lcccc@{}}
     \toprule
     \textbf{Stage} & \textbf{Baseline} & \textbf{A3B mini} & $\Delta$ & \textbf{Multiplier} \\
@@ -291,7 +292,8 @@ The mini run for Qwen 35B-A3B fusion-think ($n{=}25$, 145 turns, 29 minutes 5 se
     \midrule
     \textbf{Overall}       & \textbf{25.94\%} & \textbf{35.17\%} & $+$9.23 & \textbf{1.36$\times$} \\
     \bottomrule
-  \end{tabular}
+  \end{tabular}%
+  }
   \caption{Mini gate: per-stage state accuracy for Qwen 35B-A3B fusion-think ($n{=}25$, 145 turns) versus the GPT-4o baseline ($n{=}681$, 4{,}294 turns). Multi-$\times$ lifts on stages c, d, e — the harder pedagogical work — meet the promotion criterion.}
   \label{tab:mini}
 \end{table}
