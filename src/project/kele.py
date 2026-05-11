@@ -236,7 +236,7 @@ def run_batch_evaluation(
         "finished_at": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
     if unified and hasattr(system, "_unified_fallback_count"):
-        run_config["unified_fallback_count"] = system._unified_fallback_count
+        run_config["unified_fallback_count"] = system._unified_fallback_count  # type: ignore[reportAttributeAccessIssue]
     with open(output_dir / "run_config.json", "w") as f:
         json.dump(run_config, f, indent=2)
 

@@ -344,7 +344,7 @@ e34：学生正确给出题目答案
                 raise RuntimeError("Consultant call failed after 6 retries on rate limits")
 
             # 获取原始响应内容
-            raw_content = response.choices[0].message.content
+            raw_content = response.choices[0].message.content or ""
 
             # 处理可能包含markdown代码块的响应
             if raw_content.startswith("```json") and raw_content.endswith("```"):
@@ -424,7 +424,7 @@ e34：学生正确给出题目答案
             )
 
             # 获取返回结果
-            return response.choices[0].message.content
+            return response.choices[0].message.content or ""
 
         except Exception as e:
             print(f"苏格拉底教师调用失败: {e}")

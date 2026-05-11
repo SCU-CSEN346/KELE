@@ -38,9 +38,32 @@ packages = [{ include = "src", from = "." }]
 testpaths = ["tests"]
 addopts = "-v -ra"
 
+[tool.coverage.run]
+source = ["src"]
+omit = ["src/project/translate_dataset.py"]  # translation script; not unit-testable in CI
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]
+
+[tool.pyright]
+include = ["src"]
+exclude = ["references/"]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+
 [dependency-groups]
 dev = [
     "pytest>=8.0.0",
+    "pytest-cov>=6.0.0",
+    "pyright>=1.1.0",
     "ruff>=0.9.0",
     "matplotlib>=3.10.9",
 ]

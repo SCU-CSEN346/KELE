@@ -304,7 +304,7 @@ def translate_record(client: OpenAI, model: str, record: dict, retries: int = 3)
                 max_tokens=MAX_TOKENS,
                 extra_body=extra,
             )
-            result = _parse_json(resp.choices[0].message.content)
+            result = _parse_json(resp.choices[0].message.content or "")
             expected = len(record["dialogue"])
             result["dialogue"] = _merge_split_turns(result.get("dialogue", []), expected)
             turns = result.get("dialogue", [])
