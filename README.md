@@ -111,7 +111,7 @@ make serve-gemma4-31b
 **Reproduction baseline (GPT-4o + SocratTeachLLM, requires `OPENAI_API_KEY`):**
 ```bash
 make serve-socratteachllm
-poetry run kele --experiment baseline evaluate --output results/baseline
+uv run kele --experiment baseline evaluate --output results/baseline
 ```
 
 **Full smoke matrix (8 cells, ~3 hours total):**
@@ -121,7 +121,7 @@ poetry run kele --experiment baseline evaluate --output results/baseline
 
 | Config family | Boot script | Eval orchestrator | Notes |
 |---|---|---|---|
-| GPT-4o baseline (KELE canonical) | `make serve-socratteachllm` | `poetry run kele --experiment baseline evaluate` | Two-model stack; needs `OPENAI_API_KEY` |
+| GPT-4o baseline (KELE canonical) | `make serve-socratteachllm` | `uv run kele --experiment baseline evaluate` | Two-model stack; needs `OPENAI_API_KEY` |
 | Qwen 27B Q5 (dense) | `make serve-qwen27b` | `./scripts/eval_qwen27b.sh {smoke,mini,full} [--unified] [--nothink]` | Held in reserve as fusion-think alt |
 | Qwen 3.6 35B-A3B (MoE) | `make serve-qwen35b-a3b` | `./scripts/eval_qwen35b_a3b.sh {smoke,mini,full} [--unified] [--nothink]` | **Locked headline backbone** |
 | Gemma 4 31B (dense) | `make serve-gemma4-31b` | `./scripts/eval_gemma4_31b.sh {smoke,mini,full} [--unified]` | **Forward candidate** (no `--nothink`; not Gemma-supported) |
@@ -129,8 +129,8 @@ poetry run kele --experiment baseline evaluate --output results/baseline
 Per-run outputs land in `results/<experiment>/`: `metrics_summary.json` for headline numbers, `dialogues/*.json` for per-dialogue traces, `run_<timestamp>.log` for the full eval log, and `server_<timestamp>.log` for the `llama.cpp` server log. Use `kele-eval` to recompute or compare runs:
 
 ```bash
-poetry run kele-eval results/qwen35b-a3b-local-unified
-poetry run kele-eval --compare results/baseline results/qwen35b-a3b-local-unified
+uv run kele-eval results/qwen35b-a3b-local-unified
+uv run kele-eval --compare results/baseline results/qwen35b-a3b-local-unified
 ```
 
 ## Mirroring to the org repo
@@ -170,25 +170,23 @@ Verify with `git remote -v` — you should see one fetch URL and two push URLs.
 
 ## Dependencies
 
-[Poetry](https://python-poetry.org/) — Python package manager.
+[uv](https://docs.astral.sh/uv/) — Python package and project manager.
 
 ## Python Environment
 
-This repo targets Python `3.12` and uses Poetry for dependency management.
+This repo targets Python `3.12` and uses uv for dependency management.
 
 ### Initial setup
 
 ```bash
-poetry env use python3.12
-poetry install --with dev
+uv sync --group dev
 ```
 
-If you want to confirm the virtualenv Poetry is using:
+If you want to confirm the virtualenv uv is using:
 
 ```bash
-poetry env info
-poetry run python -V
-poetry run which pytest
+uv run python -V
+uv run which pytest
 ```
 
 ### Install git hooks
@@ -201,21 +199,21 @@ This copies `hooks/pre-commit` into `.git/hooks/` so that ruff (format + lint) a
 
 ### Torch note
 
-`torch` is intentionally not declared in `pyproject.toml` because the CUDA wheel installation is environment-specific. After `poetry install`, install the appropriate PyTorch build manually for your machine.
+`torch` is intentionally not declared in `pyproject.toml` because the CUDA wheel installation is environment-specific. After `uv sync`, install the appropriate PyTorch build manually for your machine.
 
 Example for CUDA 12.6:
 
 ```bash
-poetry run pip install --index-url https://download.pytorch.org/whl/cu126 "torch>=2.10.0"
+uv run pip install --index-url https://download.pytorch.org/whl/cu126 "torch>=2.10.0"
 ```
 
-## Common Poetry Commands
+## Common Commands
 
-Poetry exposes the main repo entry points directly:
+uv exposes the main repo entry points directly:
 
-- `poetry run kele`
-- `poetry run kele-eval`
-- `poetry run serve-teacher`
+- `uv run kele`
+- `uv run kele-eval`
+- `uv run serve-teacher`
 
 These map to the main modules in `src/project/`.
 
@@ -224,19 +222,19 @@ These map to the main modules in `src/project/`.
 Run the offline/default test suite:
 
 ```bash
-poetry run pytest
+uv run pytest
 ```
 
 Show skip reasons too:
 
 ```bash
-poetry run pytest -rs
+uv run pytest -rs
 ```
 
 Run a single test file:
 
 ```bash
-poetry run pytest tests/test_metrics.py
+uv run pytest tests/test_metrics.py
 ```
 
 Some tests are conditional and will skip if the required dependency or runtime is not present:
@@ -250,19 +248,19 @@ Some tests are conditional and will skip if the required dependency or runtime i
 Show CLI help:
 
 ```bash
-poetry run kele --help
+uv run kele --help
 ```
 
 Quick smoke test on a few dialogues:
 
 ```bash
-poetry run kele --experiment baseline test --n 3 --output results/test
+uv run kele --experiment baseline test --n 3 --output results/test
 ```
 
 Run a full evaluation:
 
 ```bash
-poetry run kele --experiment baseline evaluate --output results/baseline
+uv run kele --experiment baseline evaluate --output results/baseline
 ```
 
 ### Evaluate saved results
@@ -270,25 +268,25 @@ poetry run kele --experiment baseline evaluate --output results/baseline
 Recompute metrics for one run:
 
 ```bash
-poetry run kele-eval results/baseline
+uv run kele-eval results/baseline
 ```
 
 Compare two runs side-by-side:
 
 ```bash
-poetry run kele-eval --compare results/baseline results/qwen35b-a3b-local-unified
+uv run kele-eval --compare results/baseline results/qwen35b-a3b-local-unified
 ```
 
 ### Start the local teacher server
 
 ```bash
-poetry run serve-teacher
+uv run serve-teacher
 ```
 
 With a custom local model path:
 
 ```bash
-TEACHER_LOCAL_PATH=~/hf_models/SocratTeachLLM poetry run serve-teacher
+TEACHER_LOCAL_PATH=~/hf_models/SocratTeachLLM uv run serve-teacher
 ```
 
 ### Run online from your own machine
@@ -338,7 +336,7 @@ Runtime settings are loaded from:
 Typical usage pattern:
 
 ```bash
-poetry run kele --experiment baseline test --n 3 --output results/test
+uv run kele --experiment baseline test --n 3 --output results/test
 ```
 
 This loads `configs/baseline.env` first, then fills in any missing values from `.env`.

@@ -88,7 +88,7 @@ For this repo, a hosted GPU path mainly changes infrastructure, not app code:
 - install Poetry + repo dependencies
 - install the correct CUDA PyTorch wheel
 - download `yuanpan/SocratTeachLLM`
-- run `poetry run serve-teacher`
+- run `uv run serve-teacher`
 - place a reverse proxy in front if you need HTTPS/custom auth
 
 ## Important constraints

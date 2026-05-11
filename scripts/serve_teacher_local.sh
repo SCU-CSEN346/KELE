@@ -34,11 +34,11 @@ echo "---"
 export TEACHER_HOST="$HOST"
 export TEACHER_PORT="$PORT"
 
-VENV_BIN=$(poetry env info --path 2>/dev/null)/bin
+VENV_BIN="$(cd "$(dirname "$0")/.." && pwd)/.venv/bin"
 if [[ ! -x "$VENV_BIN/serve-teacher" ]]; then
     echo "ERROR: 'serve-teacher' entry point not found."
-    echo "Run: poetry run pip install -e . --no-deps"
+    echo "Run: uv sync --group dev"
     exit 1
 fi
 
-exec poetry run serve-teacher
+exec uv run serve-teacher

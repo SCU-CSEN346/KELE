@@ -15,14 +15,12 @@ nvidia-smi                  # Confirm CUDA driver is working
 # Python 3.12 via pyenv (Arch ships 3.14 which is too new for vLLM)
 pyenv install 3.12
 cd ~/Documents/scu/CSEN-346/csen-346
-~/.pyenv/versions/3.12.*/bin/python -m venv .venv
-source .venv/bin/activate
 
-# Core packages (inside venv)
-pip install openai vllm transformers accelerate huggingface_hub
-pip install rouge-score sacrebleu
-pip install wandb                          # Training metrics & dashboards
-pip install tqdm rich                      # Progress bars & rich console output
+# Install all declared deps via uv (creates .venv automatically)
+uv sync --group dev --python ~/.pyenv/versions/3.12.*/bin/python
+
+# Extra packages not in pyproject.toml (vLLM, wandb)
+uv run pip install vllm wandb
 ```
 
 ---
@@ -156,7 +154,7 @@ This trains the replacement consultant agent.
 
 ```bash
 # Additional dependencies
-pip install datasets scikit-learn
+uv run pip install datasets scikit-learn
 
 # Training (small model, fast even without wandb)
 python src/project/consultant_classifier.py \

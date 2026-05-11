@@ -31,30 +31,28 @@ GPU:    NVIDIA RTX 3070  (8 GB VRAM)
 Driver: 595.45.04   CUDA runtime: 13.2
 OS:     CachyOS (Arch-based)
 Python: 3.14.3
-Poetry: 2.3.4
+uv:     0.11+
 ```
 
 ---
 
 ## Step 0 — Install the Environment
 
-### 1. Install non-torch packages via Poetry
+### 1. Install non-torch packages via uv
 
 ```bash
 cd /path/to/csen-346
-poetry install --no-root
-# This will FAIL on torch/triton — that is expected.
-# All other packages install correctly.
+uv sync --group dev
 ```
 
 ### 2. Install the CUDA-enabled torch wheel manually
 
-Poetry's resolver cannot reconcile the +cu126 local version identifier with the
-transitive torch dependency from transformers. Install torch directly into the
-poetry venv instead:
+`torch` is excluded from `pyproject.toml` because the CUDA local version
+identifier (+cu126) conflicts with the transitive CPU wheel from transformers.
+Install torch directly into the uv venv instead:
 
 ```bash
-poetry run pip install \
+uv run pip install \
   --index-url https://download.pytorch.org/whl/cu126 \
   "torch>=2.10.0"
 ```
@@ -62,7 +60,7 @@ poetry run pip install \
 ### 3. Verify
 
 ```bash
-poetry run python -c "
+uv run python -c "
 import torch
 print('torch:', torch.__version__)
 print('CUDA:', torch.cuda.is_available())
@@ -87,7 +85,7 @@ cp .env.example .env
 
 ```bash
 mkdir -p ~/hf_models
-poetry run huggingface-cli download yuanpan/SocratTeachLLM \
+uv run hf download yuanpan/SocratTeachLLM \
   --local-dir ~/hf_models/SocratTeachLLM
 ```
 
@@ -103,7 +101,7 @@ OpenAI-compatible `/v1/chat/completions` endpoint on port 8001.
 
 ```bash
 TEACHER_LOCAL_PATH=~/hf_models/SocratTeachLLM \
-  poetry run python -m src.project.serve_teacher
+  uv run python -m src.project.serve_teacher
 ```
 
 Expected VRAM usage after loading: **~5.5–6.2 GB**
@@ -128,7 +126,7 @@ curl http://localhost:8001/v1/chat/completions \
 With the server running on port 8001 and `.env` configured:
 
 ```bash
-poetry run python -m src.project.kele
+uv run python -m src.project.kele
 ```
 
 ---
@@ -139,7 +137,7 @@ Gemma-4-31B won't fit on 8 GB at any quantization level.
 Use Gemma-3-4B-IT (4B parameters) as a comparable open-source baseline instead.
 
 ```bash
-poetry run huggingface-cli download google/gemma-3-4b-it \
+uv run hf download google/gemma-3-4b-it \
   --local-dir ~/hf_models/gemma-3-4b-it
 ```
 
@@ -148,7 +146,7 @@ Then serve it:
 ```bash
 TEACHER_LOCAL_PATH=~/hf_models/gemma-3-4b-it \
   TEACHER_MODEL_NAME=gemma-3-4b-it \
-  poetry run python -m src.project.serve_teacher
+  uv run python -m src.project.serve_teacher
 ```
 
 Update `.env` → `TEACHER_MODEL_NAME=gemma-3-4b-it` and re-run KELE for Run 2.
@@ -175,7 +173,7 @@ results/
 No changes needed. DistilBERT fits easily in 8 GB.
 
 ```bash
-poetry run python src/project/consultant_classifier.py \
+uv run python src/project/consultant_classifier.py \
   --data references/KELE/SocratDataset.json \
   --model distilbert-base-uncased \
   --epochs 5 \
@@ -211,4 +209,4 @@ Expected training time: **10–25 min** (vs. 5–10 min on RTX 5090).
 | OOM loading model | Check desktop VRAM; close GPU-heavy apps; ensure NF4 is active |
 | Slow inference | Expected — 12–20 tok/s is normal for NF4 on 3070; full eval ~8–16 hrs |
 | Chinese output from SocratTeachLLM | Model trained on Chinese data; the existing KELE prompts in English should still work, but responses may be Chinese |
-| `torch install failed` in poetry | Normal — see Step 0 above; use manual pip install step |
+| `torch install failed` | Normal — see Step 0 above; use `uv run pip install` step |

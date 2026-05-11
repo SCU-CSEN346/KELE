@@ -100,7 +100,7 @@ make serve-qwen27b
 ./scripts/run_eval.sh qwen27b-local
 
 # Compare against baseline
-poetry run kele-eval --compare results/baseline results/qwen27b-local
+uv run kele-eval --compare results/baseline results/qwen27b-local
 ```
 
 ### VRAM and throughput expectations

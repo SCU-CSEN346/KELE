@@ -3,20 +3,19 @@
 ## 1. Install system packages (Arch Linux)
 ```bash
 sudo pacman -Syu --noconfirm
-sudo pacman -S --noconfirm python-pip python-poetry pyenv github-cli
+sudo pacman -S --noconfirm python-pip pyenv github-cli
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-## 2. Set up Python 3.12 venv (system Python 3.14 is too new for vLLM)
+## 2. Set up Python 3.12 (system Python 3.14 is too new for vLLM)
 ```bash
 pyenv install 3.12
 cd ~/Documents/scu/CSEN-346/csen-346
-~/.pyenv/versions/3.12.*/bin/python -m venv .venv
-source .venv/bin/activate
 ```
 
 ## 3. Install Python dependencies
 ```bash
-pip install openai vllm transformers accelerate huggingface_hub rouge-score sacrebleu tqdm rich wandb
+uv sync --group dev --python ~/.pyenv/versions/3.12.*/bin/python
 ```
 
 ## 4. Download models
