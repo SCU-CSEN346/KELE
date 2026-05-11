@@ -13,9 +13,9 @@ For a GPU with <12 GB VRAM, set TEACHER_USE_BNB=true to load in NF4 4-bit
 (requires bitsandbytes; not supported on ROCm gfx1201).
 
 Usage:
-  poetry run python -m src.project.serve_teacher
+  uv run python -m src.project.serve_teacher
   # or with a custom model path:
-  TEACHER_LOCAL_PATH=~/hf_models/SocratTeachLLM poetry run python -m src.project.serve_teacher
+  TEACHER_LOCAL_PATH=~/hf_models/SocratTeachLLM uv run python -m src.project.serve_teacher
 """
 
 import copy
