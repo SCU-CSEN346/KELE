@@ -52,7 +52,8 @@ step "Checking ROCm driver"
 command -v rocm-smi &>/dev/null || die "rocm-smi not found — install ROCm drivers first: https://rocm.docs.amd.com/"
 rocm-smi --showproductname --showmeminfo vram 2>/dev/null || rocm-smi 2>/dev/null || true
 
-GPU_COUNT=$(rocm-smi --showproductname --format=csv,noheader 2>/dev/null | grep -c "." || echo 1)
+GPU_COUNT=$(rocm-smi --showproductname --format=csv,noheader 2>/dev/null | grep -c "." || true)
+[[ -z "${GPU_COUNT:-}" || "${GPU_COUNT}" == "0" ]] && GPU_COUNT=1
 info "GPU(s) detected: $GPU_COUNT"
 
 # ── 2. ROCm version → PyTorch wheel selection ─────────────────────────────────
@@ -88,7 +89,7 @@ info "ROCm $ROCM_VER detected → using pytorch.org/whl/$TORCH_INDEX"
 # ── 3. GPU architecture check (informational) ─────────────────────────────────
 step "Checking GPU architecture"
 if command -v rocminfo &>/dev/null; then
-    GPU_ARCH=$(rocminfo 2>/dev/null | awk '/Name:.*gfx/{print $NF; exit}')
+    GPU_ARCH=$(rocminfo 2>/dev/null | awk '/Name:.*gfx/{print $NF; exit}') || true
     if [[ -n "$GPU_ARCH" ]]; then
         info "GPU arch: $GPU_ARCH"
         if [[ "$GPU_ARCH" != "gfx1201" ]]; then
@@ -151,14 +152,14 @@ uv sync --group dev --python "$PYTHON"
 
 # ── 7. PyTorch (ROCm) ─────────────────────────────────────────────────────────
 step "Installing PyTorch ($TORCH_INDEX)"
-uv run pip install --quiet \
+uv pip install --force-reinstall \
     torch torchvision torchaudio \
     --index-url "https://download.pytorch.org/whl/$TORCH_INDEX"
 info "PyTorch installed."
 
 # ── 8. Sanity check ───────────────────────────────────────────────────────────
 step "Sanity check"
-uv run python - <<'PY'
+.venv/bin/python - <<'PY'
 import torch, sys
 
 print(f"  torch  {torch.__version__}")
