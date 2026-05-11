@@ -186,7 +186,7 @@ ollama run SocratTeachLLM
 **[csen-346](https://github.com/ulises-c/csen-346)** is a downstream course project (CSEN 346 NLP, Santa Clara University) that reproduces and extends the KELE framework using this model as the teacher agent.
 
 Key integration details:
-- **Teacher:** SocratTeachLLM, served via FastAPI (4-bit on RTX 3070) or vLLM (bfloat16 on RTX 5090 / SCU WAVE cluster L40S)
+- **Teacher:** SocratTeachLLM, served via FastAPI/HF Transformers (AMD R9700 AI PRO) or vLLM (RTX 5090, L40S, V100)
 - **Consultant:** GPT-4o (baseline) or Qwen3.5-9B (local variant)
 - **Evaluation:** 680-dialogue test split of SocratDataset, automated with ROUGE, BLEU, and GPT-4o judge (B.5 rubric)
 - **English extension:** An English translation of the training dataset is available at [ulises-c/SocratDataset-EN](https://huggingface.co/datasets/ulises-c/SocratDataset-EN)

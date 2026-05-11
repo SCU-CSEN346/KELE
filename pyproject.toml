@@ -81,5 +81,5 @@ ignore = [
 # Install torch after `uv sync` with:
 #   uv run pip install --index-url https://download.pytorch.org/whl/cu126 \
 #     "torch>=2.10.0"
-# See RTX3070_SETUP.md for the full install sequence.
+# See scripts/*_SETUP.md for the full install sequence for your hardware.
 # ---------------------------------------------------------------------------
