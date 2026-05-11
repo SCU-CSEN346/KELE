@@ -50,7 +50,7 @@ fi
 # Note: using pytest directly avoids ambiguity with the shell builtin `test`.
 # ---------------------------------------------------------------------------
 info "Running tests …"
-if uv run pytest -rs; then
+if uv run pytest -rs --cov --cov-report=term-missing; then
   pass "Tests passed"
 else
   fail "Tests failed."
