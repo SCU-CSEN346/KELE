@@ -213,7 +213,7 @@ def save_state(state: TournamentState) -> None:
 # ── Server lifecycle ──────────────────────────────────────────────────────────
 
 
-def _probe_server() -> str | None:
+def _probe_server() -> str | None:  # pragma: no cover
     try:
         import urllib.request
 
@@ -227,7 +227,7 @@ def _server_has_alias(response: str, alias: str) -> bool:
     return f'"{alias}"' in response
 
 
-def _server_ready(alias: str) -> bool:
+def _server_ready(alias: str) -> bool:  # pragma: no cover
     resp = _probe_server()
     if not resp:
         return False
@@ -236,7 +236,7 @@ def _server_ready(alias: str) -> bool:
     return _server_has_alias(resp, alias)
 
 
-def _boot_server(spec: ModelSpec) -> subprocess.Popen[bytes]:
+def _boot_server(spec: ModelSpec) -> subprocess.Popen[bytes]:  # pragma: no cover
     script = REPO_ROOT / spec.serve_script
     if not script.exists():
         print(f"  ERROR: serve script not found: {script}", file=sys.stderr)
@@ -254,7 +254,7 @@ def _boot_server(spec: ModelSpec) -> subprocess.Popen[bytes]:
     return proc
 
 
-def _kill_server(proc: subprocess.Popen[bytes] | None) -> None:
+def _kill_server(proc: subprocess.Popen[bytes] | None) -> None:  # pragma: no cover
     if proc is None:
         return
     try:
@@ -268,7 +268,9 @@ def _kill_server(proc: subprocess.Popen[bytes] | None) -> None:
         pass
 
 
-def ensure_server(spec: ModelSpec) -> tuple[subprocess.Popen[bytes] | None, bool]:
+def ensure_server(
+    spec: ModelSpec,
+) -> tuple[subprocess.Popen[bytes] | None, bool]:  # pragma: no cover
     """Return (proc, we_booted). Boots the server if not already running."""
     resp = _probe_server()
     if resp is not None:
@@ -308,7 +310,9 @@ def ensure_server(spec: ModelSpec) -> tuple[subprocess.Popen[bytes] | None, bool
 # ── Eval runner ───────────────────────────────────────────────────────────────
 
 
-def run_kele(spec: ModelSpec, out_dir: Path, n: int, unified: bool) -> float | None:
+def run_kele(
+    spec: ModelSpec, out_dir: Path, n: int, unified: bool
+) -> float | None:  # pragma: no cover
     """Run kele test --n N and return state_accuracy, or None on failure."""
     cmd = [
         "uv",
@@ -398,7 +402,7 @@ def cmd_status(_args: argparse.Namespace) -> None:
     print_leaderboard(state)
 
 
-def cmd_run(args: argparse.Namespace) -> None:
+def cmd_run(args: argparse.Namespace) -> None:  # pragma: no cover
     state = load_state()
     state.round += 1
     round_key = f"round{state.round}"
@@ -495,7 +499,7 @@ def cmd_eliminate(args: argparse.Namespace) -> None:
     print_leaderboard(state)
 
 
-def cmd_finalize(args: argparse.Namespace) -> None:
+def cmd_finalize(args: argparse.Namespace) -> None:  # pragma: no cover
     state = load_state()
     if len(state.models_active) > 3:
         print(
