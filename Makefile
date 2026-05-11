@@ -69,11 +69,12 @@ setup: setup-repo install-hooks
 
 setup-repo:
 	@echo "Configuring dual-push remotes..."
-	# Set the primary fetch/push URL
+	# Set the fetch URL
 	git remote set-url origin git@github.com:ulises-c/csen-346.git
-	# Add the secondary push URL (ignore error if it already exists)
-	git remote set-url --add --push origin git@github.com:ulises-c/csen-346.git 2>/dev/null || true
-	git remote set-url --add --push origin git@github.com:SCU-CSEN346/KELE.git 2>/dev/null || true
+	# Replace push URL list (--push without --add resets to a single entry)
+	git remote set-url --push origin git@github.com:ulises-c/csen-346.git
+	# Add the second push URL (now idempotent: list was just reset above)
+	git remote set-url --add --push origin git@github.com:SCU-CSEN346/KELE.git
 	@echo "Ensuring local main branch exists and is tracked..."
 	git checkout main || git checkout -b main
 	git push -u origin main
