@@ -12,7 +12,9 @@
         serve-qwen27b serve-qwen35b-a3b \
         serve-socratteachllm serve-teacher-online \
         setup-l40s start-local-tl-server \
-        test-gpu-stack test-vllm
+        test-gpu-stack test-vllm \
+        tournament tournament-status tournament-eliminate tournament-finalize \
+        tournament-reset tournament-download
 
 # Default target
 help:
@@ -61,6 +63,14 @@ help:
 	@echo ""
 	@echo "  WAVE HPC (SLURM):"
 	@echo "  slurm                 git pull + sbatch wave_eval.slurm + print status"
+	@echo ""
+	@echo "  Tournament (multi-model elimination):"
+	@echo "  tournament            Run one round (n=50) for all active models"
+	@echo "  tournament-status     Print leaderboard"
+	@echo "  tournament-eliminate  Drop worst model (uv run tournament eliminate [N])"
+	@echo "  tournament-finalize   Run survivors to n=681"
+	@echo "  tournament-reset      Wipe state (add CONFIRM=1 to skip prompt)"
+	@echo "  tournament-download   Print huggingface-cli download commands"
 
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
@@ -226,6 +236,30 @@ eval-qwen35b-a3b-fusion-nothink-smoke:
 # Gemma 4 has no thinking-mode equivalent, so only the --unified variant exists.
 eval-gemma4-31b-fusion-smoke:
 	bash scripts/eval_gemma4_31b.sh smoke --unified
+
+# ── Tournament ────────────────────────────────────────────────────────────────
+
+tournament:
+	uv run tournament run
+
+tournament-status:
+	uv run tournament status
+
+tournament-eliminate:
+	uv run tournament eliminate $(N)
+
+tournament-finalize:
+	uv run tournament finalize
+
+tournament-reset:
+	@if [ -z "$(CONFIRM)" ]; then \
+	  echo "This wipes results/tournament/state.json. Re-run with CONFIRM=1."; \
+	else \
+	  uv run tournament reset --confirm; \
+	fi
+
+tournament-download:
+	uv run tournament download
 
 # ── WAVE HPC ──────────────────────────────────────────────────────────────────
 

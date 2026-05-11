@@ -28,6 +28,7 @@ dependencies = [
 kele = "src.project.kele:main"
 kele-eval = "src.project.evaluate:main"
 serve-teacher = "src.project.serve_teacher:main"
+tournament = "src.project.tournament:main"
 test = "src.project.scripts:test"
 lint = "src.project.scripts:lint"
 
