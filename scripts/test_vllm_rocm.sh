@@ -16,7 +16,7 @@
 # Exit code: 0 if all steps pass, 1 if any step fails.
 
 set -uo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
 pass()  { echo -e "  ${GREEN}PASS${NC}  $*"; }
@@ -92,7 +92,7 @@ if [[ -n "$VLLM_INSTALLED" ]]; then
     IMPORT_OUT=$(uv run python -c "import vllm; print('vllm', vllm.__version__)" 2>&1)
     if echo "$IMPORT_OUT" | grep -qi "error\|traceback\|exception"; then
         fail "vLLM import raised an error:"
-        echo "$IMPORT_OUT" | sed 's/^/         /'
+        while IFS= read -r line; do echo "         $line"; done <<< "$IMPORT_OUT"
         FAILURES=$((FAILURES + 1))
     else
         pass "$IMPORT_OUT"
