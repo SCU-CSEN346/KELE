@@ -31,9 +31,6 @@ serve-teacher = "src.project.serve_teacher:main"
 test = "src.project.scripts:test"
 lint = "src.project.scripts:lint"
 
-[tool.poetry]
-packages = [{ include = "src", from = "." }]
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v -ra"
@@ -80,8 +77,11 @@ skip = "uv.lock,*references*,*deliverables*,*results*,.venv"
 ignore-words-list = "rouge,nothink,re-use"
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
 
 [tool.ruff]
 target-version = "py312"
