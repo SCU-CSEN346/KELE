@@ -69,7 +69,7 @@ dev = [
 [tool.codespell]
 # Skip generated/external files and non-English content.
 # codespell uses fnmatch, so directory skips need a wildcard prefix.
-skip = "uv.lock,*references*,*deliverables*,*results*,.venv"
+skip = "uv.lock,*references*,*deliverables*,*results*,.venv,*data*"
 # Terms that are not typos:
 #   rouge   — ROUGE (NLP metric: Recall-Oriented Understudy for Gisting Evaluation)
 #   nothink — Qwen model inference mode flag (think / nothink)

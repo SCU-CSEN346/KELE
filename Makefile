@@ -64,8 +64,6 @@ setup: setup-repo install-hooks
 	@echo "This project uses uv for dependency management. Install uv from https://docs.astral.sh/uv/ if not already installed."
 	@echo "Setting up the project via uv:"
 	uv sync --group dev
-	@echo ""
-	@echo "Then run 'make install-hooks' to set up git hooks for code quality checks on commit."
 
 setup-repo:
 	@echo "Configuring dual-push remotes..."
@@ -75,9 +73,6 @@ setup-repo:
 	git remote set-url --push origin git@github.com:ulises-c/csen-346.git
 	# Add the second push URL (now idempotent: list was just reset above)
 	git remote set-url --add --push origin git@github.com:SCU-CSEN346/KELE.git
-	@echo "Ensuring local main branch exists and is tracked..."
-	git checkout main || git checkout -b main
-	git push -u origin main
 	@echo "Repository setup complete. Verify with 'git remote -v'."
 
 # ── Dual remote synchronization ────────────────────────────────────────────────────
