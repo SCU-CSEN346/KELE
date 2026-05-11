@@ -1,5 +1,8 @@
 # csen-346
 
+[![CI](https://github.com/ulises-c/csen-346/actions/workflows/ci.yml/badge.svg)](https://github.com/ulises-c/csen-346/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/ulises-c/csen-346/graph/badge.svg)](https://codecov.io/gh/ulises-c/csen-346)
+
 Natural Language Processing — CSEN 346, Santa Clara University.
 
 This project reproduces and extends **KELE**, a multi-agent framework for structured Socratic teaching with LLMs, then pushes it further than the published baseline by collapsing the two-agent architecture into a single open-weight backbone serving both consultant and teacher roles via a fusion structured-output call. Our headline locked result is a **+12.76 point absolute lift** in overall state accuracy over the GPT-4o baseline on the full 681-dialogue test split, with **3–5× multipliers on the harder middle and closure stages**, running entirely on a single 32 GB consumer GPU at zero per-run API cost.
@@ -89,6 +92,7 @@ Key design docs:
 - [`docs/QWEN_LOCAL_EXPLORATION_LOG.md`](docs/QWEN_LOCAL_EXPLORATION_LOG.md) — full experimental trajectory
 - [`docs/EXPERIMENT_LOG.md`](docs/EXPERIMENT_LOG.md) — engineering decisions, dated entries
 - [`docs/IMPROVEMENT_PLAN.md`](docs/IMPROVEMENT_PLAN.md) — proposed extensions catalog
+- [`docs/CI_FUTURE_WORK.md`](docs/CI_FUTURE_WORK.md) — deferred CI/automation items
 
 ## Running the Experiments
 
@@ -195,7 +199,14 @@ uv run which pytest
 make install-hooks
 ```
 
-This copies `hooks/pre-commit` into `.git/hooks/` so that ruff (format + lint) and pytest run automatically before every commit, mirroring the CI pipeline.
+This copies `hooks/pre-commit` into `.git/hooks/` so that the following checks run automatically before every commit, mirroring the CI pipeline:
+
+1. **ruff format** — auto-format check
+2. **ruff check** — linting
+3. **pyright** — static type checking
+4. **codespell** — spell checking across source and docs
+5. **shellcheck** — shell script linting (skipped gracefully if not installed; `brew install shellcheck`)
+6. **pytest** — full test suite with coverage report
 
 ### Torch note
 
