@@ -46,7 +46,35 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 4: Tests (uv run pytest — mirrors CI)
+# Step 4: Spell check (codespell — mirrors CI lint job)
+# ---------------------------------------------------------------------------
+info "Spell checking (codespell) …"
+if uv run codespell .; then
+  pass "Spell check OK"
+else
+  fail "Spell check failed. Fix the typos above before committing."
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Step 5: Shell script linting (shellcheck — mirrors CI lint job)
+# shellcheck is a native binary; skip gracefully if not installed locally.
+# Install: brew install shellcheck  or  apt install shellcheck
+# ---------------------------------------------------------------------------
+if command -v shellcheck &>/dev/null; then
+  info "Linting shell scripts (shellcheck) …"
+  if find scripts/ hooks/ -name "*.sh" -o -name "pre-commit" | xargs shellcheck; then
+    pass "Shell scripts OK"
+  else
+    fail "shellcheck found issues. Fix the errors above before committing."
+    exit 1
+  fi
+else
+  info "shellcheck not found — skipping (install with: brew install shellcheck)"
+fi
+
+# ---------------------------------------------------------------------------
+# Step 6: Tests (uv run pytest — mirrors CI)
 # Note: using pytest directly avoids ambiguity with the shell builtin `test`.
 # ---------------------------------------------------------------------------
 info "Running tests …"

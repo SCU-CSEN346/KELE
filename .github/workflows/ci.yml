@@ -27,6 +27,9 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Verify lockfile is up to date
+        run: uv lock --check
+
       - name: Cache virtualenv
         id: cache-venv-lint
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
@@ -46,6 +49,12 @@ jobs:
 
       - name: Type check (pyright)
         run: uv run pyright
+
+      - name: Spell check (codespell)
+        run: uv run codespell .
+
+      - name: Lint shell scripts (shellcheck)
+        run: find scripts/ hooks/ -name "*.sh" -o -name "pre-commit" | xargs shellcheck
 
   test:
     name: Test

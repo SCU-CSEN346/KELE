@@ -65,8 +65,19 @@ dev = [
     "pytest-cov>=6.0.0",
     "pyright>=1.1.0",
     "ruff>=0.9.0",
+    "codespell>=2.3.0",
     "matplotlib>=3.10.9",
 ]
+
+[tool.codespell]
+# Skip generated/external files and non-English content.
+# codespell uses fnmatch, so directory skips need a wildcard prefix.
+skip = "uv.lock,*references*,*deliverables*,*results*,.venv"
+# Terms that are not typos:
+#   rouge   — ROUGE (NLP metric: Recall-Oriented Understudy for Gisting Evaluation)
+#   nothink — Qwen model inference mode flag (think / nothink)
+#   re-use  — hyphenated form is valid; codespell prefers the unhyphenated reuse
+ignore-words-list = "rouge,nothink,re-use"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
