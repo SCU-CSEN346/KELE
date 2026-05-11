@@ -157,7 +157,25 @@ uv pip install --force-reinstall \
     --index-url "https://download.pytorch.org/whl/$TORCH_INDEX"
 info "PyTorch installed."
 
-# ── 8. Sanity check ───────────────────────────────────────────────────────────
+# ── 8. flash-attn (ROCm/Triton backend) ──────────────────────────────────────
+# The PyPI flash-attn wheel fails on gfx1201 (hipcc CK-tile ISA error).
+# The ROCm/flash-attention fork supports gfx1201 via a Triton backend.
+step "Installing flash-attn (ROCm fork, Triton backend)"
+FA_TMP=$(mktemp -d)
+trap 'rm -rf "$FA_TMP"' EXIT
+info "Cloning ROCm/flash-attention (with submodules — takes ~2 min)..."
+git clone --depth=1 --recurse-submodules \
+    https://github.com/ROCm/flash-attention.git "$FA_TMP/flash-attention" 2>&1 \
+    | tail -3
+# pip is needed by the fork's setup.py to install the aiter sub-dependency.
+uv pip install pip --quiet
+info "Building flash-attn with Triton backend (no HIP/CK compilation)..."
+FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE \
+    uv pip install "$FA_TMP/flash-attention" --no-build-isolation --quiet
+info "flash-attn installed (Triton backend)."
+info "Note: first import triggers Triton JIT (~15 s); subsequent imports use the cache."
+
+# ── 9. Sanity check ───────────────────────────────────────────────────────────
 step "Sanity check"
 .venv/bin/python - <<'PY'
 import torch, sys
@@ -180,7 +198,7 @@ else:
 PY
 info "All imports OK."
 
-# ── 9. .env ───────────────────────────────────────────────────────────────────
+# ── 10. .env ──────────────────────────────────────────────────────────────────
 step "Environment file"
 if [[ ! -f .env ]]; then
     cp .env.example .env
@@ -193,7 +211,7 @@ else
     info ".env already exists — skipping."
 fi
 
-# ── 10. Model downloads (optional) ────────────────────────────────────────────
+# ── 11. Model downloads (optional) ───────────────────────────────────────────
 if [[ "$DOWNLOAD_MODELS" == true ]]; then
     step "Downloading teacher model (~19 GB)"
     HF_HOME="${HF_HOME:-$HOME/hf_models}"
@@ -222,20 +240,26 @@ echo -e "${GREEN}${BOLD}Setup complete!${NC}"
 echo ""
 if [[ "$DOWNLOAD_MODELS" == false ]]; then
     echo "Next steps:"
-    echo "  1. Download the teacher model (needs internet, ~19 GB):"
+    echo "  1. Verify the full ML stack (ROCm, torch, bnb, PEFT, TRL, flash-attn):"
+    echo "       make test-gpu-stack"
+    echo ""
+    echo "  2. Download the teacher model (needs internet, ~19 GB):"
     echo "       bash scripts/amd_r9700_setup.sh --models"
+    echo ""
+    echo "  3. Start the teacher server:"
+    echo "       bash scripts/serve_teacher_local.sh"
+    echo ""
+    echo "  4. Run evaluation (in a second terminal once server is ready):"
+    echo "       uv run kele-eval"
+else
+    echo "Next steps:"
+    echo "  1. Verify the full ML stack (ROCm, torch, bnb, PEFT, TRL, flash-attn):"
+    echo "       make test-gpu-stack"
     echo ""
     echo "  2. Start the teacher server:"
     echo "       bash scripts/serve_teacher_local.sh"
     echo ""
     echo "  3. Run evaluation (in a second terminal once server is ready):"
-    echo "       uv run kele-eval"
-else
-    echo "Next steps:"
-    echo "  1. Start the teacher server:"
-    echo "       bash scripts/serve_teacher_local.sh"
-    echo ""
-    echo "  2. Run evaluation (in a second terminal once server is ready):"
     echo "       uv run kele-eval"
 fi
 echo ""

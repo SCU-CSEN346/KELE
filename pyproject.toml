@@ -22,6 +22,8 @@ dependencies = [
     "uvicorn>=0.34.0",
     "pydantic>=2.13.4",
     "google-genai>=2.0.1",
+    "peft>=0.19.1",
+    "trl>=1.4.0",
 ]
 
 [project.scripts]

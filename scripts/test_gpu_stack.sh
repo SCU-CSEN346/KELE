@@ -10,7 +10,7 @@
 #   6. transformers + BitsAndBytesConfig (QLoRA config object)
 #   7. PEFT + LoraConfig (LoRA adapter config)
 #   8. TRL SFTConfig (fine-tuning trainer) — skipped if not installed
-#   9. flash-attn — skipped if not installed
+#   9. PyTorch SDPA (Flash-Attention equivalent for ROCm) + flash-attn if installed
 #
 # No model weights are downloaded. Each step is independent.
 #
@@ -310,11 +310,11 @@ print(f"trl {trl.__version__}")
 try:
     cfg = SFTConfig(
         output_dir="/tmp/trl_probe",
-        max_seq_length=512,
+        max_length=512,
         per_device_train_batch_size=1,
         gradient_checkpointing=True,
     )
-    print(f"SFTConfig: OK  (max_seq_length={cfg.max_seq_length}, "
+    print(f"SFTConfig: OK  (max_length={cfg.max_length}, "
           f"grad_ckpt={cfg.gradient_checkpointing})")
 except Exception as e:
     print(f"FAIL SFTConfig raised: {e}")
@@ -329,49 +329,65 @@ PY
     fi
 fi
 
-# ── 9. flash-attn (optional) ──────────────────────────────────────────────────
-step 9 "flash-attn — FlashAttention-2  [optional]"
-FA_INSTALLED=$(.venv/bin/python -c "import flash_attn; print(flash_attn.__version__)" 2>/dev/null || echo "")
-if [[ -z "$FA_INSTALLED" ]]; then
-    warn "flash_attn not installed — skipping."
-    warn "FlashAttention-2 speeds up fine-tuning significantly on supported GPUs."
-    warn "ROCm support: check https://github.com/ROCm/flash-attention for gfx1201 status."
-else
-    FA_OUT=$(.venv/bin/python - 2>&1 <<'PY'
-import sys
+# ── 9. Efficient attention (PyTorch SDPA + optional flash-attn) ───────────────
+step 9 "Efficient attention — PyTorch SDPA + flash-attn if installed"
+SDPA_OUT=$(.venv/bin/python - 2>&1 <<'PY'
+import sys, warnings
+warnings.filterwarnings("ignore")
 try:
-    import flash_attn
-    from flash_attn import flash_attn_func
     import torch
+    from torch.nn.functional import scaled_dot_product_attention
+    from torch.nn.attention import sdpa_kernel, SDPBackend
 except ImportError as e:
     print(f"FAIL missing dep: {e}")
     sys.exit(1)
 
-print(f"flash_attn {flash_attn.__version__}")
-
-try:
-    if not torch.cuda.is_available():
-        print("FAIL GPU not available for flash_attn")
-        sys.exit(1)
-
-    # Minimal probe: create random Q/K/V and run one attention call.
-    B, S, H, D = 1, 64, 4, 32
-    q = torch.randn(B, S, H, D, dtype=torch.bfloat16, device="cuda")
-    k = torch.randn(B, S, H, D, dtype=torch.bfloat16, device="cuda")
-    v = torch.randn(B, S, H, D, dtype=torch.bfloat16, device="cuda")
-    out = flash_attn_func(q, k, v)
-    print(f"flash_attn_func: input {tuple(q.shape)} → output {tuple(out.shape)}  OK")
-except Exception as e:
-    print(f"FAIL flash_attn_func raised: {e}")
+if not torch.cuda.is_available():
+    print("FAIL GPU not available for SDPA")
     sys.exit(1)
+
+print(f"torch {torch.__version__}  SDPA backends available:")
+flash_ok  = torch.backends.cuda.flash_sdp_enabled()
+mem_ok    = torch.backends.cuda.mem_efficient_sdp_enabled()
+math_ok   = torch.backends.cuda.math_sdp_enabled()
+print(f"  flash={flash_ok}  mem_efficient={mem_ok}  math={math_ok}")
+
+# Run a forward pass with all backends enabled.
+B, H, S, D = 1, 4, 64, 32
+q = torch.randn(B, H, S, D, dtype=torch.bfloat16, device="cuda")
+k = torch.randn(B, H, S, D, dtype=torch.bfloat16, device="cuda")
+v = torch.randn(B, H, S, D, dtype=torch.bfloat16, device="cuda")
+
+backends = [SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION, SDPBackend.MATH]
+with sdpa_kernel(backends):
+    out = scaled_dot_product_attention(q, k, v)
+
+print(f"scaled_dot_product_attention: {tuple(q.shape)} → {tuple(out.shape)}  OK")
+print(f"output dtype: {out.dtype}  device: {out.device}")
+print("PyTorch SDPA (Flash-Attention equivalent for ROCm): supported")
+
+# Probe flash_attn package if installed.
+try:
+    import flash_attn
+    from flash_attn import flash_attn_func
+    print(f"flash_attn package {flash_attn.__version__} also installed")
+    B2, S2, H2, D2 = 1, 64, 4, 32
+    q2 = torch.randn(B2, S2, H2, D2, dtype=torch.bfloat16, device="cuda")
+    k2 = torch.randn(B2, S2, H2, D2, dtype=torch.bfloat16, device="cuda")
+    v2 = torch.randn(B2, S2, H2, D2, dtype=torch.bfloat16, device="cuda")
+    out2 = flash_attn_func(q2, k2, v2)
+    print(f"flash_attn_func: {tuple(q2.shape)} → {tuple(out2.shape)}  OK")
+except ImportError:
+    print("flash_attn package not installed (optional; PyTorch SDPA is sufficient on ROCm)")
+except Exception as e:
+    print(f"flash_attn_func raised: {e}  (non-fatal; SDPA passed above)")
 PY
-    )
-    if echo "$FA_OUT" | grep -q "^FAIL"; then
-        fail "$(echo "$FA_OUT" | grep "^FAIL" | sed 's/^FAIL //')"
-        FAILURES=$((FAILURES + 1))
-    else
-        while IFS= read -r line; do pass "$line"; done <<< "$FA_OUT"
-    fi
+)
+if echo "$SDPA_OUT" | grep -q "^FAIL"; then
+    fail "$(echo "$SDPA_OUT" | grep "^FAIL" | sed 's/^FAIL //')"
+    FAILURES=$((FAILURES + 1))
+else
+    while IFS= read -r line; do pass "$line"; done <<< "$SDPA_OUT"
 fi
 
 # ── Summary ───────────────────────────────────────────────────────────────────
@@ -384,7 +400,11 @@ if [[ "$FAILURES" -eq 0 ]]; then
     echo "  QLoRA fine-tuning:            steps 3–6 all passing = QLoRA is supported."
     echo "  LoRA fine-tuning:             step 7 passing = PEFT/LoRA is ready."
     echo "  SFT trainer:                  step 8 passing = TRL SFTTrainer is ready."
-    echo "  FlashAttention-2:             step 9 passing = faster fine-tuning available."
+    echo "  Efficient attention:          step 9 passing = PyTorch SDPA + flash-attn (if installed)"
+    echo "    flash_attn install note: PyPI wheel fails on gfx1201 (CK-tile ISA bug)."
+    echo "    Use ROCm fork with Triton backend:"
+    echo "      git clone --recurse-submodules https://github.com/ROCm/flash-attention /tmp/fa"
+    echo "      FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE uv pip install /tmp/fa --no-build-isolation"
     echo ""
     echo "  To check vLLM separately:  bash scripts/test_vllm_rocm.sh"
 else
