@@ -35,14 +35,15 @@ else
     ROCM_VER=$(cat /opt/rocm/.info/version 2>/dev/null \
         || rocminfo 2>/dev/null | awk '/ROCm Runtime/{match($0,/[0-9]+\.[0-9]+/); print substr($0,RSTART,RLENGTH); exit}' \
         || echo "unknown")
-    GPU_ARCH=$(rocminfo 2>/dev/null | awk '/Name:.*gfx/{print $NF; exit}' || echo "unknown")
+    GPU_ARCH=$(rocminfo 2>/dev/null | awk '/Name:.*gfx/{print $NF; exit}') || true
+    [[ -z "${GPU_ARCH:-}" ]] && GPU_ARCH="unknown"
     pass "ROCm $ROCM_VER  arch: $GPU_ARCH"
     rocm-smi --showproductname 2>/dev/null | grep -v "^$" | sed 's/^/         /' || true
 fi
 
 # ── 2. torch + ROCm ───────────────────────────────────────────────────────────
 step 2 "torch — GPU accessible from Python"
-TORCH_OUT=$(uv run python - 2>&1 <<'PY'
+TORCH_OUT=$(.venv/bin/python - 2>&1 <<'PY'
 import sys
 try:
     import torch
@@ -76,20 +77,20 @@ fi
 step 3 "vLLM — import"
 
 # Install into the venv if not already present (install-only, no model load)
-VLLM_INSTALLED=$(uv run python -c "import vllm; print(vllm.__version__)" 2>/dev/null || echo "")
+VLLM_INSTALLED=$(.venv/bin/python -c "import vllm; print(vllm.__version__)" 2>/dev/null || echo "")
 if [[ -z "$VLLM_INSTALLED" ]]; then
     warn "vLLM not installed — installing now (this may take a minute)..."
-    if ! uv run pip install --quiet "vllm>=0.7" 2>&1 | tail -3; then
+    if ! uv pip install --quiet "vllm>=0.7" 2>&1 | tail -3; then
         fail "vLLM pip install failed — likely no pre-built ROCm wheel for this arch."
         FAILURES=$((FAILURES + 1))
         VLLM_INSTALLED=""
     else
-        VLLM_INSTALLED=$(uv run python -c "import vllm; print(vllm.__version__)" 2>/dev/null || echo "")
+        VLLM_INSTALLED=$(.venv/bin/python -c "import vllm; print(vllm.__version__)" 2>/dev/null || echo "")
     fi
 fi
 
 if [[ -n "$VLLM_INSTALLED" ]]; then
-    IMPORT_OUT=$(uv run python -c "import vllm; print('vllm', vllm.__version__)" 2>&1)
+    IMPORT_OUT=$(.venv/bin/python -c "import vllm; print('vllm', vllm.__version__)" 2>&1)
     if echo "$IMPORT_OUT" | grep -qi "error\|traceback\|exception"; then
         fail "vLLM import raised an error:"
         while IFS= read -r line; do echo "         $line"; done <<< "$IMPORT_OUT"
@@ -104,7 +105,7 @@ step 4 "vLLM — device probe (does vLLM see the GPU?)"
 if [[ -z "$VLLM_INSTALLED" ]]; then
     warn "Skipped — vLLM not available."
 else
-    PROBE_OUT=$(uv run python - 2>&1 <<'PY'
+    PROBE_OUT=$(.venv/bin/python - 2>&1 <<'PY'
 import sys
 try:
     from vllm.platforms import current_platform
@@ -136,7 +137,7 @@ else
     # Use a tiny placeholder to probe engine startup without downloading anything.
     # The goal is to see whether the worker/executor initialises on the GPU —
     # we expect it to fail at the weight-loading stage, not before.
-    ENGINE_OUT=$(timeout 60 uv run python - 2>&1 <<'PY' || true
+    ENGINE_OUT=$(timeout 60 .venv/bin/python - 2>&1 <<'PY' || true
 import sys, os
 os.environ.setdefault("VLLM_WORKER_MULTIPROC_METHOD", "spawn")
 
