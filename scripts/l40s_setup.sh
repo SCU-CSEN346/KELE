@@ -13,7 +13,8 @@ cd "$(dirname "$0")/.."
 # manage the Python version in use, and uv also calls bare `python` through
 # PATH — so shims must be gone before any uv invocation.
 if [[ -n "${PYENV_ROOT:-}" ]] || echo "$PATH" | grep -q '\.pyenv'; then
-    export PATH="$(echo "$PATH" | tr ':' '\n' | grep -v '\.pyenv' | tr '\n' ':' | sed 's/:$//')"
+    PATH="$(echo "$PATH" | tr ':' '\n' | grep -v '\.pyenv' | tr '\n' ':' | sed 's/:$//')"
+    export PATH
     unset PYENV_VERSION PYENV_ROOT 2>/dev/null || true
 fi
 
@@ -105,7 +106,8 @@ if ! _has_python312; then
     if command -v pyenv &>/dev/null; then
         info "Python >=3.12 not in PATH — trying pyenv..."
         pyenv install --skip-existing 3.12
-        export PATH="$(pyenv root)/versions/3.12.*/bin:$PATH"
+        PATH="$(pyenv root)/versions/3.12.*/bin:$PATH"
+        export PATH
     else
         die "Python >=3.12 not found. Install it via pyenv, your distro's package manager, or from python.org."
     fi
@@ -130,6 +132,7 @@ if ! command -v uv &>/dev/null; then
     info "uv not found — installing..."
     curl -LsSf https://astral.sh/uv/install.sh | sh
     info "Add the following to your ~/.bashrc or ~/.zshrc:"
+    # shellcheck disable=SC2016  # single quotes are intentional — printing shell code verbatim
     echo '    export PATH="$HOME/.local/bin:$PATH"'
 fi
 uv --version

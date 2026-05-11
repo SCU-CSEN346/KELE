@@ -36,7 +36,7 @@ fi
 # Check if Ollama is already running and listening on the expected port.
 if curl -s "http://localhost:$PORT/api/version" > /dev/null 2>&1; then
     echo "Ollama is already running on port $PORT."
-    LISTEN=$(lsof -iTCP:$PORT -sTCP:LISTEN -n -P 2>/dev/null | awk 'NR>1 {print $9}' | head -1)
+    LISTEN=$(lsof -iTCP:"$PORT" -sTCP:LISTEN -n -P 2>/dev/null | awk 'NR>1 {print $9}' | head -1)
     echo "Binding: $LISTEN"
 
     # Verify the model is available.
@@ -48,7 +48,7 @@ if curl -s "http://localhost:$PORT/api/version" > /dev/null 2>&1; then
     fi
 
     # Attach caffeinate to the existing Ollama process so the Mac won't sleep.
-    OLLAMA_PID=$(lsof -iTCP:$PORT -sTCP:LISTEN -n -P 2>/dev/null | awk 'NR>1 {print $2}' | head -1)
+    OLLAMA_PID=$(lsof -iTCP:"$PORT" -sTCP:LISTEN -n -P 2>/dev/null | awk 'NR>1 {print $2}' | head -1)
     if [[ -n "$OLLAMA_PID" ]] && command -v caffeinate &>/dev/null; then
         caffeinate -s -w "$OLLAMA_PID" &
         echo "Sleep inhibited (caffeinate -s -w $OLLAMA_PID)."
@@ -81,7 +81,7 @@ else
 
     # Warm up: a single short generation so the first real eval call is fast.
     echo "Warming up model (loading weights into memory)..."
-    curl -s http://localhost:$PORT/api/generate \
+    curl -s "http://localhost:$PORT/api/generate" \
         -d "{\"model\": \"$MODEL\", \"prompt\": \"hi\", \"stream\": false}" \
         > /dev/null
     echo "Model loaded."

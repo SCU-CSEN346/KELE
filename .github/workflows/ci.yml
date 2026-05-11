@@ -54,7 +54,7 @@ jobs:
         run: uv run codespell .
 
       - name: Lint shell scripts (shellcheck)
-        run: find scripts/ hooks/ -name "*.sh" -o -name "pre-commit" | xargs shellcheck
+        run: find scripts/ hooks/ \( -name "*.sh" -o -name "pre-commit" \) -print0 | xargs -0 shellcheck
 
   test:
     name: Test

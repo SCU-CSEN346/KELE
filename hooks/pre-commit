@@ -58,12 +58,12 @@ fi
 
 # ---------------------------------------------------------------------------
 # Step 5: Shell script linting (shellcheck — mirrors CI lint job)
-# shellcheck is a native binary; skip gracefully if not installed locally.
+# NOTE: shellcheck is a native binary; skip gracefully if not installed locally.
 # Install: brew install shellcheck  or  apt install shellcheck
 # ---------------------------------------------------------------------------
 if command -v shellcheck &>/dev/null; then
   info "Linting shell scripts (shellcheck) …"
-  if find scripts/ hooks/ -name "*.sh" -o -name "pre-commit" | xargs shellcheck; then
+  if find scripts/ hooks/ \( -name "*.sh" -o -name "pre-commit" \) -print0 | xargs -0 shellcheck; then
     pass "Shell scripts OK"
   else
     fail "shellcheck found issues. Fix the errors above before committing."

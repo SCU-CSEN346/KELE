@@ -56,7 +56,7 @@ fi
 
 if [[ ! -f "$MODEL" ]]; then
   echo "Error: weight file not found at $MODEL" >&2
-  echo "Download it first:  hf download unsloth/Qwen3.6-27B-GGUF $(basename "$MODEL") --local-dir \$(dirname "$MODEL")" >&2
+  echo "Download it first:  hf download unsloth/Qwen3.6-27B-GGUF $(basename "$MODEL") --local-dir \$(dirname \"$MODEL\")" >&2
   exit 1
 fi
 

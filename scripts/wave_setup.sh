@@ -44,10 +44,7 @@ _can_write() {
     [[ -d "$dir" ]] && touch "$probe" 2>/dev/null && rm -f "$probe"
 }
 
-if _can_write "$PROJECT_SPACE" && _can_write "$SCRATCH_SPACE"; then
-    warn_fallback=false
-else
-    warn_fallback=true
+if ! _can_write "$PROJECT_SPACE" || ! _can_write "$SCRATCH_SPACE"; then
     warn "Cannot write to $PROJECT_SPACE or $SCRATCH_SPACE"
     warn "The class directories may not be provisioned yet."
     warn "Contact your sysadmin to request access, then re-run."
@@ -120,6 +117,7 @@ if ! command -v uv &>/dev/null; then
     curl -LsSf https://astral.sh/uv/install.sh | sh
     info "Added \$HOME/.local/bin to PATH for this session."
     info "Add the following to your ~/.bashrc or ~/.bash_profile:"
+    # shellcheck disable=SC2016  # single quotes are intentional — printing shell code verbatim
     echo '    export PATH="$HOME/.local/bin:$PATH"'
 fi
 uv --version

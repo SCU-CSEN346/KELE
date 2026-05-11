@@ -15,7 +15,7 @@ cd "$(dirname "$0")/.."
 ENV_FILE="$(dirname "$0")/../configs/local-teacher.env"
 if [[ -f "$ENV_FILE" ]]; then
     set -a
-    # shellcheck source=../configs/local-teacher.env
+    # shellcheck source=/dev/null
     source "$ENV_FILE"
     set +a
 fi
