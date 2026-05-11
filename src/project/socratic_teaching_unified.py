@@ -318,7 +318,7 @@ e34：学生正确给出题目答案
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_input},
                     ],
-                    response_format=response_format,
+                    response_format=response_format,  # type: ignore[reportArgumentType]
                     max_tokens=max_tokens,
                 )
                 break

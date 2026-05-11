@@ -17,7 +17,7 @@
 help:
 	@echo "Usage: make <target>"
 	@echo ""
-	@echo "  run                   Show how to launch the project via poetry"
+	@echo "  run                   Show how to launch the project via uv"
 	@echo "  install-hooks         Install git hooks from hooks/ into .git/hooks/"
 	@echo ""
 	@echo "  Scripts (scripts/):"
@@ -61,9 +61,9 @@ help:
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
 setup: setup-repo install-hooks
-	@echo "This project requires Poetry for dependency management. Install Poetry from https://python-poetry.org/ and ensure it's on your PATH."
-	@echo "Setting up the project via poetry:"
-	poetry install
+	@echo "This project uses uv for dependency management. Install uv from https://docs.astral.sh/uv/ if not already installed."
+	@echo "Setting up the project via uv:"
+	uv sync --group dev
 	@echo ""
 	@echo "Then run 'make install-hooks' to set up git hooks for code quality checks on commit."
 
@@ -95,23 +95,23 @@ sync-mirror:
 # ── Entry point ──────────────────────────────────────────────────────────────
 
 run:
-	@echo "Run the project via poetry:"
+	@echo "Run the project via uv:"
 	@echo ""
-	@echo "  poetry run kele            # main KELE entry point"
-	@echo "  poetry run kele-eval       # run evaluation"
-	@echo "  poetry run serve-teacher   # start teacher server"
+	@echo "  uv run kele            # main KELE entry point"
+	@echo "  uv run kele-eval       # run evaluation"
+	@echo "  uv run serve-teacher   # start teacher server"
 	@echo ""
-	@echo "  poetry run test            # run tests (or: make test)"
-	@echo "  poetry run lint            # lint source  (or: make lint)"
+	@echo "  uv run test            # run tests (or: make test)"
+	@echo "  uv run lint            # lint source  (or: make lint)"
 	@echo ""
-	@echo "  make pre-commit            # run format + lint + tests (mirrors git pre-commit hook)"
+	@echo "  make pre-commit        # run format + lint + tests (mirrors git pre-commit hook)"
 
 # ── Code quality ─────────────────────────────────────────────────────────────
 
 pre-commit:
-	poetry run ruff format .
-	poetry run ruff check --fix .
-	poetry run pytest -rs
+	uvx ruff format .
+	uvx ruff check --fix .
+	uv run pytest -rs
 
 # ── Developer setup ──────────────────────────────────────────────────────────
 

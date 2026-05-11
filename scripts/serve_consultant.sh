@@ -76,7 +76,7 @@ echo "---"
 
 export PYTORCH_ALLOC_CONF=expandable_segments:True
 
-exec poetry run vllm serve "$MODEL_PATH" \
+exec uv run vllm serve "$MODEL_PATH" \
     --served-model-name "$MODEL_NAME" \
     --host "$HOST" \
     --port "$PORT" \

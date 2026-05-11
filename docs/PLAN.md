@@ -41,7 +41,7 @@ _Updated from repo state on 2026-04-14._
 **Consultant model:** Qwen3.5-9B (replaces GPT-4o from original paper — fully local, zero paid APIs).
 **Setup guide:** See [`RTX5090_SETUP.md`](RTX5090_SETUP.md) for full runbook — model downloads, vLLM serving, eval pipeline, metrics export, and troubleshooting.
 
-- [x] Add `openai` to `pyproject.toml` via Poetry
+- [x] Add `openai` to `pyproject.toml`
 - [x] Serve [SocratTeachLLM](https://huggingface.co/yuanpan/SocratTeachLLM) locally (via vLLM)
 - [x] Configure API credentials for consultant and teacher
 - [x] Run manual smoke tests before full evaluation

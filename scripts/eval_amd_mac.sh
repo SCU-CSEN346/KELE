@@ -17,7 +17,7 @@ fi
 
 # ── Load teacher server config ────────────────────────────────────────────────
 set -a
-# shellcheck source=../configs/local-teacher.env
+# shellcheck source=/dev/null
 source configs/local-teacher.env
 set +a
 

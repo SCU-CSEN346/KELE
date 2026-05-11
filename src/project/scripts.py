@@ -1,4 +1,4 @@
-"""Console script wrappers so `poetry run test` and `poetry run lint` work."""
+"""Console script wrappers so `uv run test` and `uv run lint` work."""
 
 import subprocess
 import sys

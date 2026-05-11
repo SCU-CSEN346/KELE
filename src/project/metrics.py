@@ -10,9 +10,16 @@ Reproduces the metrics from Table 1 of the paper:
 
 import json
 from pathlib import Path
+from typing import TypedDict
 
 from rouge_score import rouge_scorer
-from sacrebleu.metrics import BLEU
+from sacrebleu.metrics import BLEU  # type: ignore[reportPrivateImportUsage]
+
+
+class StateAccuracy(TypedDict):
+    overall: float
+    per_stage: dict[str, float]
+    total_turns: int
 
 
 class _ZhCharTokenizer:
@@ -51,7 +58,7 @@ def compute_bleu(predictions: list[str], references: list[str]) -> float:
     return result.score
 
 
-def compute_state_accuracy(dialogues_dir: Path) -> dict[str, float]:
+def compute_state_accuracy(dialogues_dir: Path) -> StateAccuracy:
     """Compute how often our consultant picks the correct state vs ground truth.
 
     Returns overall accuracy and per-stage accuracy (a, b, c, d, e).

@@ -70,7 +70,7 @@ fi
 
 # ── 5. Verify Ollama is listening on 0.0.0.0 ─────────────────────────────────
 info "Waiting for Ollama to come back up..."
-for i in $(seq 1 15); do
+for _ in $(seq 1 15); do
     if curl -s http://localhost:11434/api/version > /dev/null 2>&1; then
         break
     fi

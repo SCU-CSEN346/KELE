@@ -1,0 +1,42 @@
+ci:
+  - changed-files:
+    - any-glob-to-any-file:
+      - ".github/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "hooks/**"
+
+tests:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "tests/**"
+
+docs:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "docs/**"
+      - "scripts/*.md"
+      - "README.md"
+      - "*.md"
+
+experiment:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "results/**"
+      - "deliverables/**"
+
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "uv.lock"
+      - "pyproject.toml"
+
+scripts:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "scripts/**"
+
+source:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "src/**"

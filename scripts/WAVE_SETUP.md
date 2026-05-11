@@ -54,7 +54,7 @@ the defaults are tuned for 32 GB. See "Targeting a specific node" below if you n
 ## One-time setup on WAVE
 
 Clone the repo on the **login node**, then run the setup script (it handles
-Poetry, PyTorch, vLLM, and model downloads all in one shot):
+uv deps, PyTorch, vLLM, and model downloads all in one shot):
 
 ```bash
 git clone <your-repo-url>
@@ -84,27 +84,28 @@ Omit it if you want to install deps first and download models separately.
 # 1. Load Python 3.12
 module load Python/3.12.3-GCCcore-14.2.0
 
-# 2. Install Poetry if missing
+# 2. Install uv if missing
 export PATH="$HOME/.local/bin:$PATH"
-curl -sSL https://install.python-poetry.org | python3.12 -
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# 3. Project deps
-poetry env use python3.12
-poetry install --with dev
+# 3. Project deps (venv stored in project space to avoid home quota)
+export UV_PROJECT_ENVIRONMENT=/WAVE/projects/CSEN-346-Sp26/.venv
+export UV_CACHE_DIR=/WAVE/scratch/CSEN-346-Sp26/.cache/uv
+uv sync --group dev --python python3.12
 
 # 4. PyTorch — use cu128, NOT cu126 (WAVE CUDA is 12.x, not 12.6)
-poetry run pip install \
+uv run pip install \
     torch torchvision torchaudio \
     --index-url https://download.pytorch.org/whl/cu128
 
 # 5. vLLM
-poetry run pip install "vllm>=0.7"
+uv run pip install "vllm>=0.7"
 
 # 6. Models (login node only — compute nodes may lack internet)
 export HF_HOME=/WAVE/projects/CSEN-346-Sp26/hf_models
 mkdir -p "$HF_HOME"
-poetry run hf download ulises-c/SocratTeachLLM --local-dir "$HF_HOME/SocratTeachLLM"
-poetry run hf download Qwen/Qwen3.5-9B --local-dir "$HF_HOME/Qwen3.5-9B"
+uv run hf download ulises-c/SocratTeachLLM --local-dir "$HF_HOME/SocratTeachLLM"
+uv run hf download Qwen/Qwen3.5-9B --local-dir "$HF_HOME/Qwen3.5-9B"
 ```
 
 </details>

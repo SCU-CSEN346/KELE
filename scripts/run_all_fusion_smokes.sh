@@ -13,7 +13,7 @@
 # events. Each per-smoke metrics file lands in its own results/ subdir.
 
 set -uo pipefail   # NOTE: not -e — we want to continue if one smoke fails
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 ROOT="$(pwd)"
 
 STATUS_LOG="$ROOT/logs/fusion-smokes-$(date -u +%Y-%m-%dT%H-%M-%S).log"

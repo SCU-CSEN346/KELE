@@ -242,11 +242,11 @@ EXTRA_KELE_ARGS=()
 if $UNIFIED; then EXTRA_KELE_ARGS+=(--unified); fi
 
 if [[ "$SUBCMD" == "test" ]]; then
-  $INHIBIT poetry run python -m src.project.kele \
+  $INHIBIT uv run python -m src.project.kele \
     --experiment "$EXPERIMENT" test --n "$N" --output "$OUT_DIR" \
     "${EXTRA_KELE_ARGS[@]:-}"
 else
-  $INHIBIT poetry run python -m src.project.kele \
+  $INHIBIT uv run python -m src.project.kele \
     --experiment "$EXPERIMENT" evaluate --output "$OUT_DIR" \
     "${EXTRA_KELE_ARGS[@]:-}"
 fi
@@ -258,7 +258,7 @@ echo "Eval finished: $(date)"
 if $DO_COMPARE; then
   echo
   echo "=== Comparison vs $BASELINE_DIR (gpt-4o-2024-11-20 baseline) ==="
-  poetry run python -m src.project.evaluate --compare "$BASELINE_DIR" "$OUT_DIR"
+  uv run python -m src.project.evaluate --compare "$BASELINE_DIR" "$OUT_DIR"
 
   # Per-stage state accuracy table (compare.py only prints overall)
   if command -v jq &>/dev/null; then

@@ -26,7 +26,7 @@ if command -v systemd-inhibit &>/dev/null; then
     INHIBIT="systemd-inhibit --what=sleep:idle --who=run_eval.sh --why=KELE-eval"
 fi
 
-$INHIBIT poetry run python -m src.project.kele --experiment "$EXPERIMENT" evaluate \
+$INHIBIT uv run python -m src.project.kele --experiment "$EXPERIMENT" evaluate \
     --output "results/$EXPERIMENT" \
     "$@"
 

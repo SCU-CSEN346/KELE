@@ -10,16 +10,16 @@ Auth: run `hf auth login` once (or set HF_TOKEN env var) before starting.
 
 Usage:
     # Smoke test (10 records):
-    poetry run python -m src.project.translate_dataset --smoke-test 10 --no-push
+    uv run python -m src.project.translate_dataset --smoke-test 10 --no-push
 
     # Full overnight run (checkpoints + final push all go to HF automatically):
-    poetry run python -m src.project.translate_dataset
+    uv run python -m src.project.translate_dataset
 
     # Resume from a previously uploaded HF checkpoint:
-    poetry run python -m src.project.translate_dataset --restore-from-hub
+    uv run python -m src.project.translate_dataset --restore-from-hub
 
     # Skip upload for this run without editing the file:
-    poetry run python -m src.project.translate_dataset --no-push
+    uv run python -m src.project.translate_dataset --no-push
 """
 
 import argparse
@@ -304,7 +304,7 @@ def translate_record(client: OpenAI, model: str, record: dict, retries: int = 3)
                 max_tokens=MAX_TOKENS,
                 extra_body=extra,
             )
-            result = _parse_json(resp.choices[0].message.content)
+            result = _parse_json(resp.choices[0].message.content or "")
             expected = len(record["dialogue"])
             result["dialogue"] = _merge_split_turns(result.get("dialogue", []), expected)
             turns = result.get("dialogue", [])
