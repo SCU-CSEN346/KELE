@@ -230,7 +230,7 @@ def _patch_chatglm_dynamic_cache(model) -> None:
                 # kv_caches = [None]*n as it would on a cold first pass.
                 if pkv.get_seq_length() > 0:
                     kwargs["past_key_values"] = tuple(
-                        (layer.keys, layer.values)
+                        (layer.keys, layer.values)  # type: ignore[reportAttributeAccessIssue]
                         for layer in pkv.layers  # type: ignore[reportAttributeAccessIssue]
                     )
                 else:
