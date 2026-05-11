@@ -35,7 +35,18 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 3: Tests (uv run pytest — mirrors CI)
+# Step 3: Type checking (pyright — mirrors CI lint job)
+# ---------------------------------------------------------------------------
+info "Type checking (pyright) …"
+if uv run pyright; then
+  pass "Type check OK"
+else
+  fail "Type check failed. Fix the errors above before committing."
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Step 4: Tests (uv run pytest — mirrors CI)
 # Note: using pytest directly avoids ambiguity with the shell builtin `test`.
 # ---------------------------------------------------------------------------
 info "Running tests …"
