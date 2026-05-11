@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # One-time setup for a local dual-GPU machine (tested on 2× NVIDIA L40S 48 GB).
-# Works on any Linux box with NVIDIA drivers and Poetry installed.
+# Works on any Linux box with NVIDIA drivers and uv installed.
 #
 # Usage:
 #   bash scripts/l40s_setup.sh              # Install deps only
@@ -10,8 +10,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # Strip pyenv shims from PATH entirely. pyenv shims exit 127 when pyenv doesn't
-# manage the Python version in use, and Poetry's own internals also call bare
-# `python` through PATH — so shims must be gone before any uv invocation.
+# manage the Python version in use, and uv also calls bare `python` through
+# PATH — so shims must be gone before any uv invocation.
 if [[ -n "${PYENV_ROOT:-}" ]] || echo "$PATH" | grep -q '\.pyenv'; then
     export PATH="$(echo "$PATH" | tr ':' '\n' | grep -v '\.pyenv' | tr '\n' ':' | sed 's/:$//')"
     unset PYENV_VERSION PYENV_ROOT 2>/dev/null || true
@@ -137,7 +137,7 @@ uv --version
 # ── 5. Project dependencies ───────────────────────────────────────────────────
 step "Installing project deps (uv sync)"
 # uv uses its own installer (Rust-based) and does not invoke pip, so the
-# Ubuntu 24.04 tarfile.py backport bug that affected Poetry+pip is not an issue.
+# Ubuntu 24.04 tarfile.py backport bug does not affect uv's Rust-based installer.
 uv sync --group dev --python "$PYTHON"
 
 # ── 6. PyTorch ───────────────────────────────────────────────────────────────

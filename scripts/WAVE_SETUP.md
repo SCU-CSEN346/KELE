@@ -54,7 +54,7 @@ the defaults are tuned for 32 GB. See "Targeting a specific node" below if you n
 ## One-time setup on WAVE
 
 Clone the repo on the **login node**, then run the setup script (it handles
-Poetry, PyTorch, vLLM, and model downloads all in one shot):
+uv deps, PyTorch, vLLM, and model downloads all in one shot):
 
 ```bash
 git clone <your-repo-url>

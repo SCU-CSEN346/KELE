@@ -29,7 +29,7 @@ exec > >(tee -a "$LOG_FILE") 2>&1
 echo "Log: $(pwd)/$LOG_FILE"
 
 # ── Redirect all caches off the home directory ────────────────────────────────
-# Home dir quota on WAVE is tiny. Poetry venv + pip cache + cuda-bindings alone
+# Home dir quota on WAVE is tiny. uv venv + pip cache + cuda-bindings alone
 # can exceed it. Point everything at project (persistent) or scratch (ephemeral).
 # If the class directories aren't provisioned yet, fall back to ~/csen346-cache
 # and warn loudly.

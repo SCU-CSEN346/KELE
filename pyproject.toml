@@ -99,7 +99,7 @@ ignore = [
 
 # ---------------------------------------------------------------------------
 # NOTE: torch is intentionally NOT declared here.
-# Poetry cannot resolve the +cu126 local-version CUDA wheel alongside
+# uv cannot resolve the +cu126 local-version CUDA wheel alongside
 # PyPI's CPU wheel (transitive dep from transformers) for Python 3.14.
 # Install torch after `uv sync` with:
 #   uv run pip install --index-url https://download.pytorch.org/whl/cu126 \
