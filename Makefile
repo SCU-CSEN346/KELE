@@ -11,7 +11,8 @@
         serve-gemma4-31b \
         serve-qwen27b serve-qwen35b-a3b \
         serve-socratteachllm serve-teacher-online \
-        setup-l40s start-local-tl-server
+        setup-l40s start-local-tl-server \
+        test-gpu-stack test-vllm
 
 # Default target
 help:
@@ -19,6 +20,10 @@ help:
 	@echo ""
 	@echo "  run                   Show how to launch the project via uv"
 	@echo "  install-hooks         Install git hooks from hooks/ into .git/hooks/"
+	@echo ""
+	@echo "  GPU stack tests:"
+	@echo "  test-gpu-stack        Full ML stack: ROCm, torch, bitsandbytes 8/4-bit, transformers, PEFT, TRL, flash-attn"
+	@echo "  test-vllm             vLLM ROCm engine probe (no model weights)"
 	@echo ""
 	@echo "  Scripts (scripts/):"
 	@echo "  post-eval-shutdown    Run scripts/post_eval_shutdown.sh"
@@ -165,6 +170,12 @@ serve-teacher-online:
 
 start-local-tl-server:
 	bash scripts/start_tl_server.sh
+
+test-gpu-stack:
+	bash scripts/test_gpu_stack.sh
+
+test-vllm:
+	bash scripts/test_vllm_rocm.sh
 
 eval-qwen27b-smoke:
 	bash scripts/eval_qwen27b.sh smoke
