@@ -64,7 +64,8 @@ class ModelSpec:
     serve_script: str  # relative to repo root
     config_name: str  # configs/<name>.env
     hf_repo: str
-    hf_file: str
+    hf_file: str  # primary file (first shard for split GGUFs); used for display and existence check
+    hf_include: str | None = None  # glob for --include when files live in a subdir or are split
     on_disk: bool = True
 
 
@@ -146,17 +147,18 @@ MODEL_REGISTRY: list[ModelSpec] = [
         config_name="tournament-qwopus35b-a3b",
         hf_repo="Jackrong/Qwopus3.6-35B-A3B-v1-GGUF",
         hf_file="Qwopus3.6-35B-A3B-v1-Q4_K_M.gguf",
-        on_disk=False,
+        on_disk=True,
     ),
     ModelSpec(
         id="llama4-scout",
         name="Llama-4-Scout-17B-16E Q4 MoE",
         alias="Llama 4 Scout",
-        weight_path="~/Documents/models/weights/Llama-4-Scout-17B-16E-Instruct-UD-Q4_K_XL.gguf",
+        weight_path="~/models/Llama-4-Scout/UD-Q4_K_XL/Llama-4-Scout-17B-16E-Instruct-UD-Q4_K_XL-00001-of-00002.gguf",
         serve_script="scripts/serve_llama4_scout.sh",
         config_name="tournament-llama4-scout",
         hf_repo="unsloth/Llama-4-Scout-17B-16E-Instruct-GGUF",
-        hf_file="Llama-4-Scout-17B-16E-Instruct-UD-Q4_K_XL.gguf",
+        hf_file="Llama-4-Scout-17B-16E-Instruct-UD-Q4_K_XL-00001-of-00002.gguf",
+        hf_include="UD-Q4_K_XL/*.gguf",
         on_disk=False,
     ),
     ModelSpec(
@@ -168,7 +170,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         config_name="tournament-deepseek-r1-14b",
         hf_repo="unsloth/DeepSeek-R1-Distill-Qwen-14B-GGUF",
         hf_file="DeepSeek-R1-Distill-Qwen-14B-Q5_K_M.gguf",
-        on_disk=False,
+        on_disk=True,
     ),
     ModelSpec(
         id="phi4-14b",
@@ -179,7 +181,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         config_name="tournament-phi4-14b",
         hf_repo="unsloth/phi-4-GGUF",
         hf_file="phi-4-Q5_K_M.gguf",
-        on_disk=False,
+        on_disk=True,
     ),
     ModelSpec(
         id="gemma3-27b",
@@ -190,7 +192,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         config_name="tournament-gemma3-27b",
         hf_repo="unsloth/gemma-3-27b-it-GGUF",
         hf_file="gemma-3-27b-it-Q4_K_M.gguf",
-        on_disk=False,
+        on_disk=True,
     ),
     ModelSpec(
         id="mistral-24b",
@@ -201,7 +203,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         config_name="tournament-mistral-24b",
         hf_repo="unsloth/Mistral-Small-3.2-24B-Instruct-2506-GGUF",
         hf_file="Mistral-Small-3.2-24B-Instruct-2506-Q4_K_M.gguf",
-        on_disk=False,
+        on_disk=True,
     ),
     ModelSpec(
         id="qwen35-14b",
@@ -637,7 +639,20 @@ def cmd_download(args: argparse.Namespace) -> None:
             print()
             continue
         print(f"[{m.id}] {m.name}")
-        cmd = ["hf", "download", m.hf_repo, m.hf_file, "--local-dir", str(local_dir)]
+        if m.hf_include:
+            # Split/sharded or subdirectory GGUF — local_dir is one level above the subdir
+            local_dir = weight_path.parent.parent
+            cmd = [
+                "hf",
+                "download",
+                m.hf_repo,
+                "--include",
+                m.hf_include,
+                "--local-dir",
+                str(local_dir),
+            ]
+        else:
+            cmd = ["hf", "download", m.hf_repo, m.hf_file, "--local-dir", str(local_dir)]
         print(f"  {' '.join(cmd)}")
         if dry_run:
             print()

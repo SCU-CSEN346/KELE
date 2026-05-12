@@ -31,9 +31,9 @@ def test_registry_has_13_models():
     assert len(MODEL_REGISTRY) == 13
 
 
-def test_registry_has_6_on_disk_models():
+def test_registry_has_11_on_disk_models():
     on_disk = [m for m in MODEL_REGISTRY if m.on_disk]
-    assert len(on_disk) == 6
+    assert len(on_disk) == 11
     assert {m.id for m in on_disk} == {
         "qwen35-9b",
         "qwen27b",
@@ -41,12 +41,17 @@ def test_registry_has_6_on_disk_models():
         "qwen35b-a3b",
         "gemma4-31b",
         "glm47-23b",
+        "qwopus35b-a3b",
+        "deepseek-r1-14b",
+        "phi4-14b",
+        "gemma3-27b",
+        "mistral-24b",
     }
 
 
-def test_registry_has_7_downloadable_models():
+def test_registry_has_2_downloadable_models():
     downloadable = [m for m in MODEL_REGISTRY if not m.on_disk]
-    assert len(downloadable) == 7
+    assert len(downloadable) == 2
 
 
 def test_model_by_id_lookup():
@@ -93,6 +98,11 @@ def test_load_state_default_when_no_file(tmp_path, monkeypatch):
         "qwen35b-a3b",
         "gemma4-31b",
         "glm47-23b",
+        "qwopus35b-a3b",
+        "deepseek-r1-14b",
+        "phi4-14b",
+        "gemma3-27b",
+        "mistral-24b",
     }
     assert state.models_eliminated == []
 
@@ -303,11 +313,11 @@ def test_cmd_reset_with_confirm_no_file_is_noop(tmp_path, monkeypatch, capsys):
 # ── cmd_download ──────────────────────────────────────────────────────────────
 
 
-def test_cmd_download_prints_7_commands(capsys):
+def test_cmd_download_prints_2_commands(capsys):
     cmd_download(Namespace(dry_run=True))
     out = capsys.readouterr().out
     # One hf download command per downloadable model
-    assert out.count("hf download") == 7
+    assert out.count("hf download") == 2
 
 
 def test_cmd_download_contains_all_model_repos(capsys):
@@ -316,4 +326,8 @@ def test_cmd_download_contains_all_model_repos(capsys):
     downloadable = [m for m in MODEL_REGISTRY if not m.on_disk]
     for m in downloadable:
         assert m.hf_repo in out
-        assert m.hf_file in out
+        # hf_include replaces hf_file in the command for split/sharded GGUFs
+        if m.hf_include:
+            assert m.hf_include in out
+        else:
+            assert m.hf_file in out
