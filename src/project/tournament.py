@@ -150,18 +150,6 @@ MODEL_REGISTRY: list[ModelSpec] = [
         on_disk=True,
     ),
     ModelSpec(
-        id="llama4-scout",
-        name="Llama-4-Scout-17B-16E Q4 MoE",
-        alias="Llama 4 Scout",
-        weight_path="~/models/Llama-4-Scout/UD-Q4_K_XL/Llama-4-Scout-17B-16E-Instruct-UD-Q4_K_XL-00001-of-00002.gguf",
-        serve_script="scripts/serve_llama4_scout.sh",
-        config_name="tournament-llama4-scout",
-        hf_repo="unsloth/Llama-4-Scout-17B-16E-Instruct-GGUF",
-        hf_file="Llama-4-Scout-17B-16E-Instruct-UD-Q4_K_XL-00001-of-00002.gguf",
-        hf_include="UD-Q4_K_XL/*.gguf",
-        on_disk=False,
-    ),
-    ModelSpec(
         id="deepseek-r1-14b",
         name="DeepSeek-R1-Distill-Qwen-14B Q5",
         alias="DeepSeek R1 14B",

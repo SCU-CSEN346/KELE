@@ -27,8 +27,8 @@ from src.project.tournament import (
 # ── Registry ──────────────────────────────────────────────────────────────────
 
 
-def test_registry_has_13_models():
-    assert len(MODEL_REGISTRY) == 13
+def test_registry_has_12_models():
+    assert len(MODEL_REGISTRY) == 12
 
 
 def test_registry_has_11_on_disk_models():
@@ -49,9 +49,9 @@ def test_registry_has_11_on_disk_models():
     }
 
 
-def test_registry_has_2_downloadable_models():
+def test_registry_has_1_downloadable_model():
     downloadable = [m for m in MODEL_REGISTRY if not m.on_disk]
-    assert len(downloadable) == 2
+    assert len(downloadable) == 1
 
 
 def test_model_by_id_lookup():
@@ -313,11 +313,11 @@ def test_cmd_reset_with_confirm_no_file_is_noop(tmp_path, monkeypatch, capsys):
 # ── cmd_download ──────────────────────────────────────────────────────────────
 
 
-def test_cmd_download_prints_2_commands(capsys):
+def test_cmd_download_prints_1_command(capsys):
     cmd_download(Namespace(dry_run=True))
     out = capsys.readouterr().out
     # One hf download command per downloadable model
-    assert out.count("hf download") == 2
+    assert out.count("hf download") == 1
 
 
 def test_cmd_download_contains_all_model_repos(capsys):
