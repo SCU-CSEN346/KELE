@@ -159,7 +159,7 @@ def run_batch_evaluation(
     print(f"Consultant model: {system.consultant_model_name}")
     print("-" * 60)
     print(
-        f"  {'#':>9}  {'id':<8}  {'turns':>5}  {'time':>5}  {'%':>5}  {'dlg/s':>6}  {'ETA':>5}  status"
+        f"  {'#':>9}  {'id':<8}  {'turns':>5}  {'time':>5}  {'%':>5}  {'dlg/hr':>6}  {'ETA':>5}  status"
     )
     print("-" * 60)
 
@@ -194,7 +194,7 @@ def run_batch_evaluation(
                 f"{CLR}  {pos:>4}/{len(dataset)}  id={item_id:04d}"
                 f"  {turns:>5} turns  {secs:>4.0f}s"
                 f"  {completed / len(dataset) * 100:>4.1f}%"
-                f"  {rate:>5.2f}  {remaining / 60:>4.0f}m  ✓"
+                f"  {rate * 3600:>6.1f}  {remaining / 60:>4.0f}m  ✓"
             )
         except Exception as e:
             error_result = {"id": item_id, "error": str(e)}
@@ -208,13 +208,13 @@ def run_batch_evaluation(
                 f"{CLR}  {pos:>4}/{len(dataset)}  id={item_id:04d}"
                 f"  {'?':>5} turns  {'?':>4}s"
                 f"  {completed / len(dataset) * 100:>4.1f}%"
-                f"  {rate:>5.2f}  {remaining / 60:>4.0f}m  ERROR: {e}"
+                f"  {rate * 3600:>6.1f}  {remaining / 60:>4.0f}m  ERROR: {e}"
             )
 
         with open(progress_log, "w") as f:
             f.write(
                 f"{completed}/{len(dataset)} {completed / len(dataset) * 100:.1f}%"
-                f" {rate:.2f} dlg/s ETA {remaining / 60:.0f}m elapsed {elapsed / 60:.0f}m\n"
+                f" {rate * 3600:.1f} dlg/hr ETA {remaining / 60:.0f}m elapsed {elapsed / 60:.0f}m\n"
             )
 
     print(f"\nDone. {completed} dialogues saved to {dialogues_dir}")
