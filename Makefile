@@ -8,7 +8,7 @@
         eval-gemma4-31b-smoke eval-gemma4-31b-mini eval-gemma4-31b-full \
         eval-gemma4-31b-fusion-smoke \
         serve-both serve-dual-gpu serve-consultant serve-gemma4 \
-        serve-gemma4-31b \
+        serve-gemma4-31b serve-gemma4-26b-a4b \
         serve-qwen27b serve-qwen27b-q4 serve-qwen35b-a3b \
         serve-glm47-23b serve-qwopus35b-a3b \
         serve-socratteachllm serve-teacher-online \
@@ -173,6 +173,9 @@ serve-gemma4:
 
 serve-gemma4-31b:
 	bash scripts/serve_gemma4_31b_q5.sh
+
+serve-gemma4-26b-a4b:
+	bash scripts/serve_gemma4_26b_a4b.sh
 
 serve-qwen27b:
 	bash scripts/serve_qwen27b_q5.sh

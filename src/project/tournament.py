@@ -126,6 +126,17 @@ MODEL_REGISTRY: list[ModelSpec] = [
         hf_file="gemma-4-31B-it-UD-Q5_K_XL.gguf",
         on_disk=True,
     ),
+    ModelSpec(
+        id="gemma4-26b-a4b",
+        name="Gemma 4 26B-A4B Q4 MoE",
+        alias="Gemma 4 26B A4B",
+        weight_path="~/Documents/models/weights/gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf",
+        serve_script="scripts/serve_gemma4_26b_a4b.sh",
+        config_name="tournament-gemma4-26b-a4b",
+        hf_repo="unsloth/gemma-4-26B-A4B-it-GGUF",
+        hf_file="gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf",
+        on_disk=False,
+    ),
     # ── Downloadable (add more as weights arrive) ─────────────────────────────
     ModelSpec(
         id="glm47-23b",
@@ -202,7 +213,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         config_name="tournament-qwen35-14b",
         hf_repo="unsloth/Qwen3-14B-GGUF",
         hf_file="Qwen3-14B-UD-Q4_K_XL.gguf",
-        on_disk=False,
+        on_disk=True,
     ),
 ]
 

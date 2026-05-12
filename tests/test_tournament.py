@@ -27,13 +27,13 @@ from src.project.tournament import (
 # ── Registry ──────────────────────────────────────────────────────────────────
 
 
-def test_registry_has_12_models():
-    assert len(MODEL_REGISTRY) == 12
+def test_registry_has_13_models():
+    assert len(MODEL_REGISTRY) == 13
 
 
-def test_registry_has_11_on_disk_models():
+def test_registry_has_12_on_disk_models():
     on_disk = [m for m in MODEL_REGISTRY if m.on_disk]
-    assert len(on_disk) == 11
+    assert len(on_disk) == 12
     assert {m.id for m in on_disk} == {
         "qwen35-9b",
         "qwen27b",
@@ -46,6 +46,7 @@ def test_registry_has_11_on_disk_models():
         "phi4-14b",
         "gemma3-27b",
         "mistral-24b",
+        "qwen3-14b",
     }
 
 
@@ -103,6 +104,7 @@ def test_load_state_default_when_no_file(tmp_path, monkeypatch):
         "phi4-14b",
         "gemma3-27b",
         "mistral-24b",
+        "qwen3-14b",
     }
     assert state.models_eliminated == []
 
