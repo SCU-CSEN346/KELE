@@ -515,10 +515,14 @@ def cmd_status(_args: argparse.Namespace) -> None:
 
 def cmd_run(args: argparse.Namespace) -> None:  # pragma: no cover
     state = load_state()
-    state.round += 1
+    # Only start a new round when not resuming an interrupted one
+    if not state.round_complete:
+        state.round += 1
     round_key = f"round{state.round}"
     n = args.n if args.n is not None else state.n_per_round
-    state.n_per_round = n
+    # Don't persist an explicit --n override as the new default (e.g. warmup n=5)
+    if args.n is None:
+        state.n_per_round = n
     unified = args.unified
 
     print(f"=== Tournament Round {state.round} ===")
