@@ -229,11 +229,13 @@ class TournamentState:
     n_per_round: int = 50
     models_active: list[str] = field(default_factory=list)
     models_eliminated: list[str] = field(default_factory=list)
-    # {model_id: {round_N: score}}
+    # {model_id: {round_N: overall_score}}
     scores: dict[str, dict[str, float]] = field(default_factory=dict)
     # models that completed the current round (crash recovery)
     round_complete: list[str] = field(default_factory=list)
     final_scores: dict[str, float] = field(default_factory=dict)
+    # {model_id: {round_N: full_metrics_dict}}
+    metrics: dict[str, dict[str, dict]] = field(default_factory=dict)
 
 
 def load_state() -> TournamentState:
@@ -358,8 +360,8 @@ def ensure_server(
 
 def run_kele(
     spec: ModelSpec, out_dir: Path, n: int, unified: bool
-) -> float | None:  # pragma: no cover
-    """Run kele test --n N and return state_accuracy, or None on failure."""
+) -> dict | None:  # pragma: no cover
+    """Run kele test --n N and return the full metrics dict, or None on failure."""
     cmd = [
         "uv",
         "run",
@@ -389,10 +391,9 @@ def run_kele(
 
     with open(metrics_file) as f:
         metrics = json.load(f)
-    score = metrics.get("state_accuracy", {}).get("overall")
-    if score is None:
+    if metrics.get("state_accuracy", {}).get("overall") is None:
         print("  state_accuracy.overall missing from metrics", file=sys.stderr)
-    return score
+    return metrics
 
 
 # ── Leaderboard ───────────────────────────────────────────────────────────────
@@ -454,6 +455,52 @@ def print_leaderboard(state: TournamentState) -> None:
     )
     print()
 
+    # ── Per-round metrics detail table ────────────────────────────────────────
+    all_round_keys = sorted(
+        {rk for scores in state.scores.values() for rk in scores},
+        key=lambda k: int(k[5:]),
+    )
+    if state.metrics and all_round_keys:
+        print(
+            f"  {'Model':<34}  {'Round':<7}  {'Turns':>5}  {'R1':>6}  {'R2':>6}"
+            f"  {'RL':>6}  {'BLEU':>5}  {'stg-a':>5}  {'stg-b':>5}  {'stg-c':>5}"
+            f"  {'stg-d':>5}  {'stg-e':>5}  {'Score':>6}  {'Time':>6}"
+        )
+        print("─" * 145)
+        all_mids = list(state.models_active) + list(state.models_eliminated)
+        for mid in all_mids:
+            model_metrics = state.metrics.get(mid, {})
+            if not model_metrics:
+                continue
+            spec = MODEL_BY_ID.get(mid)
+            name = spec.name if spec else mid
+            for rk in all_round_keys:
+                m = model_metrics.get(rk)
+                if m is None:
+                    continue
+                sa = m.get("state_accuracy", {})
+                ps = sa.get("per_stage", {})
+
+                def _pct(v: float | None) -> str:
+                    return f"{v:5.1f}" if v is not None else "    —"
+
+                elapsed_s = m.get("elapsed_secs")
+                time_str = (
+                    f"{elapsed_s // 60}m{elapsed_s % 60:02d}s"
+                    if elapsed_s is not None
+                    else "     —"
+                )
+                print(
+                    f"  {name:<34}  {rk:<7}  {m.get('n_turns', '?'):>5}"
+                    f"  {_pct(m.get('rouge1')):>6}  {_pct(m.get('rouge2')):>6}"
+                    f"  {_pct(m.get('rougeL')):>6}  {_pct(m.get('bleu4')):>5}"
+                    f"  {_pct(ps.get('a')):>5}  {_pct(ps.get('b')):>5}"
+                    f"  {_pct(ps.get('c')):>5}  {_pct(ps.get('d')):>5}"
+                    f"  {_pct(ps.get('e')):>5}  {_pct(sa.get('overall')):>6}"
+                    f"  {time_str:>6}"
+                )
+        print()
+
 
 # ── Subcommands ───────────────────────────────────────────────────────────────
 
@@ -509,13 +556,19 @@ def cmd_run(args: argparse.Namespace) -> None:  # pragma: no cover
         out_dir = REPO_ROOT / "results" / "tournament" / f"round{state.round}" / mid
         print(f"  Output: results/tournament/round{state.round}/{mid}")
 
-        score = run_kele(spec, out_dir, n, unified)
+        t0 = time.time()
+        metrics = run_kele(spec, out_dir, n, unified)
+        elapsed = int(time.time() - t0)
 
         _kill_server(proc)
 
-        if score is not None:
-            state.scores.setdefault(mid, {})[round_key] = score
-            print(f"  Score: {score:.3f}")
+        if metrics is not None:
+            score = metrics.get("state_accuracy", {}).get("overall")
+            if score is not None:
+                state.scores.setdefault(mid, {})[round_key] = score
+                print(f"  Score: {score:.3f}")
+            metrics["elapsed_secs"] = elapsed
+            state.metrics.setdefault(mid, {})[round_key] = metrics
         else:
             print("  Score: ERROR (see output above)")
 
