@@ -18,4 +18,5 @@ exec "$SCRIPT_DIR/serve_gemma4_31b.sh" \
   -m "$WEIGHT_FILE" \
   -a "Qwen 9B Q4" \
   -c 32768 \
+  --reasoning off \
   "$@"

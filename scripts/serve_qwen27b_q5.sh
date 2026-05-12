@@ -21,4 +21,5 @@ exec "$SCRIPT_DIR/serve_qwen27b.sh" \
   -m "$QWEN27B_WEIGHTS_DIR/$WEIGHT_FILE" \
   -a "Qwen 27B Q5" \
   -c 425984 \
+  --reasoning off \
   "$@"

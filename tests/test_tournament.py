@@ -27,14 +27,20 @@ from src.project.tournament import (
 # ── Registry ──────────────────────────────────────────────────────────────────
 
 
-def test_registry_has_10_models():
-    assert len(MODEL_REGISTRY) == 10
+def test_registry_has_11_models():
+    assert len(MODEL_REGISTRY) == 11
 
 
-def test_registry_has_4_on_disk_models():
+def test_registry_has_5_on_disk_models():
     on_disk = [m for m in MODEL_REGISTRY if m.on_disk]
-    assert len(on_disk) == 4
-    assert {m.id for m in on_disk} == {"qwen35-9b", "qwen27b", "qwen35b-a3b", "gemma4-31b"}
+    assert len(on_disk) == 5
+    assert {m.id for m in on_disk} == {
+        "qwen35-9b",
+        "qwen27b",
+        "qwen27b-q4",
+        "qwen35b-a3b",
+        "gemma4-31b",
+    }
 
 
 def test_registry_has_6_downloadable_models():
@@ -79,7 +85,13 @@ def test_load_state_default_when_no_file(tmp_path, monkeypatch):
     monkeypatch.setattr("src.project.tournament.STATE_FILE", tmp_path / "state.json")
     state = load_state()
     assert state.round == 0
-    assert set(state.models_active) == {"qwen35-9b", "qwen27b", "qwen35b-a3b", "gemma4-31b"}
+    assert set(state.models_active) == {
+        "qwen35-9b",
+        "qwen27b",
+        "qwen27b-q4",
+        "qwen35b-a3b",
+        "gemma4-31b",
+    }
     assert state.models_eliminated == []
 
 

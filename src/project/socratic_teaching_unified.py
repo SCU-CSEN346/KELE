@@ -286,14 +286,6 @@ e34：学生正确给出题目答案
             f"历史对话记录:\n{self.get_full_formatted_history()}\n\n当前学生输入: {student_input}\n"
         )
 
-        # The consultant_disable_thinking knob applies uniformly to the
-        # unified call — it's a single call doing both consultant and teacher
-        # work, so one knob covers both. Qwen3.6 surfaces thinking via the
-        # separate reasoning_content field, so this only changes whether
-        # internal CoT happens; the JSON output isn't affected either way.
-        if self.consultant_disable_thinking:
-            user_input = "/no_think\n" + user_input
-
         response_format = {
             "type": "json_schema",
             "json_schema": {
@@ -308,6 +300,10 @@ e34：学生正确给出题目答案
         # Bump to 16K to cover deep CoT plus the three-field structured output.
         max_tokens = max(self.consultant_max_tokens, 16384)
 
+        extra: dict = {}
+        if self.consultant_disable_thinking:
+            extra["chat_template_kwargs"] = {"enable_thinking": False}
+
         # Retry on rate limits (mirrors socratic_teaching_consultant pattern)
         response = None
         for attempt in range(6):
@@ -320,6 +316,7 @@ e34：学生正确给出题目答案
                     ],
                     response_format=response_format,  # type: ignore[reportArgumentType]
                     max_tokens=max_tokens,
+                    extra_body=extra or None,
                 )
                 break
             except openai.RateLimitError as rle:

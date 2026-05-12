@@ -9,12 +9,12 @@
         eval-gemma4-31b-fusion-smoke \
         serve-both serve-dual-gpu serve-consultant serve-gemma4 \
         serve-gemma4-31b \
-        serve-qwen27b serve-qwen35b-a3b \
+        serve-qwen27b serve-qwen27b-q4 serve-qwen35b-a3b \
         serve-socratteachllm serve-teacher-online \
         setup-l40s start-local-tl-server \
         test-gpu-stack test-vllm \
-        tournament tournament-status tournament-eliminate tournament-finalize \
-        tournament-reset tournament-download
+        tournament tournament-warmup tournament-status tournament-eliminate \
+        tournament-finalize tournament-reset tournament-download
 
 # Default target
 help:
@@ -40,6 +40,7 @@ help:
 	@echo "  serve-gemma4          Run scripts/serve_gemma4.sh (vLLM + Gemma-4-31B-IT-NVFP4, multi-server)"
 	@echo "  serve-gemma4-31b      Run scripts/serve_gemma4_31b_q5.sh (Gemma 4 31B Q5 GGUF, dual-role on llama.cpp)"
 	@echo "  serve-qwen27b         Run scripts/serve_qwen27b_q5.sh (Qwen3.6-27B Q5, dual-role teacher+consultant)"
+	@echo "  serve-qwen27b-q4      Run scripts/serve_qwen27b_q4_local.sh (Qwen3.6-27B Q4, ~/models/, AMD R9700)"
 	@echo "  serve-qwen35b-a3b     Run scripts/serve_qwen35b_a3b.sh (Qwen3.6-35B-A3B MoE, ~3x faster than 27B)"
 	@echo "  serve-socratteachllm  Run scripts/serve_socratteachllm.sh"
 	@echo "  serve-teacher-online  Run scripts/serve_teacher_online.sh"
@@ -65,10 +66,11 @@ help:
 	@echo "  slurm                 git pull + sbatch wave_eval.slurm + print status"
 	@echo ""
 	@echo "  Tournament (multi-model elimination):"
-	@echo "  tournament            Run one round (n=50) for all active models"
+	@echo "  tournament-warmup     Warmup round (n=5, fusion mode) — verifies models load; do NOT eliminate after"
+	@echo "  tournament            Run one round (n=50, fusion mode) for all active models"
 	@echo "  tournament-status     Print leaderboard"
 	@echo "  tournament-eliminate  Drop worst model (uv run tournament eliminate [N])"
-	@echo "  tournament-finalize   Run survivors to n=681"
+	@echo "  tournament-finalize   Run survivors to n=681 (fusion mode)"
 	@echo "  tournament-reset      Wipe state (add CONFIRM=1 to skip prompt)"
 	@echo "  tournament-download   Print huggingface-cli download commands"
 
@@ -172,6 +174,9 @@ serve-gemma4-31b:
 serve-qwen27b:
 	bash scripts/serve_qwen27b_q5.sh
 
+serve-qwen27b-q4:
+	bash scripts/serve_qwen27b_q4_local.sh
+
 serve-socratteachllm:
 	bash scripts/serve_socratteachllm.sh
 
@@ -239,8 +244,11 @@ eval-gemma4-31b-fusion-smoke:
 
 # ── Tournament ────────────────────────────────────────────────────────────────
 
+tournament-warmup:
+	uv run tournament run --n 5 --unified
+
 tournament:
-	uv run tournament run
+	uv run tournament run --unified
 
 tournament-status:
 	uv run tournament status
@@ -249,7 +257,7 @@ tournament-eliminate:
 	uv run tournament eliminate $(N)
 
 tournament-finalize:
-	uv run tournament finalize
+	uv run tournament finalize --unified
 
 tournament-reset:
 	@if [ -z "$(CONFIRM)" ]; then \

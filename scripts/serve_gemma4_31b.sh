@@ -15,7 +15,13 @@
 
 set -euo pipefail
 
-LLAMA_SERVER="${LLAMA_SERVER:-$HOME/Documents/models/llama.cpp/build/bin/llama-server}"
+if [[ -z "${LLAMA_SERVER:-}" ]]; then
+  if [[ -x "$HOME/Github/llama.cpp/build/bin/llama-server" ]]; then
+    LLAMA_SERVER="$HOME/Github/llama.cpp/build/bin/llama-server"
+  else
+    LLAMA_SERVER="$HOME/Documents/models/llama.cpp/build/bin/llama-server"
+  fi
+fi
 
 if [[ ! -x "$LLAMA_SERVER" ]]; then
   echo "Error: llama-server not found at $LLAMA_SERVER" >&2

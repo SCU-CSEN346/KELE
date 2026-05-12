@@ -35,12 +35,23 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 STATE_FILE = REPO_ROOT / "results" / "tournament" / "state.json"
 PORT = int(os.environ.get("PORT", "8080"))
 LLAMA_URL = f"http://localhost:{PORT}"
-LLAMA_SERVER = Path(
-    os.environ.get(
-        "LLAMA_SERVER",
-        str(Path.home() / "Documents" / "models" / "llama.cpp" / "build" / "bin" / "llama-server"),
-    )
-)
+
+
+def _find_llama_server() -> Path:
+    if "LLAMA_SERVER" in os.environ:
+        return Path(os.environ["LLAMA_SERVER"])
+    candidates = [
+        Path.home() / "Documents" / "models" / "llama.cpp" / "build" / "bin" / "llama-server",
+        Path.home() / "Github" / "llama.cpp" / "build" / "bin" / "llama-server",
+    ]
+    for c in candidates:
+        if c.exists():
+            return c
+    return candidates[0]
+
+
+LLAMA_SERVER = _find_llama_server()
+os.environ.setdefault("LLAMA_SERVER", str(LLAMA_SERVER))
 
 
 @dataclass
@@ -78,6 +89,17 @@ MODEL_REGISTRY: list[ModelSpec] = [
         config_name="qwen27b-local",
         hf_repo="unsloth/Qwen3.6-27B-GGUF",
         hf_file="Qwen3.6-27B-UD-Q5_K_XL.gguf",
+        on_disk=True,
+    ),
+    ModelSpec(
+        id="qwen27b-q4",
+        name="Qwen3.6-27B Q4",
+        alias="Qwen 27B Q4",
+        weight_path="~/models/Qwen3.6-27B/Qwen3.6-27B-Q4_K_M.gguf",
+        serve_script="scripts/serve_qwen27b_q4_local.sh",
+        config_name="tournament-qwen27b-q4",
+        hf_repo="unsloth/Qwen3.6-27B-GGUF",
+        hf_file="Qwen3.6-27B-Q4_K_M.gguf",
         on_disk=True,
     ),
     ModelSpec(
