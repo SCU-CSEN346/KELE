@@ -127,6 +127,28 @@ MODEL_REGISTRY: list[ModelSpec] = [
     ),
     # ── Downloadable (add more as weights arrive) ─────────────────────────────
     ModelSpec(
+        id="glm47-23b",
+        name="GLM-4.7-Flash REAP 23B-A3B Q4",
+        alias="GLM 23B A3B",
+        weight_path="~/models/GLM-4.7-Flash-REAP-23B-A3B/GLM-4.7-Flash-REAP-23B-A3B-UD-Q4_K_XL.gguf",
+        serve_script="scripts/serve_glm47_23b.sh",
+        config_name="tournament-glm47-23b",
+        hf_repo="unsloth/GLM-4.7-Flash-REAP-23B-A3B-GGUF",
+        hf_file="GLM-4.7-Flash-REAP-23B-A3B-UD-Q4_K_XL.gguf",
+        on_disk=False,
+    ),
+    ModelSpec(
+        id="qwopus35b-a3b",
+        name="Qwopus3.6-35B-A3B Q4",
+        alias="Qwopus 35B A3B",
+        weight_path="~/models/Qwopus3.6-35B-A3B-v1/Qwopus3.6-35B-A3B-v1-Q4_K_M.gguf",
+        serve_script="scripts/serve_qwopus35b_a3b.sh",
+        config_name="tournament-qwopus35b-a3b",
+        hf_repo="Jackrong/Qwopus3.6-35B-A3B-v1-GGUF",
+        hf_file="Qwopus3.6-35B-A3B-v1-Q4_K_M.gguf",
+        on_disk=False,
+    ),
+    ModelSpec(
         id="llama4-scout",
         name="Llama-4-Scout-17B-16E Q4 MoE",
         alias="Llama 4 Scout",

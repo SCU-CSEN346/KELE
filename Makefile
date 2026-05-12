@@ -10,6 +10,7 @@
         serve-both serve-dual-gpu serve-consultant serve-gemma4 \
         serve-gemma4-31b \
         serve-qwen27b serve-qwen27b-q4 serve-qwen35b-a3b \
+        serve-glm47-23b serve-qwopus35b-a3b \
         serve-socratteachllm serve-teacher-online \
         setup-l40s start-local-tl-server \
         test-gpu-stack test-vllm \
@@ -42,6 +43,8 @@ help:
 	@echo "  serve-qwen27b         Run scripts/serve_qwen27b_q5.sh (Qwen3.6-27B Q5, dual-role teacher+consultant)"
 	@echo "  serve-qwen27b-q4      Run scripts/serve_qwen27b_q4_local.sh (Qwen3.6-27B Q4, ~/models/, AMD R9700)"
 	@echo "  serve-qwen35b-a3b     Run scripts/serve_qwen35b_a3b.sh (Qwen3.6-35B-A3B MoE, ~3x faster than 27B)"
+	@echo "  serve-glm47-23b       Run scripts/serve_glm47_23b.sh (GLM-4.7-Flash REAP 23B-A3B, 14 GB, AMD R9700)"
+	@echo "  serve-qwopus35b-a3b   Run scripts/serve_qwopus35b_a3b.sh (Qwopus 35B-A3B LoRA fine-tune, 21 GB)"
 	@echo "  serve-socratteachllm  Run scripts/serve_socratteachllm.sh"
 	@echo "  serve-teacher-online  Run scripts/serve_teacher_online.sh"
 	@echo "  start-local-tl-server  Start local llama.cpp server for dataset translation (Qwen3.5-9B)"
@@ -203,6 +206,12 @@ eval-qwen27b-full:
 
 serve-qwen35b-a3b:
 	bash scripts/serve_qwen35b_a3b.sh
+
+serve-glm47-23b:
+	bash scripts/serve_glm47_23b.sh
+
+serve-qwopus35b-a3b:
+	bash scripts/serve_qwopus35b_a3b.sh
 
 eval-qwen35b-a3b-smoke:
 	bash scripts/eval_qwen35b_a3b.sh smoke

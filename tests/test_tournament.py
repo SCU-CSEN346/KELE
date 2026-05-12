@@ -27,8 +27,8 @@ from src.project.tournament import (
 # ── Registry ──────────────────────────────────────────────────────────────────
 
 
-def test_registry_has_11_models():
-    assert len(MODEL_REGISTRY) == 11
+def test_registry_has_13_models():
+    assert len(MODEL_REGISTRY) == 13
 
 
 def test_registry_has_5_on_disk_models():
@@ -43,9 +43,9 @@ def test_registry_has_5_on_disk_models():
     }
 
 
-def test_registry_has_6_downloadable_models():
+def test_registry_has_8_downloadable_models():
     downloadable = [m for m in MODEL_REGISTRY if not m.on_disk]
-    assert len(downloadable) == 6
+    assert len(downloadable) == 8
 
 
 def test_model_by_id_lookup():
@@ -301,11 +301,11 @@ def test_cmd_reset_with_confirm_no_file_is_noop(tmp_path, monkeypatch, capsys):
 # ── cmd_download ──────────────────────────────────────────────────────────────
 
 
-def test_cmd_download_prints_6_commands(capsys):
+def test_cmd_download_prints_8_commands(capsys):
     cmd_download(Namespace())
     out = capsys.readouterr().out
     # One command per downloadable model
-    assert out.count("huggingface-cli download") == 6
+    assert out.count("huggingface-cli download") == 8
 
 
 def test_cmd_download_contains_all_model_repos(capsys):
