@@ -400,39 +400,57 @@ def run_kele(
 
 def print_leaderboard(state: TournamentState) -> None:
     round_key = f"round{state.round}"
+    prev_key = f"round{state.round - 1}" if state.round > 1 else None
 
-    rows: list[tuple[str, str, str, str]] = []
+    # Build rows: (name, latest, best, delta, status, hist_str)
+    active_rows = []
     for mid in state.models_active:
         spec = MODEL_BY_ID.get(mid)
         name = spec.name if spec else mid
-        latest = state.scores.get(mid, {}).get(round_key)
-        score_str = f"{latest:.3f}" if latest is not None else "—"
-        history = state.scores.get(mid, {})
-        hist_str = "  ".join(f"r{k[5:]}: {v:.3f}" for k, v in sorted(history.items()))
-        rows.append((name, score_str, "active", hist_str))
+        scores = state.scores.get(mid, {})
+        latest = scores.get(round_key)
+        best = max(scores.values()) if scores else None
+        prev = scores.get(prev_key) if prev_key else None
+        delta = (latest - prev) if (latest is not None and prev is not None) else None
+        hist = "  ".join(f"r{k[5:]}: {v:.3f}" for k, v in sorted(scores.items()))
+        active_rows.append((name, latest, best, delta, "active", hist))
 
+    elim_rows = []
     for mid in state.models_eliminated:
         spec = MODEL_BY_ID.get(mid)
         name = spec.name if spec else mid
-        history = state.scores.get(mid, {})
-        hist_str = "  ".join(f"r{k[5:]}: {v:.3f}" for k, v in sorted(history.items()))
-        rows.append((name, "—", "ELIMINATED", hist_str))
+        scores = state.scores.get(mid, {})
+        best = max(scores.values()) if scores else None
+        hist = "  ".join(f"r{k[5:]}: {v:.3f}" for k, v in sorted(scores.items()))
+        elim_rows.append((name, None, best, None, "ELIMINATED", hist))
 
-    # Sort active by latest score descending, eliminated last
-    active_rows = [(n, s, st, h) for n, s, st, h in rows if st == "active"]
-    elim_rows = [(n, s, st, h) for n, s, st, h in rows if st == "ELIMINATED"]
-    active_rows.sort(key=lambda r: -float(r[1]) if r[1] != "—" else -99)
+    active_rows.sort(key=lambda r: -(r[1] or -99))
     rows = active_rows + elim_rows
 
-    print()
-    print(f"{'Model':<36}  {'Score':>7}  {'Status':<12}  History")
-    print("─" * 90)
-    for name, score, status, hist in rows:
-        marker = "  ✓" if status == "active" else "  ✗"
-        print(f"  {name:<34}  {score:>7}  {status:<12}  {hist}{marker}")
+    def _score(v: float | None) -> str:
+        return f"{v:.3f}" if v is not None else "    —"
+
+    def _delta(d: float | None) -> str:
+        if d is None:
+            return "    —"
+        return f"+{d:.3f}" if d >= 0 else f"{d:.3f}"
+
     print()
     print(
-        f"Round: {state.round}  |  n/round: {state.n_per_round}  |  Active: {len(state.models_active)}  |  Eliminated: {len(state.models_eliminated)}"
+        f"  {'#':>2}  {'Model':<34}  {'Latest':>7}  {'Best':>7}  {'Δ':>7}  {'Status':<11}  History"
+    )
+    print("─" * 105)
+    for i, (name, latest, best, delta, status, hist) in enumerate(rows):
+        rank = f"{i + 1:>2}" if status == "active" else "  "
+        marker = "✓" if status == "active" else "✗"
+        print(
+            f"  {rank}  {name:<34}  {_score(latest):>7}  {_score(best):>7}  {_delta(delta):>7}"
+            f"  {status:<11}  {hist}  {marker}"
+        )
+    print()
+    print(
+        f"Round: {state.round}  |  n/round: {state.n_per_round}"
+        f"  |  Active: {len(state.models_active)}  |  Eliminated: {len(state.models_eliminated)}"
     )
     print()
 
