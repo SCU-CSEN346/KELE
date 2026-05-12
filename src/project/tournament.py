@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -586,13 +587,14 @@ def cmd_finalize(args: argparse.Namespace) -> None:  # pragma: no cover
 
 
 def cmd_reset(args: argparse.Namespace) -> None:
+    tournament_dir = STATE_FILE.parent
     if not args.confirm:
-        print("This will wipe results/tournament/state.json.")
+        print(f"This will wipe {tournament_dir} (state + all round output files).")
         print("Re-run with --confirm to proceed.")
         return
-    if STATE_FILE.exists():
-        STATE_FILE.unlink()
-        print(f"Removed {STATE_FILE}")
+    if tournament_dir.exists():
+        shutil.rmtree(tournament_dir)
+        print(f"Removed {tournament_dir}")
     print("State reset. Run:  uv run tournament run")
 
 

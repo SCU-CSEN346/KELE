@@ -71,7 +71,7 @@ help:
 	@echo "  tournament-status     Print leaderboard"
 	@echo "  tournament-eliminate  Drop worst model (uv run tournament eliminate [N])"
 	@echo "  tournament-finalize   Run survivors to n=681 (fusion mode)"
-	@echo "  tournament-reset      Wipe state (add CONFIRM=1 to skip prompt)"
+	@echo "  tournament-reset      Wipe all tournament state + round output files (add CONFIRM=1 to skip prompt)"
 	@echo "  tournament-download   Print huggingface-cli download commands"
 
 
