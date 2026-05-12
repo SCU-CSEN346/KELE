@@ -135,7 +135,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         config_name="tournament-gemma4-26b-a4b",
         hf_repo="unsloth/gemma-4-26B-A4B-it-GGUF",
         hf_file="gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf",
-        on_disk=False,
+        on_disk=True,
     ),
     # ── Downloadable (add more as weights arrive) ─────────────────────────────
     ModelSpec(
@@ -609,6 +609,52 @@ def cmd_finalize(args: argparse.Namespace) -> None:  # pragma: no cover
         print(f"  {name:<36}  {score:.3f}")
 
 
+def cmd_add(args: argparse.Namespace) -> None:
+    state = load_state()
+
+    if getattr(args, "all", False):
+        candidates = [
+            m
+            for m in MODEL_REGISTRY
+            if m.on_disk and m.id not in state.models_active and m.id not in state.models_eliminated
+        ]
+    elif args.model_id:
+        spec = MODEL_BY_ID.get(args.model_id)
+        if spec is None:
+            print(f"Unknown model ID: {args.model_id}")
+            print(f"Known IDs: {', '.join(MODEL_BY_ID)}")
+            return
+        candidates = [spec]
+    else:
+        print("Specify a model ID or use --all.")
+        return
+
+    added = []
+    for spec in candidates:
+        if spec.id in state.models_active:
+            print(f"[{spec.id}] already active — skipping")
+            continue
+        if spec.id in state.models_eliminated:
+            print(f"[{spec.id}] already eliminated — cannot re-add")
+            continue
+        if not spec.on_disk:
+            print(f"[{spec.id}] not on disk — download first:  uv run tournament download")
+            continue
+        state.models_active.append(spec.id)
+        state.scores.setdefault(spec.id, {})
+        added.append(spec.name)
+        print(f"  Added: {spec.name}")
+
+    if not added:
+        print("Nothing added.")
+        return
+
+    save_state(state)
+    print(f"\n{len(added)} model(s) added. Run a warmup to test them:")
+    print("  uv run tournament run --n 5 --unified")
+    print_leaderboard(state)
+
+
 def cmd_reset(args: argparse.Namespace) -> None:
     tournament_dir = STATE_FILE.parent
     if not args.confirm:
@@ -698,6 +744,11 @@ def main() -> None:
     p = sub.add_parser("finalize", help="Run survivors to n=681 (full evaluation)")
     p.add_argument("--unified", action="store_true")
 
+    # add
+    p = sub.add_parser("add", help="Add a model to the active pool mid-tournament")
+    p.add_argument("model_id", nargs="?", default=None, help="Model ID to add")
+    p.add_argument("--all", action="store_true", help="Add all on-disk models not yet active")
+
     # reset
     p = sub.add_parser("reset", help="Wipe tournament state")
     p.add_argument("--confirm", action="store_true")
@@ -711,6 +762,7 @@ def main() -> None:
     dispatch = {
         "run": cmd_run,
         "status": cmd_status,
+        "add": cmd_add,
         "eliminate": cmd_eliminate,
         "finalize": cmd_finalize,
         "reset": cmd_reset,

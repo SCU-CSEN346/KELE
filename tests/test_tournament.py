@@ -15,6 +15,7 @@ from src.project.tournament import (
     MODEL_REGISTRY,
     TournamentState,
     _server_has_alias,
+    cmd_add,
     cmd_download,
     cmd_eliminate,
     cmd_reset,
@@ -31,15 +32,16 @@ def test_registry_has_13_models():
     assert len(MODEL_REGISTRY) == 13
 
 
-def test_registry_has_12_on_disk_models():
+def test_registry_has_13_on_disk_models():
     on_disk = [m for m in MODEL_REGISTRY if m.on_disk]
-    assert len(on_disk) == 12
+    assert len(on_disk) == 13
     assert {m.id for m in on_disk} == {
         "qwen35-9b",
         "qwen27b",
         "qwen27b-q4",
         "qwen35b-a3b",
         "gemma4-31b",
+        "gemma4-26b-a4b",
         "glm47-23b",
         "qwopus35b-a3b",
         "deepseek-r1-14b",
@@ -50,9 +52,9 @@ def test_registry_has_12_on_disk_models():
     }
 
 
-def test_registry_has_1_downloadable_model():
+def test_registry_has_0_downloadable_models():
     downloadable = [m for m in MODEL_REGISTRY if not m.on_disk]
-    assert len(downloadable) == 1
+    assert len(downloadable) == 0
 
 
 def test_model_by_id_lookup():
@@ -98,6 +100,7 @@ def test_load_state_default_when_no_file(tmp_path, monkeypatch):
         "qwen27b-q4",
         "qwen35b-a3b",
         "gemma4-31b",
+        "gemma4-26b-a4b",
         "glm47-23b",
         "qwopus35b-a3b",
         "deepseek-r1-14b",
@@ -288,6 +291,91 @@ def test_cmd_eliminate_drop_2_caps_at_floor(capsys, tmp_path, monkeypatch):
     assert len(state.models_eliminated) == 1
 
 
+# ── cmd_add ───────────────────────────────────────────────────────────────────
+
+
+def test_cmd_add_single_model(capsys, tmp_path, monkeypatch):
+    monkeypatch.setattr("src.project.tournament.STATE_FILE", tmp_path / "state.json")
+    state = TournamentState(
+        round=1,
+        n_per_round=5,
+        models_active=["qwen35-9b"],
+        models_eliminated=[],
+        scores={},
+        round_complete=[],
+        final_scores={},
+    )
+    save_state(state)
+    cmd_add(Namespace(model_id="qwen27b-q4", all=False))
+    state = load_state()
+    assert "qwen27b-q4" in state.models_active
+    assert len(state.models_active) == 2
+
+
+def test_cmd_add_all_adds_on_disk_models(capsys, tmp_path, monkeypatch):
+    monkeypatch.setattr("src.project.tournament.STATE_FILE", tmp_path / "state.json")
+    state = TournamentState(
+        round=1,
+        n_per_round=5,
+        models_active=["qwen35-9b"],
+        models_eliminated=["qwen27b"],
+        scores={},
+        round_complete=[],
+        final_scores={},
+    )
+    save_state(state)
+    cmd_add(Namespace(model_id=None, all=True))
+    state = load_state()
+    # All on_disk models except already-active and eliminated should be added
+    on_disk_ids = {m.id for m in MODEL_REGISTRY if m.on_disk}
+    expected = on_disk_ids - {"qwen35-9b", "qwen27b"}
+    assert expected.issubset(set(state.models_active))
+    assert "qwen27b" not in state.models_active  # eliminated, not re-added
+
+
+def test_cmd_add_unknown_model_prints_error(capsys, tmp_path, monkeypatch):
+    monkeypatch.setattr("src.project.tournament.STATE_FILE", tmp_path / "state.json")
+    cmd_add(Namespace(model_id="does-not-exist", all=False))
+    out = capsys.readouterr().out
+    assert "Unknown" in out
+
+
+def test_cmd_add_already_active_skips(capsys, tmp_path, monkeypatch):
+    monkeypatch.setattr("src.project.tournament.STATE_FILE", tmp_path / "state.json")
+    state = TournamentState(
+        round=1,
+        n_per_round=5,
+        models_active=["qwen35-9b"],
+        models_eliminated=[],
+        scores={},
+        round_complete=[],
+        final_scores={},
+    )
+    save_state(state)
+    cmd_add(Namespace(model_id="qwen35-9b", all=False))
+    out = capsys.readouterr().out
+    assert "already active" in out
+    assert len(load_state().models_active) == 1
+
+
+def test_cmd_add_eliminated_cannot_readd(capsys, tmp_path, monkeypatch):
+    monkeypatch.setattr("src.project.tournament.STATE_FILE", tmp_path / "state.json")
+    state = TournamentState(
+        round=1,
+        n_per_round=5,
+        models_active=["qwen35-9b"],
+        models_eliminated=["qwen27b"],
+        scores={},
+        round_complete=[],
+        final_scores={},
+    )
+    save_state(state)
+    cmd_add(Namespace(model_id="qwen27b", all=False))
+    out = capsys.readouterr().out
+    assert "eliminated" in out
+    assert "qwen27b" not in load_state().models_active
+
+
 # ── cmd_reset ─────────────────────────────────────────────────────────────────
 
 
@@ -315,21 +403,70 @@ def test_cmd_reset_with_confirm_no_file_is_noop(tmp_path, monkeypatch, capsys):
 # ── cmd_download ──────────────────────────────────────────────────────────────
 
 
-def test_cmd_download_generates_commands_for_missing(capsys):
-    cmd_download(Namespace(dry_run=True))
-    out = capsys.readouterr().out
-    # At least qwen35-14b (never on disk) always produces a command
-    assert out.count("hf download") >= 1
+def _fake_registry(tmp_path):
+    """Two-entry registry: one file present, one missing."""
+    from src.project.tournament import ModelSpec
+
+    present = ModelSpec(
+        id="fake-present",
+        name="Fake Present",
+        alias="FP",
+        weight_path=str(tmp_path / "present.gguf"),
+        serve_script="scripts/serve_fake.sh",
+        config_name="fake",
+        hf_repo="test/fake-present",
+        hf_file="present.gguf",
+        on_disk=True,
+    )
+    missing = ModelSpec(
+        id="fake-missing",
+        name="Fake Missing",
+        alias="FM",
+        weight_path=str(tmp_path / "missing.gguf"),
+        serve_script="scripts/serve_fake.sh",
+        config_name="fake",
+        hf_repo="test/fake-missing",
+        hf_file="missing.gguf",
+        on_disk=False,
+    )
+    (tmp_path / "present.gguf").touch()
+    return [present, missing]
 
 
-def test_cmd_download_contains_all_model_repos(capsys):
+def test_cmd_download_generates_command_for_missing_file(capsys, tmp_path, monkeypatch):
+    registry = _fake_registry(tmp_path)
+    monkeypatch.setattr("src.project.tournament.MODEL_REGISTRY", registry)
     cmd_download(Namespace(dry_run=True))
     out = capsys.readouterr().out
-    downloadable = [m for m in MODEL_REGISTRY if not m.on_disk]
-    for m in downloadable:
-        assert m.hf_repo in out
-        # hf_include replaces hf_file in the command for split/sharded GGUFs
-        if m.hf_include:
-            assert m.hf_include in out
-        else:
-            assert m.hf_file in out
+    assert "test/fake-missing" in out
+    assert "hf download" in out
+
+
+def test_cmd_download_skips_present_file(capsys, tmp_path, monkeypatch):
+    registry = _fake_registry(tmp_path)
+    monkeypatch.setattr("src.project.tournament.MODEL_REGISTRY", registry)
+    cmd_download(Namespace(dry_run=True))
+    out = capsys.readouterr().out
+    assert "[fake-present] already present" in out
+    assert "test/fake-present" not in out
+
+
+def test_cmd_download_all_present_prints_message(capsys, tmp_path, monkeypatch):
+    from src.project.tournament import ModelSpec
+
+    present = ModelSpec(
+        id="only-present",
+        name="Only Present",
+        alias="OP",
+        weight_path=str(tmp_path / "only.gguf"),
+        serve_script="scripts/serve_fake.sh",
+        config_name="fake",
+        hf_repo="test/only-present",
+        hf_file="only.gguf",
+        on_disk=True,
+    )
+    (tmp_path / "only.gguf").touch()
+    monkeypatch.setattr("src.project.tournament.MODEL_REGISTRY", [present])
+    cmd_download(Namespace(dry_run=True))
+    out = capsys.readouterr().out
+    assert "present locally" in out
