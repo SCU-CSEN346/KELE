@@ -612,14 +612,14 @@ def cmd_reset(args: argparse.Namespace) -> None:
 
 def cmd_download(args: argparse.Namespace) -> None:
     dry_run: bool = getattr(args, "dry_run", False)
-    pending = [m for m in MODEL_REGISTRY if not m.on_disk]
-    if not pending:
-        print("All models are on disk.")
+    missing = [m for m in MODEL_REGISTRY if not Path(m.weight_path).expanduser().exists()]
+    if not missing:
+        print("All model weights are present locally.")
         return
 
-    label = "Commands (dry-run)" if dry_run else f"Downloading {len(pending)} model weights"
-    print(f"{label} (skips files already present)\n")
-    for m in pending:
+    label = "Commands (dry-run)" if dry_run else f"Downloading {len(missing)} missing model weights"
+    print(f"{label}\n")
+    for m in MODEL_REGISTRY:
         weight_path = Path(m.weight_path).expanduser()
         local_dir = weight_path.parent
         if weight_path.exists():
@@ -658,7 +658,8 @@ def cmd_download(args: argparse.Namespace) -> None:
                 file=sys.stderr,
             )
         print()
-    print("After downloading, set on_disk=True for the model in tournament.py.")
+    if not dry_run:
+        print("Done. Run the tournament with:  uv run tournament run --unified")
 
 
 # ── CLI entry point ───────────────────────────────────────────────────────────

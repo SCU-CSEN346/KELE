@@ -313,11 +313,11 @@ def test_cmd_reset_with_confirm_no_file_is_noop(tmp_path, monkeypatch, capsys):
 # ── cmd_download ──────────────────────────────────────────────────────────────
 
 
-def test_cmd_download_prints_1_command(capsys):
+def test_cmd_download_generates_commands_for_missing(capsys):
     cmd_download(Namespace(dry_run=True))
     out = capsys.readouterr().out
-    # One hf download command per downloadable model
-    assert out.count("hf download") == 1
+    # At least qwen35-14b (never on disk) always produces a command
+    assert out.count("hf download") >= 1
 
 
 def test_cmd_download_contains_all_model_repos(capsys):
