@@ -135,7 +135,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         config_name="tournament-glm47-23b",
         hf_repo="unsloth/GLM-4.7-Flash-REAP-23B-A3B-GGUF",
         hf_file="GLM-4.7-Flash-REAP-23B-A3B-UD-Q4_K_XL.gguf",
-        on_disk=False,
+        on_disk=True,
     ),
     ModelSpec(
         id="qwopus35b-a3b",
@@ -620,20 +620,42 @@ def cmd_reset(args: argparse.Namespace) -> None:
     print("State reset. Run:  uv run tournament run")
 
 
-def cmd_download(_args: argparse.Namespace) -> None:
+def cmd_download(args: argparse.Namespace) -> None:
+    dry_run: bool = getattr(args, "dry_run", False)
     pending = [m for m in MODEL_REGISTRY if not m.on_disk]
     if not pending:
         print("All models are on disk.")
         return
 
-    weights_dir = Path.home() / "Documents" / "models" / "weights"
-    print(f"Download commands (into {weights_dir}):\n")
+    label = "Commands (dry-run)" if dry_run else f"Downloading {len(pending)} model weights"
+    print(f"{label} (skips files already present)\n")
     for m in pending:
-        print(f"# {m.name}")
-        print(f"huggingface-cli download {m.hf_repo} {m.hf_file} --local-dir {weights_dir}")
+        weight_path = Path(m.weight_path).expanduser()
+        local_dir = weight_path.parent
+        if weight_path.exists():
+            print(f"[{m.id}] already present — skipping")
+            print()
+            continue
+        print(f"[{m.id}] {m.name}")
+        cmd = ["hf", "download", m.hf_repo, m.hf_file, "--local-dir", str(local_dir)]
+        print(f"  {' '.join(cmd)}")
+        if dry_run:
+            print()
+            continue
+        local_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            result = subprocess.run(cmd, cwd=str(REPO_ROOT))
+            if result.returncode != 0:
+                print(f"  ERROR: exit {result.returncode}", file=sys.stderr)
+            else:
+                print(f"  OK — saved to {local_dir}")
+        except FileNotFoundError:
+            print(
+                "  ERROR: 'hf' not found — install with: pip install 'huggingface-hub[cli]'",
+                file=sys.stderr,
+            )
         print()
-    print("After downloading, set on_disk=True in the registry and create serve/config files.")
-    print("See existing scripts/serve_qwen27b_q5.sh and configs/qwen27b-local.env as templates.")
+    print("After downloading, set on_disk=True for the model in tournament.py.")
 
 
 # ── CLI entry point ───────────────────────────────────────────────────────────
@@ -666,7 +688,8 @@ def main() -> None:
     p.add_argument("--confirm", action="store_true")
 
     # download
-    sub.add_parser("download", help="Print huggingface-cli download commands for missing models")
+    p = sub.add_parser("download", help="Download pending model weights via hf CLI")
+    p.add_argument("--dry-run", action="store_true", help="Print commands without executing")
 
     args = parser.parse_args()
 

@@ -31,21 +31,22 @@ def test_registry_has_13_models():
     assert len(MODEL_REGISTRY) == 13
 
 
-def test_registry_has_5_on_disk_models():
+def test_registry_has_6_on_disk_models():
     on_disk = [m for m in MODEL_REGISTRY if m.on_disk]
-    assert len(on_disk) == 5
+    assert len(on_disk) == 6
     assert {m.id for m in on_disk} == {
         "qwen35-9b",
         "qwen27b",
         "qwen27b-q4",
         "qwen35b-a3b",
         "gemma4-31b",
+        "glm47-23b",
     }
 
 
-def test_registry_has_8_downloadable_models():
+def test_registry_has_7_downloadable_models():
     downloadable = [m for m in MODEL_REGISTRY if not m.on_disk]
-    assert len(downloadable) == 8
+    assert len(downloadable) == 7
 
 
 def test_model_by_id_lookup():
@@ -91,6 +92,7 @@ def test_load_state_default_when_no_file(tmp_path, monkeypatch):
         "qwen27b-q4",
         "qwen35b-a3b",
         "gemma4-31b",
+        "glm47-23b",
     }
     assert state.models_eliminated == []
 
@@ -301,15 +303,15 @@ def test_cmd_reset_with_confirm_no_file_is_noop(tmp_path, monkeypatch, capsys):
 # ── cmd_download ──────────────────────────────────────────────────────────────
 
 
-def test_cmd_download_prints_8_commands(capsys):
-    cmd_download(Namespace())
+def test_cmd_download_prints_7_commands(capsys):
+    cmd_download(Namespace(dry_run=True))
     out = capsys.readouterr().out
-    # One command per downloadable model
-    assert out.count("huggingface-cli download") == 8
+    # One hf download command per downloadable model
+    assert out.count("hf download") == 7
 
 
 def test_cmd_download_contains_all_model_repos(capsys):
-    cmd_download(Namespace())
+    cmd_download(Namespace(dry_run=True))
     out = capsys.readouterr().out
     downloadable = [m for m in MODEL_REGISTRY if not m.on_disk]
     for m in downloadable:
