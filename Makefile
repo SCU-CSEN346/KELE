@@ -14,8 +14,9 @@
         serve-socratteachllm serve-teacher-online \
         setup-l40s start-local-tl-server \
         test-gpu-stack test-vllm \
-        tournament tournament-warmup tournament-status tournament-eliminate \
-        tournament-finalize tournament-reset tournament-download
+        tournament tournament-think tournament-warmup tournament-status tournament-eliminate \
+        tournament-finalize tournament-archive tournament-restore tournament-reset \
+        tournament-download tournament-help
 
 # Default target
 help:
@@ -69,13 +70,17 @@ help:
 	@echo "  slurm                 git pull + sbatch wave_eval.slurm + print status"
 	@echo ""
 	@echo "  Tournament (multi-model elimination):"
-	@echo "  tournament-warmup     Warmup round (n=5, fusion mode) — verifies models load; do NOT eliminate after"
-	@echo "  tournament            Run one round (n=50, fusion mode) for all active models"
+	@echo "  tournament-help       Full tournament command reference"
+	@echo "  tournament            Run one round (n=50, fusion, no-think)"
+	@echo "  tournament-think      Run one round (n=50, fusion, thinking budget=8192)"
+	@echo "  tournament-warmup     Warmup (n=5) — verifies models load; do NOT eliminate after"
 	@echo "  tournament-status     Print leaderboard"
-	@echo "  tournament-eliminate  Drop worst model (uv run tournament eliminate [N])"
+	@echo "  tournament-archive    Save current run to archive/<run_id>/ and reset state"
+	@echo "  tournament-restore    List archives  (use ID=<id> to restore one)"
+	@echo "  tournament-eliminate  Drop worst model  (N=2 to drop two, etc.)"
 	@echo "  tournament-finalize   Run survivors to n=681 (fusion mode)"
-	@echo "  tournament-reset      Wipe all tournament state + round output files (add CONFIRM=1 to skip prompt)"
-	@echo "  tournament-download   Download all pending model weights via hf CLI (skips existing)"
+	@echo "  tournament-reset      Wipe all tournament state  (add CONFIRM=1 to skip prompt)"
+	@echo "  tournament-download   Download all pending model weights via hf CLI"
 
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
@@ -256,11 +261,54 @@ eval-gemma4-31b-fusion-smoke:
 
 # ── Tournament ────────────────────────────────────────────────────────────────
 
+tournament-help:
+	@echo ""
+	@echo "Tournament — multi-model elimination benchmark"
+	@echo "=============================================="
+	@echo ""
+	@echo "RUNNING"
+	@echo "  make tournament                    Run one round (n=50, fusion, thinking OFF)"
+	@echo "  make tournament-think              Run one round (n=50, fusion, thinking budget=8192)"
+	@echo "  make tournament-warmup             Smoke test — n=5, no elimination afterward"
+	@echo "  make tournament N=<n>              Custom dialogue count, e.g. make tournament N=20"
+	@echo "  make tournament-finalize           Run the 3 survivors to full n=681"
+	@echo ""
+	@echo "LEADERBOARD"
+	@echo "  make tournament-status             Print leaderboard + detailed metrics table"
+	@echo ""
+	@echo "ELIMINATION"
+	@echo "  make tournament-eliminate          Drop 1 worst-scoring model"
+	@echo "  make tournament-eliminate N=2      Drop 2 worst (floor: 3 finalists always remain)"
+	@echo ""
+	@echo "ARCHIVE / RESTORE"
+	@echo "  make tournament-archive            Save current run to archive/<run_id>/ and reset"
+	@echo "                                     Re-archiving the same run ID overwrites (appends rounds)"
+	@echo "  make tournament-restore            List all archived runs with ID, date, round, TB"
+	@echo "  make tournament-restore ID=<id>    Restore run <id>; auto-archives current run first"
+	@echo ""
+	@echo "SETUP"
+	@echo "  make tournament-download           Download any missing model weights via hf CLI"
+	@echo "  make tournament-reset CONFIRM=1    Wipe everything (state + round dirs) — no undo"
+	@echo ""
+	@echo "TYPICAL WORKFLOW"
+	@echo "  1. make tournament-warmup          # verify all models boot"
+	@echo "  2. make tournament                 # run no-think round 1"
+	@echo "  3. make tournament-status          # review results"
+	@echo "  4. make tournament-archive         # save no-think run (gets a run_id)"
+	@echo "  5. make tournament-think           # run thinking=8192 round 1"
+	@echo "  6. make tournament-status"
+	@echo "  7. make tournament-archive"
+	@echo "  8. make tournament-restore ID=<no-think-id>  # switch back if needed"
+	@echo ""
+
 tournament-warmup:
 	uv run tournament run --n 5 --unified
 
 tournament:
-	uv run tournament run --unified
+	uv run tournament run --unified $(if $(N),--n $(N),)
+
+tournament-think:
+	uv run tournament run --unified --thinking-budget 8192 $(if $(N),--n $(N),)
 
 tournament-status:
 	uv run tournament status
@@ -271,9 +319,19 @@ tournament-eliminate:
 tournament-finalize:
 	uv run tournament finalize --unified
 
+tournament-archive:
+	uv run tournament archive
+
+tournament-restore:
+	@if [ -z "$(ID)" ]; then \
+	  uv run tournament restore; \
+	else \
+	  uv run tournament restore $(ID); \
+	fi
+
 tournament-reset:
 	@if [ -z "$(CONFIRM)" ]; then \
-	  echo "This wipes results/tournament/state.json. Re-run with CONFIRM=1."; \
+	  echo "This wipes results/tournament/ entirely. Re-run with CONFIRM=1."; \
 	else \
 	  uv run tournament reset --confirm; \
 	fi
