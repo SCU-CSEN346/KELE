@@ -295,14 +295,18 @@ e34：学生正确给出题目答案
             },
         }
 
-        # Generous max_tokens — Qwen3.6 thinking content goes to a separate
-        # reasoning_content field so this budget is for the JSON proper.
-        # Bump to 16K to cover deep CoT plus the three-field structured output.
-        max_tokens = max(self.consultant_max_tokens, 16384)
+        # When thinking is enabled with a budget, max_tokens must cover both
+        # the thinking block and the JSON output. Otherwise use a 16K floor.
+        if self.consultant_thinking_budget > 0:
+            max_tokens = self.consultant_thinking_budget + max(self.consultant_max_tokens, 4096)
+        else:
+            max_tokens = max(self.consultant_max_tokens, 16384)
 
         extra: dict = {}
         if self.consultant_disable_thinking:
             extra["chat_template_kwargs"] = {"enable_thinking": False}
+        elif self.consultant_thinking_budget > 0:
+            extra["chat_template_kwargs"] = {"thinking_budget": self.consultant_thinking_budget}
 
         # Retry on rate limits (mirrors socratic_teaching_consultant pattern)
         response = None

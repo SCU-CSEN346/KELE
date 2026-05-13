@@ -44,6 +44,7 @@ def create_system(
         max_teaching_rounds=cfg.max_teaching_rounds,
         consultant_max_tokens=cfg.consultant.max_tokens,
         consultant_disable_thinking=cfg.consultant.disable_thinking,
+        consultant_thinking_budget=cfg.consultant.thinking_budget,
         consultant_num_ctx=cfg.consultant.num_ctx,
     )
 
@@ -227,6 +228,7 @@ def run_batch_evaluation(
         "teacher_base_url": cfg.teacher.base_url,
         "consultant_model": cfg.consultant.model_name,
         "consultant_base_url": cfg.consultant.base_url,
+        "thinking_budget": cfg.consultant.thinking_budget,
         "max_teaching_rounds": cfg.max_teaching_rounds,
         "unified": unified,
         "total_dialogues": len(dataset),

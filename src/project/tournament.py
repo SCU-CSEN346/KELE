@@ -9,10 +9,11 @@ Sequential evaluation (one model per 32 GB VRAM slot at a time):
 Crash-safe: state persists to results/tournament/state.json after each model.
 
 CLI:
-  uv run tournament run [--n N] [--unified]
+  uv run tournament run [--n N] [--unified] [--thinking-budget N]
   uv run tournament status
   uv run tournament eliminate [N]
   uv run tournament finalize [--unified]
+  uv run tournament archive
   uv run tournament reset
   uv run tournament download
 """
@@ -62,11 +63,12 @@ class ModelSpec:
     alias: str
     weight_path: str  # ~ expanded at runtime
     serve_script: str  # relative to repo root
-    config_name: str  # configs/<name>.env
+    config_name: str  # configs/<name>.env — used for no-think runs
     hf_repo: str
     hf_file: str  # primary file (first shard for split GGUFs); used for display and existence check
     hf_include: str | None = None  # glob for --include when files live in a subdir or are split
     on_disk: bool = True
+    thinking_config_name: str | None = None  # configs/<name>.env — used when thinking_budget > 0
 
 
 MODEL_REGISTRY: list[ModelSpec] = [
@@ -78,6 +80,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         weight_path="~/models/Qwen3.5-9B/Qwen3.5-9B-UD-Q4_K_XL.gguf",
         serve_script="scripts/serve_tournament_qwen35_9b.sh",
         config_name="tournament-qwen35-9b",
+        thinking_config_name="tournament-qwen35-9b-think",
         hf_repo="unsloth/Qwen3.5-9B-GGUF",
         hf_file="Qwen3.5-9B-UD-Q4_K_XL.gguf",
         on_disk=True,
@@ -89,6 +92,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         weight_path="~/Documents/models/weights/Qwen3.6-27B-UD-Q5_K_XL.gguf",
         serve_script="scripts/serve_qwen27b_q5.sh",
         config_name="qwen27b-local",
+        thinking_config_name="tournament-qwen27b-think",
         hf_repo="unsloth/Qwen3.6-27B-GGUF",
         hf_file="Qwen3.6-27B-UD-Q5_K_XL.gguf",
         on_disk=True,
@@ -100,6 +104,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         weight_path="~/models/Qwen3.6-27B/Qwen3.6-27B-Q4_K_M.gguf",
         serve_script="scripts/serve_qwen27b_q4_local.sh",
         config_name="tournament-qwen27b-q4",
+        thinking_config_name="tournament-qwen27b-q4-think",
         hf_repo="unsloth/Qwen3.6-27B-GGUF",
         hf_file="Qwen3.6-27B-Q4_K_M.gguf",
         on_disk=True,
@@ -111,6 +116,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         weight_path="~/Documents/models/weights/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
         serve_script="scripts/serve_qwen35b_a3b.sh",
         config_name="qwen35b-a3b-local",
+        thinking_config_name="tournament-qwen35b-a3b-think",
         hf_repo="unsloth/Qwen3.6-35B-A3B-GGUF",
         hf_file="Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
         on_disk=True,
@@ -145,6 +151,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         weight_path="~/models/GLM-4.7-Flash-REAP-23B-A3B/GLM-4.7-Flash-REAP-23B-A3B-UD-Q4_K_XL.gguf",
         serve_script="scripts/serve_glm47_23b.sh",
         config_name="tournament-glm47-23b",
+        thinking_config_name="tournament-glm47-23b-think",
         hf_repo="unsloth/GLM-4.7-Flash-REAP-23B-A3B-GGUF",
         hf_file="GLM-4.7-Flash-REAP-23B-A3B-UD-Q4_K_XL.gguf",
         on_disk=True,
@@ -156,6 +163,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         weight_path="~/models/Qwopus3.6-35B-A3B-v1/Qwopus3.6-35B-A3B-v1-Q4_K_M.gguf",
         serve_script="scripts/serve_qwopus35b_a3b.sh",
         config_name="tournament-qwopus35b-a3b",
+        thinking_config_name="tournament-qwopus35b-a3b-think",
         hf_repo="Jackrong/Qwopus3.6-35B-A3B-v1-GGUF",
         hf_file="Qwopus3.6-35B-A3B-v1-Q4_K_M.gguf",
         on_disk=True,
@@ -167,6 +175,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         weight_path="~/Documents/models/weights/DeepSeek-R1-Distill-Qwen-14B-Q5_K_M.gguf",
         serve_script="scripts/serve_deepseek_r1_14b.sh",
         config_name="tournament-deepseek-r1-14b",
+        thinking_config_name="tournament-deepseek-r1-14b-think",
         hf_repo="unsloth/DeepSeek-R1-Distill-Qwen-14B-GGUF",
         hf_file="DeepSeek-R1-Distill-Qwen-14B-Q5_K_M.gguf",
         on_disk=True,
@@ -211,6 +220,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         weight_path="~/Documents/models/weights/Qwen3-14B-UD-Q4_K_XL.gguf",
         serve_script="scripts/serve_qwen35_14b.sh",
         config_name="tournament-qwen35-14b",
+        thinking_config_name="tournament-qwen35-14b-think",
         hf_repo="unsloth/Qwen3-14B-GGUF",
         hf_file="Qwen3-14B-UD-Q4_K_XL.gguf",
         on_disk=True,
@@ -227,6 +237,7 @@ MODEL_BY_ID: dict[str, ModelSpec] = {m.id: m for m in MODEL_REGISTRY}
 class TournamentState:
     round: int = 0
     n_per_round: int = 50
+    thinking_budget: int = 0  # 0 = disabled; >0 = token budget passed to chat_template_kwargs
     models_active: list[str] = field(default_factory=list)
     models_eliminated: list[str] = field(default_factory=list)
     # {model_id: {round_N: overall_score}}
@@ -359,9 +370,13 @@ def ensure_server(
 
 
 def run_kele(
-    spec: ModelSpec, out_dir: Path, n: int, unified: bool
+    spec: ModelSpec, out_dir: Path, n: int, unified: bool, thinking_budget: int = 0
 ) -> dict | None:  # pragma: no cover
     """Run kele test --n N and return the full metrics dict, or None on failure."""
+    if thinking_budget > 0 and spec.thinking_config_name:
+        config = spec.thinking_config_name
+    else:
+        config = spec.config_name
     cmd = [
         "uv",
         "run",
@@ -369,7 +384,7 @@ def run_kele(
         "-m",
         "src.project.kele",
         "--experiment",
-        spec.config_name,
+        config,
         "test",
         "--n",
         str(n),
@@ -524,6 +539,8 @@ def cmd_run(args: argparse.Namespace) -> None:  # pragma: no cover
     if args.n is None:
         state.n_per_round = n
     unified = args.unified
+    if args.thinking_budget is not None:
+        state.thinking_budget = args.thinking_budget
 
     print(f"=== Tournament Round {state.round} ===")
     print(f"n={n}  unified={unified}  active={len(state.models_active)} models")
@@ -561,7 +578,7 @@ def cmd_run(args: argparse.Namespace) -> None:  # pragma: no cover
         print(f"  Output: results/tournament/round{state.round}/{mid}")
 
         t0 = time.time()
-        metrics = run_kele(spec, out_dir, n, unified)
+        metrics = run_kele(spec, out_dir, n, unified, thinking_budget=state.thinking_budget)
         elapsed = int(time.time() - t0)
 
         _kill_server(proc)
@@ -730,6 +747,47 @@ def cmd_add(args: argparse.Namespace) -> None:
     print_leaderboard(state)
 
 
+def cmd_archive(_args: argparse.Namespace) -> None:
+    """Move current round dirs + state into a timestamped archive subfolder, then reset."""
+    from datetime import datetime
+
+    tournament_dir = STATE_FILE.parent
+    if not tournament_dir.exists() or not STATE_FILE.exists():
+        print("No tournament state to archive.")
+        return
+
+    state = load_state()
+    ts = datetime.now().strftime("%Y-%m-%dT%H%M%S")
+    archive_dir = tournament_dir / "archive" / ts
+    archive_dir.mkdir(parents=True, exist_ok=True)
+
+    # Annotate and save state snapshot into archive
+    state_dict = asdict(state)
+    with open(archive_dir / "state.json", "w") as f:
+        json.dump(state_dict, f, indent=2)
+
+    # Move round dirs (roundN, final) into archive
+    for item in sorted(tournament_dir.iterdir()):
+        if item.is_dir() and item.name not in ("archive",):
+            shutil.move(str(item), str(archive_dir / item.name))
+            print(f"  {item.name}/ → archive/{ts}/{item.name}/")
+
+    # Reset state for the next run (preserve active models and n_per_round)
+    new_state = TournamentState(
+        round=0,
+        n_per_round=state.n_per_round,
+        models_active=list(state.models_active),
+        models_eliminated=[],
+        scores={mid: {} for mid in state.models_active},
+    )
+    save_state(new_state)
+
+    print(f"\nArchived to results/tournament/archive/{ts}/")
+    print(f"  thinking_budget in archive: {state.thinking_budget}")
+    print("Fresh state created. To start a thinking run:")
+    print("  uv run tournament run --thinking-budget 8192 --unified")
+
+
 def cmd_reset(args: argparse.Namespace) -> None:
     tournament_dir = STATE_FILE.parent
     if not args.confirm:
@@ -807,6 +865,14 @@ def main() -> None:
     p = sub.add_parser("run", help="Run one elimination round for all active models")
     p.add_argument("--n", type=int, default=None, help="Dialogues per model (default: 50)")
     p.add_argument("--unified", action="store_true", help="Use fusion architecture")
+    p.add_argument(
+        "--thinking-budget",
+        type=int,
+        default=None,
+        dest="thinking_budget",
+        metavar="N",
+        help="Token budget for model thinking (0 = disabled). Persisted in state.",
+    )
 
     # status
     sub.add_parser("status", help="Print current leaderboard")
@@ -824,6 +890,12 @@ def main() -> None:
     p.add_argument("model_id", nargs="?", default=None, help="Model ID to add")
     p.add_argument("--all", action="store_true", help="Add all on-disk models not yet active")
 
+    # archive
+    sub.add_parser(
+        "archive",
+        help="Move current round dirs + state into a timestamped archive and reset for a new run",
+    )
+
     # reset
     p = sub.add_parser("reset", help="Wipe tournament state")
     p.add_argument("--confirm", action="store_true")
@@ -840,6 +912,7 @@ def main() -> None:
         "add": cmd_add,
         "eliminate": cmd_eliminate,
         "finalize": cmd_finalize,
+        "archive": cmd_archive,
         "reset": cmd_reset,
         "download": cmd_download,
     }
