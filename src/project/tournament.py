@@ -14,6 +14,7 @@ CLI:
   uv run tournament eliminate [N]
   uv run tournament finalize [--unified]
   uv run tournament archive
+  uv run tournament restore [<timestamp>]
   uv run tournament reset
   uv run tournament download
 """
@@ -749,28 +750,13 @@ def cmd_add(args: argparse.Namespace) -> None:
 
 def cmd_archive(_args: argparse.Namespace) -> None:
     """Move current round dirs + state into a timestamped archive subfolder, then reset."""
-    from datetime import datetime
-
     tournament_dir = STATE_FILE.parent
     if not tournament_dir.exists() or not STATE_FILE.exists():
         print("No tournament state to archive.")
         return
 
     state = load_state()
-    ts = datetime.now().strftime("%Y-%m-%dT%H%M%S")
-    archive_dir = tournament_dir / "archive" / ts
-    archive_dir.mkdir(parents=True, exist_ok=True)
-
-    # Annotate and save state snapshot into archive
-    state_dict = asdict(state)
-    with open(archive_dir / "state.json", "w") as f:
-        json.dump(state_dict, f, indent=2)
-
-    # Move round dirs (roundN, final) into archive
-    for item in sorted(tournament_dir.iterdir()):
-        if item.is_dir() and item.name not in ("archive",):
-            shutil.move(str(item), str(archive_dir / item.name))
-            print(f"  {item.name}/ → archive/{ts}/{item.name}/")
+    ts = _archive_current(tournament_dir)
 
     # Reset state for the next run (preserve active models and n_per_round)
     new_state = TournamentState(
@@ -784,8 +770,98 @@ def cmd_archive(_args: argparse.Namespace) -> None:
 
     print(f"\nArchived to results/tournament/archive/{ts}/")
     print(f"  thinking_budget in archive: {state.thinking_budget}")
-    print("Fresh state created. To start a thinking run:")
+    print("Fresh state created. To resume a previous run:")
+    print("  uv run tournament restore")
+    print("To start a new thinking run:")
     print("  uv run tournament run --thinking-budget 8192 --unified")
+
+
+def _list_archives(tournament_dir: Path) -> None:
+    archive_base = tournament_dir / "archive"
+    if not archive_base.exists():
+        print("No archives found.")
+        return
+    archives = sorted(archive_base.iterdir())
+    if not archives:
+        print("No archives found.")
+        return
+    print(f"{'Timestamp':<20}  {'Round':>5}  {'TB':>6}  {'Active':>6}  Round dirs")
+    print("─" * 72)
+    for a in archives:
+        state_file = a / "state.json"
+        if not state_file.exists():
+            continue
+        with open(state_file) as f:
+            s = json.load(f)
+        tb = s.get("thinking_budget", 0)
+        rnd = s.get("round", "?")
+        active = len(s.get("models_active", []))
+        dirs = [d.name for d in sorted(a.iterdir()) if d.is_dir()]
+        print(f"  {a.name:<18}  {rnd:>5}  {tb:>6}  {active:>6}  {', '.join(dirs) or '—'}")
+
+
+def _archive_current(tournament_dir: Path) -> str | None:
+    """Archive whatever is in tournament_dir right now. Returns the timestamp string, or None."""
+    from datetime import datetime
+
+    if not STATE_FILE.exists():
+        return None
+
+    state = load_state()
+    ts = datetime.now().strftime("%Y-%m-%dT%H%M%S")
+    archive_dir = tournament_dir / "archive" / ts
+    archive_dir.mkdir(parents=True, exist_ok=True)
+
+    with open(archive_dir / "state.json", "w") as f:
+        json.dump(asdict(state), f, indent=2)
+
+    for item in sorted(tournament_dir.iterdir()):
+        if item.is_dir() and item.name not in ("archive",):
+            shutil.move(str(item), str(archive_dir / item.name))
+            print(f"  {item.name}/ → archive/{ts}/{item.name}/")
+
+    STATE_FILE.unlink(missing_ok=True)
+    return ts
+
+
+def cmd_restore(args: argparse.Namespace) -> None:
+    tournament_dir = STATE_FILE.parent
+
+    if not args.timestamp:
+        _list_archives(tournament_dir)
+        return
+
+    ts = args.timestamp
+    archive_dir = tournament_dir / "archive" / ts
+    if not archive_dir.exists():
+        print(f"Archive not found: archive/{ts}")
+        print("Run without a timestamp to list available archives.")
+        return
+
+    # Archive current state first (non-destructive)
+    if STATE_FILE.exists():
+        saved_ts = _archive_current(tournament_dir)
+        print(f"Current state saved to archive/{saved_ts}/")
+    print()
+
+    # Restore round dirs from archive back into tournament_dir
+    restored = []
+    for item in sorted(archive_dir.iterdir()):
+        if item.is_dir():
+            dest = tournament_dir / item.name
+            shutil.move(str(item), str(dest))
+            restored.append(item.name)
+
+    # Restore state.json (copy, so the archive entry keeps its snapshot)
+    shutil.copy(str(archive_dir / "state.json"), str(STATE_FILE))
+
+    print(f"Restored from archive/{ts}/")
+    if restored:
+        print(f"  Round dirs: {', '.join(restored)}")
+    state = load_state()
+    print(f"  Round: {state.round}  |  thinking_budget: {state.thinking_budget}")
+    print()
+    print_leaderboard(state)
 
 
 def cmd_reset(args: argparse.Namespace) -> None:
@@ -896,6 +972,18 @@ def main() -> None:
         help="Move current round dirs + state into a timestamped archive and reset for a new run",
     )
 
+    # restore
+    p = sub.add_parser(
+        "restore",
+        help="Restore a previous archived run (no args = list available archives)",
+    )
+    p.add_argument(
+        "timestamp",
+        nargs="?",
+        default=None,
+        help="Archive timestamp to restore (e.g. 2026-05-13T015819). Omit to list.",
+    )
+
     # reset
     p = sub.add_parser("reset", help="Wipe tournament state")
     p.add_argument("--confirm", action="store_true")
@@ -913,6 +1001,7 @@ def main() -> None:
         "eliminate": cmd_eliminate,
         "finalize": cmd_finalize,
         "archive": cmd_archive,
+        "restore": cmd_restore,
         "reset": cmd_reset,
         "download": cmd_download,
     }
