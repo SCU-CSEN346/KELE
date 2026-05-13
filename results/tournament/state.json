@@ -1,0 +1,338 @@
+{
+  "round": 1,
+  "n_per_round": 50,
+  "models_active": [
+    "qwen35-9b",
+    "qwen27b",
+    "qwen27b-q4",
+    "qwen35b-a3b",
+    "gemma4-31b",
+    "gemma4-26b-a4b",
+    "glm47-23b",
+    "qwopus35b-a3b",
+    "deepseek-r1-14b",
+    "phi4-14b",
+    "gemma3-27b",
+    "mistral-24b",
+    "qwen3-14b"
+  ],
+  "models_eliminated": [],
+  "scores": {
+    "qwen35-9b": {
+      "round1": 15.64
+    },
+    "qwen27b": {
+      "round1": 28.62
+    },
+    "qwen27b-q4": {
+      "round1": 30.67
+    },
+    "qwen35b-a3b": {
+      "round1": 19.74
+    },
+    "gemma4-31b": {
+      "round1": 35.86
+    },
+    "gemma4-26b-a4b": {
+      "round1": 38.67
+    },
+    "glm47-23b": {
+      "round1": 13.16
+    },
+    "qwopus35b-a3b": {
+      "round1": 18.57
+    },
+    "deepseek-r1-14b": {
+      "round1": 8.17
+    },
+    "phi4-14b": {
+      "round1": 10.63
+    },
+    "gemma3-27b": {
+      "round1": 12.99
+    },
+    "mistral-24b": {
+      "round1": 21.85
+    },
+    "qwen3-14b": {
+      "round1": 22.48
+    }
+  },
+  "round_complete": [],
+  "final_scores": {},
+  "metrics": {
+    "qwen35-9b": {
+      "round1": {
+        "n_turns": 307,
+        "rouge1": 28.23,
+        "rouge2": 10.39,
+        "rougeL": 19.34,
+        "bleu4": 4.43,
+        "state_accuracy": {
+          "overall": 15.64,
+          "per_stage": {
+            "a": 40.0,
+            "b": 32.2,
+            "c": 2.08,
+            "d": 1.89,
+            "e": 12.24
+          },
+          "total_turns": 307
+        },
+        "elapsed_secs": 1159
+      }
+    },
+    "qwen27b": {
+      "round1": {
+        "n_turns": 304,
+        "rouge1": 33.42,
+        "rouge2": 14.31,
+        "rougeL": 24.28,
+        "bleu4": 7.16,
+        "state_accuracy": {
+          "overall": 28.62,
+          "per_stage": {
+            "a": 78.0,
+            "b": 35.59,
+            "c": 8.33,
+            "d": 5.77,
+            "e": 34.04
+          },
+          "total_turns": 304
+        },
+        "elapsed_secs": 3955
+      }
+    },
+    "qwen27b-q4": {
+      "round1": {
+        "n_turns": 300,
+        "rouge1": 33.25,
+        "rouge2": 14.26,
+        "rougeL": 23.61,
+        "bleu4": 7.25,
+        "state_accuracy": {
+          "overall": 30.67,
+          "per_stage": {
+            "a": 72.0,
+            "b": 38.98,
+            "c": 16.67,
+            "d": 3.92,
+            "e": 34.09
+          },
+          "total_turns": 300
+        },
+        "elapsed_secs": 3550
+      }
+    },
+    "qwen35b-a3b": {
+      "round1": {
+        "n_turns": 304,
+        "rouge1": 31.3,
+        "rouge2": 12.66,
+        "rougeL": 21.79,
+        "bleu4": 5.89,
+        "state_accuracy": {
+          "overall": 19.74,
+          "per_stage": {
+            "a": 36.0,
+            "b": 20.34,
+            "c": 10.42,
+            "d": 0.0,
+            "e": 42.55
+          },
+          "total_turns": 304
+        },
+        "elapsed_secs": 1265
+      }
+    },
+    "gemma4-31b": {
+      "round1": {
+        "n_turns": 304,
+        "rouge1": 33.03,
+        "rouge2": 12.8,
+        "rougeL": 23.99,
+        "bleu4": 6.42,
+        "state_accuracy": {
+          "overall": 35.86,
+          "per_stage": {
+            "a": 96.0,
+            "b": 42.37,
+            "c": 15.62,
+            "d": 11.32,
+            "e": 32.61
+          },
+          "total_turns": 304
+        },
+        "elapsed_secs": 20152
+      }
+    },
+    "gemma4-26b-a4b": {
+      "round1": {
+        "n_turns": 300,
+        "rouge1": 32.19,
+        "rouge2": 11.68,
+        "rougeL": 23.08,
+        "bleu4": 5.72,
+        "state_accuracy": {
+          "overall": 38.67,
+          "per_stage": {
+            "a": 98.0,
+            "b": 42.37,
+            "c": 14.58,
+            "d": 21.57,
+            "e": 38.64
+          },
+          "total_turns": 300
+        },
+        "elapsed_secs": 11083
+      }
+    },
+    "glm47-23b": {
+      "round1": {
+        "n_turns": 304,
+        "rouge1": 33.0,
+        "rouge2": 12.24,
+        "rougeL": 23.94,
+        "bleu4": 5.3,
+        "state_accuracy": {
+          "overall": 13.16,
+          "per_stage": {
+            "a": 30.0,
+            "b": 28.81,
+            "c": 2.08,
+            "d": 0.0,
+            "e": 12.5
+          },
+          "total_turns": 304
+        },
+        "elapsed_secs": 1066
+      }
+    },
+    "qwopus35b-a3b": {
+      "round1": {
+        "n_turns": 307,
+        "rouge1": 32.81,
+        "rouge2": 13.72,
+        "rougeL": 23.45,
+        "bleu4": 6.64,
+        "state_accuracy": {
+          "overall": 18.57,
+          "per_stage": {
+            "a": 62.0,
+            "b": 23.73,
+            "c": 3.12,
+            "d": 1.89,
+            "e": 16.33
+          },
+          "total_turns": 307
+        },
+        "elapsed_secs": 1008
+      }
+    },
+    "deepseek-r1-14b": {
+      "round1": {
+        "n_turns": 306,
+        "rouge1": 35.7,
+        "rouge2": 16.28,
+        "rougeL": 27.26,
+        "bleu4": 10.55,
+        "state_accuracy": {
+          "overall": 8.17,
+          "per_stage": {
+            "a": 26.0,
+            "b": 11.86,
+            "c": 2.08,
+            "d": 0.0,
+            "e": 6.25
+          },
+          "total_turns": 306
+        },
+        "elapsed_secs": 2804
+      }
+    },
+    "phi4-14b": {
+      "round1": {
+        "n_turns": 301,
+        "rouge1": 35.75,
+        "rouge2": 15.15,
+        "rougeL": 25.15,
+        "bleu4": 7.92,
+        "state_accuracy": {
+          "overall": 10.63,
+          "per_stage": {
+            "a": 40.0,
+            "b": 17.24,
+            "c": 0.0,
+            "d": 1.92,
+            "e": 2.04
+          },
+          "total_turns": 301
+        },
+        "elapsed_secs": 1471
+      }
+    },
+    "gemma3-27b": {
+      "round1": {
+        "n_turns": 308,
+        "rouge1": 34.57,
+        "rouge2": 14.53,
+        "rougeL": 24.6,
+        "bleu4": 7.42,
+        "state_accuracy": {
+          "overall": 12.99,
+          "per_stage": {
+            "a": 32.0,
+            "b": 18.64,
+            "c": 1.04,
+            "d": 3.77,
+            "e": 20.0
+          },
+          "total_turns": 308
+        },
+        "elapsed_secs": 1866
+      }
+    },
+    "mistral-24b": {
+      "round1": {
+        "n_turns": 302,
+        "rouge1": 37.06,
+        "rouge2": 17.0,
+        "rougeL": 27.18,
+        "bleu4": 9.64,
+        "state_accuracy": {
+          "overall": 21.85,
+          "per_stage": {
+            "a": 54.0,
+            "b": 23.73,
+            "c": 12.5,
+            "d": 3.92,
+            "e": 23.91
+          },
+          "total_turns": 302
+        },
+        "elapsed_secs": 1489
+      }
+    },
+    "qwen3-14b": {
+      "round1": {
+        "n_turns": 307,
+        "rouge1": 39.49,
+        "rouge2": 18.84,
+        "rougeL": 29.78,
+        "bleu4": 11.54,
+        "state_accuracy": {
+          "overall": 22.48,
+          "per_stage": {
+            "a": 76.0,
+            "b": 32.2,
+            "c": 8.33,
+            "d": 3.77,
+            "e": 4.08
+          },
+          "total_turns": 307
+        },
+        "elapsed_secs": 829
+      }
+    }
+  }
+}
