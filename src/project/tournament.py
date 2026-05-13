@@ -234,8 +234,15 @@ MODEL_BY_ID: dict[str, ModelSpec] = {m.id: m for m in MODEL_REGISTRY}
 # ── Tournament state ──────────────────────────────────────────────────────────
 
 
+def _new_run_id() -> str:
+    import uuid
+
+    return uuid.uuid4().hex[:8]
+
+
 @dataclass
 class TournamentState:
+    run_id: str = field(default_factory=_new_run_id)
     round: int = 0
     n_per_round: int = 50
     thinking_budget: int = 0  # 0 = disabled; >0 = token budget passed to chat_template_kwargs
@@ -253,8 +260,11 @@ class TournamentState:
 def load_state() -> TournamentState:
     if STATE_FILE.exists():
         with open(STATE_FILE) as f:
-            return TournamentState(**json.load(f))
-    # Default: 4 on-disk models, n=50
+            data = json.load(f)
+        # Back-compat: states written before run_id was added get one assigned now
+        if not data.get("run_id"):
+            data["run_id"] = _new_run_id()
+        return TournamentState(**data)
     return TournamentState(
         round=0,
         n_per_round=50,
@@ -768,8 +778,8 @@ def cmd_archive(_args: argparse.Namespace) -> None:
     )
     save_state(new_state)
 
-    print(f"\nArchived to results/tournament/archive/{ts}/")
-    print(f"  thinking_budget in archive: {state.thinking_budget}")
+    run_id = ts  # ts is the run_id returned by _archive_current
+    print(f"\nArchived  id={run_id}  thinking_budget={state.thinking_budget}")
     print("Fresh state created. To resume a previous run:")
     print("  uv run tournament restore")
     print("To start a new thinking run:")
@@ -785,43 +795,53 @@ def _list_archives(tournament_dir: Path) -> None:
     if not archives:
         print("No archives found.")
         return
-    print(f"{'Timestamp':<20}  {'Round':>5}  {'TB':>6}  {'Active':>6}  Round dirs")
-    print("─" * 72)
+    print(f"  {'ID':<10}  {'Archived at':<20}  {'Round':>5}  {'TB':>6}  {'Active':>6}  Dirs")
+    print("  " + "─" * 74)
     for a in archives:
         state_file = a / "state.json"
         if not state_file.exists():
             continue
         with open(state_file) as f:
             s = json.load(f)
+        run_id = s.get("run_id", a.name)
         tb = s.get("thinking_budget", 0)
         rnd = s.get("round", "?")
         active = len(s.get("models_active", []))
+        archived_at = s.get("archived_at", "—")[:19]
         dirs = [d.name for d in sorted(a.iterdir()) if d.is_dir()]
-        print(f"  {a.name:<18}  {rnd:>5}  {tb:>6}  {active:>6}  {', '.join(dirs) or '—'}")
+        print(
+            f"  {run_id:<10}  {archived_at:<20}  {rnd:>5}  {tb:>6}  {active:>6}"
+            f"  {', '.join(dirs) or '—'}"
+        )
 
 
 def _archive_current(tournament_dir: Path) -> str | None:
-    """Archive whatever is in tournament_dir right now. Returns the timestamp string, or None."""
+    """Archive current state into archive/<run_id>/. Returns the run_id, or None if no state."""
     from datetime import datetime
 
     if not STATE_FILE.exists():
         return None
 
     state = load_state()
-    ts = datetime.now().strftime("%Y-%m-%dT%H%M%S")
-    archive_dir = tournament_dir / "archive" / ts
+    run_id = state.run_id
+    archive_dir = tournament_dir / "archive" / run_id
     archive_dir.mkdir(parents=True, exist_ok=True)
 
+    state_dict = asdict(state)
+    state_dict["archived_at"] = datetime.now().isoformat()
     with open(archive_dir / "state.json", "w") as f:
-        json.dump(asdict(state), f, indent=2)
+        json.dump(state_dict, f, indent=2)
 
     for item in sorted(tournament_dir.iterdir()):
         if item.is_dir() and item.name not in ("archive",):
-            shutil.move(str(item), str(archive_dir / item.name))
-            print(f"  {item.name}/ → archive/{ts}/{item.name}/")
+            dest = archive_dir / item.name
+            if dest.exists():
+                shutil.rmtree(dest)
+            shutil.move(str(item), str(dest))
+            print(f"  {item.name}/ → archive/{run_id}/{item.name}/")
 
     STATE_FILE.unlink(missing_ok=True)
-    return ts
+    return run_id
 
 
 def cmd_restore(args: argparse.Namespace) -> None:
@@ -831,17 +851,17 @@ def cmd_restore(args: argparse.Namespace) -> None:
         _list_archives(tournament_dir)
         return
 
-    ts = args.timestamp
-    archive_dir = tournament_dir / "archive" / ts
+    run_id = args.timestamp
+    archive_dir = tournament_dir / "archive" / run_id
     if not archive_dir.exists():
-        print(f"Archive not found: archive/{ts}")
-        print("Run without a timestamp to list available archives.")
+        print(f"Archive not found: archive/{run_id}")
+        print("Run without an ID to list available archives.")
         return
 
     # Archive current state first (non-destructive)
     if STATE_FILE.exists():
-        saved_ts = _archive_current(tournament_dir)
-        print(f"Current state saved to archive/{saved_ts}/")
+        saved_id = _archive_current(tournament_dir)
+        print(f"Current state saved to archive/{saved_id}/")
     print()
 
     # Restore round dirs from archive back into tournament_dir
@@ -852,14 +872,14 @@ def cmd_restore(args: argparse.Namespace) -> None:
             shutil.move(str(item), str(dest))
             restored.append(item.name)
 
-    # Restore state.json (copy, so the archive entry keeps its snapshot)
+    # Restore state.json (copy — archive entry keeps its snapshot for future re-archives)
     shutil.copy(str(archive_dir / "state.json"), str(STATE_FILE))
 
-    print(f"Restored from archive/{ts}/")
+    print(f"Restored from archive/{run_id}/")
     if restored:
         print(f"  Round dirs: {', '.join(restored)}")
     state = load_state()
-    print(f"  Round: {state.round}  |  thinking_budget: {state.thinking_budget}")
+    print(f"  id={state.run_id}  Round: {state.round}  |  thinking_budget: {state.thinking_budget}")
     print()
     print_leaderboard(state)
 
@@ -981,7 +1001,8 @@ def main() -> None:
         "timestamp",
         nargs="?",
         default=None,
-        help="Archive timestamp to restore (e.g. 2026-05-13T015819). Omit to list.",
+        metavar="ID",
+        help="Run ID to restore (e.g. a3f2b891). Omit to list available archives.",
     )
 
     # reset
