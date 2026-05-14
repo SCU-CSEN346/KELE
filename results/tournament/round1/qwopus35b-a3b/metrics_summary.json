@@ -1,18 +1,18 @@
 {
-  "n_turns": 307,
-  "rouge1": 32.81,
-  "rouge2": 13.72,
-  "rougeL": 23.45,
-  "bleu4": 6.64,
+  "n_turns": 301,
+  "rouge1": 33.38,
+  "rouge2": 14.05,
+  "rougeL": 23.71,
+  "bleu4": 6.74,
   "state_accuracy": {
-    "overall": 18.57,
+    "overall": 21.93,
     "per_stage": {
-      "a": 62.0,
-      "b": 23.73,
-      "c": 3.12,
-      "d": 1.89,
-      "e": 16.33
+      "a": 68.0,
+      "b": 31.03,
+      "c": 6.45,
+      "d": 0.0,
+      "e": 16.67
     },
-    "total_turns": 307
+    "total_turns": 301
   }
 }

@@ -1,0 +1,15 @@
+{
+  "experiment": "gemma4-26b-a4b",
+  "teacher_model": "Gemma 4 26B A4B",
+  "teacher_base_url": "http://localhost:8080/v1",
+  "consultant_model": "Gemma 4 26B A4B",
+  "consultant_base_url": "http://localhost:8080/v1",
+  "max_teaching_rounds": 8,
+  "unified": true,
+  "total_dialogues": 50,
+  "completed": 50,
+  "total_elapsed_seconds": 11081.28,
+  "started_at": "2026-05-12 22:53:38",
+  "finished_at": "2026-05-13 01:58:19",
+  "unified_fallback_count": 0
+}

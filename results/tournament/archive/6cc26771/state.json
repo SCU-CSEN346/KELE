@@ -1,0 +1,41 @@
+{
+  "run_id": "6cc26771",
+  "round": 0,
+  "n_per_round": 50,
+  "thinking_budget": 0,
+  "models_active": [
+    "qwen35-9b",
+    "qwen27b",
+    "qwen27b-q4",
+    "qwen35b-a3b",
+    "gemma4-31b",
+    "gemma4-26b-a4b",
+    "glm47-23b",
+    "qwopus35b-a3b",
+    "deepseek-r1-14b",
+    "phi4-14b",
+    "gemma3-27b",
+    "mistral-24b",
+    "qwen3-14b"
+  ],
+  "models_eliminated": [],
+  "scores": {
+    "qwen35-9b": {},
+    "qwen27b": {},
+    "qwen27b-q4": {},
+    "qwen35b-a3b": {},
+    "gemma4-31b": {},
+    "gemma4-26b-a4b": {},
+    "glm47-23b": {},
+    "qwopus35b-a3b": {},
+    "deepseek-r1-14b": {},
+    "phi4-14b": {},
+    "gemma3-27b": {},
+    "mistral-24b": {},
+    "qwen3-14b": {}
+  },
+  "round_complete": [],
+  "final_scores": {},
+  "metrics": {},
+  "archived_at": "2026-05-13T14:42:52.062587"
+}
