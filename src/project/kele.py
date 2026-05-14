@@ -93,15 +93,18 @@ def run_single_dialogue(system: SocraticTeachingSystem, item: dict) -> dict:
         student_input = turn["student"]
         teacher_response = system.process_student_input(student_input)
 
-        generated_turns.append(
-            {
-                "student": student_input,
-                "state": system.current_state,
-                "teacher_response": teacher_response,
-                "ground_truth_teacher": turn["teacher"],
-                "ground_truth_state": turn["state"],
-            }
-        )
+        turn_record: dict = {
+            "student": student_input,
+            "state": system.current_state,
+            "teacher_response": teacher_response,
+            "ground_truth_teacher": turn["teacher"],
+            "ground_truth_state": turn["state"],
+        }
+        thinking = getattr(system, "_last_thinking_content", None)
+        if thinking:
+            turn_record["thinking_content"] = thinking
+
+        generated_turns.append(turn_record)
 
         # If we hit the summary stage, stop
         if system.current_state == "e34":

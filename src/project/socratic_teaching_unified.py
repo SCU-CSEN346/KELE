@@ -108,6 +108,7 @@ class SocraticTeachingSystemUnified(SocraticTeachingSystem):
         # ones we want for structured-output decoding.
         self.unified_client = self.consultant_client
         self._unified_fallback_count = 0  # tracked for reporting
+        self._last_thinking_content: str | None = None  # set each turn; None when not thinking
 
     def _build_unified_system_prompt(self) -> str:
         """Assemble the three-section unified prompt.
@@ -351,6 +352,20 @@ e34：学生正确给出题目答案
             print("Unified call returned empty content")
             return None
 
+        # Extract thinking content: llama.cpp may expose it in reasoning_content
+        # (separate field) or inline as <think>...</think> before the JSON.
+        thinking_content: str | None = None
+        msg = response.choices[0].message
+        reasoning = getattr(msg, "reasoning_content", None)
+        if reasoning:
+            thinking_content = reasoning
+        elif raw_content.lstrip().startswith("<think>"):
+            end_tag = raw_content.find("</think>")
+            if end_tag != -1:
+                start_tag = raw_content.index("<think>") + len("<think>")
+                thinking_content = raw_content[start_tag:end_tag].strip()
+                raw_content = raw_content[end_tag + len("</think>") :].strip()
+
         # Strip markdown code fences if the server wrapped them despite the
         # schema (defensive — shouldn't happen with json_schema mode but free
         # to add).
@@ -377,6 +392,7 @@ e34：学生正确给出题目答案
         if not isinstance(result.get("evaluation"), str):
             result["evaluation"] = ""
 
+        result["thinking_content"] = thinking_content
         return result
 
     def process_student_input(self, student_input: str) -> str:
@@ -399,6 +415,7 @@ e34：学生正确给出题目答案
             unified_result = None
 
         if unified_result is None:
+            self._last_thinking_content = None
             self._unified_fallback_count += 1
             print(
                 f"Unified call failed — falling back to two-call "
@@ -407,6 +424,7 @@ e34：学生正确给出题目答案
             return super().process_student_input(student_input)
 
         # ── Unified succeeded — apply parent's glue logic ──────────────────
+        self._last_thinking_content = unified_result.get("thinking_content")
         self.add_to_history("student", student_input)
 
         previous_state = self.current_state

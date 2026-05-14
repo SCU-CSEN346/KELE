@@ -14,7 +14,7 @@
         serve-socratteachllm serve-teacher-online \
         setup-l40s start-local-tl-server \
         test-gpu-stack test-vllm \
-        tournament tournament-think tournament-warmup tournament-status tournament-eliminate \
+        tournament tournament-think tournament-warmup tournament-warmup-think tournament-status tournament-eliminate \
         tournament-finalize tournament-archive tournament-restore tournament-reset \
         tournament-download tournament-help
 
@@ -73,7 +73,8 @@ help:
 	@echo "  tournament-help       Full tournament command reference"
 	@echo "  tournament            Run one round (n=50, fusion, no-think)"
 	@echo "  tournament-think      Run one round (n=50, fusion, thinking budget=8192)"
-	@echo "  tournament-warmup     Warmup (n=5) — verifies models load; do NOT eliminate after"
+	@echo "  tournament-warmup     Warmup (n=5, thinking OFF) — verifies models load; do NOT eliminate after"
+	@echo "  tournament-warmup-think  Warmup (n=5, thinking budget=8192) — verifies thinking tokens are generated"
 	@echo "  tournament-status     Print leaderboard"
 	@echo "  tournament-archive    Save current run to archive/<run_id>/ and reset state"
 	@echo "  tournament-restore    List archives  (use ID=<id> to restore one)"
@@ -269,7 +270,8 @@ tournament-help:
 	@echo "RUNNING"
 	@echo "  make tournament                    Run one round (n=50, fusion, thinking OFF)"
 	@echo "  make tournament-think              Run one round (n=50, fusion, thinking budget=8192)"
-	@echo "  make tournament-warmup             Smoke test — n=5, no elimination afterward"
+	@echo "  make tournament-warmup             Smoke test — n=5, thinking OFF"
+	@echo "  make tournament-warmup-think       Smoke test — n=5, thinking budget=8192 (verify thinking_content in dialogues)"
 	@echo "  make tournament N=<n>              Custom dialogue count, e.g. make tournament N=20"
 	@echo "  make tournament-finalize           Run the 3 survivors to full n=681"
 	@echo ""
@@ -303,6 +305,9 @@ tournament-help:
 
 tournament-warmup:
 	uv run tournament run --n 5 --unified
+
+tournament-warmup-think:
+	uv run tournament run --n 5 --unified --thinking-budget 8192
 
 tournament:
 	uv run tournament run --unified $(if $(N),--n $(N),)
