@@ -19,20 +19,38 @@ def create_system(
     debug: bool | None = None,
     experiment: str | None = None,
     unified: bool = False,
+    bert_consultant: str | None = None,
 ) -> SocraticTeachingSystem:
     """Create a SocraticTeachingSystem from environment config.
 
     If unified=True, instantiates SocraticTeachingSystemUnified — the
     single-call variant that fuses consultant + teacher into one
     structured-output LLM call. See docs/SOCRATIC_FUSION_PLAN.md.
+
+    If bert_consultant is a path to a trained 34-state classifier checkpoint,
+    use SocraticTeachingSystemBertConsultant: BERT predicts the state and
+    the LLM only generates the teacher response (two-call style). Mutually
+    exclusive with unified=True.
     """
     cfg = load_config(experiment=experiment)
-    if unified:
+    if bert_consultant and unified:
+        raise ValueError("--unified and --bert-consultant are mutually exclusive")
+
+    if bert_consultant:
+        from src.project.socratic_teaching_bert_consultant import (
+            SocraticTeachingSystemBertConsultant,
+        )
+
+        cls: type[SocraticTeachingSystem] = SocraticTeachingSystemBertConsultant
+        extra_kwargs: dict = {"bert_ckpt": bert_consultant}
+    elif unified:
         from src.project.socratic_teaching_unified import SocraticTeachingSystemUnified
 
-        cls: type[SocraticTeachingSystem] = SocraticTeachingSystemUnified
+        cls = SocraticTeachingSystemUnified
+        extra_kwargs = {}
     else:
         cls = SocraticTeachingSystem
+        extra_kwargs = {}
     return cls(
         consultant_api_key=cfg.consultant.api_key,
         consultant_base_url=cfg.consultant.base_url,
@@ -46,6 +64,7 @@ def create_system(
         consultant_disable_thinking=cfg.consultant.disable_thinking,
         consultant_thinking_budget=cfg.consultant.thinking_budget,
         consultant_num_ctx=cfg.consultant.num_ctx,
+        **extra_kwargs,
     )
 
 
@@ -131,6 +150,7 @@ def run_batch_evaluation(
     experiment: str | None = None,
     split: str = "test",
     unified: bool = False,
+    bert_consultant: str | None = None,
 ) -> None:
     """Run the full evaluation pipeline on the dataset.
 
@@ -148,7 +168,9 @@ def run_batch_evaluation(
     if limit is not None:
         dataset = dataset[:limit]
 
-    system = create_system(debug=False, experiment=experiment, unified=unified)
+    system = create_system(
+        debug=False, experiment=experiment, unified=unified, bert_consultant=bert_consultant
+    )
 
     output_dir.mkdir(parents=True, exist_ok=True)
     dialogues_dir = output_dir / "dialogues"
@@ -296,6 +318,14 @@ def main() -> None:
         help="Use single-call fusion architecture (consultant + teacher in one LLM call). "
         "See docs/SOCRATIC_FUSION_PLAN.md.",
     )
+    eval_parser.add_argument(
+        "--bert-consultant",
+        type=str,
+        default=None,
+        help="Path to a trained 34-state BERT classifier checkpoint dir. "
+        "Replaces the LLM consultant with the BERT classifier; LLM only "
+        "generates the teacher response (two-call style).",
+    )
 
     # Quick test mode — run on a handful of dialogues
     test_parser = sub.add_parser("test", help="Quick test with a few dialogues")
@@ -306,6 +336,12 @@ def main() -> None:
         action="store_true",
         help="Use single-call fusion architecture (consultant + teacher in one LLM call). "
         "See docs/SOCRATIC_FUSION_PLAN.md.",
+    )
+    test_parser.add_argument(
+        "--bert-consultant",
+        type=str,
+        default=None,
+        help="Path to a trained 34-state BERT classifier checkpoint dir.",
     )
 
     args = parser.parse_args()
@@ -321,6 +357,7 @@ def main() -> None:
             experiment=args.experiment,
             split=args.split,
             unified=args.unified,
+            bert_consultant=args.bert_consultant,
         )
     elif args.command == "test":
         run_batch_evaluation(
@@ -328,6 +365,7 @@ def main() -> None:
             limit=args.n,
             experiment=args.experiment,
             unified=args.unified,
+            bert_consultant=args.bert_consultant,
         )
     else:
         parser.print_help()
