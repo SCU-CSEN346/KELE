@@ -30,6 +30,15 @@ ALL_STATES = (
     + ["e34"]
 )
 
+# Friendly Chinese names for each SocRule stage.
+_STAGE_NAMES = {
+    "a": "学生提问",
+    "b": "概念探查",
+    "c": "归纳推理",
+    "d": "规则建构",
+    "e": "教师总结",
+}
+
 
 class SocraticTeachingSystemBertConsultant(SocraticTeachingSystem):
     """Drop-in consultant replacement using a fine-tuned Chinese BERT.
@@ -77,7 +86,14 @@ class SocraticTeachingSystemBertConsultant(SocraticTeachingSystem):
         return full[-4000:]
 
     def socratic_teaching_consultant(self, student_input: str) -> dict[str, Any]:  # type: ignore[override]
-        """Predict the state via BERT. Returns the dict shape kele expects."""
+        """Predict the state via BERT. Returns the dict shape kele expects.
+
+        The `evaluation` field is synthesized into a richer Chinese narrative
+        (state code + stage name + action description + top-2 BERT probabilities)
+        rather than a placeholder, because the LLM teacher uses this field as
+        context for response generation. See KELE_BERT_PLAIN_EVAL=1 to disable
+        and fall back to a minimal placeholder (ablation hook).
+        """
         text = self._format_history_for_bert(student_input)
         enc = self.bert_tokenizer(
             text,
@@ -87,10 +103,32 @@ class SocraticTeachingSystemBertConsultant(SocraticTeachingSystem):
         ).to(self.bert_device)
         with torch.no_grad():
             logits = self.bert_model(**enc).logits
-            pred_idx = int(logits.argmax(-1).item())
-        pred_state = self.bert_id2label.get(pred_idx, ALL_STATES[pred_idx] if 0 <= pred_idx < len(ALL_STATES) else "a0")
+            probs = torch.softmax(logits, dim=-1)[0]
+            top2 = torch.topk(probs, k=min(2, probs.shape[0]))
+            top_idxs = top2.indices.cpu().tolist()
+            top_probs = top2.values.cpu().tolist()
+            pred_idx = top_idxs[0]
+        pred_state = self.bert_id2label.get(
+            pred_idx, ALL_STATES[pred_idx] if 0 <= pred_idx < len(ALL_STATES) else "a0"
+        )
         action = self.get_action_for_state(pred_state)
-        evaluation = f"BERT classifier predicted state: {pred_state}"
+
+        if os.environ.get("KELE_BERT_PLAIN_EVAL") == "1":
+            evaluation = f"BERT classifier predicted state: {pred_state}"
+        else:
+            stage = pred_state[0] if pred_state else "a"
+            stage_name = _STAGE_NAMES.get(stage, "")
+            top_p = top_probs[0]
+            alt_state = self.bert_id2label.get(
+                top_idxs[1], ALL_STATES[top_idxs[1]] if len(top_idxs) > 1 else pred_state
+            )
+            alt_p = top_probs[1] if len(top_probs) > 1 else 0.0
+            evaluation = (
+                f"根据当前对话内容，学生处于 {stage}({stage_name}) 阶段的 {pred_state} 状态"
+                f"（分类器置信度 {top_p:.2f}；次选状态 {alt_state} 置信度 {alt_p:.2f}）。"
+                f"按照苏格拉底教学法，应采取的操作是：{action}。"
+                f"请基于该状态和操作，针对学生当前的表现，给出合适的教学回复。"
+            )
         return {
             "state": pred_state,
             "action": action,
