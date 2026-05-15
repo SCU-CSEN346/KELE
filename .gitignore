@@ -45,3 +45,5 @@ data/
 # BERT classifier checkpoint - too large for git, regenerate via train_stage_classifier.py
 results/stage_classifier_v1/checkpoints/
 results/stage_classifier_v1/final/
+results/state_classifier_v1/checkpoints/
+results/state_classifier_v1/final/
