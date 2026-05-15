@@ -47,3 +47,5 @@ results/stage_classifier_v1/checkpoints/
 results/stage_classifier_v1/final/
 results/state_classifier_v1/checkpoints/
 results/state_classifier_v1/final/
+results/state_classifier_v2/checkpoints/
+results/state_classifier_v2/final/
