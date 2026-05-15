@@ -70,6 +70,7 @@ class ModelSpec:
     hf_include: str | None = None  # glob for --include when files live in a subdir or are split
     on_disk: bool = True
     thinking_config_name: str | None = None  # configs/<name>.env — used when thinking_budget > 0
+    thinking_serve_script: str | None = None  # serve script that omits --reasoning off
 
 
 MODEL_REGISTRY: list[ModelSpec] = [
@@ -82,6 +83,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         serve_script="scripts/serve_tournament_qwen35_9b.sh",
         config_name="tournament-qwen35-9b",
         thinking_config_name="tournament-qwen35-9b-think",
+        thinking_serve_script="scripts/serve_tournament_qwen35_9b_think.sh",
         hf_repo="unsloth/Qwen3.5-9B-GGUF",
         hf_file="Qwen3.5-9B-UD-Q4_K_XL.gguf",
         on_disk=True,
@@ -94,6 +96,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         serve_script="scripts/serve_qwen27b_q5.sh",
         config_name="qwen27b-local",
         thinking_config_name="tournament-qwen27b-think",
+        thinking_serve_script="scripts/serve_qwen27b_q5_think.sh",
         hf_repo="unsloth/Qwen3.6-27B-GGUF",
         hf_file="Qwen3.6-27B-UD-Q5_K_XL.gguf",
         on_disk=True,
@@ -106,6 +109,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         serve_script="scripts/serve_qwen27b_q4_local.sh",
         config_name="tournament-qwen27b-q4",
         thinking_config_name="tournament-qwen27b-q4-think",
+        thinking_serve_script="scripts/serve_qwen27b_q4_local_think.sh",
         hf_repo="unsloth/Qwen3.6-27B-GGUF",
         hf_file="Qwen3.6-27B-Q4_K_M.gguf",
         on_disk=True,
@@ -118,6 +122,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         serve_script="scripts/serve_qwen35b_a3b.sh",
         config_name="qwen35b-a3b-local",
         thinking_config_name="tournament-qwen35b-a3b-think",
+        thinking_serve_script="scripts/serve_qwen35b_a3b_think.sh",
         hf_repo="unsloth/Qwen3.6-35B-A3B-GGUF",
         hf_file="Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
         on_disk=True,
@@ -153,6 +158,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         serve_script="scripts/serve_glm47_23b.sh",
         config_name="tournament-glm47-23b",
         thinking_config_name="tournament-glm47-23b-think",
+        thinking_serve_script="scripts/serve_glm47_23b_think.sh",
         hf_repo="unsloth/GLM-4.7-Flash-REAP-23B-A3B-GGUF",
         hf_file="GLM-4.7-Flash-REAP-23B-A3B-UD-Q4_K_XL.gguf",
         on_disk=True,
@@ -165,6 +171,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         serve_script="scripts/serve_qwopus35b_a3b.sh",
         config_name="tournament-qwopus35b-a3b",
         thinking_config_name="tournament-qwopus35b-a3b-think",
+        thinking_serve_script="scripts/serve_qwopus35b_a3b_think.sh",
         hf_repo="Jackrong/Qwopus3.6-35B-A3B-v1-GGUF",
         hf_file="Qwopus3.6-35B-A3B-v1-Q4_K_M.gguf",
         on_disk=True,
@@ -222,6 +229,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         serve_script="scripts/serve_qwen35_14b.sh",
         config_name="tournament-qwen35-14b",
         thinking_config_name="tournament-qwen35-14b-think",
+        thinking_serve_script="scripts/serve_qwen35_14b_think.sh",
         hf_repo="unsloth/Qwen3-14B-GGUF",
         hf_file="Qwen3-14B-UD-Q4_K_XL.gguf",
         on_disk=True,
@@ -306,8 +314,13 @@ def _server_ready(alias: str) -> bool:  # pragma: no cover
     return _server_has_alias(resp, alias)
 
 
-def _boot_server(spec: ModelSpec) -> subprocess.Popen[bytes]:  # pragma: no cover
-    script = REPO_ROOT / spec.serve_script
+def _boot_server(
+    spec: ModelSpec, thinking: bool = False
+) -> subprocess.Popen[bytes]:  # pragma: no cover
+    script_path = (
+        spec.thinking_serve_script if thinking and spec.thinking_serve_script else spec.serve_script
+    )
+    script = REPO_ROOT / script_path
     if not script.exists():
         print(f"  ERROR: serve script not found: {script}", file=sys.stderr)
         sys.exit(1)
@@ -340,6 +353,7 @@ def _kill_server(proc: subprocess.Popen[bytes] | None) -> None:  # pragma: no co
 
 def ensure_server(
     spec: ModelSpec,
+    thinking: bool = False,
 ) -> tuple[subprocess.Popen[bytes] | None, bool]:  # pragma: no cover
     """Return (proc, we_booted). Boots the server if not already running."""
     resp = _probe_server()
@@ -360,7 +374,7 @@ def ensure_server(
             sys.exit(1)
     else:
         print(f"  Booting server for {spec.name} (may take 30-120 s)...")
-        proc = _boot_server(spec)
+        proc = _boot_server(spec, thinking=thinking)
 
     print("  Waiting for server", end="", flush=True)
     for i in range(180):
@@ -604,7 +618,7 @@ def cmd_run(args: argparse.Namespace) -> None:  # pragma: no cover
         print(f"  Model: {spec.name}")
         print(f"  Alias: {spec.alias}")
 
-        proc, _we_booted = ensure_server(spec)
+        proc, _we_booted = ensure_server(spec, thinking=state.thinking_budget > 0)
 
         out_dir = REPO_ROOT / "results" / "tournament" / f"round{state.round}" / mid
         print(f"  Output: results/tournament/round{state.round}/{mid}")
@@ -694,7 +708,7 @@ def cmd_finalize(args: argparse.Namespace) -> None:  # pragma: no cover
         print(f"\n{'─' * 60}")
         print(f"  Model: {spec.name}")
 
-        proc, _ = ensure_server(spec)
+        proc, _ = ensure_server(spec, thinking=state.thinking_budget > 0)
         out_dir = REPO_ROOT / "results" / "tournament" / "final" / mid
 
         cmd = [

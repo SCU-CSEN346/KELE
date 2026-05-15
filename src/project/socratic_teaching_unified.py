@@ -18,6 +18,10 @@ import os
 import time
 from typing import Any
 
+import openai
+
+from src.project.socratic_teaching_system import SocraticTeachingSystem
+
 # Optional few-shot exemplars to nudge the teacher toward terse, single-question
 # Chinese phrasing matching the SocratDataset ground truth. Drawn from train-split
 # dialogues 1, 2, 3 (all non-overlapping with the test split) for diversity
@@ -41,10 +45,6 @@ _FEW_SHOT_TEACHER_BLOCK = """---
 
 请严格遵循这种风格：开头不要长篇铺垫，只问一个有针对性的问题，语气亲切。
 """
-
-import openai
-
-from src.project.socratic_teaching_system import SocraticTeachingSystem
 
 # Strict JSON schema for the unified call's output.
 # llama.cpp accepts this via response_format and uses GBNF-constrained
