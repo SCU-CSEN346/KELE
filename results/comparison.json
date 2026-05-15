@@ -17,22 +17,22 @@
       "total_turns": 4294
     }
   },
-  "qwen35b-a3b-local-n50-unified-fewshot10": {
-    "n_turns": 299,
-    "rouge1": 36.16,
-    "rouge2": 15.18,
-    "rougeL": 26.73,
-    "bleu4": 8.05,
+  "qwen35b-a3b-local-smoke-unified-fewshot10": {
+    "n_turns": 33,
+    "rouge1": 37.13,
+    "rouge2": 15.95,
+    "rougeL": 27.61,
+    "bleu4": 7.99,
     "state_accuracy": {
-      "overall": 44.15,
+      "overall": 39.39,
       "per_stage": {
-        "a": 96.0,
-        "b": 40.68,
-        "c": 18.95,
-        "d": 27.45,
-        "e": 63.64
+        "a": 100.0,
+        "b": 16.67,
+        "c": 15.38,
+        "d": 20.0,
+        "e": 100.0
       },
-      "total_turns": 299
+      "total_turns": 33
     }
   }
 }
