@@ -23,10 +23,19 @@ import openai
 from src.project.socratic_teaching_system import SocraticTeachingSystem
 
 # Optional few-shot exemplars to nudge the teacher toward terse, single-question
-# Chinese phrasing matching the SocratDataset ground truth. Drawn from train-split
-# dialogues 1, 2, 3 (all non-overlapping with the test split) for diversity
-# across distinct question types; covers stages b, c, d.
-_FEW_SHOT_TEACHER_BLOCK = """---
+# Chinese phrasing matching the SocratDataset ground truth. Two selection modes:
+#
+#   KELE_FEW_SHOT_TEACHER=1  (KELE_FEW_SHOT_N unset)
+#     → legacy 3-shot (b/c/d stages, dialogues 1, 2, 3) used by the
+#       results/qwen35b-a3b-local-*-fewshot/ runs. Preserved verbatim for
+#       reproducibility of those datapoints.
+#
+#   KELE_FEW_SHOT_TEACHER=1  KELE_FEW_SHOT_N=<N>
+#     → stage-balanced selection of N exemplars from a 10-exemplar pool
+#       covering all 5 SocRule stages (a/b/c/d/e), 2 per stage, drawn from
+#       distinct train-split dialogues. N must be in [1, 10]. Pick order
+#       cycles through stages a→b→c→d→e for stage balance.
+_LEGACY_FEW_SHOT_TEACHER_BLOCK = """---
 
 # 第四部分：教师风格示例
 以下是优秀教师回复的示例。请注意它们的简洁、亲切、且每条仅含一个问题：
@@ -45,6 +54,66 @@ _FEW_SHOT_TEACHER_BLOCK = """---
 
 请严格遵循这种风格：开头不要长篇铺垫，只问一个有针对性的问题，语气亲切。
 """
+
+# Stage-balanced 10-exemplar pool. Drawn from train dialogues 1–12 (test split
+# starts at id=4 but we use 1, 2, 3, 6, 7, 8, 9, 10, 11, 12 — verified zero
+# overlap with test). Two exemplars per stage covering different
+# concept domains for stylistic diversity.
+_EXEMPLARS_BY_STAGE: dict[str, list[dict]] = {
+    "a": [
+        {"state": "a1", "student": "植物的种子通常在哪个部分（）[\"花\", \"叶\", \"果实\"]", "teacher": "好的，这是一个有趣的问题！你觉得植物的种子会被放在一个什么样的地方呢？"},
+        {"state": "a1", "student": "帮我解答一下这道题：蘑菇是植物。\"Yes\", \"No\"", "teacher": "你觉得蘑菇和树或者花有什么相似和不同的地方呢？"},
+    ],
+    "b": [
+        {"state": "b2", "student": "嗯，叶子会变绿，然后最后变黄掉落。", "teacher": "叶子在变绿的时候，它在做什么呢？"},
+        {"state": "b2", "student": "可能和水有关吧。", "teacher": "除了水，你觉得还有什么因素会影响豆芽的生长呢？"},
+    ],
+    "c": [
+        {"state": "c22", "student": "哦，我记得是从种子开始的。", "teacher": "很好！你能解释一下为什么植物是从种子开始生长的吗？"},
+        {"state": "c29", "student": "嗯，我觉得不太一样，青苔的根可能比较小。", "teacher": "实际上，青苔没有真正的根，只有假根用于固定。你觉得为什么之前没有想到这一点呢？"},
+    ],
+    "d": [
+        {"state": "d33", "student": "需要，因为土壤干了，植物可能会渴。", "teacher": "很好！现在我们可以总结一下：植物的需水量会受到天气和土壤湿度的影响。你能根据这个总结回答题目吗？"},
+        {"state": "d33", "student": "因为根可以深入土壤，吸收深层的水分。", "teacher": "没错，根系发达是骆驼刺在沙漠中生存的重要原因。那么，现在你能回答这道题了吗？"},
+    ],
+    "e": [
+        {"state": "e34", "student": "答案是根。", "teacher": "很好！根是植物用来吸收水分和养分的器官，同时也帮助植物固定在土壤中。"},
+        {"state": "e34", "student": "我想答案是'Yes'，因为有些植物可以在水中生长。", "teacher": "非常好！植物可以在不同的环境中生长，包括陆地和水中。"},
+    ],
+}
+
+
+def _build_few_shot_block_n(n: int) -> str:
+    """Build a stage-balanced few-shot block with N exemplars (1 ≤ N ≤ 10).
+
+    Selection rotates a→b→c→d→e→a→b→c→d→e (first slot from each stage, then
+    second slot). This keeps stage coverage uniform across N values.
+    """
+    n = max(1, min(10, n))
+    stages = ["a", "b", "c", "d", "e"]
+    chosen: list[dict] = []
+    for slot in range(2):  # at most 2 per stage
+        for stage in stages:
+            if len(chosen) >= n:
+                break
+            if slot < len(_EXEMPLARS_BY_STAGE[stage]):
+                ex = _EXEMPLARS_BY_STAGE[stage][slot]
+                chosen.append({"stage": stage, **ex})
+        if len(chosen) >= n:
+            break
+
+    lines = ["---", "", "# 第四部分：教师风格示例", "以下是优秀教师回复的示例。请注意它们的简洁、亲切、且每条仅含一个问题：", ""]
+    for i, ex in enumerate(chosen, 1):
+        lines.append(f"示例{i}（{ex['stage']}阶段，state={ex['state']}）:")
+        lines.append(f"学生: {ex['student']}")
+        lines.append(f"老师: {ex['teacher']}")
+        lines.append("")
+    lines.append("请严格遵循这种风格：开头不要长篇铺垫，只问一个有针对性的问题，语气亲切。")
+    return "\n".join(lines) + "\n"
+
+import openai
+
+from src.project.socratic_teaching_system import SocraticTeachingSystem
 
 # Strict JSON schema for the unified call's output.
 # llama.cpp accepts this via response_format and uses GBNF-constrained
@@ -148,12 +217,23 @@ class SocraticTeachingSystemUnified(SocraticTeachingSystem):
             f"{state}：{action}" for state, action in self.state_to_action.items()
         )
 
-        # Opt-in few-shot exemplars: gated on KELE_FEW_SHOT_TEACHER=1.
-        # When unset, few_shot_block is empty and the prompt is identical to
-        # the pre-existing fusion-think configuration (no behavior change).
-        few_shot_block = (
-            _FEW_SHOT_TEACHER_BLOCK if os.environ.get("KELE_FEW_SHOT_TEACHER") == "1" else ""
-        )
+        # Opt-in few-shot exemplars. Three behaviors:
+        #   KELE_FEW_SHOT_TEACHER unset → no exemplars (default, byte-identical prompt)
+        #   KELE_FEW_SHOT_TEACHER=1, KELE_FEW_SHOT_N unset → legacy 3-shot (b/c/d
+        #       from dialogues 1, 2, 3 — preserves prior results' reproducibility)
+        #   KELE_FEW_SHOT_TEACHER=1, KELE_FEW_SHOT_N=N → stage-balanced N-shot
+        #       from the 10-exemplar pool spanning all 5 stages
+        few_shot_block = ""
+        if os.environ.get("KELE_FEW_SHOT_TEACHER") == "1":
+            n_str = os.environ.get("KELE_FEW_SHOT_N")
+            if n_str is not None:
+                try:
+                    n = int(n_str)
+                    few_shot_block = _build_few_shot_block_n(n)
+                except ValueError:
+                    few_shot_block = _LEGACY_FEW_SHOT_TEACHER_BLOCK
+            else:
+                few_shot_block = _LEGACY_FEW_SHOT_TEACHER_BLOCK
 
         return f"""# 角色指令
 你同时担任**苏格拉底教学顾问**和**苏格拉底教师**两个角色。
