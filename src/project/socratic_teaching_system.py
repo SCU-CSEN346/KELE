@@ -407,6 +407,30 @@ e34：学生正确给出题目答案
 - 如果接收到的建议操作为：对题目进行总结，则总结题目且不再提出问题
         """
 
+        # Opt-in: enrich the teacher system prompt with the same N-shot
+        # exemplars used by the unified fusion architecture, so two-call
+        # consultant configurations (e.g., the BERT-consultant integration)
+        # can also benefit from the stylistic guidance. Gated on the same
+        # env-var dispatch as socratic_teaching_unified for consistency.
+        import os as _os
+        if _os.environ.get("KELE_FEW_SHOT_TEACHER") == "1":
+            try:
+                from src.project.socratic_teaching_unified import (  # noqa: PLC0415
+                    _LEGACY_FEW_SHOT_TEACHER_BLOCK,
+                    _build_few_shot_block_n,
+                )
+                n_str = _os.environ.get("KELE_FEW_SHOT_N")
+                if n_str is not None:
+                    try:
+                        block = _build_few_shot_block_n(int(n_str))
+                    except ValueError:
+                        block = _LEGACY_FEW_SHOT_TEACHER_BLOCK
+                else:
+                    block = _LEGACY_FEW_SHOT_TEACHER_BLOCK
+                system_prompt = system_prompt + "\n" + block
+            except Exception:
+                pass  # leave system_prompt unchanged on any import issue
+
         # 准备用户输入
         user_input = f"""
 历史对话记录:
