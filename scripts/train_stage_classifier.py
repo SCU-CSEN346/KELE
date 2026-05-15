@@ -154,12 +154,13 @@ def main() -> None:
         fp16=torch.cuda.is_available(),
     )
 
+    # transformers 5.x replaced tokenizer= with processing_class=
     trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=train_ds,
         eval_dataset=eval_ds,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         data_collator=DataCollatorWithPadding(tokenizer),
         compute_metrics=compute_metrics,
     )
