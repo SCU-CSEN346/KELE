@@ -139,7 +139,7 @@ uv run python scripts/train_state_classifier_34way.py
 
 # Then run the integration eval (BERT replaces consultant; --unified not used)
 make serve-gemma4-31b
-KELE_FEW_SHOT_TEACHER=10 \
+KELE_FEW_SHOT_TEACHER=1 KELE_FEW_SHOT_N=10 \
   uv run python -m src.project.kele \
     --experiment gemma4-31b-local \
     --bert-consultant results/state_classifier_v1/final \
