@@ -1,0 +1,15 @@
+{
+  "experiment": "bert-consultant-fewshot10-a4b-mini",
+  "teacher_model": "Gemma 4 26B A4B",
+  "teacher_base_url": "http://localhost:8080/v1",
+  "consultant_model": "Gemma 4 26B A4B",
+  "consultant_base_url": "http://localhost:8080/v1",
+  "thinking_budget": 0,
+  "max_teaching_rounds": 8,
+  "unified": false,
+  "total_dialogues": 25,
+  "completed": 25,
+  "total_elapsed_seconds": 731.68,
+  "started_at": "2026-05-15 18:29:20",
+  "finished_at": "2026-05-15 18:41:32"
+}
