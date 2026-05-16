@@ -7,13 +7,15 @@
 
 ## TL;DR
 
-The 8-hour bundle Max approved this morning has expanded into a roughly 10-hour campaign that produced **three paper-headline results**, all on the verified `n=50` test sample:
+The 8-hour bundle Max approved this morning expanded into a ~10-hour campaign that produced **four paper-headline results**, all verified at $n{=}50$:
 
 1. **10-shot stage-balanced prompt-eng** on A3B fusion-think: **+6.02 state, +3.29 R-1** Pareto win vs locked baseline (verified at n=50; flipped the overnight 3-shot's "bounded" framing into a Pareto win after 5-tier triangulation).
 2. **24M-param BERT stage / 34-state classifier** on the SocratDataset test split: **86.55% stage / 61.64% state**, dominating every LLM consultant at every stage. +75 pts on stage~c (the hardest 22-way classification) vs GPT-4o; +60 vs A3B+10shot.
-3. **End-to-end BERT-consultant integration** with A3B teacher + 10-shot exemplars: **48.19% state, 35.57 R-1 at n=50** — beats every LLM-only configuration on state acc while matching them on R-1. The consultant and teacher components are independently optimizable along the surface/pedagogy axis.
+3. **End-to-end BERT-consultant integration** with A3B teacher + 10-shot exemplars: **48.19% state, 35.57 R-1 at n=50** — beats every LLM-only configuration on state acc while matching them on R-1.
 
-A fourth result is in flight: **Gemma 4 31B teacher** integration with BERT-consultant + 10-shot — smoke 50.0%/37.79 R-1 and mini 50.36%/35.93 R-1 (highest open-weight R-1 we've ever measured); n=50 in progress.
+4. **🎯 Swapping to Gemma 4 31B teacher** in the same integration: **51.06% state, 38.53 R-1 at n=50** — the highest of any open-weight configuration on both axes. The decomposition is multiplicative: BERT routes correctly (+0 R-1 on its own), 10-shot teacher exemplars recover surface form (+7.21 R-1), and the Gemma-vs-A3B teacher swap adds a final $+2.87$ state / $+2.96$ R-1.
+
+A fourth result landed late afternoon: **BERT + Gemma 4 31B teacher + 10-shot exemplars** at n=50 = **$51.06\%$ state accuracy / $38.53$ R-1** — the highest of any open-weight configuration on both axes, with $2\times$ GPT-4o's state accuracy at $86\%$ of its R-1.
 
 ## All n=50 results from today (apples-to-apples)
 
@@ -27,7 +29,7 @@ A fourth result is in flight: **Gemma 4 31B teacher** integration with BERT-cons
 | BERT + A3B (rich eval, no exemplars) — mini only     | 126     | 49.21 | 26.53 | 10.21 | 4.03  |
 | **BERT v1 + A3B + 10-shot exemplars**                | 276     | **48.19** | 35.57 | 15.28 | 7.63  |
 | BERT v2 (class-weighted) + A3B + 10-shot             | 287     | 43.90 | 37.12 | 16.42 | 8.48  |
-| **BERT + Gemma 31B + 10-shot exemplars** (n=50)      | _running_ | _ _ | _ _   | _ _  | _ _  |
+| **BERT + Gemma 4 31B + 10-shot exemplars (HEADLINE)**| 284     | **51.06** | **38.53** | **16.93** | **9.68** |
 
 ## What changed since this morning
 
