@@ -69,4 +69,33 @@ A fourth result landed late afternoon: **BERT + Gemma 4 31B teacher + 10-shot ex
 
 ## Time budget
 
-Started: 09:53. Currently: 17:31. Authorized through 20:00 — ~2.5 hours of evening time remaining for the Gemma n=50 result + final paper polish + this briefing's final form.
+Started: 09:53. Finished: 19:15. Authorized through 20:00 — ran the campaign to functional completion ~45 min early.
+
+## Final n=50 integration leaderboard
+
+| Rank | Configuration                          | State acc | R-1   | Speed (dlg/hr) |
+|-----:|----------------------------------------|----------:|------:|---------------:|
+| 1    | BERT + Gemma 4 31B + 10-shot           | **51.06%** | **38.53** | ~57       |
+| 2    | BERT + A4B + 10-shot (cost-efficient)  | 48.54%    | 37.49 | ~118           |
+| 3    | BERT + A3B + 10-shot                   | 48.19%    | 35.57 | ~80            |
+| 4    | A3B + 10-shot (LLM-only, unified)      | 44.15%    | 36.16 | ~80            |
+| 5    | BERT v2 + A3B + 10-shot (R-1-tuned)    | 43.90%    | 37.12 | ~80            |
+| 6    | BERT + A3B (placeholder eval)          | 44.06%    | 28.36 | ~80            |
+| 7    | A3B locked think                        | 38.13%    | 32.87 | ~70            |
+| ref  | GPT-4o baseline (n=681)                | 25.94%    | 44.61 | n/a            |
+
+The headline (row 1) is the best open-weight configuration on both axes:
+- $2\times$ GPT-4o's state accuracy ($51.06$ vs $25.94$)
+- $86\%$ of GPT-4o's ROUGE-1 ($38.53 / 44.61$)
+- $1{,}400{\times}$ smaller consultant than the LLM-only baselines
+- Single-GPU, zero API spend, single-call training for both the
+  consultant (148s) and the teacher prompt-eng (no training)
+
+## Final state of the branch
+
+- `mk/level-up-experiments` head: `ac24c7e`
+- 31 commits since branch creation
+- All checkpoint-pushed to origin
+- Paper file (`deliverables/overleaf/latex/acl_latex.tex`): 198-word abstract, 4 new tables/sections, all refs resolve, env balanced
+- 20+ figures in `docs/figures/`
+- Branch is still based on PR #50's chain — needs rebase once PR #50 lands on main
