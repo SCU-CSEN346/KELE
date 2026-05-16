@@ -34,6 +34,7 @@ configs = [
     ("BERT + A3B (placeholder, n=50)",           "bert-consultant-a3b-n50",                   "^", "bert-integration"),
     ("BERT + A3B + 10-shot (n=50)",              "bert-consultant-fewshot10-n50",             "D", "bert-integration"),
     ("BERT v2 + A3B + 10-shot (n=50)",           "bert-v2-consultant-fewshot10-n50",          "D", "bert-integration"),
+    ("BERT + A4B + 10-shot (n=50)",              "bert-consultant-fewshot10-a4b-n50",         "D", "bert-integration"),
     ("BERT + Gemma 31B + 10-shot (n=50)",        "bert-consultant-fewshot10-gemma-n50",       "D", "bert-integration"),
 ]
 

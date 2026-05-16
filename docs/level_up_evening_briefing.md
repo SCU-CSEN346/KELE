@@ -29,7 +29,8 @@ A fourth result landed late afternoon: **BERT + Gemma 4 31B teacher + 10-shot ex
 | BERT + A3B (rich eval, no exemplars) — mini only     | 126     | 49.21 | 26.53 | 10.21 | 4.03  |
 | **BERT v1 + A3B + 10-shot exemplars**                | 276     | **48.19** | 35.57 | 15.28 | 7.63  |
 | BERT v2 (class-weighted) + A3B + 10-shot             | 287     | 43.90 | 37.12 | 16.42 | 8.48  |
-| **BERT + Gemma 4 31B + 10-shot exemplars (HEADLINE)**| 284     | **51.06** | **38.53** | **16.93** | **9.68** |
+| **BERT + Gemma 4 31B + 10-shot (HEADLINE)**          | 284     | **51.06** | **38.53** | **16.93** | **9.68** |
+| **BERT + A4B + 10-shot (cost-efficient alt.)**       | 274     | 48.54     | 37.49     | 16.81     | 9.39      |
 
 ## What changed since this morning
 
