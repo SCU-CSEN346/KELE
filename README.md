@@ -7,7 +7,7 @@ Natural Language Processing — CSEN 346, Santa Clara University.
 
 This project reproduces and extends **KELE**, a multi-agent framework for structured Socratic teaching with LLMs, then pushes it further than the published baseline along two axes: (1) collapsing the two-agent architecture into a single open-weight backbone via a fusion structured-output call, and (2) replacing the LLM consultant with a 24M-parameter BERT classifier that routes the cognitive state with surgical precision while a stage-balanced 10-shot prompt-engineered LLM teacher handles response generation.
 
-Our **locked, full-scale headline** is a **+12.76 point absolute lift** in overall state accuracy over the GPT-4o baseline on the full 681-dialogue test split using Qwen 3.6 35B-A3B fusion-think (n=681, 38.70% state acc, 3–5× multipliers on the harder middle and closure stages). Our **best-in-class n=50 result** is **51.06% state accuracy / 38.53 ROUGE-1** with **BERT + Gemma 4 31B + 10-shot exemplars** — 2× GPT-4o's state accuracy at 86% of its ROUGE-1, running entirely on a single 32 GB consumer GPU at zero per-run API cost. **Standalone Gemma 4 31B fusion at n=681 underperformed** (31.39% / 27.27 R-1, driven by a 21% schema-fallback rate vs A3B's 0.91%) — this is documented in detail below as a methodological finding about scaling-prediction protocols.
+Our **locked, full-scale headline** as of 2026-05-18 is the **BERT + Gemma 4 31B + 10-shot integration**: **+22.21 point absolute lift** in overall state accuracy over the GPT-4o baseline on the full 681-dialogue test split (n=681, **48.15% state acc / 36.78 ROUGE-1**), a Pareto win over the prior A3B locked headline on both axes (+9.45 state, +6.15 R-1). Running entirely on a single 32 GB consumer GPU at zero per-run API cost. **Standalone Gemma 4 31B fusion at n=681 underperformed** (31.39% / 27.27 R-1, driven by a 21% schema-fallback rate vs A3B's 0.91%); the BERT-consultant integration removes the schema-fallback dependency entirely by routing state through a deterministic 24M-param classifier — see §4.6 and §4.8.1 of the paper for the methodological finding.
 
 - **Paper we reproduce:** Peng et al., "KELE: A Multi-Agent Framework for Structured Socratic Teaching with Large Language Models", *Findings of EMNLP 2025* — [aclanthology.org/2025.findings-emnlp.888](https://aclanthology.org/2025.findings-emnlp.888/)
 - **Original repository:** https://github.com/yuanpan1020/KELE
@@ -25,22 +25,24 @@ All open-weight runs use a single RTX 5090 (32 GB VRAM) with one model serving b
 | Run | n | State acc | Δ vs GPT-4o | ROUGE-1 | BLEU-4 | Wall clock | Fallback | API spend |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | GPT-4o + SocratTeachLLM (baseline) | 681 | 25.94% | — | **44.61** | **19.60** | 4h 34m | n/a | $17.49 |
-| **Qwen 3.6 35B-A3B fusion-think (LOCKED HEADLINE)** | **681** | **38.70%** | **+12.76 (1.49×)** | 30.63 | 5.86 | 16h 29m | **0.91%** | **$0** |
-| Gemma 4 31B fusion (full, 2026-05-17) | 681 | 31.39% | +5.45 | 27.27 | 5.50 | 21h 49m | **21.0%** | $0 |
-| **BERT + Gemma 4 31B + 10-shot (running 2026-05-17→18)** | 681 | TBD | TBD | TBD | TBD | ~12h proj | n/a | $0 |
+| **🏆 BERT + Gemma 4 31B + 10-shot (LOCKED HEADLINE 2026-05-18)** | **681** | **48.15%** | **+22.21 (1.86×)** | **36.78** | **9.05** | 12h 53m | **n/a (BERT skips consultant)** | **$0** |
+| Qwen 3.6 35B-A3B fusion-think (prior locked headline) | 681 | 38.70% | +12.76 (1.49×) | 30.63 | 5.86 | 16h 29m | 0.91% | $0 |
+| Gemma 4 31B fusion standalone (retracted, 2026-05-17) | 681 | 31.39% | +5.45 | 27.27 | 5.50 | 21h 49m | **21.0%** | $0 |
 
-**Per-stage picture for the locked A3B full run vs the disappointing Gemma full run** (both vs baseline):
+**Per-stage picture for the locked BERT-integration headline vs the prior A3B locked + the disappointing Gemma standalone** (all vs GPT-4o baseline at n=681):
 
-| Stage | GPT-4o baseline | A3B fusion-think | Δ A3B | Gemma fusion | Δ Gemma | Δ Gemma vs A3B |
+| Stage | GPT-4o | A3B fusion-think | Gemma standalone | **🏆 BERT+Gemma+10-shot** | Δ vs A3B | Δ vs GPT-4o |
 |---|---:|---:|---:|---:|---:|---:|
-| a (problem detection) | 95.15% | 91.78% | −3.37 | 78.71% | −16.44 | **−13.07** |
-| b (early reasoning) | 36.93% | 39.29% | +2.36 | 33.11% | −3.82 | **−6.18** |
-| c (22-state induction) | 4.70% | **17.57%** | **+12.87** | 13.89% | +9.19 | −3.68 |
-| d (resolution) | 5.04% | **14.78%** | **+9.74** | 14.23% | +9.19 | −0.55 |
-| e (closure) | 11.92% | **56.83%** | **+44.91** | 38.07% | +26.15 | **−18.76** |
-| **Overall** | **25.94%** | **38.70%** | **+12.76** | **31.39%** | **+5.45** | **−7.31** |
+| a (problem detection) | 95.15% | 91.78% | 78.71% | **99.27%** | +7.49 | +4.12 |
+| b (early reasoning) | 36.93% | 39.29% | 33.11% | 23.26% | **−16.03 ⚠** | −13.67 |
+| c (22-state induction) | 4.70% | 17.57% | 13.89% | **30.31%** | **+12.74** | **+25.61 (6.4×)** |
+| d (resolution) | 5.04% | 14.78% | 14.23% | **41.50%** | **+26.72** | **+36.46 (8.2×)** |
+| e (closure) | 11.92% | 56.83% | 38.07% | **82.77%** | **+25.94** | **+70.85 (6.9×)** |
+| **Overall** | **25.94%** | **38.70%** | **31.39%** | **48.15%** | **+9.45** | **+22.21 (1.86×)** |
 
-**Why Gemma standalone collapsed at full scale.** The mini-tier (n=148 turns) predicted +20.77; the full-tier (n=4246 turns) realized +5.45 — a **15-point overshoot** by the smoke+mini average predictor that landed A3B within 0.10 pts. The root cause is in the schema-fallback rate: **Gemma fell back to two-call mode on 21.0% of turns** (890/4246) vs A3B's **0.91%** (38/4171). Gemma's strict-JSON adherence on stage-c-class structured output is dramatically weaker than A3B's, and the small-n mini sample didn't hit the long-tail dialogues that exposed it. This is the headline methodological finding from the campaign: **schema-fallback rate is the missing variable** in our scaling-prediction protocol, and any future cross-architecture comparison needs to triangulate fallback rates alongside mean state accuracy.
+The BERT-integration headline is **a Pareto win over A3B on both axes** (+9.45 state, +6.15 R-1) and posts **massive multipliers on the hard middle/closure stages** (6–8× over GPT-4o on stages c/d/e — precisely where general-purpose LLMs collapse). The one weak stage is **b (early reasoning)**, where we lose 16 points to A3B — a stable property of BERT's stage-b routing distribution that also appeared at $n{=}50$, not a regression introduced at scale.
+
+**Why Gemma standalone collapsed at full scale, and why the BERT-integration rescues it.** The standalone Gemma mini-tier (n=148 turns) predicted +20.77 state-acc; the full-tier (n=4246 turns) realized only +5.45 — a **15-point overshoot** by the smoke+mini average predictor that landed A3B within 0.10 pts. The root cause is in the schema-fallback rate: **Gemma fell back to two-call mode on 21.0% of turns** (890/4246) vs A3B's **0.91%** (38/4171). Gemma's strict-JSON adherence on stage-c-class structured output is dramatically weaker than A3B's. **The BERT-consultant integration removes this dependency entirely**: BERT (24M params, 86.55% stage / 61.64% state on the test split) routes the cognitive state deterministically, leaving Gemma to handle only response generation — a path with no JSON schema. The full-scale BERT+Gemma+10-shot run (this campaign's headline) confirms the hypothesis: the integration lands at 48.15% / 36.78 R-1 at $n{=}681$, validating that **the integration architecture isolates the consultant axis (BERT) from the response-generation axis (LLM teacher), with each axis independently optimizable**. This decomposition is now the headline methodological finding of the paper.
 
 ### Best n=50 integration leaderboard (level-up campaign)
 
@@ -57,7 +59,7 @@ The level-up campaign (2026-05-15) layered three orthogonal improvements onto th
 
 The headline (row 1) decomposes cleanly: 10-shot exemplars recover surface form (+3.29 R-1 over locked A3B), BERT routes cognitive state with surgical precision (+4.06 state with neutral R-1), and the Gemma teacher swap adds a final +2.87 state / +2.96 R-1.
 
-**Where the BERT integration goes from here.** The n=50 leaderboard above held BERT + Gemma + 10-shot at 51.06% — but standalone Gemma standalone collapsed at full scale. **The integration full run is now the live gating experiment**: BERT replaces the consultant entirely (removing the schema-fallback dependency), and the 10-shot exemplars are pure prompt-engineering on the teacher call. If the integration holds at n=681, it becomes the new headline. If it collapses too, we lean on A3B + BERT + 10-shot full as the safer alternative. **Status: running 2026-05-17 → 2026-05-18 — see [`results/bert-consultant-fewshot10-gemma-full/`](results/bert-consultant-fewshot10-gemma-full/) and [`scripts/eval_bert_gemma_fewshot10_full.sh`](scripts/eval_bert_gemma_fewshot10_full.sh).**
+**Where the BERT integration goes from here.** The n=50 leaderboard reference held BERT + Gemma + 10-shot at 51.06%; the full $n{=}681$ run landed at 48.15% — a small attenuation (−2.91 state, −1.75 R-1) consistent with n-vs-n=50 sampling variance, well within Pareto-win territory over A3B. Next phase is the **prompt-engineering tournament** ($n{=}50 \times 10$ utilizations = 500 dialogues; see [`docs/PROMPT_ENGINEERING_PLAN.md`](docs/PROMPT_ENGINEERING_PLAN.md)) to push state acc toward 55% and R-1 toward 42 on top of this baseline. **Headline run artifacts: [`results/bert-consultant-fewshot10-gemma-full/`](results/bert-consultant-fewshot10-gemma-full/) and [`scripts/eval_bert_gemma_fewshot10_full.sh`](scripts/eval_bert_gemma_fewshot10_full.sh).**
 
 Full experimental record lives in [`deliverables/overleaf/latex/acl_latex.tex`](deliverables/overleaf/latex/acl_latex.tex) Section 4 and the per-run logs in [`results/`](results/).
 
