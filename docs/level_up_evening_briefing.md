@@ -99,3 +99,65 @@ The headline (row 1) is the best open-weight configuration on both axes:
 - Paper file (`deliverables/overleaf/latex/acl_latex.tex`): 198-word abstract, 4 new tables/sections, all refs resolve, env balanced
 - 20+ figures in `docs/figures/`
 - Branch is still based on PR #50's chain — needs rebase once PR #50 lands on main
+
+---
+
+# UPDATE 2026-05-17 PM — the Gemma full-run collapse
+
+The weekend autonomous campaign (Sat 10:25 AM → Sun 8:14 AM) ran the standalone Gemma 4 31B fusion-think full evaluation at $n{=}681$ and the result was a major surprise: **Gemma collapsed**.
+
+## What landed
+
+| Run | n | State acc | Δ vs GPT-4o | ROUGE-1 | Wall clock | Fallback |
+|---|---:|---:|---:|---:|---:|---:|
+| Gemma 4 31B fusion-think (full) | 681 | **31.39%** | **+5.45** | 27.27 | 21h 49m | **21.0%** (890/4246) |
+
+Compared to:
+- A3B full: 38.70% / 30.63 R-1, **fallback 0.91%** (38/4171) — A3B is +7.31 pts ahead
+- Gemma mini: 41.89% / 30.11 R-1 → the small-$n$ optimism gap was 10.5 pts
+- Smoke--mini average projection: 46.71% — overshoot was **15.32 pts**
+
+Per-stage, Gemma loses to A3B on every stage:
+
+| Stage | Gemma full | A3B full | Δ vs A3B |
+|---|---:|---:|---:|
+| a | 78.71 | 91.78 | **−13.07** |
+| b | 33.11 | 39.29 | −6.18 |
+| c | 13.89 | 17.57 | −3.68 |
+| d | 14.23 | 14.78 | −0.55 |
+| e | 38.07 | 56.83 | **−18.76** |
+
+## The diagnosis: schema-fallback rate is the missing variable
+
+The root cause is in the schema-fallback rate. Gemma fell back to two-call mode on **21.0% of turns** at full scale vs A3B's **0.91%** — a **20× gap** that did not appear at mini (both 0/<150). Gemma's strict-JSON adherence on stage-c-class structured output is dramatically weaker than A3B's, and the small-$n$ mini sample didn't hit the long-tail dialogues that broke it.
+
+**Methodological finding (now in the paper):** smoke--mini averaging is necessary but not sufficient; it must be paired with schema-fallback-rate triangulation across at least the mini and full tiers to be a reliable cross-architecture predictor.
+
+## The chainer failure
+
+My v2 chainer that was supposed to queue 3 follow-up experiments (Gemma+10shot/standalone/+5shot at n=50) crashed all 3 instantly with `error: unrecognized arguments: --unified`. The bug: `--unified` is a subcommand flag, not a top-level flag — needed to be placed AFTER `test`/`evaluate`, not before. Net loss: ~14 hours of GPU idle time, 3 datapoints not collected. Lesson: validate the launch command with a smoke run before committing the chainer.
+
+## Active gating experiment (launched Sun 22:43 PDT)
+
+**BERT + Gemma 4 31B + 10-shot full ($n{=}681$).** This is the new headline candidate. The BERT-consultant integration removes the schema-fallback dependency entirely (BERT classifier handles state routing deterministically), leaving the Gemma teacher to handle only response generation. The $n{=}50$ result (51.06% / 38.53 R-1) is the highest open-weight number we've measured on both axes; the question is whether it holds at full scale.
+
+Projection: ~12h wall clock at 55 dlg/hr (BERT skips the consultant LLM call, halving per-turn cost vs standalone Gemma fusion). Expected completion: Mon 2026-05-18 ~11 AM PDT.
+
+Output: `results/bert-consultant-fewshot10-gemma-full/`
+Wrapper: `scripts/eval_bert_gemma_fewshot10_full.sh`
+
+## What this means for the paper headline
+
+- **A3B fusion-think reclaims the locked headline at full scale** (+12.76, unchanged).
+- **BERT + Gemma + 10-shot at n=50 = 51.06% is still the best n=50 number** — full-scale confirmation pending.
+- **If the BERT integration full collapses too**, the safer fallback is BERT + A3B + 10-shot full (TODO #2, ~16h).
+- **Gemma pivot from 2026-05-05 is retracted at full scale**.
+
+Paper updates landed in commits `c1fb7c0` (README) and `f7bb1ec` (paper + README):
+- Abstract: retract Gemma supersession claim
+- §4.6: full-run result + retraction paragraph + 21% fallback root cause
+- Table 11: actual Gemma full row replaces projected row
+- Takeaways: smoke-mini averaging as architecture-dependent
+- Next steps: BERT + Gemma + 10-shot full as active gating experiment
+- Conclusion: schema-fallback as headline methodological finding
+- Limitations: cross-architecture scaling prediction is unsolved
