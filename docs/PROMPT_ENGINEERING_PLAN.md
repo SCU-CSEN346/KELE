@@ -1,32 +1,67 @@
 # Prompt-engineering tournament for the post-BERT-baseline phase
 
 **Author:** Claude Opus 4.7 (1M ctx) for Max
-**Date:** 2026-05-18 (revised from 2026-05-17)
-**Status:** Plan-of-record. Execution gated on the BERT + Gemma + 10-shot full run (in flight, ETA ~13:30 PDT Mon 2026-05-18).
-**Protocol:** Tournament-style, mirroring the §4.7 13-model no-think tournament. **n=50 × 10 cells = 500 dialogues.**
+**Date:** 2026-05-18 (revised 2× from 2026-05-17 — adds Phase 0.5 teacher-choice ablation)
+**Status:** Plan-of-record. Phase 0 complete (BERT + Gemma + 10-shot full landed 48.15% / 36.78 R-1, new locked headline). Phase 0.5 staged but paused for power-management; tournament gated on Phase 0.5 winner.
+**Protocol:** Tournament-style, mirroring the §4.7 13-model no-think tournament. **n=50 × 10 cells = 500 dialogues** in Phase 1.
 
 ## Mission
 
 Back-engineer the benchmark from the ground-truth teacher distribution, then design **10 concrete prompt utilizations** and evaluate them apples-to-apples at $n{=}50$ each. The top 2–3 single utilizations compose into a stacked headline candidate; the winner of the composed test goes to $n{=}681$ for the paper headline.
 
-## Phase 0 — Gating run completion + result documentation
+## Phase 0 — Gating run completion + result documentation ✅ COMPLETE
 
-**Before the tournament starts**, the in-flight BERT + Gemma + 10-shot full run ($n{=}681$, launched Sun 22:43 PDT, ETA ~13:30 PDT Mon) must complete. Its result determines two things:
+The BERT + Gemma + 10-shot full run completed Mon 2026-05-18 11:36:52 PDT (12h 53m). Result: **48.15% state / 36.78 R-1 at n=681** — a Pareto win over the prior A3B locked headline on both axes (+9.45 state, +6.15 R-1) and +22.21 over GPT-4o (1.86×). The schema-fallback hypothesis is confirmed (n=50→n=681 attenuation only -2.91 pts vs standalone Gemma's -10.5 pts collapse).
 
-1. **Serving backbone for the tournament.** If the integration holds at $\geq 48\%$ state acc at full, Gemma 4 31B is the teacher; if it lands 40–48%, run BERT + A3B + 10-shot full (~16h) and pick the higher winner; if it collapses (< 40%), fall back to A3B.
-2. **The apples-to-apples reference line** that all 10 tournament cells are compared against. Currently the locked $n{=}50$ reference is BERT + Gemma + 10-shot = 51.06% / 38.53 R-1.
+All Phase 0 documentation hooks landed in commit `1037e3b`: README headline, paper Abstract + §4.8.1 + Table 11 + Takeaways + Conclusion + Limitations, briefing update, new memory `bert_integration_full_2026_05_18.md`, `project_overview` refresh, `MEMORY.md` index update.
+
+## Phase 0.5 — Teacher-choice ablation at full scale (NEXT TEST)
+
+**Before the prompt tournament starts**, we run BERT + Qwen 35B-A3B-think + 10-shot at $n{=}681$ to validate the teacher choice.
+
+### Why this matters
+
+The Phase 0 headline locked Gemma 4 31B as the teacher. But the underlying premise — "Gemma is the right teacher because it won at $n{=}50$" — rests on a single small-$n$ datapoint, and the campaign just got burned on this exact failure mode (Gemma standalone mini → full collapse).
+
+Two competing hypotheses:
+
+1. **Gemma-teacher hypothesis (current locked):** at $n{=}50$, BERT + Gemma + 10-shot = 51.06%, beating BERT + A3B + 10-shot's 48.19% by +2.87 state. The BERT integration removed the schema-fallback risk, so the teacher comparison reflects pure response-generation quality, where Gemma's dense parameter count wins.
+
+2. **A3B-teacher hypothesis (untested at scale):** standalone A3B beat standalone Gemma at $n{=}681$ by +7.31 state. The teacher-only path may inherit some of that scale advantage. Combined with A3B's higher serving speed (~50 dlg/hr vs Gemma's 53 here — similar), BERT + A3B + 10-shot at full scale could overtake.
+
+### Procedure
+
+```bash
+# Pre-staged wrapper (commit pending this section):
+bash scripts/eval_bert_a3b_fewshot10_full.sh
+```
+
+- **n** = 681 (full test split)
+- **Backbone serve:** `scripts/serve_qwen35b_a3b_think.sh` (the think variant — the default serve has `--reasoning off` baked in for the no-think tournament)
+- **BERT checkpoint:** `results/state_classifier_v1/final` (same as Phase 0)
+- **Env vars:** `KELE_FEW_SHOT_TEACHER=1 KELE_FEW_SHOT_N=10`
+- **Output:** `results/bert-consultant-fewshot10-a3b-full/`
+- **Projected wall clock:** ~13–14 h (n=50 reference was 60 min for 50 dialogues; per-item resume crash-safe)
+- **VRAM:** ~30 GB
+
+### Decision rule
+
+| BERT + A3B full result | Decision |
+|---|---|
+| ≥ 48.15% (beats Gemma full) | Switch locked headline to A3B; tournament uses A3B teacher |
+| 45–48% | Gemma stays locked; tournament uses Gemma; teacher choice validated |
+| < 45% | Same as above; Gemma's teacher-side advantage is larger than the n=50 suggested |
+
+Either outcome strengthens the paper: we've justified the teacher backbone with a full-scale ablation instead of assuming it from $n{=}50$.
 
 ### Result documentation hooks (to land before tournament launch)
 
-When Phase 0 completes, add the following to the codebase + paper:
-
-- [ ] `docs/level_up_evening_briefing.md` — Mon 2026-05-18 update section with the n=681 BERT-integration result + per-stage table + schema-fallback rate (if applicable)
-- [ ] `README.md` — promote the row "**BERT + Gemma 4 31B + 10-shot (running 2026-05-17→18)**" from `TBD` to the actual measured values
-- [ ] `deliverables/overleaf/latex/acl_latex.tex` Table 11 (fullsweep) — add the BERT-integration full row
-- [ ] `deliverables/overleaf/latex/acl_latex.tex` §4.8.1 (BERT integration) — extend with the full-scale paragraph; either confirms 51.06% as durable or documents an integration-tier regression
-- [ ] Conclusion + Next Steps — update to reference this tournament as the active path
-- [ ] Memory (`gemma_full_collapse_2026_05_17.md`) — append the integration full result, mark whether the schema-fallback hypothesis (BERT removes the dependency) was validated
-- [ ] If the integration result lands a new $n{=}681$ headline, create new memory `bert_integration_full_2026_05_18.md`
+- [ ] `docs/level_up_evening_briefing.md` — Phase 0.5 update with the BERT+A3B full result + decision committed
+- [ ] `README.md` — add the BERT+A3B full row alongside BERT+Gemma; bold whichever wins
+- [ ] Paper Table 11 — add `BERT + A3B + 10-shot (full)` row
+- [ ] Paper §4.8.1 — append the teacher-ablation paragraph (whichever wins becomes the headline)
+- [ ] Paper Conclusion + Next Steps — update if headline changes
+- [ ] Memory — append Phase 0.5 result to `bert_integration_full_2026_05_18.md` (or create sibling memory if headline switches)
 
 ## 1. What does a "successful result" look like?
 
@@ -245,9 +280,11 @@ The Phase 2 winner runs at $n{=}681$ (~12h with BERT-consultant, ~22h if standal
 
 ## 7. Status checklist
 
-- [ ] Phase 0 — BERT + Gemma + 10-shot full run completes
-- [ ] Phase 0 — All result documentation hooks land (see §"Result documentation hooks" above)
-- [ ] Phase 0 — Backbone decision committed (Gemma vs A3B teacher)
+- [x] Phase 0 — BERT + Gemma + 10-shot full run completes (✅ 48.15% / 36.78 R-1)
+- [x] Phase 0 — All result documentation hooks land (commit `1037e3b`)
+- [ ] **Phase 0.5 — BERT + A3B + 10-shot full run (PAUSED for power; wrapper staged at `scripts/eval_bert_a3b_fewshot10_full.sh`)**
+- [ ] Phase 0.5 — Decision rule applied; locked headline confirmed or switched
+- [ ] Phase 0.5 — Documentation hooks land
 - [ ] Phase 1 — Implement env-var-gated code paths for #1–#10
 - [ ] Phase 1 — Tournament wrapper script (`scripts/eval_prompt_tournament.sh`)
 - [ ] Phase 1 — Run 10 cells, n=50 each (~10-11h)
