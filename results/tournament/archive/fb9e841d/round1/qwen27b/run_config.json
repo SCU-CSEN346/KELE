@@ -1,0 +1,16 @@
+{
+  "experiment": "qwen27b",
+  "teacher_model": "Qwen 27B Q5",
+  "teacher_base_url": "http://localhost:8080/v1",
+  "consultant_model": "Qwen 27B Q5",
+  "consultant_base_url": "http://localhost:8080/v1",
+  "thinking_budget": 8192,
+  "max_teaching_rounds": 8,
+  "unified": true,
+  "total_dialogues": 5,
+  "completed": 5,
+  "total_elapsed_seconds": 3627.13,
+  "started_at": "2026-05-15 12:24:00",
+  "finished_at": "2026-05-15 13:24:27",
+  "unified_fallback_count": 0
+}

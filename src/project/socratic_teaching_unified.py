@@ -328,10 +328,10 @@ e34：学生正确给出题目答案
             },
         }
 
-        # When thinking is enabled with a budget, max_tokens must cover both
-        # the thinking block and the JSON output. Otherwise use a 16K floor.
+        # When thinking is enabled, max_tokens = thinking_budget + 4096 (response buffer).
+        # The Qwen3 chat template ignores thinking_budget; enable_thinking is the real toggle.
         if self.consultant_thinking_budget > 0:
-            max_tokens = self.consultant_thinking_budget + max(self.consultant_max_tokens, 4096)
+            max_tokens = self.consultant_thinking_budget + 4096
         else:
             max_tokens = max(self.consultant_max_tokens, 16384)
 
@@ -339,7 +339,7 @@ e34：学生正确给出题目答案
         if self.consultant_disable_thinking:
             extra["chat_template_kwargs"] = {"enable_thinking": False}
         elif self.consultant_thinking_budget > 0:
-            extra["chat_template_kwargs"] = {"thinking_budget": self.consultant_thinking_budget}
+            extra["chat_template_kwargs"] = {"enable_thinking": True}
 
         # Retry on rate limits (mirrors socratic_teaching_consultant pattern)
         response = None

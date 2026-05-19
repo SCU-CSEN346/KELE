@@ -1,0 +1,16 @@
+{
+  "experiment": "deepseek-r1-14b",
+  "teacher_model": "DeepSeek R1 14B",
+  "teacher_base_url": "http://localhost:8080/v1",
+  "consultant_model": "DeepSeek R1 14B",
+  "consultant_base_url": "http://localhost:8080/v1",
+  "thinking_budget": 8192,
+  "max_teaching_rounds": 8,
+  "unified": true,
+  "total_dialogues": 5,
+  "completed": 5,
+  "total_elapsed_seconds": 313.71,
+  "started_at": "2026-05-15 19:31:53",
+  "finished_at": "2026-05-15 19:37:06",
+  "unified_fallback_count": 0
+}

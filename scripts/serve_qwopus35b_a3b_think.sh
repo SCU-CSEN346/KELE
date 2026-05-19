@@ -12,7 +12,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-WEIGHT_FILE="${QWOPUS35B_WEIGHT_FILE:-$HOME/Documents/models/weights/Qwopus3.6-35B-A3B-v1-Q4_K_M.gguf}"
+WEIGHT_FILE="${QWOPUS35B_WEIGHT_FILE:-$HOME/models/Qwopus3.6-35B-A3B-v1/Qwopus3.6-35B-A3B-v1-Q4_K_M.gguf}"
 
 exec "$SCRIPT_DIR/serve_qwen27b.sh" \
   -m "$WEIGHT_FILE" \

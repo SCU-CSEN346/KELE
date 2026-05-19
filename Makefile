@@ -72,9 +72,9 @@ help:
 	@echo "  Tournament (multi-model elimination):"
 	@echo "  tournament-help       Full tournament command reference"
 	@echo "  tournament            Run one round (n=50, fusion, no-think)"
-	@echo "  tournament-think      Run one round (n=50, fusion, thinking budget=8192)"
+	@echo "  tournament-think      Run one round (n=50, fusion, thinking budget=4096)"
 	@echo "  tournament-warmup     Warmup (n=5, thinking OFF) — verifies models load; do NOT eliminate after"
-	@echo "  tournament-warmup-think  Warmup (n=5, thinking budget=8192) — verifies thinking tokens are generated"
+	@echo "  tournament-warmup-think  Warmup (n=5, thinking budget=4096) — verifies thinking tokens are generated"
 	@echo "  tournament-status     Print leaderboard"
 	@echo "  tournament-archive    Save current run to archive/<run_id>/ and reset state"
 	@echo "  tournament-restore    List archives  (use ID=<id> to restore one)"
@@ -269,9 +269,9 @@ tournament-help:
 	@echo ""
 	@echo "RUNNING"
 	@echo "  make tournament                    Run one round (n=50, fusion, thinking OFF)"
-	@echo "  make tournament-think              Run one round (n=50, fusion, thinking budget=8192)"
+	@echo "  make tournament-think              Run one round (n=50, fusion, thinking budget=4096)"
 	@echo "  make tournament-warmup             Smoke test — n=5, thinking OFF"
-	@echo "  make tournament-warmup-think       Smoke test — n=5, thinking budget=8192 (verify thinking_content in dialogues)"
+	@echo "  make tournament-warmup-think       Smoke test — n=5, thinking budget=4096 (verify thinking_content in dialogues)"
 	@echo "  make tournament N=<n>              Custom dialogue count, e.g. make tournament N=20"
 	@echo "  make tournament-finalize           Run the 3 survivors to full n=681"
 	@echo ""
@@ -297,7 +297,7 @@ tournament-help:
 	@echo "  2. make tournament                 # run no-think round 1"
 	@echo "  3. make tournament-status          # review results"
 	@echo "  4. make tournament-archive         # save no-think run (gets a run_id)"
-	@echo "  5. make tournament-think           # run thinking=8192 round 1"
+	@echo "  5. make tournament-think           # run thinking=4096 round 1"
 	@echo "  6. make tournament-status"
 	@echo "  7. make tournament-archive"
 	@echo "  8. make tournament-restore ID=<no-think-id>  # switch back if needed"
@@ -307,13 +307,13 @@ tournament-warmup:
 	uv run tournament run --n 5 --unified
 
 tournament-warmup-think:
-	uv run tournament run --n 5 --unified --thinking-budget 8192
+	uv run tournament run --n 5 --unified --thinking-budget 4096
 
 tournament:
 	uv run tournament run --unified $(if $(N),--n $(N),)
 
 tournament-think:
-	uv run tournament run --unified --thinking-budget 8192 $(if $(N),--n $(N),)
+	uv run tournament run --unified --thinking-budget 4096 $(if $(N),--n $(N),)
 
 tournament-status:
 	uv run tournament status
