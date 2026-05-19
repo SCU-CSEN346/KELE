@@ -1,0 +1,16 @@
+{
+  "experiment": "mistral-24b",
+  "teacher_model": "Mistral Small 24B",
+  "teacher_base_url": "http://localhost:8080/v1",
+  "consultant_model": "Mistral Small 24B",
+  "consultant_base_url": "http://localhost:8080/v1",
+  "thinking_budget": 0,
+  "max_teaching_rounds": 8,
+  "unified": true,
+  "total_dialogues": 5,
+  "completed": 5,
+  "total_elapsed_seconds": 154.83,
+  "started_at": "2026-05-15 19:43:52",
+  "finished_at": "2026-05-15 19:46:27",
+  "unified_fallback_count": 0
+}

@@ -1,0 +1,18 @@
+{
+  "n_turns": 33,
+  "rouge1": 29.58,
+  "rouge2": 11.18,
+  "rougeL": 23.55,
+  "bleu4": 4.61,
+  "state_accuracy": {
+    "overall": 3.03,
+    "per_stage": {
+      "a": 20.0,
+      "b": 0.0,
+      "c": 0.0,
+      "d": 0.0,
+      "e": 0.0
+    },
+    "total_turns": 33
+  }
+}

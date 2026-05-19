@@ -14,12 +14,37 @@ run never gets worse than the two-call run for any individual turn.
 """
 
 import json
+import os
 import time
 from typing import Any
 
 import openai
 
 from src.project.socratic_teaching_system import SocraticTeachingSystem
+
+# Optional few-shot exemplars to nudge the teacher toward terse, single-question
+# Chinese phrasing matching the SocratDataset ground truth. Drawn from train-split
+# dialogues 1, 2, 3 (all non-overlapping with the test split) for diversity
+# across distinct question types; covers stages b, c, d.
+_FEW_SHOT_TEACHER_BLOCK = """---
+
+# 第四部分：教师风格示例
+以下是优秀教师回复的示例。请注意它们的简洁、亲切、且每条仅含一个问题：
+
+示例1（b阶段，state=b6）:
+学生: 我觉得种子可能在花里面。
+老师: 嗯，花是植物的重要部分，它确实和种子的产生有关。那么你还记得花的哪个部分会变成种子或者保护种子吗？
+
+示例2（c阶段，state=c12）:
+学生: 植物通过根从土壤中吸收水和养分。
+老师: 植物除了从土壤中吸收养分外，还需要阳光来进行光合作用。你知道蘑菇是否需要阳光来获取养分吗？
+
+示例3（d阶段，state=d33）:
+学生: 光合作用可以让植物制造食物。
+老师: 非常好！所以，结合我们讨论的内容，你认为植物的叶子从新芽到落叶，是一个生命历程吗？
+
+请严格遵循这种风格：开头不要长篇铺垫，只问一个有针对性的问题，语气亲切。
+"""
 
 # Strict JSON schema for the unified call's output.
 # llama.cpp accepts this via response_format and uses GBNF-constrained
@@ -108,6 +133,7 @@ class SocraticTeachingSystemUnified(SocraticTeachingSystem):
         # ones we want for structured-output decoding.
         self.unified_client = self.consultant_client
         self._unified_fallback_count = 0  # tracked for reporting
+        self._last_thinking_content: str | None = None  # set each turn; None when not thinking
 
     def _build_unified_system_prompt(self) -> str:
         """Assemble the three-section unified prompt.
@@ -120,6 +146,13 @@ class SocraticTeachingSystemUnified(SocraticTeachingSystem):
         """
         state_action_lines = "\n".join(
             f"{state}：{action}" for state, action in self.state_to_action.items()
+        )
+
+        # Opt-in few-shot exemplars: gated on KELE_FEW_SHOT_TEACHER=1.
+        # When unset, few_shot_block is empty and the prompt is identical to
+        # the pre-existing fusion-think configuration (no behavior change).
+        few_shot_block = (
+            _FEW_SHOT_TEACHER_BLOCK if os.environ.get("KELE_FEW_SHOT_TEACHER") == "1" else ""
         )
 
         return f"""# 角色指令
@@ -263,7 +296,7 @@ e34：学生正确给出题目答案
 - 语气应该非常亲切并具有鼓励性
 - 除非所选状态对应的操作要求，否则不能给出过于明显的提示
 - 如果state=e34（操作为：对题目进行总结），则总结题目且不再提出问题
-
+{few_shot_block}
 ---
 
 # 输出格式
@@ -286,14 +319,6 @@ e34：学生正确给出题目答案
             f"历史对话记录:\n{self.get_full_formatted_history()}\n\n当前学生输入: {student_input}\n"
         )
 
-        # The consultant_disable_thinking knob applies uniformly to the
-        # unified call — it's a single call doing both consultant and teacher
-        # work, so one knob covers both. Qwen3.6 surfaces thinking via the
-        # separate reasoning_content field, so this only changes whether
-        # internal CoT happens; the JSON output isn't affected either way.
-        if self.consultant_disable_thinking:
-            user_input = "/no_think\n" + user_input
-
         response_format = {
             "type": "json_schema",
             "json_schema": {
@@ -303,10 +328,18 @@ e34：学生正确给出题目答案
             },
         }
 
-        # Generous max_tokens — Qwen3.6 thinking content goes to a separate
-        # reasoning_content field so this budget is for the JSON proper.
-        # Bump to 16K to cover deep CoT plus the three-field structured output.
-        max_tokens = max(self.consultant_max_tokens, 16384)
+        # When thinking is enabled, max_tokens = thinking_budget + 4096 (response buffer).
+        # The Qwen3 chat template ignores thinking_budget; enable_thinking is the real toggle.
+        if self.consultant_thinking_budget > 0:
+            max_tokens = self.consultant_thinking_budget + 4096
+        else:
+            max_tokens = max(self.consultant_max_tokens, 16384)
+
+        extra: dict = {}
+        if self.consultant_disable_thinking:
+            extra["chat_template_kwargs"] = {"enable_thinking": False}
+        elif self.consultant_thinking_budget > 0:
+            extra["chat_template_kwargs"] = {"enable_thinking": True}
 
         # Retry on rate limits (mirrors socratic_teaching_consultant pattern)
         response = None
@@ -320,6 +353,7 @@ e34：学生正确给出题目答案
                     ],
                     response_format=response_format,  # type: ignore[reportArgumentType]
                     max_tokens=max_tokens,
+                    extra_body=extra or None,
                 )
                 break
             except openai.RateLimitError as rle:
@@ -350,6 +384,20 @@ e34：学生正确给出题目答案
             print("Unified call returned empty content")
             return None
 
+        # Extract thinking content: llama.cpp may expose it in reasoning_content
+        # (separate field) or inline as <think>...</think> before the JSON.
+        thinking_content: str | None = None
+        msg = response.choices[0].message
+        reasoning = getattr(msg, "reasoning_content", None)
+        if reasoning:
+            thinking_content = reasoning
+        elif raw_content.lstrip().startswith("<think>"):
+            end_tag = raw_content.find("</think>")
+            if end_tag != -1:
+                start_tag = raw_content.index("<think>") + len("<think>")
+                thinking_content = raw_content[start_tag:end_tag].strip()
+                raw_content = raw_content[end_tag + len("</think>") :].strip()
+
         # Strip markdown code fences if the server wrapped them despite the
         # schema (defensive — shouldn't happen with json_schema mode but free
         # to add).
@@ -376,6 +424,7 @@ e34：学生正确给出题目答案
         if not isinstance(result.get("evaluation"), str):
             result["evaluation"] = ""
 
+        result["thinking_content"] = thinking_content
         return result
 
     def process_student_input(self, student_input: str) -> str:
@@ -398,6 +447,7 @@ e34：学生正确给出题目答案
             unified_result = None
 
         if unified_result is None:
+            self._last_thinking_content = None
             self._unified_fallback_count += 1
             print(
                 f"Unified call failed — falling back to two-call "
@@ -406,6 +456,7 @@ e34：学生正确给出题目答案
             return super().process_student_input(student_input)
 
         # ── Unified succeeded — apply parent's glue logic ──────────────────
+        self._last_thinking_content = unified_result.get("thinking_content")
         self.add_to_history("student", student_input)
 
         previous_state = self.current_state

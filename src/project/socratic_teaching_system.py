@@ -18,6 +18,7 @@ class SocraticTeachingSystem:
         max_teaching_rounds: int = 10,
         consultant_max_tokens: int = 4096,
         consultant_disable_thinking: bool = False,
+        consultant_thinking_budget: int = 0,
         consultant_num_ctx: int = 0,
     ):
 
@@ -27,6 +28,7 @@ class SocraticTeachingSystem:
         self.consultant_model_name = consultant_model_name
         self.consultant_max_tokens = consultant_max_tokens
         self.consultant_disable_thinking = consultant_disable_thinking
+        self.consultant_thinking_budget = consultant_thinking_budget
         self.consultant_num_ctx = consultant_num_ctx
 
         # 教师智能体API配置
@@ -308,17 +310,20 @@ e34：学生正确给出题目答案
             response = None
             for attempt in range(6):
                 try:
-                    effective_user = user_input
-                    if self.consultant_disable_thinking:
-                        effective_user = "/no_think\n" + user_input
                     extra = {}
+                    if self.consultant_disable_thinking:
+                        extra["chat_template_kwargs"] = {"enable_thinking": False}
+                    elif self.consultant_thinking_budget > 0:
+                        extra["chat_template_kwargs"] = {
+                            "thinking_budget": self.consultant_thinking_budget
+                        }
                     if self.consultant_num_ctx:
                         extra["options"] = {"num_ctx": self.consultant_num_ctx}
                     response = self.consultant_client.chat.completions.create(
                         model=self.consultant_model_name,
                         messages=[
                             {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": effective_user},
+                            {"role": "user", "content": user_input},
                         ],
                         response_format={"type": "json_object"},
                         max_tokens=self.consultant_max_tokens,

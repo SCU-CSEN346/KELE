@@ -22,12 +22,15 @@ dependencies = [
     "uvicorn>=0.34.0",
     "pydantic>=2.13.4",
     "google-genai>=2.0.1",
+    "peft>=0.19.1",
+    "trl>=1.4.0",
 ]
 
 [project.scripts]
 kele = "src.project.kele:main"
 kele-eval = "src.project.evaluate:main"
 serve-teacher = "src.project.serve_teacher:main"
+tournament = "src.project.tournament:main"
 test = "src.project.scripts:test"
 lint = "src.project.scripts:lint"
 

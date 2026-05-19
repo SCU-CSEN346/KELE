@@ -44,6 +44,7 @@ def create_system(
         max_teaching_rounds=cfg.max_teaching_rounds,
         consultant_max_tokens=cfg.consultant.max_tokens,
         consultant_disable_thinking=cfg.consultant.disable_thinking,
+        consultant_thinking_budget=cfg.consultant.thinking_budget,
         consultant_num_ctx=cfg.consultant.num_ctx,
     )
 
@@ -92,15 +93,18 @@ def run_single_dialogue(system: SocraticTeachingSystem, item: dict) -> dict:
         student_input = turn["student"]
         teacher_response = system.process_student_input(student_input)
 
-        generated_turns.append(
-            {
-                "student": student_input,
-                "state": system.current_state,
-                "teacher_response": teacher_response,
-                "ground_truth_teacher": turn["teacher"],
-                "ground_truth_state": turn["state"],
-            }
-        )
+        turn_record: dict = {
+            "student": student_input,
+            "state": system.current_state,
+            "teacher_response": teacher_response,
+            "ground_truth_teacher": turn["teacher"],
+            "ground_truth_state": turn["state"],
+        }
+        thinking = getattr(system, "_last_thinking_content", None)
+        if thinking:
+            turn_record["thinking_content"] = thinking
+
+        generated_turns.append(turn_record)
 
         # If we hit the summary stage, stop
         if system.current_state == "e34":
@@ -159,7 +163,7 @@ def run_batch_evaluation(
     print(f"Consultant model: {system.consultant_model_name}")
     print("-" * 60)
     print(
-        f"  {'#':>9}  {'id':<8}  {'turns':>5}  {'time':>5}  {'%':>5}  {'dlg/s':>6}  {'ETA':>5}  status"
+        f"  {'#':>9}  {'id':<8}  {'turns':>5}  {'time':>5}  {'%':>5}  {'dlg/hr':>6}  {'ETA':>5}  status"
     )
     print("-" * 60)
 
@@ -194,7 +198,7 @@ def run_batch_evaluation(
                 f"{CLR}  {pos:>4}/{len(dataset)}  id={item_id:04d}"
                 f"  {turns:>5} turns  {secs:>4.0f}s"
                 f"  {completed / len(dataset) * 100:>4.1f}%"
-                f"  {rate:>5.2f}  {remaining / 60:>4.0f}m  ✓"
+                f"  {rate * 3600:>6.1f}  {remaining / 60:>4.0f}m  ✓"
             )
         except Exception as e:
             error_result = {"id": item_id, "error": str(e)}
@@ -208,13 +212,13 @@ def run_batch_evaluation(
                 f"{CLR}  {pos:>4}/{len(dataset)}  id={item_id:04d}"
                 f"  {'?':>5} turns  {'?':>4}s"
                 f"  {completed / len(dataset) * 100:>4.1f}%"
-                f"  {rate:>5.2f}  {remaining / 60:>4.0f}m  ERROR: {e}"
+                f"  {rate * 3600:>6.1f}  {remaining / 60:>4.0f}m  ERROR: {e}"
             )
 
         with open(progress_log, "w") as f:
             f.write(
                 f"{completed}/{len(dataset)} {completed / len(dataset) * 100:.1f}%"
-                f" {rate:.2f} dlg/s ETA {remaining / 60:.0f}m elapsed {elapsed / 60:.0f}m\n"
+                f" {rate * 3600:.1f} dlg/hr ETA {remaining / 60:.0f}m elapsed {elapsed / 60:.0f}m\n"
             )
 
     print(f"\nDone. {completed} dialogues saved to {dialogues_dir}")
@@ -227,6 +231,7 @@ def run_batch_evaluation(
         "teacher_base_url": cfg.teacher.base_url,
         "consultant_model": cfg.consultant.model_name,
         "consultant_base_url": cfg.consultant.base_url,
+        "thinking_budget": cfg.consultant.thinking_budget,
         "max_teaching_rounds": cfg.max_teaching_rounds,
         "unified": unified,
         "total_dialogues": len(dataset),

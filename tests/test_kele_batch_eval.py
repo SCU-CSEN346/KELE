@@ -9,7 +9,9 @@ from src.project import kele
 def fake_config():
     return SimpleNamespace(
         teacher=SimpleNamespace(model_name="teacher-model", base_url="http://teacher"),
-        consultant=SimpleNamespace(model_name="consultant-model", base_url="http://consultant"),
+        consultant=SimpleNamespace(
+            model_name="consultant-model", base_url="http://consultant", thinking_budget=0
+        ),
         max_teaching_rounds=8,
     )
 
