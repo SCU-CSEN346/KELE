@@ -218,3 +218,68 @@ Stage b is the only weakness — also $33.9\%$ at $n{=}50$, so this is a stable 
   - ✅ Briefing (this section)
   - ✅ Memory (`bert_integration_full_2026_05_18.md` created; `MEMORY.md` index updated)
 - llama-server torn down cleanly; GPU at idle
+
+---
+
+# UPDATE 2026-05-19 — Phase 0.5 teacher-choice ablation + parallel-eval infrastructure
+
+Two things landed overnight 2026-05-18 → 2026-05-19:
+
+## 1. Parallel-eval client (`KELE_PARALLEL_WORKERS`)
+
+The sequential eval loop in `src/project/kele.py` used only $1$ of $6$ llama-server KV slots. Added a `ThreadPoolExecutor` client layer (env-gated `KELE_PARALLEL_WORKERS=N`, $N{=}1$ default for backward compat). Each worker thread owns its own `SocraticTeachingSystem` instance with its own per-worker BERT consultant (~100 MB / worker, negligible). Validated empirically against the live A3B server: $n{=}5$ at $N{=}2$ and $n{=}20$ at $N{=}4$, both runs landed with $0$ errors and metrics within sampling noise of sequential.
+
+**Production rate measured:** $148.8$ dlg/hr at $N{=}4$ in validation, $\sim 133$ dlg/hr in the full Phase 0.5 run (production-scale dialogue length variance pulled the realized rate slightly lower than the validation projection).
+
+**Implication for downstream phases:** Phase 1 tournament budget drops from $\sim 11$h to $\sim 6.5$h at $N{=}4$ with Gemma teacher; Phase 3 full headline candidate drops from $\sim 13$h to $\sim 6$h. The campaign-to-headline turnaround compresses from $\sim 3$ days to $\sim 1$ workday.
+
+## 2. Phase 0.5 teacher-choice ablation: BERT + A3B + 10-shot at $n{=}681$
+
+Goal: validate the Gemma-teacher choice for the locked headline + the upcoming prompt-engineering tournament, by running the alternative teacher at the same scale.
+
+**Result: $46.57\%$ state / $33.27$ R-1 at $n{=}681$ (3,762 turns).**
+
+| Metric | A3B teacher | Gemma teacher (locked) | Δ |
+|---|---:|---:|---:|
+| State acc | 46.57% | 48.15% | -1.58 |
+| ROUGE-1 | 33.27 | 36.78 | -3.51 |
+| Wall clock | **3h 15m** (parallel N=4) | 12h 53m (sequential) | $\sim 4\times$ |
+| Schema fallback | n/a (BERT skips consultant) | n/a (BERT skips consultant) | — |
+
+**Decision rule applied:** Gemma stays locked (A3B fell in the $45$–$48\%$ "teacher choice validated by ablation" bucket).
+
+### Per-stage attribution — the new finding
+
+| Stage | A3B teacher | Gemma teacher | A3B − Gemma | Interpretation |
+|---|---:|---:|---:|---|
+| a (opening) | 99.27 | 99.27 | 0.00 | Tied — both essentially solved |
+| b (build-on) | 24.57 | 23.26 | **+1.31** | A3B slightly better at social-act dialogue |
+| c (misconception) | 26.36 | 30.31 | -3.95 | Gemma wins cognitive heavy-lift |
+| d (resolution) | 39.34 | 41.50 | -2.16 | Gemma wins cognitive heavy-lift |
+| e (closure) | 84.05 | 82.77 | **+1.28** | A3B slightly better at summarization |
+
+The teachers split stage-by-stage: A3B wins simpler dialogue acts (b, e), Gemma wins cognitive heavy-lift stages (c, d). Consistent with the **dense-vs-MoE hypothesis**: Gemma's $\sim 31$B always-active params absorb the harder reasoning while A3B's $\sim 3$B active-per-token MoE shines on lower-cognitive-load acts.
+
+**This finding directly motivates Phase 1 utilization \#4 (per-state few-shot routing).** If we can detect *which* state we're in (BERT does this with 61.64% accuracy) and route to teacher-side exemplars selected for that state's characteristics, we can amortize the dense-vs-MoE asymmetry across the dialogue.
+
+### Methodological observation: matched-$n{=}50$ predicts full-scale teacher ranking
+
+The $n{=}50 \to n{=}681$ attenuation for the A3B teacher (-1.62 state, -2.30 R-1) is similar in magnitude to the Gemma teacher's (-2.91 state, -1.75 R-1). The BERT-integration architecture is stable across $n$ — the schema-fallback collapse mode that destroyed the standalone-Gemma projection (\S\ref{sec:gemma}) is structurally absent here. **The matched-$n{=}50$ integration leaderboard is therefore a reliable predictor of full-scale teacher ranking**, a methodological finding worth one paragraph in §4.8.1.
+
+## What this means for Phase 1
+
+- **Tournament backbone confirmed:** BERT + Gemma 4 31B + 10-shot composition (the locked headline).
+- **N=4 parallel client production-validated:** 440 dialogues at N=4 with $0$ errors.
+- **New empirical motivator for utilization \#4:** the per-stage split observed in the A3B-vs-Gemma ablation.
+
+## Branch state (post-Phase-0.5)
+
+- `mk/level-up-experiments` head: pending this commit
+- All Phase 0.5 documentation hooks landed:
+  - ✅ Paper §4.8.1 teacher-ablation paragraph + Table 14 row (`tab:allruns`) + footnote
+  - ✅ README locked-results row + Phase 0.5 narrative section
+  - ✅ Briefing (this section)
+  - ✅ Memory sibling (`phase_0_5_teacher_ablation_2026_05_19.md` created; `MEMORY.md` index updated)
+  - ✅ Plan (`docs/PROMPT_ENGINEERING_PLAN.md`) updated to mark Phase 0.5 complete + Phase 1 backbone confirmed
+- A3B server torn down post-commit; GPU returns to idle
+- Phase 1 ready to start

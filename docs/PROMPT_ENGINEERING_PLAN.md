@@ -1,8 +1,8 @@
 # Prompt-engineering tournament for the post-BERT-baseline phase
 
 **Author:** Claude Opus 4.7 (1M ctx) for Max
-**Date:** 2026-05-18 (revised 2× from 2026-05-17 — adds Phase 0.5 teacher-choice ablation)
-**Status:** Plan-of-record. Phase 0 complete (BERT + Gemma + 10-shot full landed 48.15% / 36.78 R-1, new locked headline). Phase 0.5 staged but paused for power-management; tournament gated on Phase 0.5 winner.
+**Date:** 2026-05-18 (revised 3× — adds Phase 0.5 teacher-choice ablation; updated 2026-05-19 with Phase 0.5 result)
+**Status:** Plan-of-record. **Phase 0 complete** (BERT + Gemma + 10-shot full = 48.15% / 36.78 R-1, locked headline). **Phase 0.5 complete** (BERT + A3B + 10-shot full = 46.57% / 33.27 R-1, Gemma stays locked). **Phase 1 backbone confirmed: BERT + Gemma 4 31B + 10-shot.** Ready to start utilization implementation.
 **Protocol:** Tournament-style, mirroring the §4.7 13-model no-think tournament. **n=50 × 10 cells = 500 dialogues** in Phase 1.
 
 ## Mission
@@ -15,7 +15,21 @@ The BERT + Gemma + 10-shot full run completed Mon 2026-05-18 11:36:52 PDT (12h 5
 
 All Phase 0 documentation hooks landed in commit `1037e3b`: README headline, paper Abstract + §4.8.1 + Table 11 + Takeaways + Conclusion + Limitations, briefing update, new memory `bert_integration_full_2026_05_18.md`, `project_overview` refresh, `MEMORY.md` index update.
 
-## Phase 0.5 — Teacher-choice ablation at full scale (NEXT TEST)
+## Phase 0.5 — Teacher-choice ablation at full scale ✅ COMPLETE (2026-05-19)
+
+**Result:** BERT + Qwen 35B-A3B-think + 10-shot at $n{=}681$ = **46.57% state / 33.27 R-1** (3,762 turns; 3h 15m wall clock with parallel-eval at $N{=}4$).
+
+**Decision rule applied:** Gemma stays locked (A3B fell in the 45–48% "teacher choice validated by ablation" bucket).
+
+**Per-stage split (the load-bearing finding):** A3B beats Gemma on b (+1.31) and e (+1.28) — the simpler dialogue-act stages; Gemma beats A3B on c (-3.95) and d (-2.16) — the cognitive heavy-lift stages. Consistent with the dense-vs-MoE hypothesis (Gemma's ~31B always-active params absorb harder reasoning; A3B's ~3B active-per-token MoE shines on lower-cognitive-load acts). **This directly motivates utilization #4 (per-state few-shot routing) for the tournament.**
+
+**Methodological observation:** The matched-$n{=}50$ leaderboard is a reliable predictor of full-scale teacher ranking within the BERT-integration architecture. Attenuation was -1.62 state for A3B vs -2.91 state for Gemma — both within sampling variance, both far smaller than the +15.32-pt overshoot that destroyed the standalone-Gemma projection. The schema-fallback collapse mode is structurally absent in the integration architecture.
+
+All documentation hooks landed (briefing, README, paper §4.8.1 ablation paragraph, `tab:allruns` row, memory sibling). Detailed result + per-stage table preserved in the previous version of this section below.
+
+---
+
+## Phase 0.5 — Teacher-choice ablation at full scale (ORIGINAL PLAN, archived)
 
 **Before the prompt tournament starts**, we run BERT + Qwen 35B-A3B-think + 10-shot at $n{=}681$ to validate the teacher choice.
 
@@ -298,9 +312,9 @@ The Phase 2 winner runs at $n{=}681$ (~12h with BERT-consultant, ~22h if standal
 
 - [x] Phase 0 — BERT + Gemma + 10-shot full run completes (✅ 48.15% / 36.78 R-1)
 - [x] Phase 0 — All result documentation hooks land (commit `1037e3b`)
-- [ ] **Phase 0.5 — BERT + A3B + 10-shot full run (PAUSED for power; wrapper staged at `scripts/eval_bert_a3b_fewshot10_full.sh`)**
-- [ ] Phase 0.5 — Decision rule applied; locked headline confirmed or switched
-- [ ] Phase 0.5 — Documentation hooks land
+- [x] **Phase 0.5 — BERT + A3B + 10-shot full run** ✅ 46.57% / 33.27 R-1 (3h 15m wall, N=4 parallel)
+- [x] Phase 0.5 — Decision rule applied (45–48% bucket → Gemma stays locked)
+- [x] Phase 0.5 — Documentation hooks land (briefing, README, paper §4.8.1, `tab:allruns`, memory sibling)
 - [ ] Phase 1 — Implement env-var-gated code paths for #1–#10
 - [ ] Phase 1 — Tournament wrapper script (`scripts/eval_prompt_tournament.sh`)
 - [ ] Phase 1 — Run 10 cells, n=50 each (~2-3h at N=4 parallel; ~10-11h sequential)

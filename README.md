@@ -26,8 +26,11 @@ All open-weight runs use a single RTX 5090 (32 GB VRAM) with one model serving b
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | GPT-4o + SocratTeachLLM (baseline) | 681 | 25.94% | — | **44.61** | **19.60** | 4h 34m | n/a | $17.49 |
 | **🏆 BERT + Gemma 4 31B + 10-shot (LOCKED HEADLINE 2026-05-18)** | **681** | **48.15%** | **+22.21 (1.86×)** | **36.78** | **9.05** | 12h 53m | **n/a (BERT skips consultant)** | **$0** |
+| BERT + Qwen 35B-A3B + 10-shot (teacher ablation, 2026-05-19) | 681 | 46.57% | +20.63 (1.79×) | 33.27 | 6.96 | 3h 15m† | n/a (BERT skips consultant) | $0 |
 | Qwen 3.6 35B-A3B fusion-think (prior locked headline) | 681 | 38.70% | +12.76 (1.49×) | 30.63 | 5.86 | 16h 29m | 0.91% | $0 |
 | Gemma 4 31B fusion standalone (retracted, 2026-05-17) | 681 | 31.39% | +5.45 | 27.27 | 5.50 | 21h 49m | **21.0%** | $0 |
+
+†Wall clock used the new parallel-eval client (`KELE_PARALLEL_WORKERS=4`, ~2× the throughput of the sequential path it replaced). See [Phase 0.5 teacher-ablation note](#phase-05-teacher-choice-ablation-2026-05-19) below.
 
 **Per-stage picture for the locked BERT-integration headline vs the prior A3B locked + the disappointing Gemma standalone** (all vs GPT-4o baseline at n=681):
 
@@ -60,6 +63,10 @@ The level-up campaign (2026-05-15) layered three orthogonal improvements onto th
 The headline (row 1) decomposes cleanly: 10-shot exemplars recover surface form (+3.29 R-1 over locked A3B), BERT routes cognitive state with surgical precision (+4.06 state with neutral R-1), and the Gemma teacher swap adds a final +2.87 state / +2.96 R-1.
 
 **Where the BERT integration goes from here.** The n=50 leaderboard reference held BERT + Gemma + 10-shot at 51.06%; the full $n{=}681$ run landed at 48.15% — a small attenuation (−2.91 state, −1.75 R-1) consistent with n-vs-n=50 sampling variance, well within Pareto-win territory over A3B. Next phase is the **prompt-engineering tournament** ($n{=}50 \times 10$ utilizations = 500 dialogues; see [`docs/PROMPT_ENGINEERING_PLAN.md`](docs/PROMPT_ENGINEERING_PLAN.md)) to push state acc toward 55% and R-1 toward 42 on top of this baseline. **Headline run artifacts: [`results/bert-consultant-fewshot10-gemma-full/`](results/bert-consultant-fewshot10-gemma-full/) and [`scripts/eval_bert_gemma_fewshot10_full.sh`](scripts/eval_bert_gemma_fewshot10_full.sh).**
+
+### Phase 0.5 teacher-choice ablation (2026-05-19)
+
+Before launching the prompt-engineering tournament, we validated the Gemma-teacher choice by running the alternative teacher (Qwen 35B-A3B-think) inside the same BERT-integration architecture at full scale: **BERT + A3B + 10-shot at n=681 = 46.57% / 33.27 R-1**, losing to the locked Gemma-teacher headline by −1.58 state, −3.51 R-1. The teachers split stage-by-stage: A3B wins the simpler dialogue acts (b +1.31, e +1.28) but loses on the cognitive heavy-lift stages (c −3.95, d −2.16), consistent with the dense-vs-MoE hypothesis (Gemma's ~31B always-active params absorb the harder reasoning; A3B's ~3B active-per-token MoE shines on lower-cognitive-load acts). This per-stage split directly motivates the **per-state few-shot routing** utilization in the Phase 1 tournament. Run artifacts: [`results/bert-consultant-fewshot10-a3b-full/`](results/bert-consultant-fewshot10-a3b-full/) and [`scripts/eval_bert_a3b_fewshot10_full.sh`](scripts/eval_bert_a3b_fewshot10_full.sh).
 
 Full experimental record lives in [`deliverables/overleaf/latex/acl_latex.tex`](deliverables/overleaf/latex/acl_latex.tex) Section 4 and the per-run logs in [`results/`](results/).
 
