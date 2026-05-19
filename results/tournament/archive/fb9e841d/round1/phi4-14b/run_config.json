@@ -1,0 +1,16 @@
+{
+  "experiment": "phi4-14b",
+  "teacher_model": "Phi 4 14B",
+  "teacher_base_url": "http://localhost:8080/v1",
+  "consultant_model": "Phi 4 14B",
+  "consultant_base_url": "http://localhost:8080/v1",
+  "thinking_budget": 0,
+  "max_teaching_rounds": 8,
+  "unified": true,
+  "total_dialogues": 5,
+  "completed": 5,
+  "total_elapsed_seconds": 173.57,
+  "started_at": "2026-05-15 19:37:15",
+  "finished_at": "2026-05-15 19:40:09",
+  "unified_fallback_count": 0
+}

@@ -29,7 +29,7 @@ exec > >(tee -a "$LOG_FILE") 2>&1
 echo "Log: $(pwd)/$LOG_FILE"
 
 # ── Redirect all caches off the home directory ────────────────────────────────
-# Home dir quota on WAVE is tiny. Poetry venv + pip cache + cuda-bindings alone
+# Home dir quota on WAVE is tiny. uv venv + pip cache + cuda-bindings alone
 # can exceed it. Point everything at project (persistent) or scratch (ephemeral).
 # If the class directories aren't provisioned yet, fall back to ~/csen346-cache
 # and warn loudly.
@@ -44,10 +44,7 @@ _can_write() {
     [[ -d "$dir" ]] && touch "$probe" 2>/dev/null && rm -f "$probe"
 }
 
-if _can_write "$PROJECT_SPACE" && _can_write "$SCRATCH_SPACE"; then
-    warn_fallback=false
-else
-    warn_fallback=true
+if ! _can_write "$PROJECT_SPACE" || ! _can_write "$SCRATCH_SPACE"; then
     warn "Cannot write to $PROJECT_SPACE or $SCRATCH_SPACE"
     warn "The class directories may not be provisioned yet."
     warn "Contact your sysadmin to request access, then re-run."
@@ -57,18 +54,15 @@ else
 fi
 
 # Virtualenv: project space — survives between sessions
-export POETRY_VIRTUALENVS_PATH="$PROJECT_SPACE/.virtualenvs"
-# Poetry package cache: scratch — throwaway
-export POETRY_CACHE_DIR="$SCRATCH_SPACE/.cache/poetry"
-# pip download/wheel cache: scratch — throwaway
-export PIP_CACHE_DIR="$SCRATCH_SPACE/.cache/pip"
+export UV_PROJECT_ENVIRONMENT="$PROJECT_SPACE/.venv"
+# uv download/wheel cache: scratch — throwaway
+export UV_CACHE_DIR="$SCRATCH_SPACE/.cache/uv"
 # pip needs a writable TMPDIR for large wheel unpacking
 export TMPDIR="$SCRATCH_SPACE/.tmp/$USER"
 
-mkdir -p "$POETRY_VIRTUALENVS_PATH" "$POETRY_CACHE_DIR" "$PIP_CACHE_DIR" "$TMPDIR"
-echo "Virtualenvs : $POETRY_VIRTUALENVS_PATH"
-echo "Poetry cache: $POETRY_CACHE_DIR"
-echo "pip cache   : $PIP_CACHE_DIR"
+mkdir -p "$UV_PROJECT_ENVIRONMENT" "$UV_CACHE_DIR" "$TMPDIR"
+echo "Virtualenv  : $UV_PROJECT_ENVIRONMENT"
+echo "uv cache    : $UV_CACHE_DIR"
 echo "TMPDIR      : $TMPDIR"
 
 echo ""
@@ -115,46 +109,46 @@ done
 [[ -n "$PYTHON" ]] || die "Python >=3.12 not found even after module load. Check available modules with: module spider Python"
 info "Using $PYTHON — $("$PYTHON" --version)"
 
-# ── 2. Poetry ─────────────────────────────────────────────────────────────────
-step "Checking Poetry"
+# ── 2. uv ─────────────────────────────────────────────────────────────────────
+step "Checking uv"
 export PATH="$HOME/.local/bin:$PATH"
-if ! command -v poetry &>/dev/null; then
-    info "Poetry not found — installing via installer..."
-    curl -sSL https://install.python-poetry.org | "$PYTHON" -
+if ! command -v uv &>/dev/null; then
+    info "uv not found — installing via installer..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
     info "Added \$HOME/.local/bin to PATH for this session."
     info "Add the following to your ~/.bashrc or ~/.bash_profile:"
+    # shellcheck disable=SC2016  # single quotes are intentional — printing shell code verbatim
     echo '    export PATH="$HOME/.local/bin:$PATH"'
 fi
-poetry --version
+uv --version
 
 # ── 3. Project dependencies ───────────────────────────────────────────────────
-step "Installing project deps (poetry install)"
-poetry env use "$PYTHON"
-poetry install --with dev --no-interaction
+step "Installing project deps (uv sync)"
+uv sync --group dev --python "$PYTHON"
 
 # ── 4. PyTorch — cu128 wheels (WAVE ships CUDA 12.x; PyTorch module is broken) ─
 step "Installing PyTorch (cu128)"
 info "Installing torch, torchvision, torchaudio from pytorch.org/whl/cu128..."
-poetry run pip install --quiet \
+uv run pip install --quiet \
     torch torchvision torchaudio \
     --index-url https://download.pytorch.org/whl/cu128
 info "PyTorch installed."
 
 # ── 5. vLLM ───────────────────────────────────────────────────────────────────
 step "Installing vLLM"
-poetry run pip install --quiet "vllm>=0.7"
-info "vLLM installed: $(poetry run python -c 'import vllm; print(vllm.__version__)')"
+uv run pip install --quiet "vllm>=0.7"
+info "vLLM installed: $(uv run python -c 'import vllm; print(vllm.__version__)')"
 
 # ── 5a. Pin packages to satisfy vLLM's constraints ────────────────────────────
-# poetry install may upgrade transformers/setuptools beyond what vLLM supports.
+# uv sync may pull versions of transformers/setuptools that vLLM rejects.
 # Pin them back so vLLM doesn't break at runtime.
 step "Pinning vLLM-compatible package versions"
-poetry run pip install --quiet "transformers<5.0.0" "setuptools<81.0.0"
+uv run pip install --quiet "transformers<5.0.0" "setuptools<81.0.0"
 info "Pinned transformers and setuptools."
 
 # ── 6. Sanity check ───────────────────────────────────────────────────────────
 step "Sanity check"
-poetry run python - <<'PY'
+uv run python - <<'PY'
 import torch, sys
 
 print(f"  torch    {torch.__version__}")
@@ -188,11 +182,11 @@ if [[ "$DOWNLOAD_MODELS" == true ]]; then
     info "Model destination: $HF_HOME"
 
     info "Downloading SocratTeachLLM → $HF_HOME/SocratTeachLLM"
-    poetry run hf download ulises-c/SocratTeachLLM \
+    uv run hf download ulises-c/SocratTeachLLM \
         --local-dir "$HF_HOME/SocratTeachLLM"
 
     info "Downloading Qwen3.5-9B → $HF_HOME/Qwen3.5-9B"
-    poetry run hf download Qwen/Qwen3.5-9B \
+    uv run hf download Qwen/Qwen3.5-9B \
         --local-dir "$HF_HOME/Qwen3.5-9B"
 
     info "Models downloaded to $HF_HOME"

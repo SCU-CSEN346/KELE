@@ -81,7 +81,7 @@ echo "Log: $LOG_FILE"
 echo "Test: curl http://localhost:$PORT/v1/models"
 echo "---"
 
-exec poetry run vllm serve "$MODEL_PATH" \
+exec uv run vllm serve "$MODEL_PATH" \
     --served-model-name "$MODEL_NAME" \
     --host "$HOST" \
     --port "$PORT" \

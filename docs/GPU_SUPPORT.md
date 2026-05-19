@@ -12,7 +12,6 @@ Hardware tested across this project and the constraints each imposes on the serv
 | NVIDIA L40S | 48 GB | Ada Lovelace | 8.9 | NVIDIA/CUDA | bfloat16 | no | ✅ | vLLM |
 | NVIDIA Tesla V100 | 32 GB | Volta | 7.0 | NVIDIA/CUDA | float16 | **yes** | ✅ | vLLM |
 | Apple Mac Mini M4 | unified | Apple Silicon | — | Metal | — | — | n/a | Ollama (consultant only) |
-| NVIDIA RTX 3070 | 8 GB | Ampere | 8.6 | NVIDIA/CUDA | — | no | — | retired |
 
 ## Serving path decision
 

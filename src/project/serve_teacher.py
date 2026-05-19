@@ -13,9 +13,9 @@ For a GPU with <12 GB VRAM, set TEACHER_USE_BNB=true to load in NF4 4-bit
 (requires bitsandbytes; not supported on ROCm gfx1201).
 
 Usage:
-  poetry run python -m src.project.serve_teacher
+  uv run python -m src.project.serve_teacher
   # or with a custom model path:
-  TEACHER_LOCAL_PATH=~/hf_models/SocratTeachLLM poetry run python -m src.project.serve_teacher
+  TEACHER_LOCAL_PATH=~/hf_models/SocratTeachLLM uv run python -m src.project.serve_teacher
 """
 
 import copy
@@ -167,17 +167,17 @@ def load_runtime(model_path: str):
         log.info("Loading with bitsandbytes 4-bit (NF4) on %s", device)
         kwargs["quantization_config"] = BitsAndBytesConfig(
             load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch.float16,
+            bnb_4bit_compute_dtype=torch.float16,  # type: ignore[reportPrivateImportUsage]
             bnb_4bit_use_double_quant=True,
             bnb_4bit_quant_type="nf4",
         )
-        kwargs["dtype"] = torch.float16
+        kwargs["dtype"] = torch.float16  # type: ignore[reportPrivateImportUsage]
         kwargs["device_map"] = {"": 0}
     else:
         dtype = (
-            torch.bfloat16
+            torch.bfloat16  # type: ignore[reportPrivateImportUsage]
             if (device == "cuda" and torch.cuda.is_bf16_supported())
-            else torch.float16
+            else torch.float16  # type: ignore[reportPrivateImportUsage]
         )
         log.info("Loading without bitsandbytes, dtype=%s, device=%s", dtype, device)
         kwargs["dtype"] = dtype
@@ -192,7 +192,7 @@ def load_runtime(model_path: str):
 
     if not use_bnb:
         log.info("Moving model to %s...", device)
-        model = model.to(device)
+        model = model.to(device)  # type: ignore[reportArgumentType]
 
     # ChatGLM's generation_config.json sets max_length=128000; clear it so passing
     # max_new_tokens to generate() doesn't trigger a noisy conflict warning.
@@ -233,7 +233,8 @@ def _patch_chatglm_dynamic_cache(model) -> None:
                 # kv_caches = [None]*n as it would on a cold first pass.
                 if pkv.get_seq_length() > 0:
                     kwargs["past_key_values"] = tuple(
-                        (layer.keys, layer.values) for layer in pkv.layers
+                        (layer.keys, layer.values)  # type: ignore[reportAttributeAccessIssue]
+                        for layer in pkv.layers  # type: ignore[reportAttributeAccessIssue]
                     )
                 else:
                     kwargs["past_key_values"] = None
@@ -341,12 +342,12 @@ def create_app() -> FastAPI:
         app.state.turn_count += 1
         app.state.last_prompt_len = input_len
 
-        attention_mask = torch.ones_like(input_ids)
+        attention_mask = torch.ones_like(input_ids)  # type: ignore[reportPrivateImportUsage]
         max_new_tokens = min(req.max_tokens, app.state.runtime_config["max_new_tokens"])
         t0 = time.perf_counter()
         with app.state.inference_lock:
             with torch.inference_mode():
-                output_ids = model.generate(
+                output_ids = model.generate(  # type: ignore[reportAttributeAccessIssue]
                     input_ids,
                     attention_mask=attention_mask,
                     max_new_tokens=max_new_tokens,
@@ -407,8 +408,8 @@ def main() -> None:
     runtime_config = get_runtime_config()
     uvicorn.run(
         app,
-        host=runtime_config["host"],
-        port=runtime_config["port"],
+        host=str(runtime_config["host"]),
+        port=int(runtime_config["port"]),
         log_level="info",
         access_log=False,
     )

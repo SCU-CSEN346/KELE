@@ -14,9 +14,13 @@ CONSULTANT_BASE_URL = os.environ.get("CONSULTANT_BASE_URL")
 CONSULTANT_MODEL = os.environ.get("CONSULTANT_MODEL_NAME", "gemini-2.0-flash")
 
 
+def _key_is_placeholder(key: str) -> bool:
+    return not key or "your" in key.lower() or key.startswith("<")
+
+
 @pytest.fixture
 def client():
-    if not CONSULTANT_API_KEY:
+    if _key_is_placeholder(CONSULTANT_API_KEY or ""):
         pytest.skip("Missing CONSULTANT_API_KEY")
     return openai.OpenAI(api_key=CONSULTANT_API_KEY, base_url=CONSULTANT_BASE_URL)
 

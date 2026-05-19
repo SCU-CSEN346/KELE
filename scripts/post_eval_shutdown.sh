@@ -11,7 +11,7 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG"; }
 log "watcher started. waiting for $DONE_MARKER"
 
 # Poll for completion (up to 8 hours as safety upper bound)
-for i in $(seq 1 960); do
+for _ in $(seq 1 960); do
     if [ -f "$DONE_MARKER" ]; then
         log "eval complete — marker file found"
         break

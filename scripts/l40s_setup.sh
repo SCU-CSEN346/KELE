@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # One-time setup for a local dual-GPU machine (tested on 2× NVIDIA L40S 48 GB).
-# Works on any Linux box with NVIDIA drivers and Poetry installed.
+# Works on any Linux box with NVIDIA drivers and uv installed.
 #
 # Usage:
 #   bash scripts/l40s_setup.sh              # Install deps only
@@ -10,10 +10,11 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # Strip pyenv shims from PATH entirely. pyenv shims exit 127 when pyenv doesn't
-# manage the Python version in use, and Poetry's own internals also call bare
-# `python` through PATH — so shims must be gone before any poetry invocation.
+# manage the Python version in use, and uv also calls bare `python` through
+# PATH — so shims must be gone before any uv invocation.
 if [[ -n "${PYENV_ROOT:-}" ]] || echo "$PATH" | grep -q '\.pyenv'; then
-    export PATH="$(echo "$PATH" | tr ':' '\n' | grep -v '\.pyenv' | tr '\n' ':' | sed 's/:$//')"
+    PATH="$(echo "$PATH" | tr ':' '\n' | grep -v '\.pyenv' | tr '\n' ':' | sed 's/:$//')"
+    export PATH
     unset PYENV_VERSION PYENV_ROOT 2>/dev/null || true
 fi
 
@@ -105,7 +106,8 @@ if ! _has_python312; then
     if command -v pyenv &>/dev/null; then
         info "Python >=3.12 not in PATH — trying pyenv..."
         pyenv install --skip-existing 3.12
-        export PATH="$(pyenv root)/versions/3.12.*/bin:$PATH"
+        PATH="$(pyenv root)/versions/3.12.*/bin:$PATH"
+        export PATH
     else
         die "Python >=3.12 not found. Install it via pyenv, your distro's package manager, or from python.org."
     fi
@@ -123,69 +125,45 @@ done
 [[ -n "$PYTHON" ]] || die "Python >=3.12 still not found after pyenv. Check your shell PATH."
 info "Using $PYTHON — $("$PYTHON" --version)"
 
-# ── 4. Poetry ─────────────────────────────────────────────────────────────────
-step "Checking Poetry"
+# ── 4. uv ─────────────────────────────────────────────────────────────────────
+step "Checking uv"
 export PATH="$HOME/.local/bin:$PATH"
-if ! command -v poetry &>/dev/null; then
-    info "Poetry not found — installing..."
-    curl -sSL https://install.python-poetry.org | "$PYTHON" -
+if ! command -v uv &>/dev/null; then
+    info "uv not found — installing..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
     info "Add the following to your ~/.bashrc or ~/.zshrc:"
+    # shellcheck disable=SC2016  # single quotes are intentional — printing shell code verbatim
     echo '    export PATH="$HOME/.local/bin:$PATH"'
 fi
-poetry --version
+uv --version
 
 # ── 5. Project dependencies ───────────────────────────────────────────────────
-step "Installing project deps (poetry install)"
-# Resolve the real Python binary path, bypassing pyenv shims (which exit 127
-# when pyenv doesn't manage that version, even if the system has it).
-_real_python_path() {
-    local cmd="$1"
-    # Prefer well-known system paths so we never hit a shim.
-    for dir in /usr/bin /usr/local/bin /opt/homebrew/bin; do
-        [[ -x "$dir/$cmd" ]] && echo "$dir/$cmd" && return
-    done
-    # Fallback: first non-pyenv entry on PATH.
-    which -a "$cmd" 2>/dev/null | grep -v '\.pyenv' | head -1
-}
-PYTHON_PATH=$(_real_python_path "$PYTHON")
-[[ -n "$PYTHON_PATH" ]] || PYTHON_PATH="$PYTHON"
-info "Resolved Python path: $PYTHON_PATH"
-poetry env use "$PYTHON_PATH"
-
-# Ubuntu 24.04 ships a Python 3.12 tarfile.py backported from 3.13 that calls
-# os.path.realpath(..., strict=os.path.ALLOW_MISSING), but ALLOW_MISSING only
-# exists in 3.13+. Inject a sitecustomize.py via PYTHONPATH to add the
-# missing attribute before pip's tarfile extraction runs.
-_PATCH_DIR=$(mktemp -d)
-cat > "$_PATCH_DIR/sitecustomize.py" <<'PYEOF'
-import os
-if not hasattr(os.path, 'ALLOW_MISSING'):
-    os.path.ALLOW_MISSING = 0
-PYEOF
-PYTHONPATH="${_PATCH_DIR}${PYTHONPATH:+:$PYTHONPATH}" poetry install --with dev --no-interaction
-rm -rf "$_PATCH_DIR"
+step "Installing project deps (uv sync)"
+# uv uses its own installer (Rust-based) and does not invoke pip, so the
+# Ubuntu 24.04 tarfile.py backport bug does not affect uv's Rust-based installer.
+uv sync --group dev --python "$PYTHON"
 
 # ── 6. PyTorch ───────────────────────────────────────────────────────────────
 step "Installing PyTorch ($TORCH_INDEX)"
-poetry run pip install --quiet \
+uv run pip install --quiet \
     torch torchvision torchaudio \
     --index-url "https://download.pytorch.org/whl/$TORCH_INDEX"
 info "PyTorch installed."
 
 # ── 7. vLLM ───────────────────────────────────────────────────────────────────
 step "Installing vLLM"
-poetry run pip install --quiet "vllm>=0.7"
-info "vLLM installed: $(poetry run python -c 'import vllm; print(vllm.__version__)')"
+uv run pip install --quiet "vllm>=0.7"
+info "vLLM installed: $(uv run python -c 'import vllm; print(vllm.__version__)')"
 
 # ── 8. Pin vLLM-compatible versions ──────────────────────────────────────────
-# poetry install may pull versions of transformers/setuptools that vLLM rejects.
+# uv sync may pull versions of transformers/setuptools that vLLM rejects.
 step "Pinning vLLM-compatible package versions"
-poetry run pip install --quiet "transformers<5.0.0" "setuptools<81.0.0"
+uv run pip install --quiet "transformers<5.0.0" "setuptools<81.0.0"
 info "Pinned transformers and setuptools."
 
 # ── 9. Sanity check ───────────────────────────────────────────────────────────
 step "Sanity check"
-poetry run python - <<'PY'
+uv run python - <<'PY'
 import torch, sys
 
 print(f"  torch  {torch.__version__}")
@@ -233,19 +211,19 @@ if [[ "$DOWNLOAD_MODELS" == true ]]; then
     info "Model destination: $HF_HOME"
 
     # Require HF auth — hf download will fail with a confusing error if not logged in.
-    if ! poetry run hf auth whoami &>/dev/null; then
+    if ! uv run hf auth whoami &>/dev/null; then
         warn "Not logged in to Hugging Face."
-        warn "Run: poetry run hf auth login"
+        warn "Run: uv run hf auth login"
         warn "Then re-run with --models to download."
         exit 1
     fi
 
     info "Downloading SocratTeachLLM (~19 GB)..."
-    poetry run hf download ulises-c/SocratTeachLLM \
+    uv run hf download ulises-c/SocratTeachLLM \
         --local-dir "$HF_HOME/SocratTeachLLM"
 
     info "Downloading Qwen3.5-9B (~17 GB)..."
-    poetry run hf download Qwen/Qwen3.5-9B \
+    uv run hf download Qwen/Qwen3.5-9B \
         --local-dir "$HF_HOME/Qwen3.5-9B"
 
     info "Downloads complete."
@@ -266,14 +244,14 @@ if [[ "$DOWNLOAD_MODELS" == false ]]; then
     echo "       make serve-dual-gpu"
     echo ""
     echo "  3. Run evaluation (in a second terminal once servers are ready):"
-    echo "       poetry run kele-eval"
+    echo "       uv run kele-eval"
 else
     echo "Next steps:"
     echo "  1. Start both model servers:"
     echo "       make serve-dual-gpu"
     echo ""
     echo "  2. Run evaluation (in a second terminal once servers are ready):"
-    echo "       poetry run kele-eval"
+    echo "       uv run kele-eval"
 fi
 echo ""
 echo "  Monitor GPU usage:"

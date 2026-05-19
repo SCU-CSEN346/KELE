@@ -40,7 +40,43 @@ warn "If the host PC can't reach port $PORT, check macOS firewall:"
 warn "  System Settings → Network → Firewall → Options"
 warn "  Make sure incoming connections on port $PORT are allowed."
 
-# ── 4. Print this machine's address ──────────────────────────────────────────
+# ── 4. Restart Ollama to pick up the new env var ──────────────────────────────
+# The running instance still has the old binding (127.0.0.1). Kill it so the
+# launchd re-spawn picks up OLLAMA_HOST from the environment we just set.
+info "Restarting Ollama service..."
+if pgrep -x "ollama" > /dev/null 2>&1; then
+    pkill -x "ollama" || true
+    sleep 2
+fi
+
+# Re-launch via the app bundle if present, otherwise let launchd handle it.
+if [[ -d "/Applications/Ollama.app" ]]; then
+    open -a Ollama
+    sleep 3
+else
+    warn "Ollama.app not found at /Applications/Ollama.app."
+    warn "Start Ollama manually: OLLAMA_HOST=0.0.0.0 ollama serve"
+fi
+
+# ── 5. Verify Ollama is listening on 0.0.0.0 ─────────────────────────────────
+info "Waiting for Ollama to come back up..."
+for _ in $(seq 1 15); do
+    if curl -s http://localhost:11434/api/version > /dev/null 2>&1; then
+        break
+    fi
+    sleep 1
+done
+
+LISTEN=$(lsof -iTCP:11434 -sTCP:LISTEN -n -P 2>/dev/null | awk 'NR>1 {print $9}' | head -1)
+if [[ "$LISTEN" == *"0.0.0.0"* ]] || [[ "$LISTEN" == *"*"* ]]; then
+    info "Ollama is listening on all interfaces: $LISTEN"
+else
+    warn "Ollama may still be bound to localhost only: $LISTEN"
+    warn "If the host PC can't connect, quit Ollama.app and run:"
+    warn "  OLLAMA_HOST=0.0.0.0 ollama serve"
+fi
+
+# ── 6. Print this machine's address ──────────────────────────────────────────
 MAC_HOSTNAME=$(scutil --get LocalHostName 2>/dev/null || echo "")
 MAC_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "unknown")
 MAC_ADDR="${MAC_HOSTNAME:+${MAC_HOSTNAME}.local}"

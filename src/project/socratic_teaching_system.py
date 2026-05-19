@@ -311,15 +311,14 @@ e34：学生正确给出题目答案
             for attempt in range(6):
                 try:
                     extra: dict[str, Any] = {}
-                    if self.consultant_num_ctx:
-                        extra["options"] = {"num_ctx": self.consultant_num_ctx}
                     if self.consultant_disable_thinking:
                         extra["chat_template_kwargs"] = {"enable_thinking": False}
                     elif self.consultant_thinking_budget > 0:
                         extra["chat_template_kwargs"] = {
-                            "enable_thinking": True,
-                            "thinking_budget": self.consultant_thinking_budget,
+                            "thinking_budget": self.consultant_thinking_budget
                         }
+                    if self.consultant_num_ctx:
+                        extra["options"] = {"num_ctx": self.consultant_num_ctx}
                     response = self.consultant_client.chat.completions.create(
                         model=self.consultant_model_name,
                         messages=[
@@ -350,7 +349,7 @@ e34：学生正确给出题目答案
                 raise RuntimeError("Consultant call failed after 6 retries on rate limits")
 
             # 获取原始响应内容
-            raw_content = response.choices[0].message.content
+            raw_content = response.choices[0].message.content or ""
 
             # Strip markdown code fences that some models emit despite json_object format.
             stripped = raw_content.strip()
@@ -430,7 +429,7 @@ e34：学生正确给出题目答案
             )
 
             # 获取返回结果
-            return response.choices[0].message.content
+            return response.choices[0].message.content or ""
 
         except Exception as e:
             print(f"苏格拉底教师调用失败: {e}")

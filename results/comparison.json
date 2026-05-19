@@ -1,0 +1,38 @@
+{
+  "baseline": {
+    "n_turns": 4294,
+    "rouge1": 44.61,
+    "rouge2": 26.04,
+    "rougeL": 38.02,
+    "bleu4": 19.6,
+    "state_accuracy": {
+      "overall": 25.94,
+      "per_stage": {
+        "a": 95.15,
+        "b": 36.93,
+        "c": 4.7,
+        "d": 5.04,
+        "e": 11.92
+      },
+      "total_turns": 4294
+    }
+  },
+  "qwen35b-a3b-local-n50-unified-fewshot": {
+    "n_turns": 298,
+    "rouge1": 33.33,
+    "rouge2": 12.7,
+    "rougeL": 23.64,
+    "bleu4": 6.56,
+    "state_accuracy": {
+      "overall": 37.58,
+      "per_stage": {
+        "a": 84.0,
+        "b": 44.07,
+        "c": 15.62,
+        "d": 13.73,
+        "e": 52.38
+      },
+      "total_turns": 298
+    }
+  }
+}

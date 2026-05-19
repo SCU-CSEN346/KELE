@@ -12,7 +12,7 @@ EXTRA_ARGS=("$@")
 
 # ── Load teacher server config ────────────────────────────────────────────────
 set -a
-# shellcheck source=../configs/teachers/socrat-r9700.env
+# shellcheck source=/dev/null
 source configs/teachers/socrat-r9700.env
 set +a
 

@@ -18,6 +18,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 
 set -a
+# shellcheck source=/dev/null
 source "$ENV_FILE"
 set +a
 
