@@ -432,9 +432,10 @@ e34：学生正确给出题目答案
                 pass  # leave system_prompt unchanged on any import issue
 
         # 准备用户输入
+        formatted_history = self.get_formatted_history()
         user_input = f"""
 历史对话记录:
-{self.get_formatted_history()}
+{formatted_history}
 
 当前学生输入: {student_input}
 
@@ -442,19 +443,28 @@ e34：学生正确给出题目答案
 苏格拉底教学顾问建议的操作: {action}
 """
 
-        # 调用API - 使用教师专用客户端
+        # Apply Phase 1 prompt-engineering tournament utilizations (env-gated).
+        # Default (no env vars set) reproduces the Phase 0 locked behavior exactly.
         try:
-            response = self.teacher_client.chat.completions.create(
-                model=self.teacher_model_name,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_input},
-                ],
+            from src.project.tournament_utilizations import (  # noqa: PLC0415
+                apply_pre_call,
+                call_teacher_wrapped,
             )
-
-            # 获取返回结果
-            return response.choices[0].message.content or ""
-
+            system_prompt, user_input = apply_pre_call(
+                system_prompt,
+                user_input,
+                predicted_state=self.current_state,
+                teacher_client=self.teacher_client,
+                teacher_model_name=self.teacher_model_name,
+                formatted_history=formatted_history,
+            )
+            return call_teacher_wrapped(
+                self.teacher_client,
+                self.teacher_model_name,
+                system_prompt,
+                user_input,
+                predicted_state=self.current_state,
+            )
         except Exception as e:
             print(f"苏格拉底教师调用失败: {e}")
             return "我需要思考一下如何回答你的问题。请稍等片刻，让我组织一下思路。"
