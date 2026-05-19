@@ -6,11 +6,11 @@ authors = [{ name = "Ulises Chavarria", email = "ulises.engineer@gmail.com" }]
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "openai (>=2.36.0,<3.0.0)",
-    "transformers>=4.47.0",
+    "openai>=2.37.0,<3.0.0",
+    "transformers>=5.8.1",
     "accelerate>=1.2.0",
     "bitsandbytes>=0.45.0",
-    "huggingface-hub>=1.14.0",
+    "huggingface-hub>=1.15.0",
     "rouge-score>=0.1.2",
     "sacrebleu>=2.4.0",
     "tqdm>=4.67.0",
@@ -21,7 +21,7 @@ dependencies = [
     "fastapi>=0.115.0",
     "uvicorn>=0.34.0",
     "pydantic>=2.13.4",
-    "google-genai>=2.0.1",
+    "google-genai>=2.4.0",
     "peft>=0.19.1",
     "trl>=1.4.0",
     "tiktoken>=0.7.0",
@@ -65,7 +65,7 @@ dev = [
     "pytest>=8.0.0",
     "pytest-cov>=6.0.0",
     "pyright>=1.1.0",
-    "ruff>=0.9.0",
+    "ruff>=0.15.13",
     "codespell>=2.3.0",
     "matplotlib>=3.10.9",
 ]
