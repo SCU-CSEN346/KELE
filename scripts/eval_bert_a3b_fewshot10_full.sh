@@ -130,8 +130,14 @@ if command -v systemd-inhibit &>/dev/null; then
   INHIBIT="systemd-inhibit --what=sleep:idle --who=bert_a3b_full --why=KELE-eval"
 fi
 
+# Parallel workers default to 1 until parallel-eval is validated end-to-end.
+# Override via env, e.g.:  KELE_PARALLEL_WORKERS=4 bash scripts/eval_bert_a3b_fewshot10_full.sh
+KELE_PARALLEL_WORKERS="${KELE_PARALLEL_WORKERS:-1}"
+echo "Parallel workers: $KELE_PARALLEL_WORKERS (server -np must be ≥ this)"
+
 PATH="$ROOT/.venv/bin:$PATH" \
 KELE_FEW_SHOT_TEACHER=1 KELE_FEW_SHOT_N=10 \
+KELE_PARALLEL_WORKERS="$KELE_PARALLEL_WORKERS" \
   $INHIBIT uv run python -m src.project.kele \
     --experiment "$EXPERIMENT" \
     evaluate \

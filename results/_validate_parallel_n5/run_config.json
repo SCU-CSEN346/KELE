@@ -1,0 +1,16 @@
+{
+  "experiment": "_validate_parallel_n5",
+  "teacher_model": "Qwen 35B A3B",
+  "teacher_base_url": "http://localhost:8080/v1",
+  "consultant_model": "Qwen 35B A3B",
+  "consultant_base_url": "http://localhost:8080/v1",
+  "thinking_budget": 0,
+  "max_teaching_rounds": 8,
+  "unified": false,
+  "workers": 2,
+  "total_dialogues": 5,
+  "completed": 5,
+  "total_elapsed_seconds": 148.44,
+  "started_at": "2026-05-18 22:29:32",
+  "finished_at": "2026-05-18 22:32:00"
+}

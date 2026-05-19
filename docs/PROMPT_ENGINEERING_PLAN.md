@@ -219,6 +219,22 @@ Before the teacher call, run a 1-shot summarization of the last $k=3$ student tu
 
 Env var: `KELE_COMPRESSED_HISTORY=1`. One extra small LLM call per turn (same backbone, `max_tokens=80`). Composes with all others.
 
+## 3.5 Parallel-eval infrastructure (NEW — accelerates everything downstream)
+
+The current sequential eval loop uses only **1 of 6** llama-server KV slots. A `ThreadPoolExecutor` client layer (env-gated `KELE_PARALLEL_WORKERS=N`, default 1 for backward compat) lets concurrent dialogues fill the remaining slots. Implementation landed in `src/project/kele.py`; per-worker `SocraticTeachingSystem` isolation, crash-safe per-dialogue file output preserved, error-write + continue matches sequential behavior. CLI flag `--workers N` or env `KELE_PARALLEL_WORKERS=N`.
+
+**Throughput projection (5090, A3B-think + BERT integration):**
+
+| Workers | dlg/hr | 681 dlg | 500 dlg (Phase 1) |
+|---:|---:|---:|---:|
+| 1 (sequential) | 60 | 11 h | 8 h |
+| 4 (recommended) | ~220 | 3 h | 2.3 h |
+| 6 (server max) | ~280 | 2.4 h | 1.8 h |
+
+**Validation gate:** Phase C of the parallelization work requires (a) determinism check (n=10 sequential vs parallel, metrics within sampling noise) and (b) throughput check (n=50 at N=4). Until validated, wrappers default to N=1; flip to N=4 by default once green.
+
+**Per-model worker caps:** all three model families inherit `serve_qwen27b.sh`/`serve_gemma4_31b.sh` defaults of `-np 6 --kv-unified -ctk q4_0`. Unified KV means VRAM is paid for at server boot regardless of slot count → adding workers costs only compute, not memory. Recommended N=4 across Qwen 27B, Qwen 35B-A3B, Gemma 4 31B (leaves headroom for transient KV peaks).
+
 ## 4. Tournament protocol
 
 **Single tier: $n{=}50$ per cell.** No smoke, no mini, no early gating. Each cell is one self-contained evaluation against the locked Phase 0 reference. Mirrors the §4.7 13-model no-think tournament that produced reviewable apples-to-apples data.
@@ -287,7 +303,7 @@ The Phase 2 winner runs at $n{=}681$ (~12h with BERT-consultant, ~22h if standal
 - [ ] Phase 0.5 — Documentation hooks land
 - [ ] Phase 1 — Implement env-var-gated code paths for #1–#10
 - [ ] Phase 1 — Tournament wrapper script (`scripts/eval_prompt_tournament.sh`)
-- [ ] Phase 1 — Run 10 cells, n=50 each (~10-11h)
+- [ ] Phase 1 — Run 10 cells, n=50 each (~2-3h at N=4 parallel; ~10-11h sequential)
 - [ ] Phase 1 — Leaderboard committed; top 2-3 identified
 - [ ] Phase 2 — Composed config(s) run at n=50
 - [ ] Phase 2 — Winner committed
