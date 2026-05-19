@@ -14,6 +14,7 @@ class FakeTensor:
     def __init__(self, values):
         self.values = list(values)
         self.shape = (1, len(self.values))
+        self.input_ids = self  # simulate BatchEncoding with .input_ids attribute
 
     def to(self, device):
         return self
@@ -29,6 +30,10 @@ class FakeTensor:
             return FakeTensor(self.values)
         if isinstance(item, slice):
             return FakeTensor(self.values[item])
+        if isinstance(item, tuple) and len(item) == 2:
+            _, col = item
+            if isinstance(col, slice):
+                return FakeTensor(self.values[col])
         return FakeTensor(self.values)
 
 
@@ -166,6 +171,35 @@ def test_list_models_requires_api_key_when_configured(monkeypatch):
 
     assert unauthorized.status_code == 401
     assert authorized.status_code == 200
+
+
+def test_chat_completions_truncates_input_to_num_ctx(monkeypatch):
+    monkeypatch.setitem(sys.modules, "torch", FakeTorch)
+    monkeypatch.setenv("TEACHER_NUM_CTX", "2")
+    app = serve_teacher.create_app()
+    app.state.runtime = (FakeTokenizer(), FakeModel())
+    client = TestClient(app)
+
+    response = client.post(
+        "/v1/chat/completions",
+        json={"messages": [{"role": "user", "content": "你好"}]},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["usage"]["prompt_tokens"] == 2
+
+
+def test_chat_completions_uses_batch_encoding_input_ids(monkeypatch):
+    monkeypatch.setitem(sys.modules, "torch", FakeTorch)
+    client = make_client(FakeTokenizer())
+
+    response = client.post(
+        "/v1/chat/completions",
+        json={"messages": [{"role": "user", "content": "你好"}]},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["choices"][0]["message"]["content"] == "老师回复"
 
 
 def test_chat_completions_accepts_x_api_key_header(monkeypatch):
