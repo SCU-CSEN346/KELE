@@ -22,6 +22,7 @@ MAC1_URL="${MAC1_CONSULTANT_URL:-http://Ulisess-Mac-mini.local:8080/v1}"
 MAC2_URL="${MAC2_CONSULTANT_URL:-http://Julios-Mac-mini.local:8080/v1}"
 
 set -a
+# shellcheck source=/dev/null
 source configs/teachers/socrat-r9700.env
 set +a
 TEACHER_PORT="${TEACHER_PORT:-8001}"
@@ -125,9 +126,9 @@ AGGREGATOR_PID=""
 
 cleanup() {
     log "Shutting down..."
-    [[ -n "$AGGREGATOR_PID" ]] && kill "$AGGREGATOR_PID" 2>/dev/null || true
-    [[ -n "$WORKER1_PID" ]] && kill "$WORKER1_PID" 2>/dev/null || true
-    [[ -n "$WORKER2_PID" ]] && kill "$WORKER2_PID" 2>/dev/null || true
+    if [[ -n "$AGGREGATOR_PID" ]]; then kill "$AGGREGATOR_PID" 2>/dev/null || true; fi
+    if [[ -n "$WORKER1_PID" ]]; then kill "$WORKER1_PID" 2>/dev/null || true; fi
+    if [[ -n "$WORKER2_PID" ]]; then kill "$WORKER2_PID" 2>/dev/null || true; fi
     kill "$TEACHER_PID" 2>/dev/null; wait "$TEACHER_PID" 2>/dev/null || true
 }
 trap cleanup EXIT
@@ -196,8 +197,8 @@ AGGREGATOR_PID=$!
 
 # ── Wait for both workers ─────────────────────────────────────────────────────
 log "Waiting for workers to finish..."
-wait "$WORKER1_PID" && log "Worker 1 done." || log "Worker 1 exited with error."
-wait "$WORKER2_PID" && log "Worker 2 done." || log "Worker 2 exited with error."
+if wait "$WORKER1_PID"; then log "Worker 1 done."; else log "Worker 1 exited with error."; fi
+if wait "$WORKER2_PID"; then log "Worker 2 done."; else log "Worker 2 exited with error."; fi
 
 kill "$AGGREGATOR_PID" 2>/dev/null || true
 AGGREGATOR_PID=""

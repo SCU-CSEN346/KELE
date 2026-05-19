@@ -37,10 +37,10 @@ echo ""
 # Check if llama-server is already running on the expected port.
 if curl -sf "http://localhost:$PORT/health" > /dev/null 2>&1; then
     echo "llama-server is already running on port $PORT."
-    LISTEN=$(lsof -iTCP:$PORT -sTCP:LISTEN -n -P 2>/dev/null | awk 'NR>1 {print $9}' | head -1)
+    LISTEN=$(lsof -iTCP:"$PORT" -sTCP:LISTEN -n -P 2>/dev/null | awk 'NR>1 {print $9}' | head -1)
     echo "Binding: $LISTEN"
 
-    LLAMA_PID=$(lsof -iTCP:$PORT -sTCP:LISTEN -n -P 2>/dev/null | awk 'NR>1 {print $2}' | head -1)
+    LLAMA_PID=$(lsof -iTCP:"$PORT" -sTCP:LISTEN -n -P 2>/dev/null | awk 'NR>1 {print $2}' | head -1)
     if [[ -n "$LLAMA_PID" ]] && command -v caffeinate &>/dev/null; then
         caffeinate -s -w "$LLAMA_PID" &
         echo "Sleep inhibited (caffeinate -s -w $LLAMA_PID)."
