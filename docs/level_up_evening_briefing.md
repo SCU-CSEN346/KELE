@@ -283,3 +283,63 @@ The $n{=}50 \to n{=}681$ attenuation for the A3B teacher (-1.62 state, -2.30 R-1
   - ✅ Plan (`docs/PROMPT_ENGINEERING_PLAN.md`) updated to mark Phase 0.5 complete + Phase 1 backbone confirmed
 - A3B server torn down post-commit; GPU returns to idle
 - Phase 1 ready to start
+
+---
+
+# Phase 1 prompt-utilization tournament — 2026-05-19 PM
+
+**Branch:** `mk/level-up-experiments`
+**Window:** 09:21 PDT → 19:19 PDT (10 cells, $n{=}50$ each, three sub-runs spanning a recovery)
+**Wall clock:** ~6h 09m total across sub-runs
+**Backbone:** BERT + Gemma 4 31B + 10-shot — the Phase 0 locked baseline composition (51.06% state / 38.53 R-1 / composite 70.33)
+**Workers:** $N{=}4$ for single-call cells, $N{=}2$ for multi-call cells (#7, #8, #10)
+
+## TL;DR
+
+10 single-utilization cells ran apples-to-apples vs the locked baseline. **Length-budget (#1) wins clean** with +1.58 composite (+0.9 state, +1.38 R-1) — the §2 hypothesis that open-weight teachers overshoot stage-typical character lengths by 1.5-3× holds, and forcing per-stage budgets simultaneously lifts both state routing and surface mimicry. **Persona (#9)** runs second at +0.74. **The expensive multi-call cells underperformed** — of the {#6 format-retry, #7 CoT, #8 N-best} mutex group, only CoT cleared baseline (by noise); N-best was actively worse despite 3× inference cost. Phase 2 composition will stack #1 + #9 + #5 (negative_exemplars).
+
+## Final leaderboard
+
+| Rank | Cell | Utilization | State | R-1 | R-2 | B-4 | Composite | Δ vs base |
+|---:|---:|---|---:|---:|---:|---:|---:|---:|
+| — | 0 | baseline | 51.06 | 38.53 | 16.93 | 9.68 | 70.33 | — |
+| 1 | **1** | **length_budget** | **51.96** | **39.91** | 17.93 | 12.37 | **71.91** | **+1.58** |
+| 2 | **9** | persona | 51.27 | 39.60 | 17.89 | 12.38 | 71.07 | +0.74 |
+| 3 | 5 | negative_exemplars | 50.71 | 39.82 | 18.05 | 10.88 | 70.62 | +0.29 |
+| 4 | 4 | per_state_exemplars | 50.88 | 39.42 | 17.78 | 10.90 | 70.59 | +0.26 |
+| 5 | 7 | cot_scaffold | 50.89 | 38.98 | 17.13 | 9.55 | 70.38 | +0.05 |
+| 6 | 3 | style_matched_exemplars | 46.72 | **42.17** | **20.10** | 12.04 | 67.81 | −2.52 |
+| 7 | 10 | compressed_history | 47.50 | 38.79 | 17.07 | 9.82 | 66.89 | −3.44 |
+| 8 | 8 | nbest_rerank | 47.33 | 38.27 | 16.48 | 10.02 | 66.47 | −3.86 |
+| 9 | 6 | format_retry | 46.45 | 39.60 | 17.82 | 10.55 | 66.25 | −4.08 |
+| 10 | 2 | lexical_priors | 43.89 | 39.12 | 17.74 | 9.88 | 63.45 | −6.88 |
+
+## Findings worth carrying forward
+
+1. **Length-budget is the dominant single prompt lever.** This is the cleanest result we've seen from a single environment-variable flip — it moves *both* axes simultaneously, with no cost to inference. It belongs in any future composition by default.
+2. **The mutex group {#6,#7,#8} did not pay off at this composition layer.** N-best re-rank was the worst (−3.86 composite at 3× cost); format-retry was second-worst (−4.08); CoT was the only one above baseline at +0.05. The hypothesis that hidden reasoning would lift state acc did not bear out at $n{=}50$. We will only carry CoT into Phase 2's max-cost stack as a "maybe" interaction with the length budget (CoT's failure mode is over-explanation, which the budget clips).
+3. **Style-matched exemplars (#3) is a R-1 specialist.** Only cell over 40 R-1 (42.17), but state crashed 4.3 pts. Surface-form optimization is anti-correlated with stage routing — note for the paper.
+4. **Per-state routing (#4) underperformed.** Despite the Phase 0.5 per-stage split that motivated it, the dense Gemma teacher already absorbs the BERT state-name signal through the prompt itself. The hierarchical-routing intuition needs a richer signal than just state-name to add value.
+5. **Lexical-prior priming (#2) is the worst cell.** Listing preferred opener 4-grams in the prompt actively biases the teacher away from correct content. Surface gaming has a real cost.
+
+## Phase 2 plan
+
+- **Composed-A (recommended):** `KELE_STAGE_LENGTH_BUDGET=1 KELE_TEACHER_PERSONA=1 KELE_NEGATIVE_EXEMPLARS=1` + the baseline 10-shot. Pure prompt-string layering, no extra inference. Run at $n{=}50$.
+- **Composed-B (with mutex):** Composed-A + `KELE_TEACHER_COT=1`. 2× inference cost, justified only if the CoT × length-budget interaction is positive.
+- Pick the higher composite at $n{=}50$. Promote to Phase 3 at $n{=}681$ if composite ≥ 72.5.
+
+## Crash recovery note
+
+Cell 10 (compressed_history) crashed mid-run during the day's second sub-run. The wrapper's per-cell `metrics_summary.json`-gate resume worked correctly — no contamination of completed cells. Cell 10's partial 8/50 dialogues were wiped before the recovery sub-run, which then completed 10 → 7 → 8 cleanly in 182m. Three log files preserve the full timeline: `logs/tournament_2026-05-19T{16-21-39,18-26-00,23-17-13}.log`.
+
+## Branch state (post-Phase-1)
+
+- `mk/level-up-experiments` head: pending this commit
+- Result dirs added: `results/tournament-cell-{1..10}-*/` (all with `metrics_summary.json` + 50-dialogue traces)
+- Phase 1 documentation hooks landed:
+  - ✅ `docs/PROMPT_ENGINEERING_PLAN.md` — Phase 1 section + status checklist updates
+  - ✅ `docs/EXPERIMENT_LOG.md` — top-of-file Phase 1 entry
+  - ✅ This briefing (Phase 1 section)
+  - ✅ Memory (`phase_1_tournament_2026_05_19.md` created; `MEMORY.md` index updated)
+- Gemma server torn down post-tournament; GPU returns to idle
+- Phase 2 ready to launch (Composed-A first)

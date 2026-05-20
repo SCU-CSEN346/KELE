@@ -1,8 +1,8 @@
 # Prompt-engineering tournament for the post-BERT-baseline phase
 
 **Author:** Claude Opus 4.7 (1M ctx) for Max
-**Date:** 2026-05-18 (revised 3× — adds Phase 0.5 teacher-choice ablation; updated 2026-05-19 with Phase 0.5 result)
-**Status:** Plan-of-record. **Phase 0 complete** (BERT + Gemma + 10-shot full = 48.15% / 36.78 R-1, locked headline). **Phase 0.5 complete** (BERT + A3B + 10-shot full = 46.57% / 33.27 R-1, Gemma stays locked). **Phase 1 backbone confirmed: BERT + Gemma 4 31B + 10-shot.** Ready to start utilization implementation.
+**Date:** 2026-05-18 (revised 4× — adds Phase 0.5 teacher-choice ablation; updated 2026-05-19 with Phase 0.5 result; updated 2026-05-19 PM with Phase 1 tournament results)
+**Status:** Plan-of-record. **Phase 0 complete** (BERT + Gemma + 10-shot full = 48.15% / 36.78 R-1, locked headline). **Phase 0.5 complete** (BERT + A3B + 10-shot full = 46.57% / 33.27 R-1, Gemma stays locked). **Phase 1 complete** (10-cell n=50 tournament; length_budget #1 wins, +1.58 composite; phase 2 stack identified). Ready for Phase 2 composition runs.
 **Protocol:** Tournament-style, mirroring the §4.7 13-model no-think tournament. **n=50 × 10 cells = 500 dialogues** in Phase 1.
 
 ## Mission
@@ -26,6 +26,59 @@ All Phase 0 documentation hooks landed in commit `1037e3b`: README headline, pap
 **Methodological observation:** The matched-$n{=}50$ leaderboard is a reliable predictor of full-scale teacher ranking within the BERT-integration architecture. Attenuation was -1.62 state for A3B vs -2.91 state for Gemma — both within sampling variance, both far smaller than the +15.32-pt overshoot that destroyed the standalone-Gemma projection. The schema-fallback collapse mode is structurally absent in the integration architecture.
 
 All documentation hooks landed (briefing, README, paper §4.8.1 ablation paragraph, `tab:allruns` row, memory sibling). Detailed result + per-stage table preserved in the previous version of this section below.
+
+---
+
+## Phase 1 — Prompt-utilization tournament ✅ COMPLETE (2026-05-19 PM)
+
+**Result:** 10 single-utilization cells run at n=50 against the locked BERT + Gemma 4 31B + 10-shot baseline (51.06% state / 38.53 R-1, composite 70.33). Wall clock ~6h 09m across three sub-runs (a session crash mid-cell-10 forced a recovery run; cells 10/7/8 re-ran cleanly with no contamination of the completed cells).
+
+### Final leaderboard (ranked by composite = state + 0.5×R-1)
+
+| Rank | Cell | Utilization | State | R-1 | R-2 | B-4 | Composite | Δ vs base | Wall |
+|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|
+| — | 0 | baseline (BERT+Gemma+10shot) | 51.06 | 38.53 | 16.93 | 9.68 | 70.33 | — | — |
+| 1 | **1** | **length_budget** | **51.96** | **39.91** | **17.93** | **12.37** | **71.91** | **+1.58** | 33m |
+| 2 | **9** | persona | 51.27 | 39.60 | 17.89 | 12.38 | **71.07** | +0.74 | 25m |
+| 3 | 5 | negative_exemplars | 50.71 | 39.82 | 18.05 | 10.88 | 70.62 | +0.29 | 27m |
+| 4 | 4 | per_state_exemplars | 50.88 | 39.42 | 17.78 | 10.90 | 70.59 | +0.26 | 33m |
+| 5 | 7 | cot_scaffold | 50.89 | 38.98 | 17.13 | 9.55 | 70.38 | +0.05 | 45m |
+| 6 | 3 | style_matched_exemplars | 46.72 | **42.17** | **20.10** | 12.04 | 67.81 | −2.52 | 33m |
+| 7 | 10 | compressed_history | 47.50 | 38.79 | 17.07 | 9.82 | 66.89 | −3.44 | 41m |
+| 8 | 8 | nbest_rerank | 47.33 | 38.27 | 16.48 | 10.02 | 66.47 | −3.86 | 96m |
+| 9 | 6 | format_retry | 46.45 | 39.60 | 17.82 | 10.55 | 66.25 | −4.08 | 11m |
+| 10 | 2 | lexical_priors | 43.89 | 39.12 | 17.74 | 9.88 | 63.45 | −6.88 | 25m |
+
+### Load-bearing findings
+
+1. **Length budget (#1) is the single biggest single-prompt lever** — +0.9 state, +1.38 R-1. The §2 hypothesis that open-weight teachers overshoot stage-typical character lengths by 1.5–3× was correct: forcing per-stage budgets simultaneously lifts surface mimicry (R-1) and stage routing (state acc). This is the cleanest result of the tournament.
+2. **The expensive multi-call cells underperformed.** Of the {#6 format-retry, #7 CoT, #8 N-best} mutex group only #7 cleared baseline, by +0.05 composite — i.e., noise. #8 was the worst of all multi-call cells (−3.86) at 3× inference cost. The intuition that hidden reasoning would lift state accuracy did not bear out at this composition layer.
+3. **Style-matched exemplars (#3) is the only utilization that pushed R-1 above 40** (42.17 vs 38.53 base) — but state accuracy collapsed 4.3 pts. Pure surface-form optimization is anti-correlated with stage routing at this baseline. Not a Phase 2 default; reserved for an R-1-specialist composition only.
+4. **Per-state routing (#4) did not deliver the Phase 0.5-predicted lift.** Despite the per-stage split that motivated this utilization (A3B wins b/e, Gemma wins c/d), BERT-conditional retrieval barely moved the needle (+0.26 composite, within sampling noise at n=50). Likely interpretation: the dense Gemma teacher already absorbs the BERT state-name signal in the prompt itself, so explicit per-state retrieval is redundant.
+5. **Lexical-prior priming (#2) is actively harmful** (−6.88 composite). Listing preferred opener 4-grams as "preferred openings" appears to bias the teacher away from correct state-conditional response form — it's gaming a surface pattern at the expense of pedagogical content.
+
+### Phase 2 composition plan
+
+Aggregator-selected top-3 non-mutex utilizations:
+- **#1 length_budget** (+1.58)
+- **#9 persona** (+0.74)
+- **#5 negative_exemplars** (+0.29)
+
+All three are stack-compatible and incur no extra inference calls — pure prompt-string layering. Sum-of-effects upper bound is +2.61 composite (73.94), assuming linear stacking. Most likely outcome is sub-linear; we accept the test.
+
+**Composed-A (recommended, cheap stack):** `KELE_FEW_SHOT_TEACHER=1 KELE_FEW_SHOT_N=10 KELE_STAGE_LENGTH_BUDGET=1 KELE_TEACHER_PERSONA=1 KELE_NEGATIVE_EXEMPLARS=1` against Gemma 4 31B at n=50.
+
+**Composed-B (Composed-A + mutex pick):** Composed-A + `KELE_TEACHER_COT=1`. The +0.05 CoT lift alone is borderline, but CoT may interact non-linearly with the length budget (CoT's failure mode was over-explaining; the length budget could clip that).
+
+Run both; pick by composite. Promote the higher to Phase 3 at n=681 if its composite ≥ 72.5.
+
+### Artifact pointers (Phase 1)
+
+- Per-cell results: `results/tournament-cell-{1..10}-*/metrics_summary.json`
+- Per-cell dialogue traces: `results/tournament-cell-{1..10}-*/dialogues/`
+- Leaderboard aggregator: `scripts/aggregate_tournament_leaderboard.py`
+- Tournament wrapper: `scripts/eval_prompt_tournament.sh`
+- Run logs: `logs/tournament_2026-05-19T{16-21-39,18-26-00,23-17-13}.log`
 
 ---
 
@@ -315,11 +368,12 @@ The Phase 2 winner runs at $n{=}681$ (~12h with BERT-consultant, ~22h if standal
 - [x] **Phase 0.5 — BERT + A3B + 10-shot full run** ✅ 46.57% / 33.27 R-1 (3h 15m wall, N=4 parallel)
 - [x] Phase 0.5 — Decision rule applied (45–48% bucket → Gemma stays locked)
 - [x] Phase 0.5 — Documentation hooks land (briefing, README, paper §4.8.1, `tab:allruns`, memory sibling)
-- [ ] Phase 1 — Implement env-var-gated code paths for #1–#10
-- [ ] Phase 1 — Tournament wrapper script (`scripts/eval_prompt_tournament.sh`)
-- [ ] Phase 1 — Run 10 cells, n=50 each (~2-3h at N=4 parallel; ~10-11h sequential)
-- [ ] Phase 1 — Leaderboard committed; top 2-3 identified
-- [ ] Phase 2 — Composed config(s) run at n=50
+- [x] Phase 1 — Implement env-var-gated code paths for #1–#10 (commit `b71f6b6`)
+- [x] Phase 1 — Tournament wrapper script (`scripts/eval_prompt_tournament.sh`)
+- [x] Phase 1 — Run 10 cells, n=50 each (✅ ~6h 09m total across crash + recovery sub-runs)
+- [x] Phase 1 — Leaderboard committed; top 3 identified (#1 length_budget, #9 persona, #5 negative_exemplars)
+- [ ] Phase 2 — Composed-A (#1+#9+#5) run at n=50
+- [ ] Phase 2 — Composed-B (Composed-A + #7 mutex pick) run at n=50
 - [ ] Phase 2 — Winner committed
 - [ ] Phase 3 — Full n=681 headline run
 - [ ] Phase 3 — Paper + README + memory updates
