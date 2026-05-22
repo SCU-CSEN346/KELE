@@ -6,7 +6,64 @@
 
 This doc is the **recovery log** — if the machine crashes, a fresh Claude session can read this doc + the EXPERIMENT_TIERS queue + `git log` and resume without losing context.
 
-## ⚡ LIVE STATE — last updated 2026-05-22 ~12:50 PDT
+## ⚡ LIVE STATE — last updated 2026-05-22 ~16:32 PDT (PM session, Layer-2 mini-tests)
+
+**Funnel is locked** (T1-T4 results, see below). Currently running **Layer-2 mini-tests** — feeding the winning T4 classifier into the full kele.py pipeline with each of the two locked open-weight teachers (Gemma 4 31B, Qwen 35B-A3B) at n=50.
+
+### Active right now (2026-05-22 16:32 PDT)
+
+- **T4 + Gemma 4 31B + 10-shot @ n=50** (PID found via `pgrep -f "src.project.kele evaluate"`)
+  - Started: 2026-05-22 ~15:40 PDT (after auto-CPU consultant routing was added)
+  - Output dir: `results/t4-bert-gemma-fewshot10-n50/`
+  - Progress at this snapshot: **12/50 dialogues complete** (24%), all ✓, ~43 dlg/hr
+  - ETA: ~52 min remaining → completion ~17:24 PDT
+  - **CPU consultant + GPU teacher** auto-routing engaged (T4 at 1.5 GB bf16 wouldn't fit alongside Gemma's 28 GB on a 32 GB 5090; see "CPU routing for the consultant" section below)
+  - Comparison anchor: locked BERT bge-small + Gemma + 10shot n=50 = **51.06% state / 38.53 R-1**
+
+- **T4 + Qwen 35B-A3B + 10-shot @ n=50** — pending (sequential after Gemma completes; GPU contention forbids parallel runs)
+  - Launch command (when Gemma test completes):
+    ```bash
+    mkdir -p results/t4-bert-a3b-fewshot10-n50
+    OUT_DIR=results/t4-bert-a3b-fewshot10-n50 \
+    BERT_CKPT=results/state-clf-qwen3.5-0.8b-lora/final \
+    LIMIT=50 \
+      bash scripts/eval_bert_a3b_fewshot10_full.sh \
+      > results/t4-bert-a3b-fewshot10-n50/launch.log 2>&1
+    ```
+  - Comparison anchor: locked BERT bge-small + A3B + 10shot n=50 = **48.19% state / 35.57 R-1**
+
+### Recovery procedure if this session crashes
+
+A fresh Claude session can resume by:
+
+1. **Read this doc + `docs/EXPERIMENT_TIERS.md` + `git log -20`** to recover context. Branch is `mk/post-funnel-experiments` (cut from `main` after PR #67 merged).
+
+2. **Check if T4+Gemma finished:** `ls results/t4-bert-gemma-fewshot10-n50/metrics_summary.json`. If file exists, the run is done — read it. If not, check `pgrep -f "src.project.kele evaluate"` to see if it's still running; if no process, re-launch with the Gemma command below.
+
+3. **Re-launch T4+Gemma (full command):**
+   ```bash
+   mkdir -p results/t4-bert-gemma-fewshot10-n50
+   OUT_DIR=results/t4-bert-gemma-fewshot10-n50 \
+   BERT_CKPT=results/state-clf-qwen3.5-0.8b-lora/final \
+   LIMIT=50 \
+     bash scripts/eval_bert_gemma_fewshot10_full.sh \
+     > results/t4-bert-gemma-fewshot10-n50/launch.log 2>&1
+   ```
+   The kele.py pipeline is crash-safe (per-dialogue JSONs in `dialogues/`); restarting picks up where it left off.
+
+4. **Then launch T4+A3B** (command above). Two sequential ~50-min runs ≈ 1.5-2 hr total wall-clock.
+
+5. **After both land,** produce a side-by-side comparison table (Task #18) and update both `CONSULTANT_UPGRADE_LOG.md` and the paper (specifically Section 4.x "BERT-integration full-scale result" → consider updating to T4-integration headline).
+
+### Open queue beyond this PM session
+
+- **Task #15 — HF Hub publish (5 funnel checkpoints).** Spec in `docs/HF_PUBLISHING_PLAN.md`. Awaits Max bringing his HF account online.
+- **Task #4 / C.31 — Bilingual probe.** Stage 1: cheap eval of T4 on SocratDataset-EN test split with no retraining. ~30 min. Stage 2 (bilingual co-training) only if Stage 1 shows >10 pp drop.
+- **Layer-2 at n=400** (full convergent ground-truth size). Probably wait until the n=50 mini-tests show enough lift to justify the ~5 hr full eval. Requires `--sample-seed INT` patch to kele.py first (~10 lines).
+
+---
+
+## (Historical) Funnel landing context — last updated 2026-05-22 ~12:50 PDT
 
 **T1 v5 landed.** Final test state accuracy: **58.32%** vs locked bge-small 61.34% → **Δ = −3.02 pp** (T1 LOSES). All stages 0-8 pp behind, biggest gap on stage d (-8.18 pp). Disconfirms the EXPERIMENT_TIERS hypothesis ("+2-5 pp expected"). Trained model saved to `results/state-clf-qwen3-emb-0.6b-frozen/final/` (2.3 GB safetensors).
 
