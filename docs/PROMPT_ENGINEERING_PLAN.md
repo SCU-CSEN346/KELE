@@ -228,7 +228,7 @@ Either outcome strengthens the paper: we've justified the teacher backbone with 
 
 ### Result documentation hooks (to land before tournament launch)
 
-- [ ] `docs/level_up_evening_briefing.md` — Phase 0.5 update with the BERT+A3B full result + decision committed
+- [ ] `docs/archive/level_up_evening_briefing.md` — Phase 0.5 update with the BERT+A3B full result + decision committed
 - [ ] `README.md` — add the BERT+A3B full row alongside BERT+Gemma; bold whichever wins
 - [ ] Paper Table 11 — add `BERT + A3B + 10-shot (full)` row
 - [ ] Paper §4.8.1 — append the teacher-ablation paragraph (whichever wins becomes the headline)
