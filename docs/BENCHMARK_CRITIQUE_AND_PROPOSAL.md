@@ -15,10 +15,11 @@ When we ranked our top configurations by the sum of surface-form metrics (R-1 + 
 | 3 | Sonnet 4.6 + 10-shot + top-3 stack | 281 | 43.02 | 20.52 | 14.33 | 77.87 | 48.75% |
 | 4 | Gemma 4 31B + 10-shot + top-3 stack | 278 | 41.13 | 18.60 | 12.91 | 72.64 | 50.72% |
 | 5 | Sonnet 4.6 + 10-shot only | 267 | 39.68 | 19.40 | 10.15 | 69.23 | 47.94% |
-| 6 | Gemma 4 31B + 10-shot (locked headline) | 3834 | 36.78 | 16.10 | 9.05 | 61.93 | 48.15% |
-| 7 | Opus 4.6 + 10-shot only | 272 | 32.99 | 15.26 | 7.24 | 55.49 | 47.43% |
-| 8 | Sonnet 4.6 raw | 260 | 29.10 | 13.38 | 5.69 | 48.17 | 45.00% |
-| 9 | Opus 4.6 raw | 239 | 23.28 | 10.12 | 4.18 | 37.58 | 39.75% |
+| 6 | Qwen 35B-A3B-think + 10-shot + top-3 stack | 276 | 37.64 | 15.69 | 9.97 | 63.30 | 48.19% |
+| 7 | Gemma 4 31B + 10-shot (locked headline) | 3834 | 36.78 | 16.10 | 9.05 | 61.93 | 48.15% |
+| 8 | Opus 4.6 + 10-shot only | 272 | 32.99 | 15.26 | 7.24 | 55.49 | 47.43% |
+| 9 | Sonnet 4.6 raw | 260 | 29.10 | 13.38 | 5.69 | 48.17 | 45.00% |
+| 10 | Opus 4.6 raw | 239 | 23.28 | 10.12 | 4.18 | 37.58 | 39.75% |
 
 **Two observations are jarring:**
 

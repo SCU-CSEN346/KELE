@@ -105,10 +105,23 @@ When we rank all top configurations by surface-form metrics (R-1 + R-2 + BLEU-4)
 | 3 | Sonnet 4.6 + 10-shot + top-3 stack | 281 | 43.02 | 20.52 | 14.33 | 77.87 | 48.75% |
 | 4 | Gemma 4 31B + 10-shot + top-3 stack | 278 | 41.13 | 18.60 | 12.91 | 72.64 | **50.72%** |
 | 5 | Sonnet 4.6 + 10-shot only | 267 | 39.68 | 19.40 | 10.15 | 69.23 | 47.94% |
-| 6 | Gemma 4 31B + 10-shot (locked headline) | 3834 | 36.78 | 16.10 | 9.05 | 61.93 | 48.15% |
-| 7 | Opus 4.6 + 10-shot only | 272 | 32.99 | 15.26 | 7.24 | 55.49 | 47.43% |
-| 8 | Sonnet 4.6 raw | 260 | 29.10 | 13.38 | 5.69 | 48.17 | 45.00% |
-| 9 | Opus 4.6 raw | 239 | 23.28 | 10.12 | 4.18 | 37.58 | 39.75% |
+| 6 | Qwen 35B-A3B-think + 10-shot + top-3 stack | 276 | 37.64 | 15.69 | 9.97 | 63.30 | 48.19% |
+| 7 | Gemma 4 31B + 10-shot (locked headline) | 3834 | 36.78 | 16.10 | 9.05 | 61.93 | 48.15% |
+| 8 | Opus 4.6 + 10-shot only | 272 | 32.99 | 15.26 | 7.24 | 55.49 | 47.43% |
+| 9 | Sonnet 4.6 raw | 260 | 29.10 | 13.38 | 5.69 | 48.17 | 45.00% |
+| 10 | Opus 4.6 raw | 239 | 23.28 | 10.12 | 4.18 | 37.58 | 39.75% |
+
+**By composite (state + 0.5×R-1, our existing primary metric), Phase 3 promotion candidate is Gemma 4 31B + top-3:**
+
+| Rank | Configuration | State | R-1 | Composite |
+|---:|---|---:|---:|---:|
+| 1 | **🏆 Gemma 4 31B + top-3** (new Phase 3 candidate) | 50.72 | 41.13 | **71.28** |
+| 2 | Opus 4.6 + top-3 | 49.82 | 42.77 | 71.20 |
+| 3 | Gemma 4 31B + 10-shot (locked, baseline) | 51.06 | 38.53 | 70.33 |
+| 4 | Sonnet 4.6 + top-3 | 48.75 | 43.02 | 70.26 |
+| 5 | Qwen 35B-A3B-think + top-3 | 48.19 | 37.64 | 67.01 |
+
+Gemma + top-3 stack edges Opus + top-3 by +0.08 composite (statistical tie). The frontier-model architectural advantage is fully neutralized when both teachers receive the same prompt scaffolding. Gemma + top-3 is the Phase 3 promotion target — pending Max's decision on whether to also run Opus 4.6 at full n=681 for an apples-to-apples paper comparison.
 
 **The longer the n-gram, the wider the SocratTeachLLM gap.** R-1 +1.59 → R-2 +4.92 → BLEU-4 +4.07 over the best non-SocratTeachLLM configuration. Higher-order n-gram overlap captures phrase-level fingerprinting — the strongest possible memorization signature. **The metrics are inversely correlated with the thing they're supposed to measure**: the most pedagogically capable models (high state acc) score lowest on surface metrics; the most surface-matched model scores worst on pedagogy.
 
