@@ -21,8 +21,12 @@ set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 ROOT="$(pwd)"
 
-OUT_DIR="results/bert-consultant-fewshot10-a3b-full"
-BERT_CKPT="results/state_classifier_v1/final"
+# Env overrides for variant runs (mini, T4 classifier, etc.):
+#   OUT_DIR=results/t4-bert-a3b-n50 BERT_CKPT=results/state-clf-qwen3.5-0.8b-lora/final \
+#     LIMIT=50 bash scripts/eval_bert_a3b_fewshot10_full.sh
+OUT_DIR="${OUT_DIR:-results/bert-consultant-fewshot10-a3b-full}"
+BERT_CKPT="${BERT_CKPT:-results/state_classifier_v1/final}"
+LIMIT="${LIMIT:-}"
 EXPERIMENT="qwen35b-a3b-local"
 PORT=8080
 LLAMA_URL="http://localhost:${PORT}"
@@ -135,6 +139,12 @@ fi
 KELE_PARALLEL_WORKERS="${KELE_PARALLEL_WORKERS:-1}"
 echo "Parallel workers: $KELE_PARALLEL_WORKERS (server -np must be ≥ this)"
 
+LIMIT_ARGS=()
+if [[ -n "$LIMIT" ]]; then
+  LIMIT_ARGS=(--limit "$LIMIT")
+  echo "Limit: first $LIMIT dialogues only (mini-tier eval)"
+fi
+
 PATH="$ROOT/.venv/bin:$PATH" \
 KELE_FEW_SHOT_TEACHER=1 KELE_FEW_SHOT_N=10 \
 KELE_PARALLEL_WORKERS="$KELE_PARALLEL_WORKERS" \
@@ -142,6 +152,7 @@ KELE_PARALLEL_WORKERS="$KELE_PARALLEL_WORKERS" \
     --experiment "$EXPERIMENT" \
     evaluate \
     --bert-consultant "$BERT_CKPT" \
+    "${LIMIT_ARGS[@]}" \
     --output "$OUT_DIR"
 
 EVAL_EXIT=$?
