@@ -6,6 +6,33 @@ Update this list as items move from `pending` → `in_progress` → `done`. Move
 
 ---
 
+## 🎯 Locked next-steps queue — consultant-axis upgrade (2026-05-22)
+
+After today's convergence finding (n=400 random dialogues is sufficient ground-truth, see [`CONVERGENCE_ANALYSIS.md`](CONVERGENCE_ANALYSIS.md)) and the 2026 literature review on encoder/decoder alternatives to BGE, four discrete tests are queued to potentially upgrade the state-classifier backbone from `bge-small-zh-v1.5` (current locked: 86.55% stage / 61.64% state). **All four evaluate at n=400 random dialogues from the test split** (per the convergence finding — saves ~41% compute vs n=681, no loss of decision precision at any ranking boundary ≥ 2 pp).
+
+| # | Test | Backbone | Adaptation | Output dir | Status |
+|---|---|---|---|---|---|
+| **T1** | Qwen3-Embedding-0.6B + frozen + linear head | encoder-style embedding (0.6B params, top of CMTEB classification 2025) | frozen backbone, linear head trains | `results/state-clf-qwen3-emb-0.6b-frozen/` | pending |
+| **T2** | Qwen3-Embedding-0.6B + LoRA + linear head | same as T1 | LoRA rank-8/16 on attention+FFN, linear head trains alongside | `results/state-clf-qwen3-emb-0.6b-lora/` | pending |
+| **T3** | Qwen3.5-0.8B-Base + frozen + classification head | decoder LLM (0.8B params, 24 layers, 1024 hidden, March 2026 release) | last-token hidden-state → linear 34-way head; backbone frozen | `results/state-clf-qwen3.5-0.8b-frozen/` | pending |
+| **T4** | Qwen3.5-0.8B-Base + LoRA + classification head | same as T3 | LoRA rank-8/16, head trains alongside | `results/state-clf-qwen3.5-0.8b-lora/` | pending |
+
+Clean **2×2 design** (encoder vs decoder × frozen vs LoRA), all on the same 90/10 SocratDataset train split (~42K labeled turns), all evaluated against the same 400 random test dialogues. Each output dir gets a `metrics_summary.json` reporting overall state acc + per-stage breakdown so they slot directly into `results/master_leaderboard.{json,md}` alongside the current locked BERT consultant.
+
+**Implementation pointer:** start from `scripts/train_state_classifier_34way.py` (currently hardcoded to `BAAI/bge-small-zh-v1.5`). Parameterize the `MODEL_ID` and add a LoRA branch via PEFT; the SFT pipeline merged in PR #66 already has LoRA wiring we can reuse. Once trained, drop the new checkpoint into `--bert-consultant <path>` on a kele.py run; the existing integration pipeline picks it up unchanged.
+
+**Expected outcomes** (informed by 2025 literature):
+- T1 expected: +2–5 state-acc pp over current (Qwen3-Embedding leads CMTEB classification subtask)
+- T2 expected: +1–3 pp over T1 (LoRA on top of strong base usually adds modest gains)
+- T3 expected: roughly even with T1 to slightly worse (frozen decoder representations are less classification-aligned than frozen embedding models)
+- T4 expected: the swing test — could be +5–10 pp over T1, could be +0. The 2025 literature on LoRA-tuned small decoders shows large gains on specialized Chinese classification, but those tasks were narrower than our 34-way pedagogical taxonomy.
+
+**Comparison anchor (current locked):** `bge-small-zh-v1.5`, 24M params, 148s train, 86.55% stage / 61.64% state on the full n=681 test split.
+
+After all four land, the natural follow-up is **T1+T2+T3+T4 each paired with a hierarchical 5+22 head** if any single test shows strong stage-c lift potential — but flat-head results come first.
+
+---
+
 ## Tier S — Paper-shipping experiments (the three Next Steps items)
 
 | # | Experiment | Time | Risk | Expected impact | Status |
