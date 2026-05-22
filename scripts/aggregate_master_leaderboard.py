@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional
 
 # Map of (display_name, results_dir) pairs to aggregate.
 # Order matters for the markdown table — listed by approximate rank by composite.
@@ -98,7 +97,7 @@ CONFIGS = [
 ]
 
 
-def load_metrics(results_dir: Path) -> Optional[dict]:
+def load_metrics(results_dir: Path) -> dict | None:
     p = results_dir / "metrics_summary.json"
     if not p.is_file():
         return None
@@ -108,7 +107,7 @@ def load_metrics(results_dir: Path) -> Optional[dict]:
         return None
 
 
-def load_semantic_r1(results_dir: Path) -> Optional[float]:
+def load_semantic_r1(results_dir: Path) -> float | None:
     p = results_dir / "semantic_r1.json"
     if not p.is_file():
         return None
@@ -118,7 +117,7 @@ def load_semantic_r1(results_dir: Path) -> Optional[float]:
         return None
 
 
-def load_judge(results_dir: Path) -> Optional[dict]:
+def load_judge(results_dir: Path) -> dict | None:
     p = results_dir / "judge_summary.json"
     if not p.is_file():
         return None
@@ -252,7 +251,7 @@ def main():
     md.append("\n".join(f"- {r['name']}" for r in rows if not r.get("available")) or "(none)")
 
     Path("results/master_leaderboard.md").write_text("\n".join(md))
-    print(f"Wrote results/master_leaderboard.json + .md")
+    print("Wrote results/master_leaderboard.json + .md")
     print(f"Available: {out['summary']['n_configs_available']}/{out['summary']['n_configs_total']}")
 
 

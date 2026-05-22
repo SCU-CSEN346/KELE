@@ -18,7 +18,6 @@ from collections.abc import Iterable
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 AGG_PATH = ROOT / "results" / "convergence" / "aggregate.json"
@@ -54,7 +53,6 @@ def plateau_n(per_n: dict[str, dict], metric: str, eps: float) -> int | None:
 def main() -> None:
     data = json.loads(AGG_PATH.read_text())
     runs = data["runs"]
-    n_grid: list[int] = data["n_grid"]
 
     # ── Per-run, per-metric, per-tolerance plateau table ─────────────────────
     print("=" * 90)
