@@ -190,7 +190,24 @@ Frontier+prompt-eng transfers cross-lingually with negligible judge loss. Socrat
 
 **Putting the four observations together.** The surface-form inversion, the monotonically widening n-gram gap, the translation reproducing the paper's headline within 1.5 R-1 points, and the asymmetric cross-lingual judge degradation are all explained by a single hypothesis: **SocratTeachLLM was trained on test-set surface forms, either by direct contamination or by insufficient distributional separation between train and test splits.** Each observation individually is suggestive; the four together converge on this interpretation.
 
-Run artifacts: [`results/bert-claude-opus-top3-EN-n50/`](results/), [`results/claude-{sonnet,opus}-consultant-socratteachllm-n50/`](results/), per-config `judge_summary.json` in each. Aggregated leaderboard: [`results/master_leaderboard.md`](results/master_leaderboard.md). Figures: [`docs/figures/leaderboard_inversion.png`](docs/figures/), [`docs/figures/ngram_gap_widening.png`](docs/figures/), [`docs/figures/four_metric_panel.png`](docs/figures/), [`docs/figures/judge_vs_surface.png`](docs/figures/), [`docs/figures/pareto_inversion.png`](docs/figures/).
+### Phase 3 — Frontier ceiling at full scale (Sonnet & Opus n=681, 2026-05-22)
+
+To bound how much pedagogical performance is gettable with paid inference, we ran the same top-3 prompt-engineering stack (`length_budget` + `teacher_persona` + `negative_exemplars` + 10-shot exemplars) with Sonnet 4.6 and Opus 4.6 as teacher at the full n=681 test split:
+
+| Configuration | n turns | State acc | R-1 | R-2 | BLEU-4 | $/run | Δ vs locked open-weight |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| **Sonnet 4.6 + BERT + top-3 (n=681)** | 3840 | **49.97%** | **41.93** | 20.43 | 13.46 | ~$5 | +1.82 / +5.15 R-1 |
+| Opus 4.6 + BERT + top-3 (n=681) | 3794 | 49.31% | 41.63 | 19.87 | 13.91 | ~$8 | +1.16 / +4.85 R-1 |
+| **BERT + Gemma + 10-shot (n=681 LOCKED open-weight)** | 3834 | **48.15%** | 36.78 | 16.10 | 9.05 | **$0** | — |
+
+Two findings:
+
+- **The cheaper frontier model wins at full scale.** At n=50 the order was Opus > Sonnet by +0.94 composite; at n=681 Sonnet edges Opus by +0.66 state. The "frontier cap" isn't reliably the more expensive model — Sonnet 4.6's +0.66 lead at $5/run vs Opus's $8/run is the cost-efficient frontier choice.
+- **The locked open-weight headline holds the cost-pareto.** The frontier ceiling is just +1.82 state / +5.15 R-1 above BERT+Gemma+10-shot, at $5+ per run. We frame Sonnet/Opus as the **frontier ceiling at full scale** — they bound the gain available from paid inference; **the locked open-weight system remains THE headline** at 48.15% state / 36.78 R-1 / **$0** per run, well within striking distance.
+
+Per-stage at full scale shows where the frontier teachers win and lose: Sonnet n=681 = a:99.27 / b:35.61 / c:26.48 / d:45.30 / e:84.20; Opus n=681 = a:99.27 / b:36.79 / c:23.95 / d:45.36 / e:87.78; locked Gemma = a:99.27 / b:23.26 / c:30.31 / d:41.50 / e:82.77. The frontier teachers beat Gemma on **b** (early-reasoning dialogue acts) and **d/e** (resolution + closure); Gemma beats them on **c** (the 22-state misconception induction). The dense-31B-and-pre-trained-on-Chinese-pedagogy combination still wins the hardest single stage.
+
+Run artifacts: [`results/bert-claude-sonnet-top3-n681/`](results/bert-claude-sonnet-top3-n681/), [`results/bert-claude-opus-top3-n681/`](results/bert-claude-opus-top3-n681/), [`results/bert-claude-opus-top3-EN-n50/`](results/), [`results/claude-{sonnet,opus}-consultant-socratteachllm-n50/`](results/), per-config `judge_summary.json` in each. Aggregated leaderboard: [`results/master_leaderboard.md`](results/master_leaderboard.md). Figures: [`docs/figures/leaderboard_inversion.png`](docs/figures/), [`docs/figures/ngram_gap_widening.png`](docs/figures/), [`docs/figures/four_metric_panel.png`](docs/figures/), [`docs/figures/judge_vs_surface.png`](docs/figures/), [`docs/figures/pareto_inversion.png`](docs/figures/).
 
 Full experimental record lives in [`deliverables/overleaf/latex/acl_latex.tex`](deliverables/overleaf/latex/acl_latex.tex) Section 4 and the per-run logs in [`results/`](results/).
 
