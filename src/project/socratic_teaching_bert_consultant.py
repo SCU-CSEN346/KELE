@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import torch
+import torch.nn.functional as F
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from src.project.socratic_teaching_system import SocraticTeachingSystem
@@ -104,8 +105,8 @@ class SocraticTeachingSystemBertConsultant(SocraticTeachingSystem):
         ).to(self.bert_device)
         with torch.no_grad():
             logits = self.bert_model(**enc).logits
-            probs = torch.softmax(logits, dim=-1)[0]
-            top2 = torch.topk(probs, k=min(2, probs.shape[0]))
+            probs = F.softmax(logits, dim=-1)[0]
+            top2 = probs.topk(k=min(2, probs.shape[0]))
             top_idxs = top2.indices.cpu().tolist()
             top_probs = top2.values.cpu().tolist()
             pred_idx = top_idxs[0]
