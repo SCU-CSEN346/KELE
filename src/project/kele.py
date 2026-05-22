@@ -6,7 +6,10 @@ and adds batch evaluation for running against the SocratDataset.
 """
 
 import json
+import os
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from src.project.config import load_config
@@ -19,20 +22,38 @@ def create_system(
     debug: bool | None = None,
     experiment: str | None = None,
     unified: bool = False,
+    bert_consultant: str | None = None,
 ) -> SocraticTeachingSystem:
     """Create a SocraticTeachingSystem from environment config.
 
     If unified=True, instantiates SocraticTeachingSystemUnified — the
     single-call variant that fuses consultant + teacher into one
     structured-output LLM call. See docs/SOCRATIC_FUSION_PLAN.md.
+
+    If bert_consultant is a path to a trained 34-state classifier checkpoint,
+    use SocraticTeachingSystemBertConsultant: BERT predicts the state and
+    the LLM only generates the teacher response (two-call style). Mutually
+    exclusive with unified=True.
     """
     cfg = load_config(experiment=experiment)
-    if unified:
+    if bert_consultant and unified:
+        raise ValueError("--unified and --bert-consultant are mutually exclusive")
+
+    if bert_consultant:
+        from src.project.socratic_teaching_bert_consultant import (
+            SocraticTeachingSystemBertConsultant,
+        )
+
+        cls: type[SocraticTeachingSystem] = SocraticTeachingSystemBertConsultant
+        extra_kwargs: dict = {"bert_ckpt": bert_consultant}
+    elif unified:
         from src.project.socratic_teaching_unified import SocraticTeachingSystemUnified
 
-        cls: type[SocraticTeachingSystem] = SocraticTeachingSystemUnified
+        cls = SocraticTeachingSystemUnified
+        extra_kwargs = {}
     else:
         cls = SocraticTeachingSystem
+        extra_kwargs = {}
     return cls(
         consultant_api_key=cfg.consultant.api_key,
         consultant_base_url=cfg.consultant.base_url,
@@ -46,6 +67,7 @@ def create_system(
         consultant_disable_thinking=cfg.consultant.disable_thinking,
         consultant_thinking_budget=cfg.consultant.thinking_budget,
         consultant_num_ctx=cfg.consultant.num_ctx,
+        **extra_kwargs,
     )
 
 
@@ -145,6 +167,158 @@ def run_single_dialogue(system: SocraticTeachingSystem, item: dict) -> dict:
     }
 
 
+def _format_progress_line(
+    pos: int,
+    total: int,
+    item_id: int,
+    result: dict,
+    elapsed: float,
+    rate: float,
+    remaining: float,
+) -> str:
+    """One-line progress record used by both sequential and parallel paths."""
+    if "error" in result:
+        status = f"ERROR: {result['error']}"
+        turns: str | int = "?"
+        secs: float = 0
+    else:
+        status = "✓"
+        turns = result.get("num_turns_generated", "?")
+        secs = result.get("elapsed_seconds", 0) or 0
+    return (
+        f"  {pos:>4}/{total}  id={item_id:04d}"
+        f"  {turns:>5} turns  {secs:>4.0f}s"
+        f"  {pos / total * 100:>4.1f}%"
+        f"  {rate * 3600:>6.1f}  {remaining / 60:>4.0f}m  {status}"
+    )
+
+
+def _write_progress_log(
+    progress_log: Path,
+    completed: int,
+    total: int,
+    rate: float,
+    remaining: float,
+    elapsed: float,
+) -> None:
+    with open(progress_log, "w") as f:
+        f.write(
+            f"{completed}/{total} {completed / total * 100:.1f}%"
+            f" {rate * 3600:.1f} dlg/hr ETA {remaining / 60:.0f}m elapsed {elapsed / 60:.0f}m\n"
+        )
+
+
+def _run_sequential(
+    pending: list[dict],
+    dialogues_dir: Path,
+    progress_log: Path,
+    system: SocraticTeachingSystem,
+    total_dataset: int,
+    completed_initial: int,
+    start_time: float,
+) -> int:
+    completed = completed_initial
+    for item in pending:
+        item_id = item["id"]
+        out_file = dialogues_dir / f"{item_id:04d}.json"
+        try:
+            result = run_single_dialogue(system, item)
+        except Exception as e:
+            result = {"id": item_id, "error": str(e)}
+        with open(out_file, "w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+        completed += 1
+        elapsed = time.time() - start_time
+        rate = completed / elapsed if elapsed > 0 else 0
+        remaining = (total_dataset - completed) / rate if rate > 0 else 0
+        print(
+            _format_progress_line(
+                completed, total_dataset, item_id, result, elapsed, rate, remaining
+            ),
+            flush=True,
+        )
+        _write_progress_log(progress_log, completed, total_dataset, rate, remaining, elapsed)
+    return completed
+
+
+def _run_parallel(
+    pending: list[dict],
+    dialogues_dir: Path,
+    progress_log: Path,
+    total_dataset: int,
+    completed_initial: int,
+    start_time: float,
+    *,
+    workers: int,
+    experiment: str | None,
+    unified: bool,
+    bert_consultant: str | None,
+) -> tuple[int, list[SocraticTeachingSystem]]:
+    """Run pending dialogues concurrently using a ThreadPoolExecutor.
+
+    Each worker thread owns its own SocraticTeachingSystem (session state
+    on the system object makes per-worker isolation the clean choice).
+    BERT-consultant variant: each worker loads its own ~100 MB classifier
+    onto the GPU — small price for full thread isolation.
+
+    Returns (final completed count, list of worker systems for end-of-run
+    metadata aggregation).
+    """
+    thread_local = threading.local()
+    worker_systems: list[SocraticTeachingSystem] = []
+    worker_systems_lock = threading.Lock()
+    progress_lock = threading.Lock()
+    completed_box = [completed_initial]
+
+    def get_or_create_system() -> SocraticTeachingSystem:
+        sys_ = getattr(thread_local, "system", None)
+        if sys_ is None:
+            sys_ = create_system(
+                debug=False,
+                experiment=experiment,
+                unified=unified,
+                bert_consultant=bert_consultant,
+            )
+            thread_local.system = sys_
+            with worker_systems_lock:
+                worker_systems.append(sys_)
+        return sys_
+
+    def process_one(item: dict) -> tuple[dict, dict]:
+        item_id = item["id"]
+        out_file = dialogues_dir / f"{item_id:04d}.json"
+        sys_ = get_or_create_system()
+        try:
+            result = run_single_dialogue(sys_, item)
+        except Exception as e:
+            result = {"id": item_id, "error": str(e)}
+        with open(out_file, "w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+        return item, result
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = [pool.submit(process_one, item) for item in pending]
+        for fut in as_completed(futures):
+            item, result = fut.result()
+            with progress_lock:
+                completed_box[0] += 1
+                completed = completed_box[0]
+                elapsed = time.time() - start_time
+                rate = completed / elapsed if elapsed > 0 else 0
+                remaining = (total_dataset - completed) / rate if rate > 0 else 0
+                print(
+                    _format_progress_line(
+                        completed, total_dataset, item["id"], result, elapsed, rate, remaining
+                    ),
+                    flush=True,
+                )
+                _write_progress_log(
+                    progress_log, completed, total_dataset, rate, remaining, elapsed
+                )
+
+    return completed_box[0], worker_systems
+
+
 def run_batch_evaluation(
     output_dir: Path,
     dataset_path: Path | None = None,
@@ -153,6 +327,8 @@ def run_batch_evaluation(
     experiment: str | None = None,
     split: str = "test",
     unified: bool = False,
+    bert_consultant: str | None = None,
+    workers: int | None = None,
 ) -> None:
     """Run the full evaluation pipeline on the dataset.
 
@@ -161,7 +337,17 @@ def run_batch_evaluation(
 
     If unified=True, uses the single-call fusion architecture
     (see docs/SOCRATIC_FUSION_PLAN.md).
+
+    If workers > 1 (or env var KELE_PARALLEL_WORKERS > 1), dialogues are
+    processed concurrently against the llama.cpp server's parallel KV slots.
+    Each worker thread owns its own SocraticTeachingSystem; per-dialogue
+    file output remains crash-safe (each dialogue → own JSON file).
     """
+    if workers is None:
+        workers = int(os.environ.get("KELE_PARALLEL_WORKERS", "1"))
+    if workers < 1:
+        workers = 1
+
     dataset = load_dataset(dataset_path, split=split)
     total = len(dataset)
 
@@ -170,78 +356,75 @@ def run_batch_evaluation(
     if limit is not None:
         dataset = dataset[:limit]
 
-    system = create_system(debug=False, experiment=experiment, unified=unified)
+    # Always create one "probe" system for header info + run config metadata.
+    # In sequential mode this is also the workhorse; in parallel mode each
+    # worker thread creates its own via thread-local storage.
+    system = create_system(
+        debug=False, experiment=experiment, unified=unified, bert_consultant=bert_consultant
+    )
 
     output_dir.mkdir(parents=True, exist_ok=True)
     dialogues_dir = output_dir / "dialogues"
     dialogues_dir.mkdir(exist_ok=True)
     progress_log = output_dir / "progress.log"
-    completed = 0
     start_time = time.time()
 
     print(f"Starting evaluation: {len(dataset)} dialogues (of {total} in {split} split)")
     print(f"Output: {output_dir}")
     print(f"Teacher model: {system.teacher_model_name}")
     print(f"Consultant model: {system.consultant_model_name}")
+    print(f"Parallel workers: {workers}")
     print("-" * 60)
     print(
         f"  {'#':>9}  {'id':<8}  {'turns':>5}  {'time':>5}  {'%':>5}  {'dlg/hr':>6}  {'ETA':>5}  status"
     )
     print("-" * 60)
 
-    CLR = "\r\033[K"  # carriage return + erase to end of line
-
+    # Bucket already-done dialogues into the completed counter; only pending
+    # items get dispatched. Same crash-recovery semantics as the prior loop.
+    pending: list[dict] = []
+    completed = 0
     for item in dataset:
-        item_id = item["id"]
-        out_file = dialogues_dir / f"{item_id:04d}.json"
-
-        # Skip if already completed (crash recovery)
+        out_file = dialogues_dir / f"{item['id']:04d}.json"
         if out_file.exists():
             completed += 1
-            continue
+        else:
+            pending.append(item)
 
-        pos = completed + 1
-        print(f"{CLR}▶ {pos:>4}/{len(dataset)}  id={item_id:04d}", end="", flush=True)
+    if completed and pending:
+        print(f"  (resuming: {completed} already on disk, {len(pending)} to run)")
 
-        elapsed = time.time() - start_time
-        rate = completed / elapsed if elapsed > 0 else 0
-
-        try:
-            result = run_single_dialogue(system, item)
-            with open(out_file, "w", encoding="utf-8") as f:
-                json.dump(result, f, ensure_ascii=False, indent=2)
-            completed += 1
-            turns = result.get("num_turns_generated", "?")
-            secs = result.get("elapsed_seconds", 0)
-            elapsed = time.time() - start_time
-            rate = completed / elapsed if elapsed > 0 else 0
-            remaining = (len(dataset) - completed) / rate if rate > 0 else 0
-            print(
-                f"{CLR}  {pos:>4}/{len(dataset)}  id={item_id:04d}"
-                f"  {turns:>5} turns  {secs:>4.0f}s"
-                f"  {completed / len(dataset) * 100:>4.1f}%"
-                f"  {rate * 3600:>6.1f}  {remaining / 60:>4.0f}m  ✓"
-            )
-        except Exception as e:
-            error_result = {"id": item_id, "error": str(e)}
-            with open(out_file, "w", encoding="utf-8") as f:
-                json.dump(error_result, f, ensure_ascii=False, indent=2)
-            completed += 1
-            elapsed = time.time() - start_time
-            rate = completed / elapsed if elapsed > 0 else 0
-            remaining = (len(dataset) - completed) / rate if rate > 0 else 0
-            print(
-                f"{CLR}  {pos:>4}/{len(dataset)}  id={item_id:04d}"
-                f"  {'?':>5} turns  {'?':>4}s"
-                f"  {completed / len(dataset) * 100:>4.1f}%"
-                f"  {rate * 3600:>6.1f}  {remaining / 60:>4.0f}m  ERROR: {e}"
-            )
-
-        with open(progress_log, "w") as f:
-            f.write(
-                f"{completed}/{len(dataset)} {completed / len(dataset) * 100:.1f}%"
-                f" {rate * 3600:.1f} dlg/hr ETA {remaining / 60:.0f}m elapsed {elapsed / 60:.0f}m\n"
-            )
+    if workers == 1:
+        completed = _run_sequential(
+            pending,
+            dialogues_dir,
+            progress_log,
+            system,
+            len(dataset),
+            completed,
+            start_time,
+        )
+    else:
+        completed, worker_systems = _run_parallel(
+            pending,
+            dialogues_dir,
+            progress_log,
+            len(dataset),
+            completed,
+            start_time,
+            workers=workers,
+            experiment=experiment,
+            unified=unified,
+            bert_consultant=bert_consultant,
+        )
+        # Aggregate fallback counts across worker systems for unified mode.
+        if unified:
+            total_fb = 0
+            for ws in [system, *worker_systems]:
+                fb = getattr(ws, "_unified_fallback_count", 0)
+                if fb:
+                    total_fb += fb
+            setattr(system, "_unified_fallback_count", total_fb)
 
     print(f"\nDone. {completed} dialogues saved to {dialogues_dir}")
 
@@ -256,6 +439,7 @@ def run_batch_evaluation(
         "thinking_budget": cfg.consultant.thinking_budget,
         "max_teaching_rounds": cfg.max_teaching_rounds,
         "unified": unified,
+        "workers": workers,
         "total_dialogues": len(dataset),
         "completed": completed,
         "total_elapsed_seconds": round(time.time() - start_time, 2),
@@ -318,6 +502,23 @@ def main() -> None:
         help="Use single-call fusion architecture (consultant + teacher in one LLM call). "
         "See docs/SOCRATIC_FUSION_PLAN.md.",
     )
+    eval_parser.add_argument(
+        "--bert-consultant",
+        type=str,
+        default=None,
+        help="Path to a trained 34-state BERT classifier checkpoint dir. "
+        "Replaces the LLM consultant with the BERT classifier; LLM only "
+        "generates the teacher response (two-call style).",
+    )
+    eval_parser.add_argument(
+        "--workers",
+        type=int,
+        default=None,
+        help="Number of concurrent dialogue workers. Each worker hits one "
+        "of the llama-server's --parallel KV slots. Default 1 (or env "
+        "KELE_PARALLEL_WORKERS). Recommended: 4. Server-side -np must be "
+        "at least this value.",
+    )
 
     # Quick test mode — run on a handful of dialogues
     test_parser = sub.add_parser("test", help="Quick test with a few dialogues")
@@ -328,6 +529,12 @@ def main() -> None:
         action="store_true",
         help="Use single-call fusion architecture (consultant + teacher in one LLM call). "
         "See docs/SOCRATIC_FUSION_PLAN.md.",
+    )
+    test_parser.add_argument(
+        "--bert-consultant",
+        type=str,
+        default=None,
+        help="Path to a trained 34-state BERT classifier checkpoint dir.",
     )
 
     args = parser.parse_args()
@@ -343,6 +550,8 @@ def main() -> None:
             experiment=args.experiment,
             split=args.split,
             unified=args.unified,
+            bert_consultant=args.bert_consultant,
+            workers=args.workers,
         )
     elif args.command == "test":
         run_batch_evaluation(
@@ -350,6 +559,7 @@ def main() -> None:
             limit=args.n,
             experiment=args.experiment,
             unified=args.unified,
+            bert_consultant=args.bert_consultant,
         )
     else:
         parser.print_help()

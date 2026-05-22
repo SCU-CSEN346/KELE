@@ -1,0 +1,15 @@
+{
+  "experiment": "bert-consultant-fewshot10-gemma-smoke",
+  "teacher_model": "Gemma 4 31B",
+  "teacher_base_url": "http://localhost:8080/v1",
+  "consultant_model": "Gemma 4 31B",
+  "consultant_base_url": "http://localhost:8080/v1",
+  "thinking_budget": 0,
+  "max_teaching_rounds": 8,
+  "unified": false,
+  "total_dialogues": 5,
+  "completed": 5,
+  "total_elapsed_seconds": 319.21,
+  "started_at": "2026-05-15 16:57:28",
+  "finished_at": "2026-05-15 17:02:47"
+}
