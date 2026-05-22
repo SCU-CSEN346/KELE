@@ -165,8 +165,10 @@ def fig_ngram_gap_widening(data: dict):
 
     for i, stl in enumerate(stl_configs):
         vals = [stl["r1"], stl["r2"], stl["b4"]]
+        # Clamp alpha to [0.4, 1.0] regardless of how many STL configs there are
+        alpha = min(0.95, 0.5 + 0.08 * i)
         ax.bar(x - 0.4 + width/2 + (i + 1) * width, vals, width,
-               label=SHORT.get(stl["name"], stl["name"]), color="#d62728", alpha=0.6 + 0.1 * i)
+               label=SHORT.get(stl["name"], stl["name"]), color="#d62728", alpha=alpha)
 
     ax.set_xticks(x)
     ax.set_xticklabels(metrics)

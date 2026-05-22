@@ -104,8 +104,13 @@
       "surface_sum": 61.93000000000001,
       "composite_state_r1": 66.53999999999999,
       "semantic_r1": 0.723320722579956,
-      "judge_overall": null,
-      "judge_axis_avgs": null,
+      "judge_overall": 8.188054251434533,
+      "judge_axis_avgs": {
+        "socratic_validity": 2.2772561293688054,
+        "advancement": 2.5002608242044864,
+        "age_appropriateness": 1.9728742827334376,
+        "question_form": 1.4376630151278038
+      },
       "per_stage": {
         "a": 99.27,
         "b": 23.26,
@@ -128,8 +133,13 @@
       "surface_sum": 54.120000000000005,
       "composite_state_r1": 63.205,
       "semantic_r1": 0.7200338840484619,
-      "judge_overall": null,
-      "judge_axis_avgs": null,
+      "judge_overall": 7.422984836392658,
+      "judge_axis_avgs": {
+        "socratic_validity": 2.0274009044958765,
+        "advancement": 2.313115190210162,
+        "age_appropriateness": 1.9036977919659483,
+        "question_form": 1.1787709497206704
+      },
       "per_stage": {
         "a": 99.27,
         "b": 24.57,
@@ -362,8 +372,13 @@
       "surface_sum": 92.76,
       "composite_state_r1": 41.375,
       "semantic_r1": null,
-      "judge_overall": null,
-      "judge_axis_avgs": null,
+      "judge_overall": 7.631921824104235,
+      "judge_axis_avgs": {
+        "socratic_validity": 2.0749185667752443,
+        "advancement": 1.9413680781758957,
+        "age_appropriateness": 1.9022801302931596,
+        "question_form": 1.713355048859935
+      },
       "per_stage": {
         "a": 10.0,
         "b": 27.12,
@@ -415,8 +430,13 @@
       "surface_sum": 93.2,
       "composite_state_r1": 50.035,
       "semantic_r1": null,
-      "judge_overall": null,
-      "judge_axis_avgs": null,
+      "judge_overall": 6.617161716171617,
+      "judge_axis_avgs": {
+        "socratic_validity": 1.8745874587458746,
+        "advancement": 1.7227722772277227,
+        "age_appropriateness": 1.8184818481848184,
+        "question_form": 1.2013201320132014
+      },
       "per_stage": {
         "a": 36.0,
         "b": 28.81,
@@ -439,8 +459,13 @@
       "surface_sum": 73.38,
       "composite_state_r1": 52.370000000000005,
       "semantic_r1": null,
-      "judge_overall": null,
-      "judge_axis_avgs": null,
+      "judge_overall": 6.766447368421052,
+      "judge_axis_avgs": {
+        "socratic_validity": 1.8782894736842106,
+        "advancement": 1.707236842105263,
+        "age_appropriateness": 1.799342105263158,
+        "question_form": 1.381578947368421
+      },
       "per_stage": {
         "a": 96.0,
         "b": 35.59,
@@ -463,8 +488,13 @@
       "surface_sum": 0.6699999999999999,
       "composite_state_r1": 34.675,
       "semantic_r1": null,
-      "judge_overall": null,
-      "judge_axis_avgs": null,
+      "judge_overall": 8.007407407407408,
+      "judge_axis_avgs": {
+        "socratic_validity": 2.2,
+        "advancement": 2.3777777777777778,
+        "age_appropriateness": 1.9074074074074074,
+        "question_form": 1.5222222222222221
+      },
       "per_stage": {
         "a": 100.0,
         "b": 13.56,
