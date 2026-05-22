@@ -497,6 +497,14 @@ def main() -> None:
         "KELE_PARALLEL_WORKERS). Recommended: 4. Server-side -np must be "
         "at least this value.",
     )
+    eval_parser.add_argument(
+        "--dataset-path",
+        type=Path,
+        default=None,
+        help="Path to a SocratDataset JSON file. Defaults to references/KELE/"
+        "SocratDataset.json (the original Chinese dataset). Use "
+        "references/KELE-EN/SocratDataset.json for the English translation.",
+    )
 
     # Quick test mode — run on a handful of dialogues
     test_parser = sub.add_parser("test", help="Quick test with a few dialogues")
@@ -523,6 +531,7 @@ def main() -> None:
         output = args.output or Path(f"results/{args.experiment or 'baseline'}")
         run_batch_evaluation(
             output,
+            dataset_path=args.dataset_path,
             start_id=args.start_id,
             limit=args.limit,
             experiment=args.experiment,

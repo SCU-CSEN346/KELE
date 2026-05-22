@@ -49,3 +49,6 @@ results/state_classifier_v1/checkpoints/
 results/state_classifier_v1/final/
 results/state_classifier_v2/checkpoints/
 results/state_classifier_v2/final/
+references/KELE-EN/SocratDataset.json
+references/KELE-EN/data/
+references/KELE-EN/.cache/
