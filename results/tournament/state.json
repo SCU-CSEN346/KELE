@@ -4,11 +4,14 @@
   "n_per_round": 50,
   "thinking_budget": 4096,
   "models_active": [
+    "qwen27b-q4",
+    "gemma4-31b"
+  ],
+  "models_eliminated": [
+    "glm47-23b",
     "qwen35-9b",
     "qwen27b",
-    "qwen27b-q4",
     "qwen35b-a3b",
-    "gemma4-31b",
     "gemma4-26b-a4b",
     "qwopus35b-a3b",
     "deepseek-r1-14b",
@@ -16,9 +19,6 @@
     "gemma3-27b",
     "mistral-24b",
     "qwen3-14b"
-  ],
-  "models_eliminated": [
-    "glm47-23b"
   ],
   "scores": {
     "qwen35-9b": {
