@@ -39,7 +39,6 @@ CONFIGS=(
 ANTHROPIC_API_KEY=$(grep "^ANTHROPIC_API_KEY=" .env | cut -d= -f2- | tr -d "'\"")
 export ANTHROPIC_API_KEY
 
-TOTAL_COST=0
 for CFG in "${CONFIGS[@]}"; do
   if [[ ! -d "$CFG/dialogues" ]]; then
     echo "SKIP (no dialogues/): $CFG"
