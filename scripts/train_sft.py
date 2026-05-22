@@ -41,28 +41,16 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import tempfile
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from trl import SFTConfig
 
 # ---------------------------------------------------------------------------
 # Config helpers
 # ---------------------------------------------------------------------------
-
-
-def _load_env_file(path: str) -> None:
-    """Load KEY=VALUE pairs from a shell env file into os.environ (no-clobber)."""
-    with open(path, encoding="utf-8") as f:
-        for raw in f:
-            line = raw.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "=" not in line:
-                continue
-            key, _, value = line.partition("=")
-            key = key.strip()
-            value = value.strip()
-            # Drop inline comments (space + #)
-            if " #" in value:
-                value = value[: value.index(" #")].strip()
-            os.environ.setdefault(key, value)
 
 
 def _require(key: str) -> str:
@@ -74,11 +62,17 @@ def _require(key: str) -> str:
 
 
 def _get(key: str, default: str) -> str:
-    return os.environ.get(key) or default
+    val = os.environ.get(key)
+    return val if val is not None else default
 
 
 def _bool(val: str) -> bool:
     return val.lower() in ("1", "true", "yes")
+
+
+def _parse_sources() -> list[str]:
+    raw = _get("TRAIN_SOURCES", "socrat-zh,socrat-en")
+    return [s.strip() for s in raw.split(",") if s.strip()]
 
 
 # ---------------------------------------------------------------------------
@@ -87,17 +81,17 @@ def _bool(val: str) -> bool:
 
 
 def build_hf_datasets():
-    """Load train/eval splits and return HF Dataset objects with a `messages` column."""
+    """Load train/eval splits and return HF Dataset objects with a `messages` column.
+
+    Uses load_split_pair to download each source only once (train + test in one pass).
+    """
     from datasets import Dataset as HFDataset  # noqa: PLC0415
 
-    from src.project.dataset import load_training_data  # noqa: PLC0415
+    from src.project.dataset import load_split_pair  # noqa: PLC0415
 
-    sources_raw = _get("TRAIN_SOURCES", "socrat-zh,socrat-en")
-    sources = [s.strip() for s in sources_raw.split(",") if s.strip()]
-
+    sources = _parse_sources()
     print(f"\nLoading training data  sources={sources}")
-    train_records = load_training_data(sources=sources, split="train")
-    eval_records = load_training_data(sources=sources, split="test")
+    train_records, eval_records = load_split_pair(sources=sources)
     print(f"  train: {len(train_records)} records")
     print(f"  eval:  {len(eval_records)} records")
 
@@ -197,11 +191,18 @@ def build_lora_config():
 # ---------------------------------------------------------------------------
 
 
-def build_sft_config():
-    """Build TRL SFTConfig from env vars."""
+def build_sft_config(output_dir: str | None = None) -> SFTConfig:
+    """Build TRL SFTConfig from env vars.
+
+    Args:
+        output_dir: Override the output directory. Defaults to TRAIN_OUTPUT_DIR env var.
+                    Pass a temp dir in dry_run() to avoid creating the real output_dir
+                    as a side-effect of the SFTConfig (TrainingArguments) constructor.
+    """
     from trl import SFTConfig
 
-    output_dir = _get("TRAIN_OUTPUT_DIR", "outputs/sft")
+    if output_dir is None:
+        output_dir = _get("TRAIN_OUTPUT_DIR", "outputs/sft")
     epochs = int(_get("TRAIN_EPOCHS", "3"))
     lr = float(_get("TRAIN_LR", "5e-5"))
     batch = int(_get("TRAIN_BATCH_SIZE", "4"))
@@ -251,22 +252,21 @@ def dry_run() -> None:
 
     base_model = _require("TRAIN_BASE_MODEL")
     method = _get("TRAIN_METHOD", "lora").lower()
-    sources_raw = _get("TRAIN_SOURCES", "socrat-zh,socrat-en")
-    sources = [s.strip() for s in sources_raw.split(",") if s.strip()]
-    output_dir = _get("TRAIN_OUTPUT_DIR", "outputs/sft")
-
+    sources = _parse_sources()
     print(f"Base model : {base_model}")
     print(f"Method     : {method}")
     print(f"Sources    : {sources}")
-    print(f"Output dir : {output_dir}")
+    print(f"Output dir : {_get('TRAIN_OUTPUT_DIR', 'outputs/sft')}")
     build_lora_config()
-    build_sft_config()
+    # Use a temp dir so the SFTConfig constructor (TrainingArguments) doesn't
+    # create the real output_dir on disk as a side-effect of the dry run.
+    with tempfile.TemporaryDirectory() as tmp:
+        build_sft_config(output_dir=tmp)
 
     print("\nLoading training data (HF download required)...")
-    from src.project.dataset import load_training_data
+    from src.project.dataset import load_split_pair
 
-    train_records = load_training_data(sources=sources, split="train")
-    eval_records = load_training_data(sources=sources, split="test")
+    train_records, eval_records = load_split_pair(sources=sources)
     print(f"  train: {len(train_records)} records")
     print(f"  eval:  {len(eval_records)} records")
 
@@ -305,7 +305,9 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.config:
-        _load_env_file(args.config)
+        from src.project.config import load_env_file
+
+        load_env_file(Path(args.config))
 
     if args.dry_run:
         dry_run()
@@ -334,7 +336,7 @@ def main() -> None:
     print("\nStarting training...")
     trainer.train()
 
-    output_dir = _get("TRAIN_OUTPUT_DIR", "outputs/sft")
+    output_dir = sft_cfg.output_dir
     print(f"\nSaving final adapter to {output_dir}/final")
     trainer.save_model(f"{output_dir}/final")
     tokenizer.save_pretrained(f"{output_dir}/final")

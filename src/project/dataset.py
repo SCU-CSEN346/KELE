@@ -17,7 +17,10 @@ Usage:
     records = load_training_data(["socrat-zh", "socrat-en", "socrateach-multi", "socrateach-single"])
 """
 
+from __future__ import annotations
+
 import random
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 _SOCRAT_ZH_SYSTEM = (
     "你是一位苏格拉底式教师。通过启发性问题引导学生自己发现答案——永远不要直接告诉学生答案。"
@@ -28,6 +31,8 @@ _SOCRAT_EN_SYSTEM = (
     "heuristic questions — never give away the answer directly."
 )
 
+# SocraTeach datasets were generated without SocRule state annotations; softer framing
+# ("guiding questions") avoids implying state-conditioned behaviour to the model.
 _SOCRATEACH_SYSTEM = (
     "You are a Socratic teacher. Guide the student through this problem using "
     "guiding questions — never give away the answer directly."
@@ -40,6 +45,25 @@ def _strip_quotes(s: str) -> str:
     if len(s) >= 2 and s[0] in ("'", '"') and s[-1] == s[0]:
         return s[1:-1]
     return s
+
+
+def _format_options(opts: list[str]) -> str:
+    """Format a list of answer options as '(A) opt1 (B) opt2 ...'."""
+    return " ".join(f"({chr(65 + i)}) {o}" for i, o in enumerate(opts))
+
+
+def _split(records: list, split: str, seed: int) -> list:
+    """Return the train or test subset of *records* using a seeded 90/10 shuffle-split.
+
+    The shuffle is deterministic for a given (len(records), seed) pair, matching the
+    split used by kele.load_dataset so training and evaluation sets never overlap.
+    """
+    rng = random.Random(seed)
+    indices = list(range(len(records)))
+    rng.shuffle(indices)
+    split_point = int(len(records) * 0.9)
+    chosen = indices[:split_point] if split == "train" else indices[split_point:]
+    return [records[i] for i in sorted(chosen)]
 
 
 # ---------------------------------------------------------------------------
@@ -61,8 +85,7 @@ def _socrat_zh_to_messages(record: dict) -> dict:
 
     system_parts = [_SOCRAT_ZH_SYSTEM, f"问题：{q}"]
     if opts:
-        formatted = " ".join(f"({chr(65 + i)}) {o}" for i, o in enumerate(opts))
-        system_parts.append(f"选项：{formatted}")
+        system_parts.append(f"选项：{_format_options(opts)}")
     if hint:
         system_parts.append(f"提示：{hint}")
     if knowledge:
@@ -76,9 +99,8 @@ def _socrat_zh_to_messages(record: dict) -> dict:
         state = _strip_quotes(turn.get("state", ""))
         action = _strip_quotes(turn.get("action", ""))
         teacher_content = turn["teacher"]
-        if state or action:
-            prefix = f"[State: {state}] [Action: {action}]\n" if state and action else ""
-            teacher_content = prefix + teacher_content
+        if state and action:
+            teacher_content = f"[State: {state}] [Action: {action}]\n" + teacher_content
         messages.append({"role": "assistant", "content": teacher_content})
         if state:
             states.append(state)
@@ -100,20 +122,10 @@ def load_socrat_zh(
     from datasets import load_dataset as hf_load
 
     raw = [dict(r) for r in hf_load(hf_repo, split="train")]
-
+    converted = [_socrat_zh_to_messages(r) for r in raw]
     if split == "all":
-        return [_socrat_zh_to_messages(r) for r in raw]
-
-    rng = random.Random(seed)
-    indices = list(range(len(raw)))
-    rng.shuffle(indices)
-    split_point = int(len(raw) * 0.9)
-    if split == "train":
-        subset = [raw[i] for i in sorted(indices[:split_point])]
-    else:
-        subset = [raw[i] for i in sorted(indices[split_point:])]
-
-    return [_socrat_zh_to_messages(r) for r in subset]
+        return converted
+    return _split(converted, split, seed)
 
 
 # ---------------------------------------------------------------------------
@@ -135,8 +147,7 @@ def _socrat_en_to_messages(record: dict) -> dict:
 
     system_parts = [_SOCRAT_EN_SYSTEM, f"Problem: {q}"]
     if opts:
-        formatted = " ".join(f"({chr(65 + i)}) {o}" for i, o in enumerate(opts))
-        system_parts.append(f"Options: {formatted}")
+        system_parts.append(f"Options: {_format_options(opts)}")
     if hint:
         system_parts.append(f"Hint: {hint}")
     if knowledge:
@@ -147,12 +158,13 @@ def _socrat_en_to_messages(record: dict) -> dict:
 
     for turn in record.get("dialogue", []):
         messages.append({"role": "user", "content": turn["student"]})
+        # HF upload of SocratDataset-EN is pre-cleaned — no surrounding quotes in
+        # state/action. If testing against raw local JSON, apply _strip_quotes here too.
         state = turn.get("state", "")
         action = turn.get("action", "")
         teacher_content = turn["teacher"]
-        if state or action:
-            prefix = f"[State: {state}] [Action: {action}]\n" if state and action else ""
-            teacher_content = prefix + teacher_content
+        if state and action:
+            teacher_content = f"[State: {state}] [Action: {action}]\n" + teacher_content
         messages.append({"role": "assistant", "content": teacher_content})
         if state:
             states.append(state)
@@ -178,20 +190,10 @@ def load_socrat_en(
     from datasets import load_dataset as hf_load
 
     raw = [dict(r) for r in hf_load(hf_repo, split="train")]
-
+    converted = [_socrat_en_to_messages(r) for r in raw]
     if split == "all":
-        return [_socrat_en_to_messages(r) for r in raw]
-
-    rng = random.Random(seed)
-    indices = list(range(len(raw)))
-    rng.shuffle(indices)
-    split_point = int(len(raw) * 0.9)
-    if split == "train":
-        subset = [raw[i] for i in sorted(indices[:split_point])]
-    else:
-        subset = [raw[i] for i in sorted(indices[split_point:])]
-
-    return [_socrat_en_to_messages(r) for r in subset]
+        return converted
+    return _split(converted, split, seed)
 
 
 # ---------------------------------------------------------------------------
@@ -250,15 +252,7 @@ def load_socrateach_multi(
 
     if split == "all":
         return records
-
-    rng = random.Random(seed)
-    indices = list(range(len(records)))
-    rng.shuffle(indices)
-    split_point = int(len(records) * 0.9)
-    if split == "train":
-        return [records[i] for i in sorted(indices[:split_point])]
-    else:
-        return [records[i] for i in sorted(indices[split_point:])]
+    return _split(records, split, seed)
 
 
 # ---------------------------------------------------------------------------
@@ -320,24 +314,14 @@ def load_socrateach_single(
     from datasets import load_dataset as hf_load
 
     hf_ds = hf_load(hf_repo, split="train")
-
     records = [_socrateach_single_to_messages(dict(r)) for r in hf_ds]
-
     if split == "all":
         return records
-
-    rng = random.Random(seed)
-    indices = list(range(len(records)))
-    rng.shuffle(indices)
-    split_point = int(len(records) * 0.9)
-    if split == "train":
-        return [records[i] for i in sorted(indices[:split_point])]
-    else:
-        return [records[i] for i in sorted(indices[split_point:])]
+    return _split(records, split, seed)
 
 
 # ---------------------------------------------------------------------------
-# Unified entry point
+# Unified entry points
 # ---------------------------------------------------------------------------
 
 _SOURCE_LOADERS = {
@@ -348,12 +332,20 @@ _SOURCE_LOADERS = {
 }
 
 
+def _validate_sources(sources: list[str]) -> None:
+    unknown = set(sources) - set(_SOURCE_LOADERS)
+    if unknown:
+        raise ValueError(f"Unknown sources: {unknown}. Valid: {set(_SOURCE_LOADERS)}")
+
+
 def load_training_data(
     sources: list[str] | None = None,
     split: str = "train",
     seed: int = 42,
 ) -> list[dict]:
     """Load and combine training records from one or more sources.
+
+    Downloads each source concurrently; result order matches `sources`.
 
     Args:
         sources: List of source keys to include. Defaults to all four.
@@ -366,15 +358,51 @@ def load_training_data(
     """
     if sources is None:
         sources = list(_SOURCE_LOADERS.keys())
+    _validate_sources(sources)
 
-    unknown = set(sources) - set(_SOURCE_LOADERS)
-    if unknown:
-        raise ValueError(f"Unknown sources: {unknown}. Valid: {set(_SOURCE_LOADERS)}")
+    def _load(src: str) -> tuple[str, list[dict]]:
+        return src, _SOURCE_LOADERS[src](split=split, seed=seed)  # type: ignore[call-arg]
 
-    all_records: list[dict] = []
-    for src in sources:
-        loader = _SOURCE_LOADERS[src]
-        records = loader(split=split, seed=seed)  # type: ignore[call-arg]
-        all_records.extend(records)
+    results: dict[str, list[dict]] = {}
+    with ThreadPoolExecutor(max_workers=len(sources)) as pool:
+        for src, records in (
+            f.result() for f in as_completed({pool.submit(_load, s): s for s in sources})
+        ):
+            results[src] = records
 
-    return all_records
+    return [r for src in sources for r in results[src]]
+
+
+def load_split_pair(
+    sources: list[str] | None = None,
+    seed: int = 42,
+) -> tuple[list[dict], list[dict]]:
+    """Load train and eval splits in a single HF download pass per source.
+
+    Equivalent to calling load_training_data twice with split="train" and "test",
+    but downloads each dataset once, halving network I/O when both splits are needed.
+
+    Returns:
+        (train_records, eval_records) with the same per-source 90/10 split as
+        load_training_data. Result order within each list matches `sources`.
+    """
+    if sources is None:
+        sources = list(_SOURCE_LOADERS.keys())
+    _validate_sources(sources)
+
+    def _load(src: str) -> tuple[str, list[dict], list[dict]]:
+        all_recs = _SOURCE_LOADERS[src](split="all", seed=seed)  # type: ignore[call-arg]
+        return src, _split(all_recs, "train", seed), _split(all_recs, "test", seed)
+
+    train_by_src: dict[str, list[dict]] = {}
+    eval_by_src: dict[str, list[dict]] = {}
+    with ThreadPoolExecutor(max_workers=len(sources)) as pool:
+        for src, train_recs, eval_recs in (
+            f.result() for f in as_completed({pool.submit(_load, s): s for s in sources})
+        ):
+            train_by_src[src] = train_recs
+            eval_by_src[src] = eval_recs
+
+    train_records = [r for src in sources for r in train_by_src[src]]
+    eval_records = [r for src in sources for r in eval_by_src[src]]
+    return train_records, eval_records

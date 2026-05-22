@@ -17,11 +17,11 @@ from unittest.mock import MagicMock, patch
 def _mock_hf(records: list[dict]) -> MagicMock:
     """Return a mock object that iterates over `records` when passed to list()."""
     m = MagicMock()
-    m.__iter__ = MagicMock(return_value=iter(records))
+    m.__iter__ = MagicMock(side_effect=lambda: iter(records))
     return m
 
 
-def _socrat_record(id_: int, language: str = "en") -> dict:
+def _socrat_record(id_: int) -> dict:
     """Minimal SocratDataset / SocratDataset-EN record."""
     return {
         "id": id_,
@@ -246,11 +246,7 @@ def test_load_training_data_combines_sources():
     en_raw = [_socrat_record(i) for i in range(6)]
     zh_raw = [_socrat_record(i) for i in range(6)]
 
-    call_count = 0
-
-    def mock_hf(repo, split):
-        nonlocal call_count
-        call_count += 1
+    def mock_hf(repo, split="train", **_kwargs):
         return _mock_hf(en_raw if "EN" in repo else zh_raw)
 
     with patch("datasets.load_dataset", side_effect=mock_hf):
