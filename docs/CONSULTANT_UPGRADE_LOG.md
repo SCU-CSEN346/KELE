@@ -400,6 +400,42 @@ Late-afternoon discussion (2026-05-22) flagged the language question: SocratData
 
 The honest estimate: 60-70% likely we get free transfer and save the retraining work. 30-40% we see meaningful Chinese-side degradation and need Stage 2. Both outcomes are scientifically informative — the former validates the multilingual-representation argument; the latter quantifies the LoRA-vs-cross-lingual-preservation tradeoff.
 
+## CPU routing for the consultant when teacher saturates GPU
+
+Added 2026-05-22 during the first T4 Layer-2 mini-test (T4 + Gemma 4 31B + 10-shot at n=50). The locked bge-small consultant (24M params, ~95 MB in fp32) fit easily alongside any teacher on the 5090. T4 (Qwen3.5-0.8B-Base, 752M params, ~3 GB in fp32) does not.
+
+**The OOM cascade we hit:**
+1. **First attempt:** OOM at `model.to(cuda).eval()` — 3 GB fp32 model didn't fit in the ~4 GB free after Gemma loaded.
+2. **Second attempt (bf16 load via `dtype=torch.bfloat16, low_cpu_mem_usage=True`):** model loaded successfully at ~1.5 GB, but every per-turn forward pass OOM'd. CUDA's allocator had ~1.6 GB free but fragmented; even 16 MB contiguous allocations failed.
+3. **Third attempt (auto-CPU routing):** loaded model on CPU instead. Inference happens on CPU, teacher on GPU. Works clean.
+
+**The routing logic** (in `src/project/socratic_teaching_bert_consultant.py`):
+
+```
+env_device = os.environ.get("KELE_BERT_DEVICE", "auto").lower()
+- "cpu"  → CPU always
+- "cuda" → CUDA always (force; will OOM if teacher saturated)
+- "auto" (default):
+    if model_size_mb > 200 AND cuda_free < 3 GB:
+        CPU
+    else:
+        CUDA
+```
+
+The 200 MB threshold lets bge-small (95 MB) stay on CUDA even when memory is tight (frequent reuse, cheap to fit). The 3 GB free threshold catches the "teacher saturated GPU" case for larger Qwen-family classifiers.
+
+**The cost:** ~100-300 ms per turn for CPU inference on a Qwen3.5-class model (single forward, no batch). For a 50-dialogue mini-test averaging ~6 turns each = 300 forward passes × 300 ms ≈ 90 s overhead on a ~50-min run. **~3% wall-clock penalty.** Effectively free relative to the alternative of swapping the consultant for a smaller model.
+
+**The dtype choice (bf16 on CPU vs fp32 on CPU):**
+- We're currently loading in bf16 even on CPU because that's how the auto-CPU code path arose (the bf16 load was step 2 of debugging, the CPU move was step 3, and they composed).
+- bf16 on CPU is often SLOWER than fp32 because most x86 CPUs (AMD, older Intel) lack native bf16 instructions and emulate via fp32 cast → fp32 matmul → bf16 cast. AMX-BF16 (Intel Sapphire Rapids+) is the exception.
+- bf16 vs fp32 accuracy delta on classification argmax: < 0.1 pp empirically; effectively indistinguishable.
+- **Future-tweak:** consider loading in fp32 when device=CPU. Marginal speed win on most CPUs, marginally more faithful to training-time numerics. Not worth restarting an in-flight run for; flip the default when starting a fresh series.
+
+**Implications for the HF Hub publishing plan (Task #15):**
+- Model cards should mention this routing logic in the "How to use" section: large consultant checkpoints (T2/T3/T4) need CPU placement when paired with a multi-GB teacher.
+- A user with two GPUs could place teacher on GPU 0 and consultant on GPU 1 — out of scope for our single-5090 setup, but worth flagging.
+
 ## Open questions
 
 1. **Should we commit the refactor + doc now or wait until T1-T4 land?** Working tree has uncommitted changes to `scripts/train_state_classifier_34way.py` (+114/-11) and `docs/EXPERIMENT_TIERS.md` (+12/-12, plus this doc). Awaiting Max's call.

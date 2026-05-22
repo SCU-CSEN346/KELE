@@ -62,10 +62,44 @@ class SocraticTeachingSystemBertConsultant(SocraticTeachingSystem):
                 f"Train via `uv run python scripts/train_state_classifier_34way.py`."
             )
         self.bert_tokenizer = AutoTokenizer.from_pretrained(ckpt_path)
-        self.bert_model = AutoModelForSequenceClassification.from_pretrained(ckpt_path)
-        self.bert_device = "cuda" if torch.cuda.is_available() else "cpu"
+        # Load the consultant in bf16 — matches teacher's native dtype, halves
+        # memory footprint vs fp32. Inference-only, so no AdamW underflow risk.
+        self.bert_model = AutoModelForSequenceClassification.from_pretrained(
+            ckpt_path, dtype=torch.bfloat16, low_cpu_mem_usage=True,
+        )
+        # Device selection: default to CPU when KELE_BERT_DEVICE=cpu (or 'auto'
+        # when the teacher already occupies most VRAM). Otherwise CUDA.
+        # A 24M bge-small fits anywhere; Qwen3*-Embedding (~600M-750M params,
+        # 1.2-1.5 GB in bf16) plus a 28 GB teacher (Gemma 4 31B Q5) on a 32 GB
+        # 5090 leaves only ~2 GB of free + fragmented VRAM, where even 16 MB
+        # contiguous allocations fail. CPU inference is ~100-300ms per turn on
+        # a Qwen3.5-class model — ~3% overhead on a 50-min Gemma eval. Tiny
+        # cost; massive reliability win.
+        env_device = os.environ.get("KELE_BERT_DEVICE", "auto").lower()
+        if env_device == "cpu":
+            self.bert_device = "cpu"
+        elif env_device == "cuda":
+            self.bert_device = "cuda"
+        else:  # auto: pick CPU when the BERT model is >100 MB AND CUDA is busy
+            backbone_params_mb = sum(p.numel() for p in self.bert_model.parameters()) * 2 / 1e6
+            cuda_busy = False
+            if torch.cuda.is_available():
+                free_bytes, _total = torch.cuda.mem_get_info()
+                # If less than 3 GB free, fall back to CPU regardless of model size
+                cuda_busy = free_bytes < 3 * 1024**3
+            if backbone_params_mb > 200 and cuda_busy:
+                self.bert_device = "cpu"
+                print(f"  [bert-consultant] {backbone_params_mb:.0f} MB model + busy CUDA "
+                      f"({free_bytes / 1024**3:.1f} GB free) -> CPU inference")
+            else:
+                self.bert_device = "cuda" if torch.cuda.is_available() else "cpu"
         self.bert_model.to(self.bert_device).eval()
         self.bert_max_length = 512
+        # Ensure pad_token_id is set on the model config (Qwen3* classifiers
+        # need this for last-non-pad-token pooling; tokenizer ships with one
+        # already, but model.config may not).
+        if self.bert_model.config.pad_token_id is None:
+            self.bert_model.config.pad_token_id = self.bert_tokenizer.pad_token_id
         # id2label: trust the saved config but fall back to ALL_STATES order
         try:
             self.bert_id2label = {int(k): v for k, v in self.bert_model.config.id2label.items()}
