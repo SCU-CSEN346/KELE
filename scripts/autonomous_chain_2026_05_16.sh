@@ -15,7 +15,7 @@
 # its metrics_summary.json — safer failure mode (manual intervention only).
 
 set -uo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 ROOT="$(pwd)"
 
 GEMMA_METRICS="results/gemma4-31b-local-unified/metrics_summary.json"
@@ -44,7 +44,8 @@ echo
 
 # Helper: print human-readable time remaining
 time_remaining() {
-  local now=$(date +%s)
+  local now
+  now=$(date +%s)
   local rem=$(( DEADLINE_EPOCH - now ))
   if [[ $rem -lt 0 ]]; then
     echo "0h 0m (deadline passed)"
@@ -76,7 +77,8 @@ run_followup() {
   local out_dir="results/gemma4-31b-local-${out_suffix}"
 
   # Re-check time budget
-  local now=$(date +%s)
+  local now
+  now=$(date +%s)
   local rem=$(( DEADLINE_EPOCH - now ))
   if [[ $rem -lt $MIN_SLACK_SECONDS ]]; then
     echo "Insufficient time ($(time_remaining)) for experiment '$out_suffix'. Stopping chain."

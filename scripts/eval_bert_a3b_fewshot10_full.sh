@@ -18,7 +18,7 @@
 # Output: results/bert-consultant-fewshot10-a3b-full/
 
 set -uo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 ROOT="$(pwd)"
 
 OUT_DIR="results/bert-consultant-fewshot10-a3b-full"
@@ -125,9 +125,9 @@ echo "Experiment: $EXPERIMENT (BERT consultant + A3B-think teacher + 10-shot)"
 echo "Full test split: n=681 dialogues, ~4170 turns"
 echo
 
-INHIBIT=""
+INHIBIT=()
 if command -v systemd-inhibit &>/dev/null; then
-  INHIBIT="systemd-inhibit --what=sleep:idle --who=bert_a3b_full --why=KELE-eval"
+  INHIBIT=(systemd-inhibit --what=sleep:idle --who=bert_a3b_full --why=KELE-eval)
 fi
 
 # Parallel workers default to 1 until parallel-eval is validated end-to-end.
@@ -138,7 +138,7 @@ echo "Parallel workers: $KELE_PARALLEL_WORKERS (server -np must be ≥ this)"
 PATH="$ROOT/.venv/bin:$PATH" \
 KELE_FEW_SHOT_TEACHER=1 KELE_FEW_SHOT_N=10 \
 KELE_PARALLEL_WORKERS="$KELE_PARALLEL_WORKERS" \
-  $INHIBIT uv run python -m src.project.kele \
+  "${INHIBIT[@]}" uv run python -m src.project.kele \
     --experiment "$EXPERIMENT" \
     evaluate \
     --bert-consultant "$BERT_CKPT" \

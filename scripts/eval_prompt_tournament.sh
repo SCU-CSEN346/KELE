@@ -19,7 +19,7 @@
 #   uv run python scripts/aggregate_tournament_leaderboard.py results/tournament-cell-*
 
 set -uo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 ROOT="$(pwd)"
 
 BERT_CKPT="results/state_classifier_v1/final"
@@ -131,9 +131,11 @@ done | head -20
 echo
 
 # ── Run each cell ────────────────────────────────────────────────────────────
-INHIBIT=""
+# Use an array so word splitting is explicit and shellcheck-safe; an empty
+# array expands to nothing under "${INHIBIT[@]}", so the call site stays simple.
+INHIBIT=()
 if command -v systemd-inhibit &>/dev/null; then
-  INHIBIT="systemd-inhibit --what=sleep:idle --who=prompt_tournament --why=KELE-eval"
+  INHIBIT=(systemd-inhibit --what=sleep:idle --who=prompt_tournament --why=KELE-eval)
 fi
 
 OVERALL_START=$(date +%s)
@@ -168,7 +170,7 @@ for cell_def in "${CELLS_TO_RUN[@]}"; do
     KELE_FEW_SHOT_N=10 \
     KELE_PARALLEL_WORKERS="$CELL_WORKERS" \
     "$CELL_ENV" \
-    $INHIBIT uv run python -m src.project.kele \
+    "${INHIBIT[@]}" uv run python -m src.project.kele \
       --experiment "$EXPERIMENT" \
       evaluate \
       --bert-consultant "$BERT_CKPT" \
