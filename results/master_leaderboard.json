@@ -210,8 +210,13 @@
       "surface_sum": 69.23,
       "composite_state_r1": 67.78,
       "semantic_r1": 0.7394542098045349,
-      "judge_overall": null,
-      "judge_axis_avgs": null,
+      "judge_overall": 7.8389513108614235,
+      "judge_axis_avgs": {
+        "socratic_validity": 2.149812734082397,
+        "advancement": 2.4794007490636703,
+        "age_appropriateness": 1.9737827715355805,
+        "question_form": 1.2359550561797752
+      },
       "per_stage": {
         "a": 100.0,
         "b": 30.51,
@@ -234,8 +239,13 @@
       "surface_sum": 55.49,
       "composite_state_r1": 63.925,
       "semantic_r1": 0.7288748025894165,
-      "judge_overall": null,
-      "judge_axis_avgs": null,
+      "judge_overall": 7.444852941176471,
+      "judge_axis_avgs": {
+        "socratic_validity": 2.025735294117647,
+        "advancement": 2.3970588235294117,
+        "age_appropriateness": 1.9816176470588236,
+        "question_form": 1.0404411764705883
+      },
       "per_stage": {
         "a": 100.0,
         "b": 32.2,
@@ -258,8 +268,13 @@
       "surface_sum": 48.17,
       "composite_state_r1": 59.55,
       "semantic_r1": 0.7207031846046448,
-      "judge_overall": null,
-      "judge_axis_avgs": null,
+      "judge_overall": 7.25,
+      "judge_axis_avgs": {
+        "socratic_validity": 1.9384615384615385,
+        "advancement": 2.3384615384615386,
+        "age_appropriateness": 1.976923076923077,
+        "question_form": 0.9961538461538462
+      },
       "per_stage": {
         "a": 100.0,
         "b": 27.12,
@@ -282,8 +297,13 @@
       "surface_sum": 37.58,
       "composite_state_r1": 51.39,
       "semantic_r1": 0.7170211672782898,
-      "judge_overall": null,
-      "judge_axis_avgs": null,
+      "judge_overall": 6.799163179916318,
+      "judge_axis_avgs": {
+        "socratic_validity": 1.7782426778242677,
+        "advancement": 2.192468619246862,
+        "age_appropriateness": 1.9665271966527196,
+        "question_form": 0.8619246861924686
+      },
       "per_stage": {
         "a": 100.0,
         "b": 22.03,
@@ -330,7 +350,27 @@
     },
     {
       "name": "Sonnet 4.6 consultant + SocratTeachLLM (n=50 clean rerun)",
-      "available": false
+      "available": true,
+      "results_dir": "results/claude-sonnet-consultant-socratteachllm-n50-clean",
+      "state": 18.57,
+      "r1": 45.61,
+      "r2": 26.7,
+      "rl": 38.4,
+      "b4": 20.45,
+      "n_turns": 307,
+      "n_dialogues": 51,
+      "surface_sum": 92.76,
+      "composite_state_r1": 41.375,
+      "semantic_r1": null,
+      "judge_overall": null,
+      "judge_axis_avgs": null,
+      "per_stage": {
+        "a": 10.0,
+        "b": 27.12,
+        "c": 16.67,
+        "d": 11.32,
+        "e": 28.57
+      }
     },
     {
       "name": "Opus 4.6 consultant + SocratTeachLLM (n=50)",
@@ -346,8 +386,13 @@
       "surface_sum": 96.85,
       "composite_state_r1": 62.23,
       "semantic_r1": 0.7691779136657715,
-      "judge_overall": null,
-      "judge_axis_avgs": null,
+      "judge_overall": 7.804560260586319,
+      "judge_axis_avgs": {
+        "socratic_validity": 2.1628664495114007,
+        "advancement": 2.0684039087947883,
+        "age_appropriateness": 1.9218241042345277,
+        "question_form": 1.6514657980456027
+      },
       "per_stage": {
         "a": 100.0,
         "b": 35.59,
@@ -358,19 +403,79 @@
     },
     {
       "name": "Sonnet 4.6 consultant + SocratTeachLLM (EN)",
-      "available": false
+      "available": true,
+      "results_dir": "results/claude-sonnet-consultant-socratteachllm-EN-n50",
+      "state": 22.11,
+      "r1": 55.85,
+      "r2": 33.79,
+      "rl": 34.94,
+      "b4": 3.56,
+      "n_turns": 303,
+      "n_dialogues": 50,
+      "surface_sum": 93.2,
+      "composite_state_r1": 50.035,
+      "semantic_r1": null,
+      "judge_overall": null,
+      "judge_axis_avgs": null,
+      "per_stage": {
+        "a": 36.0,
+        "b": 28.81,
+        "c": 18.75,
+        "d": 9.62,
+        "e": 19.57
+      }
     },
     {
       "name": "Opus 4.6 consultant + SocratTeachLLM (EN)",
-      "available": false
+      "available": true,
+      "results_dir": "results/claude-opus-consultant-socratteachllm-EN-n50",
+      "state": 30.26,
+      "r1": 44.22,
+      "r2": 26.2,
+      "rl": 27.79,
+      "b4": 2.96,
+      "n_turns": 304,
+      "n_dialogues": 50,
+      "surface_sum": 73.38,
+      "composite_state_r1": 52.370000000000005,
+      "semantic_r1": null,
+      "judge_overall": null,
+      "judge_axis_avgs": null,
+      "per_stage": {
+        "a": 96.0,
+        "b": 35.59,
+        "c": 10.42,
+        "d": 1.96,
+        "e": 25.0
+      }
     },
     {
       "name": "Opus 4.6 + BERT + top-3 (EN)",
-      "available": false
+      "available": true,
+      "results_dir": "results/bert-claude-opus-top3-EN-n50",
+      "state": 34.44,
+      "r1": 0.47,
+      "r2": 0.19,
+      "rl": 0.37,
+      "b4": 0.01,
+      "n_turns": 270,
+      "n_dialogues": 45,
+      "surface_sum": 0.6699999999999999,
+      "composite_state_r1": 34.675,
+      "semantic_r1": null,
+      "judge_overall": null,
+      "judge_axis_avgs": null,
+      "per_stage": {
+        "a": 100.0,
+        "b": 13.56,
+        "c": 11.7,
+        "d": 26.19,
+        "e": 52.0
+      }
     }
   ],
   "summary": {
-    "n_configs_available": 14,
+    "n_configs_available": 18,
     "n_configs_total": 21
   }
 }
