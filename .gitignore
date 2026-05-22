@@ -30,11 +30,12 @@ logs/
 # Keep metrics_summary.json, run_config.json, progress.log tracked
 results/**/dialogues/
 
-# Model weights / HF cache
+# Model weights / HF cache / optimizer state
 hf_models/
 *.bin
 *.safetensors
 *.gguf
+*.pt
 
 # Translation job outputs (large, uploaded to HuggingFace — not committed)
 data/
@@ -42,13 +43,15 @@ data/
 # Misc
 *.tmp
 
-# BERT classifier checkpoint - too large for git, regenerate via train_stage_classifier.py
-results/stage_classifier_v1/checkpoints/
-results/stage_classifier_v1/final/
-results/state_classifier_v1/checkpoints/
-results/state_classifier_v1/final/
-results/state_classifier_v2/checkpoints/
-results/state_classifier_v2/final/
+# BERT/Qwen classifier artifacts — too large for git; regenerate via
+# scripts/train_state_classifier_34way.py (or train_stage_classifier.py).
+# Wildcard pattern covers all current + future state-classifier output dirs.
+results/stage_classifier_*/checkpoints/
+results/stage_classifier_*/final/
+results/state_classifier_*/checkpoints/
+results/state_classifier_*/final/
+results/state-clf-*/checkpoints/
+results/state-clf-*/final/
 references/KELE-EN/SocratDataset.json
 references/KELE-EN/data/
 references/KELE-EN/.cache/
