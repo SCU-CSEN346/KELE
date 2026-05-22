@@ -108,7 +108,7 @@ We swapped the locked Gemma teacher for two frontier Claude models (Sonnet 4.6 a
 
 4. **Even raw Claude (no exemplars) beats the paper's reported state accuracy.** Sonnet 4.6 raw, with no prompt engineering whatsoever, hits 45.00% state acc — almost double the 25.94% the paper reports for its GPT-4o + SocratTeachLLM pipeline. The frontier teacher with zero scaffolding delivers more pedagogically correct routing than the paper's specialized architecture.
 
-Full briefing in [`docs/CLAUDE_TRIPLE_ARCH_BRIEFING.md`](docs/CLAUDE_TRIPLE_ARCH_BRIEFING.md). Plan-of-record in [`docs/CLAUDE_API_TEACHER_PLAN.md`](docs/CLAUDE_API_TEACHER_PLAN.md). Run artifacts in [`results/bert-claude-*`](results/) and [`results/bert-consultant-fewshot10-claude-*`](results/). Total API spend so far: ~$2.55.
+Full briefing in [`docs/archive/CLAUDE_TRIPLE_ARCH_BRIEFING.md`](docs/archive/CLAUDE_TRIPLE_ARCH_BRIEFING.md). Plan-of-record in [`docs/CLAUDE_API_TEACHER_PLAN.md`](docs/CLAUDE_API_TEACHER_PLAN.md). Run artifacts in [`results/bert-claude-*`](results/) and [`results/bert-consultant-fewshot10-claude-*`](results/). Total API spend so far: ~$2.55.
 
 ### Phase 2 — Surface-form leaderboard reveals the benchmark is broken (2026-05-21)
 
