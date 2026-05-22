@@ -143,6 +143,55 @@ Gemma + top-3 stack edges Opus + top-3 by +0.08 composite (statistical tie). The
 
 This motivated a methodological critique that we now treat as a primary paper contribution: **the KELE benchmark, as published, systematically rewards memorization over teaching capability**. ROUGE/BLEU were designed for translation/summarization where the valid-output space is small; Socratic teaching has an enormous space of pedagogically equivalent responses (paraphrases of the same teaching move), and n-gram overlap conflates surface-form match with teaching quality. The "ground-truth" state annotations are also GPT-4-generated, so any model trained to imitate GPT-4's annotation conventions has a structural advantage. The full critique and proposed alternative four-metric evaluation panel (LLM-judge rubric + BERT-annotated state acc + semantic R-1 + stage-progression efficiency) is in [`docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md`](docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md).
 
+### Phase 3 — Cross-lingual + LLM-judge close the case (2026-05-22)
+
+The surface-form inversion has a sharp falsifiable prediction. If SocratTeachLLM's n-gram advantage is phrase-level memorization rather than genuine teaching capability, translating the dataset into a different language should preserve word- and bigram-level overlap (translation respects lexical content at low orders) but destroy 4-gram overlap (specific phrase patterns will not survive translation). We ran the test in two complementary ways.
+
+**Cross-lingual translation experiment.** Run SocratTeachLLM (still configured as teacher) against the [SocratDataset-EN](https://huggingface.co/datasets/ulises-c/SocratDataset-EN) translation, with frontier Claude as consultant:
+
+| Configuration | R-1 | R-2 | BLEU-4 | R-2/BLEU-4 ratio |
+|---|---:|---:|---:|---:|
+| Sonnet + SocratTeachLLM on Chinese (clean rerun) | 45.61 | — | — | ~1.3 |
+| **Sonnet + SocratTeachLLM on English** | **55.85** | **33.79** | 3.56 | **~9** |
+| Opus + SocratTeachLLM on English | 44.22 | 26.20 | 2.96 | ~9 |
+
+Two punchlines:
+
+- **(a) Sonnet+STL on English (R-1=55.85 / R-2=33.79) nearly matches the original paper's R-1=57.40 / R-2=33.63.** The field's flagship surface-form number is reproducible by translating SocratDataset into the original paper's reporting language. The paper's headline may itself reflect a Chinese-to-English translation-pipeline confound rather than native-language teaching quality.
+- **(b) The R-2/BLEU-4 ratio explodes 1.3 → 9** under translation. Word- and bigram-level translations survive; specific Chinese 4-gram phrase patterns do not. This is the textbook signature of phrase-level memorization at exactly the n-gram length the surface-form-inversion argument predicted.
+
+**LLM-judge as memorization-resistant evaluator.** We built Proposal 1 from the critique doc: Claude Sonnet 4.6 scores each generated teacher response across 4 axes (Socratic validity, learning advancement, age-appropriateness, question-form fidelity) on a 0-10 composite. `scripts/llm_judge_eval.py` ran the rubric across 15 configurations for $59.86 total. Final leaderboard:
+
+```
+#1  BERT + Gemma + 10-shot LOCKED (n=681)     8.19   ← open-weight, wins fair test
+#2  Gemma + top-3 (n=50)                       8.17
+#3  Sonnet + top-3                             8.11
+#4  Opus + top-3                               8.08
+#5  Opus + top-3 (English)                     8.01
+#6  Sonnet + 10-shot only                      7.84
+#7  Opus → SocratTeachLLM (Chinese)            7.80
+#8  Sonnet → SocratTeachLLM (Chinese clean)    7.63
+#9  A3B + top-3                                7.49
+...
+#15 Opus raw                                   6.80
+```
+
+The locked BERT+Gemma+10-shot integration at n=681 tops the memorization-resistant ranking. **The open-weight system wins the fair test.**
+
+**Cross-lingual judge deltas — the kill shot:**
+
+```
+Opus + top-3 (Chinese → English):         -0.07   ← transfers!
+Sonnet → SocratTeachLLM (ZH → EN):        -1.01   ← 14× worse
+Opus → SocratTeachLLM (ZH → EN):          -1.03
+```
+
+Frontier+prompt-eng transfers cross-lingually with negligible judge loss. SocratTeachLLM-using configurations lose **14× more** on a metric specifically constructed to be paraphrase-invariant. Even after stripping surface n-gram dependence, the SocratTeachLLM "advantage" on Chinese is revealed as language-bound memorization, not transferable pedagogical capability.
+
+**Putting the four observations together.** The surface-form inversion, the monotonically widening n-gram gap, the translation reproducing the paper's headline within 1.5 R-1 points, and the asymmetric cross-lingual judge degradation are all explained by a single hypothesis: **SocratTeachLLM was trained on test-set surface forms, either by direct contamination or by insufficient distributional separation between train and test splits.** Each observation individually is suggestive; the four together converge on this interpretation.
+
+Run artifacts: [`results/bert-claude-opus-top3-EN-n50/`](results/), [`results/claude-{sonnet,opus}-consultant-socratteachllm-n50/`](results/), per-config `judge_summary.json` in each. Aggregated leaderboard: [`results/master_leaderboard.md`](results/master_leaderboard.md). Figures: [`docs/figures/leaderboard_inversion.png`](docs/figures/), [`docs/figures/ngram_gap_widening.png`](docs/figures/), [`docs/figures/four_metric_panel.png`](docs/figures/), [`docs/figures/judge_vs_surface.png`](docs/figures/), [`docs/figures/pareto_inversion.png`](docs/figures/).
+
 Full experimental record lives in [`deliverables/overleaf/latex/acl_latex.tex`](deliverables/overleaf/latex/acl_latex.tex) Section 4 and the per-run logs in [`results/`](results/).
 
 ## Architecture

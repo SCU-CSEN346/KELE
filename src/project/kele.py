@@ -360,11 +360,14 @@ def run_batch_evaluation(
 
     # Bucket already-done dialogues into the completed counter; only pending
     # items get dispatched. Same crash-recovery semantics as the prior loop.
+    # Empty files (zero bytes) are treated as missing — a crash mid-write leaves
+    # 0-byte placeholders that would otherwise be skipped and later break
+    # metrics computation when json.loads sees an empty string.
     pending: list[dict] = []
     completed = 0
     for item in dataset:
         out_file = dialogues_dir / f"{item['id']:04d}.json"
-        if out_file.exists():
+        if out_file.exists() and out_file.stat().st_size > 0:
             completed += 1
         else:
             pending.append(item)

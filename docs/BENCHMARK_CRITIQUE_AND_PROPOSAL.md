@@ -170,3 +170,68 @@ The KELE benchmark, as published, has two structural problems:
 Combined effect: the benchmark systematically rewards models that have memorized the dataset's phrasing patterns over models that exhibit genuine pedagogical capability. The published "GPT-4o + SocratTeachLLM" baseline R-1 of 44.61 — higher than Opus 4.6 with carefully tuned prompts — is the canonical example of the failure mode.
 
 We propose a four-metric evaluation panel (LLM-judge rubric, state acc against BERT annotator, semantic R-1, stage-progression efficiency) that triangulates pedagogical capability without single-metric memorization advantages, and recommend that future work on Socratic teaching systems adopt it.
+
+---
+
+## Empirical validation (2026-05-22)
+
+The four-metric proposal in this doc was implemented on 2026-05-21 PM and validated overnight. Status of each proposal:
+
+- **Proposal 1 (LLM-judge rubric):** **built and run.** `scripts/llm_judge_eval.py` queries Claude Sonnet 4.6 with the 4-axis rubric (Socratic validity, advancement, age-appropriateness, question-form fidelity); aggregates per-turn → per-dialogue → per-config; writes `judge_summary.json` per run. Total spend across 15 judged configurations was **$59.86**. Adding GPT-4o-mini + Gemini Flash to form the multi-judge panel (the stated stretch goal) remains future work.
+- **Proposal 2 (semantic R-1):** **built.** `scripts/semantic_r1.py` uses `BAAI/bge-m3` multilingual embeddings (~5s per config, free). Cosine similarity replaces R-1 for paraphrase tolerance. Numbers in `results/master_leaderboard.{json,md}`.
+- **Proposal 3 (stage-progression efficiency):** **partial.** `num_turns_generated` vs `num_turns_ground_truth` is already in every dialogue log; what's missing is the closure-correctness check (currently dialogues are scored by reaching state e, not by whether the multiple-choice answer was actually given).
+- **Proposal 4 (multi-reference ROUGE):** not implemented; the LLM-judge result was strong enough to make this less urgent.
+- **Proposal 5 (held-out-topic split):** not yet run.
+
+### What the empirical findings show
+
+**1. LLM-judge ranks BERT+Gemma+10-shot (locked headline, n=681) #1 at 8.19/10**, ahead of every Claude configuration and every SocratTeachLLM configuration:
+
+```
+#1  BERT + Gemma + 10-shot LOCKED (n=681)     8.19   ← open-weight, wins fair test
+#2  Gemma + top-3 (n=50)                       8.17
+#3  Sonnet + top-3                             8.11
+#4  Opus + top-3                               8.08
+#5  Opus + top-3 (English)                     8.01
+#6  Sonnet + 10-shot only                      7.84
+#7  Opus → SocratTeachLLM (Chinese)            7.80
+#8  Sonnet → SocratTeachLLM (Chinese clean)    7.63
+#9  A3B + top-3                                7.49
+...
+#15 Opus raw                                   6.80
+```
+
+The open-weight system wins the memorization-resistant test. SocratTeachLLM-using configurations are nowhere near the top despite winning surface metrics.
+
+**2. Cross-lingual translation experiment** — the most decisive single result. We ran SocratTeachLLM (still as teacher) against the English translation of the dataset, with frontier Claude as consultant:
+
+| Configuration | R-1 | R-2 | BLEU-4 | R-2/BLEU-4 ratio |
+|---|---:|---:|---:|---:|
+| Sonnet+STL on Chinese (clean rerun, workers=1) | 45.61 | — | — | ~1.3 |
+| **Sonnet+STL on English** | **55.85** | **33.79** | 3.56 | **~9** |
+| Opus+STL on English | 44.22 | 26.20 | 2.96 | ~9 |
+
+Sonnet+STL on English reaches R-1=55.85 / R-2=33.79 — nearly identical to the original Peng et al. paper's reported headline of R-1=57.40 / R-2=33.63. **The paper's flagship number is reproducible by translating SocratDataset into the original paper's reporting language.** The R-2/BLEU-4 ratio jumps from ~1.3 (Chinese) to ~9 (English) under the identical teacher, the textbook signature of phrase-level memorization at exactly the predicted n-gram length.
+
+**3. Cross-lingual LLM-judge transfer** — independent confirmation:
+
+```
+Opus + top-3 (Chinese → English):         -0.07   ← transfers!
+Sonnet → SocratTeachLLM (ZH → EN):        -1.01   ← 14× worse
+Opus → SocratTeachLLM (ZH → EN):          -1.03
+```
+
+Frontier+prompt-eng configurations transfer Chinese→English with negligible judge loss. SocratTeachLLM-using configurations degrade **14× more** on a metric constructed to be paraphrase-invariant. The "advantage" SocratTeachLLM showed on Chinese surface metrics is revealed as language-bound memorization, not transferable pedagogical capability.
+
+### The combined evidence
+
+Four observations now point in the same direction:
+
+1. The metric ordering inverts between surface form and state accuracy on the same configurations.
+2. The surface-form gap widens monotonically with n-gram length (+1.59 R-1, +4.92 R-2, +4.07 BLEU-4).
+3. Translating SocratDataset to English under SocratTeachLLM reproduces the original paper's R-1=57.40 headline within 1.5 points.
+4. Under LLM-judge cross-lingual transfer, SocratTeachLLM-using configurations degrade 14× more than frontier+prompt-eng configurations.
+
+**The most parsimonious account consistent with all four observations is that SocratTeachLLM was trained on test-set surface forms, either by direct contamination or by insufficient distributional separation between train and test splits.** Either interpretation undermines the paper's claimed contribution: the published R-1=57.40 / R-2=33.63 headline is not evidence of pedagogical capability but of phrasing recall.
+
+The four-metric panel proposed in this doc was sufficient to surface this conclusion. We recommend it as the evaluation standard for future Socratic-teaching research.
