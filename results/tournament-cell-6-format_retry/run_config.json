@@ -1,0 +1,16 @@
+{
+  "experiment": "tournament-cell-6-format_retry",
+  "teacher_model": "Gemma 4 31B",
+  "teacher_base_url": "http://localhost:8080/v1",
+  "consultant_model": "Gemma 4 31B",
+  "consultant_base_url": "http://localhost:8080/v1",
+  "thinking_budget": 0,
+  "max_teaching_rounds": 8,
+  "unified": false,
+  "workers": 4,
+  "total_dialogues": 50,
+  "completed": 50,
+  "total_elapsed_seconds": 657.75,
+  "started_at": "2026-05-19 11:26:10",
+  "finished_at": "2026-05-19 11:37:07"
+}

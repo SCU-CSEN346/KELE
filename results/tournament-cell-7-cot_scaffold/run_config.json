@@ -1,0 +1,16 @@
+{
+  "experiment": "tournament-cell-7-cot_scaffold",
+  "teacher_model": "Gemma 4 31B",
+  "teacher_base_url": "http://localhost:8080/v1",
+  "consultant_model": "Gemma 4 31B",
+  "consultant_base_url": "http://localhost:8080/v1",
+  "thinking_budget": 0,
+  "max_teaching_rounds": 8,
+  "unified": false,
+  "workers": 2,
+  "total_dialogues": 50,
+  "completed": 50,
+  "total_elapsed_seconds": 2711.34,
+  "started_at": "2026-05-19 16:58:35",
+  "finished_at": "2026-05-19 17:43:46"
+}
