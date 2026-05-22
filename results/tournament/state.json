@@ -1,6 +1,6 @@
 {
   "run_id": "ac337b77",
-  "round": 1,
+  "round": 2,
   "n_per_round": 50,
   "thinking_budget": 4096,
   "models_active": [
@@ -28,13 +28,15 @@
       "round1": 42.72
     },
     "qwen27b-q4": {
-      "round1": 43.0
+      "round1": 43.0,
+      "round2": 42.14
     },
     "qwen35b-a3b": {
       "round1": 34.33
     },
     "gemma4-31b": {
-      "round1": 38.28
+      "round1": 38.28,
+      "round2": 39.67
     },
     "gemma4-26b-a4b": {
       "round1": 37.62
@@ -125,6 +127,25 @@
           "total_turns": 300
         },
         "elapsed_secs": 26850
+      },
+      "round2": {
+        "n_turns": 299,
+        "rouge1": 30.87,
+        "rouge2": 12.37,
+        "rougeL": 21.99,
+        "bleu4": 5.73,
+        "state_accuracy": {
+          "overall": 42.14,
+          "per_stage": {
+            "a": 94.0,
+            "b": 40.68,
+            "c": 16.67,
+            "d": 27.45,
+            "e": 58.14
+          },
+          "total_turns": 299
+        },
+        "elapsed_secs": 29299
       }
     },
     "qwen35b-a3b": {
@@ -167,6 +188,25 @@
           "total_turns": 303
         },
         "elapsed_secs": 18754
+      },
+      "round2": {
+        "n_turns": 305,
+        "rouge1": 33.11,
+        "rouge2": 13.2,
+        "rougeL": 23.84,
+        "bleu4": 6.82,
+        "state_accuracy": {
+          "overall": 39.67,
+          "per_stage": {
+            "a": 96.0,
+            "b": 47.46,
+            "c": 14.58,
+            "d": 13.21,
+            "e": 51.06
+          },
+          "total_turns": 305
+        },
+        "elapsed_secs": 20999
       }
     },
     "gemma4-26b-a4b": {
