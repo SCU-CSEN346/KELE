@@ -129,15 +129,13 @@ def _force_correct_head(model: torch.nn.Module, num_labels: int) -> None:
     Replace the head when shape mismatches OR when its weights contain NaN/Inf.
     """
     import math
+
     for head_name in ("classifier", "score"):
         head = getattr(model, head_name, None)
         if not isinstance(head, torch.nn.Linear):
             continue
         shape_wrong = head.out_features != num_labels
-        weights_bad = (
-            torch.isnan(head.weight).any().item()
-            or torch.isinf(head.weight).any().item()
-        )
+        weights_bad = torch.isnan(head.weight).any().item() or torch.isinf(head.weight).any().item()
         if not (shape_wrong or weights_bad):
             return
         new_head = torch.nn.Linear(
@@ -161,8 +159,9 @@ def _force_correct_head(model: torch.nn.Module, num_labels: int) -> None:
         return
 
 
-def _apply_lora(model: torch.nn.Module, model_type: str, r: int, alpha: int,
-                target_modules: str | None) -> torch.nn.Module:
+def _apply_lora(
+    model: torch.nn.Module, model_type: str, r: int, alpha: int, target_modules: str | None
+) -> torch.nn.Module:
     """Wrap model with a PEFT LoRA adapter. Returns the PEFT-wrapped model."""
     from peft import LoraConfig, TaskType, get_peft_model
 
@@ -192,35 +191,62 @@ def _apply_lora(model: torch.nn.Module, model_type: str, r: int, alpha: int,
 
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("--model-id", type=str, default=DEFAULT_MODEL_ID,
-                   help="HF model ID for the backbone (default: %(default)s)")
-    p.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR,
-                   help="Output directory for checkpoints + final/ (default: %(default)s)")
-    p.add_argument("--freeze-backbone", action="store_true",
-                   help="Train only the classification head (linear probe). "
-                        "Mutually exclusive with --lora.")
-    p.add_argument("--gradient-checkpointing", action="store_true",
-                   help="Recompute activations during backward instead of saving them. "
-                        "Cuts activation memory by ~4x at ~30%% wall-clock cost. "
-                        "Essential for LoRA on larger backbones (T4 on Qwen3.5).")
-    p.add_argument("--bf16-autocast", action="store_true",
-                   help="Wrap forward passes in torch.autocast(dtype=bfloat16). Model "
-                        "stays fp32 (params + optimizer state), only forward computes "
-                        "in bf16. Cuts forward time/memory ~2x. Safe with manual loop: "
-                        "the HF Trainer issues that bit us earlier don't apply here.")
-    p.add_argument("--lora", action="store_true",
-                   help="Wrap the backbone with a PEFT LoRA adapter; adapters are "
-                        "merged into the base weights before save so the artifact is "
-                        "a standard HF SeqClassification checkpoint.")
+    p.add_argument(
+        "--model-id",
+        type=str,
+        default=DEFAULT_MODEL_ID,
+        help="HF model ID for the backbone (default: %(default)s)",
+    )
+    p.add_argument(
+        "--out-dir",
+        type=Path,
+        default=DEFAULT_OUT_DIR,
+        help="Output directory for checkpoints + final/ (default: %(default)s)",
+    )
+    p.add_argument(
+        "--freeze-backbone",
+        action="store_true",
+        help="Train only the classification head (linear probe). Mutually exclusive with --lora.",
+    )
+    p.add_argument(
+        "--gradient-checkpointing",
+        action="store_true",
+        help="Recompute activations during backward instead of saving them. "
+        "Cuts activation memory by ~4x at ~30%% wall-clock cost. "
+        "Essential for LoRA on larger backbones (T4 on Qwen3.5).",
+    )
+    p.add_argument(
+        "--bf16-autocast",
+        action="store_true",
+        help="Wrap forward passes in torch.autocast(dtype=bfloat16). Model "
+        "stays fp32 (params + optimizer state), only forward computes "
+        "in bf16. Cuts forward time/memory ~2x. Safe with manual loop: "
+        "the HF Trainer issues that bit us earlier don't apply here.",
+    )
+    p.add_argument(
+        "--lora",
+        action="store_true",
+        help="Wrap the backbone with a PEFT LoRA adapter; adapters are "
+        "merged into the base weights before save so the artifact is "
+        "a standard HF SeqClassification checkpoint.",
+    )
     p.add_argument("--lora-r", type=int, default=8)
     p.add_argument("--lora-alpha", type=int, default=16)
-    p.add_argument("--lora-target-modules", type=str, default="auto",
-                   help="'auto' (per-arch defaults) or comma-separated module suffixes.")
+    p.add_argument(
+        "--lora-target-modules",
+        type=str,
+        default="auto",
+        help="'auto' (per-arch defaults) or comma-separated module suffixes.",
+    )
     p.add_argument("--epochs", type=int, default=5)
     p.add_argument("--batch_size", type=int, default=32)
-    p.add_argument("--lr", type=float, default=None,
-                   help="Learning rate (default: 2e-5 for full-FT/LoRA, "
-                        "1e-3 for --freeze-backbone linear-probe).")
+    p.add_argument(
+        "--lr",
+        type=float,
+        default=None,
+        help="Learning rate (default: 2e-5 for full-FT/LoRA, "
+        "1e-3 for --freeze-backbone linear-probe).",
+    )
     p.add_argument("--max_length", type=int, default=512)
     p.add_argument("--seed", type=int, default=42)
     args = p.parse_args()
@@ -258,10 +284,13 @@ def main() -> None:
     if args.freeze_backbone:
         _freeze_backbone(model)
     if args.lora:
-        print(f"  applying LoRA (r={args.lora_r}, alpha={args.lora_alpha}, "
-              f"targets={args.lora_target_modules}) for model_type={model_type!r} ...")
-        model = _apply_lora(model, model_type, args.lora_r, args.lora_alpha,
-                            args.lora_target_modules)
+        print(
+            f"  applying LoRA (r={args.lora_r}, alpha={args.lora_alpha}, "
+            f"targets={args.lora_target_modules}) for model_type={model_type!r} ..."
+        )
+        model = _apply_lora(
+            model, model_type, args.lora_r, args.lora_alpha, args.lora_target_modules
+        )
 
     if args.gradient_checkpointing:
         if hasattr(model, "gradient_checkpointing_enable"):
@@ -324,7 +353,9 @@ def main() -> None:
         return contextlib.nullcontext()
 
     if args.bf16_autocast:
-        print(f"  precision: fp32 weights + bf16 autocast forward (model dtype={next(model.parameters()).dtype})")
+        print(
+            f"  precision: fp32 weights + bf16 autocast forward (model dtype={next(model.parameters()).dtype})"
+        )
     else:
         print(f"  precision: pure fp32, no AMP (model dtype={next(model.parameters()).dtype})")
 
@@ -334,8 +365,12 @@ def main() -> None:
 
     def make_loader(ds: Dataset, batch_size: int, shuffle: bool) -> DataLoader:
         return DataLoader(
-            ds, batch_size=batch_size, shuffle=shuffle,
-            collate_fn=collator, num_workers=0, pin_memory=True,
+            ds,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            collate_fn=collator,
+            num_workers=0,
+            pin_memory=True,
         )
 
     train_loader = make_loader(train_ds, args.batch_size, shuffle=True)
@@ -345,11 +380,15 @@ def main() -> None:
     optimizer = torch.optim.AdamW(trainable_params, lr=args.lr)
     total_steps = len(train_loader) * args.epochs
     scheduler = get_linear_schedule_with_warmup(
-        optimizer, num_warmup_steps=0, num_training_steps=total_steps,
+        optimizer,
+        num_warmup_steps=0,
+        num_training_steps=total_steps,
     )
 
-    print(f"\nTraining ({total_steps} steps over {args.epochs} epochs, "
-          f"{len(trainable_params)} trainable tensors) ...")
+    print(
+        f"\nTraining ({total_steps} steps over {args.epochs} epochs, "
+        f"{len(trainable_params)} trainable tensors) ..."
+    )
     # One-time sanity: forward pass on first batch (no grad) before training starts.
     # If this produces NaN, the setup is broken; if it's clean, the bug is in the loop.
     model.train()
@@ -357,13 +396,17 @@ def main() -> None:
     diag_batch = {k: v.to(device) for k, v in diag_batch.items()}
     with torch.no_grad(), amp_ctx():
         diag_out = model(**diag_batch)
-    print(f"  [diagnostic] pre-training forward: "
-          f"logits[{diag_out.logits.min().item():.3g}, {diag_out.logits.max().item():.3g}], "
-          f"loss={diag_out.loss.item():.4f}, "
-          f"has_nan_logits={torch.isnan(diag_out.logits).any().item()}, "
-          f"has_nan_loss={torch.isnan(diag_out.loss).item() if diag_out.loss.numel() == 1 else 'tensor'}")
+    print(
+        f"  [diagnostic] pre-training forward: "
+        f"logits[{diag_out.logits.min().item():.3g}, {diag_out.logits.max().item():.3g}], "
+        f"loss={diag_out.loss.item():.4f}, "
+        f"has_nan_logits={torch.isnan(diag_out.logits).any().item()}, "
+        f"has_nan_loss={torch.isnan(diag_out.loss).item() if diag_out.loss.numel() == 1 else 'tensor'}"
+    )
     if torch.isnan(diag_out.logits).any().item():
-        raise RuntimeError("Pre-training forward produced NaN logits. Aborting to avoid wasted training time.")
+        raise RuntimeError(
+            "Pre-training forward produced NaN logits. Aborting to avoid wasted training time."
+        )
 
     torch.manual_seed(args.seed)
     global_step = 0
@@ -384,8 +427,10 @@ def main() -> None:
             epoch_loss_sum += float(loss.item())
             epoch_steps += 1
             if global_step < 5 or global_step % 200 == 0:
-                print(f"  step {global_step:5d}: loss={loss.item():.4f}  "
-                      f"grad_norm={grad_norm:.4f}  lr={scheduler.get_last_lr()[0]:.2e}")
+                print(
+                    f"  step {global_step:5d}: loss={loss.item():.4f}  "
+                    f"grad_norm={grad_norm:.4f}  lr={scheduler.get_last_lr()[0]:.2e}"
+                )
             global_step += 1
 
         # End-of-epoch eval on held-out 5%
@@ -403,10 +448,12 @@ def main() -> None:
                 preds = out.logits.argmax(-1)
                 eval_correct += int((preds == batch["labels"]).sum().item())
                 eval_total += int(batch["labels"].size(0))
-        print(f"  Epoch {epoch+1}/{args.epochs}: "
-              f"train_loss={epoch_loss_sum / max(1, epoch_steps):.4f}  "
-              f"eval_loss={eval_loss_sum / max(1, eval_steps):.4f}  "
-              f"eval_acc={100 * eval_correct / max(1, eval_total):.2f}%")
+        print(
+            f"  Epoch {epoch + 1}/{args.epochs}: "
+            f"train_loss={epoch_loss_sum / max(1, epoch_steps):.4f}  "
+            f"eval_loss={eval_loss_sum / max(1, eval_steps):.4f}  "
+            f"eval_acc={100 * eval_correct / max(1, eval_total):.2f}%"
+        )
 
     # Test-split eval
     print("\nEvaluating on test split ...")

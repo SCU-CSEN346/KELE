@@ -131,7 +131,9 @@ def fig_pareto_inversion(data: dict):
 
     ax.set_xlabel("Pedagogical: state accuracy (%) →")
     ax.set_ylabel("Surface-form: R-1 + R-2 + BLEU-4 (sum) →")
-    ax.set_title("Surface-form metrics vs pedagogical state accuracy\n(SocratTeachLLM-using configs in red; tracks anti-correlation in upper-left)")
+    ax.set_title(
+        "Surface-form metrics vs pedagogical state accuracy\n(SocratTeachLLM-using configs in red; tracks anti-correlation in upper-left)"
+    )
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
     fig.savefig(FIGS / "pareto_inversion.pdf", bbox_inches="tight")
@@ -160,20 +162,33 @@ def fig_ngram_gap_widening(data: dict):
 
     # Opus+top-3 reference
     opus_vals = [opus_top3["r1"], opus_top3["r2"], opus_top3["b4"]]
-    ax.bar(x - 0.4 + width/2, opus_vals, width, label=SHORT.get(opus_top3["name"], opus_top3["name"]),
-           color="#1f77b4")
+    ax.bar(
+        x - 0.4 + width / 2,
+        opus_vals,
+        width,
+        label=SHORT.get(opus_top3["name"], opus_top3["name"]),
+        color="#1f77b4",
+    )
 
     for i, stl in enumerate(stl_configs):
         vals = [stl["r1"], stl["r2"], stl["b4"]]
         # Clamp alpha to [0.4, 1.0] regardless of how many STL configs there are
         alpha = min(0.95, 0.5 + 0.08 * i)
-        ax.bar(x - 0.4 + width/2 + (i + 1) * width, vals, width,
-               label=SHORT.get(stl["name"], stl["name"]), color="#d62728", alpha=alpha)
+        ax.bar(
+            x - 0.4 + width / 2 + (i + 1) * width,
+            vals,
+            width,
+            label=SHORT.get(stl["name"], stl["name"]),
+            color="#d62728",
+            alpha=alpha,
+        )
 
     ax.set_xticks(x)
     ax.set_xticklabels(metrics)
     ax.set_ylabel("Score")
-    ax.set_title("SocratTeachLLM advantage widens with n-gram length\n(memorization signature — higher-order n-grams capture phrase-level fingerprinting)")
+    ax.set_title(
+        "SocratTeachLLM advantage widens with n-gram length\n(memorization signature — higher-order n-grams capture phrase-level fingerprinting)"
+    )
     ax.legend(fontsize=9, loc="upper right")
     ax.grid(True, alpha=0.3, axis="y")
     fig.tight_layout()
@@ -197,8 +212,13 @@ def fig_judge_vs_surface(data: dict):
     ax.scatter(xs, ys, c=colors, s=120, alpha=0.85, edgecolor="black", linewidth=0.5)
 
     for r, x, y in zip(rows, xs, ys):
-        ax.annotate(SHORT.get(r["name"], r["name"]), (x, y),
-                    textcoords="offset points", xytext=(5, 5), fontsize=9)
+        ax.annotate(
+            SHORT.get(r["name"], r["name"]),
+            (x, y),
+            textcoords="offset points",
+            xytext=(5, 5),
+            fontsize=9,
+        )
 
     ax.set_xlabel("LLM-judge composite (0-10, memorization-resistant)")
     ax.set_ylabel("Surface ROUGE-1")

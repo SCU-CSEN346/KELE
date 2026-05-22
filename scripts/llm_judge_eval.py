@@ -99,8 +99,9 @@ AI TEACHER RESPONSE TO SCORE: {teacher_response}
 Score the AI teacher response."""
 
 
-def score_turn(client: openai.Client, model: str, dialogue: dict, turn_idx: int,
-               max_retries: int = 6) -> dict | None:
+def score_turn(
+    client: openai.Client, model: str, dialogue: dict, turn_idx: int, max_retries: int = 6
+) -> dict | None:
     """Score a single turn via the judge. Returns dict with axis scores or None on failure."""
     user_prompt = build_judge_user_prompt(dialogue, turn_idx)
     if not user_prompt:
@@ -201,16 +202,18 @@ def judge_results_dir(results_dir: Path, client: openai.Client, model: str, work
                 out_tokens = sum(s.get("usage_out", 0) for s in scores)
                 total_in_tokens += in_tokens
                 total_out_tokens += out_tokens
-                per_dialogue_summaries.append({
-                    "file": fname,
-                    "id": did,
-                    "n_turns_judged": dlg_n,
-                    "avg_total": avg,
-                    "avg_validity": sum(s["socratic_validity"] for s in scores) / dlg_n,
-                    "avg_advancement": sum(s["advancement"] for s in scores) / dlg_n,
-                    "avg_age": sum(s["age_appropriateness"] for s in scores) / dlg_n,
-                    "avg_qform": sum(s["question_form"] for s in scores) / dlg_n,
-                })
+                per_dialogue_summaries.append(
+                    {
+                        "file": fname,
+                        "id": did,
+                        "n_turns_judged": dlg_n,
+                        "avg_total": avg,
+                        "avg_validity": sum(s["socratic_validity"] for s in scores) / dlg_n,
+                        "avg_advancement": sum(s["advancement"] for s in scores) / dlg_n,
+                        "avg_age": sum(s["age_appropriateness"] for s in scores) / dlg_n,
+                        "avg_qform": sum(s["question_form"] for s in scores) / dlg_n,
+                    }
+                )
                 all_turn_scores.extend(scores)
             elapsed = time.time() - started
             rate = (i + 1) / elapsed if elapsed > 0 else 0
@@ -244,10 +247,18 @@ def judge_results_dir(results_dir: Path, client: openai.Client, model: str, work
         "wall_clock_seconds": elapsed,
         "overall_avg": sum(s["total"] for s in all_turn_scores) / n_turns if n_turns else 0,
         "axis_avgs": {
-            "socratic_validity": sum(s["socratic_validity"] for s in all_turn_scores) / n_turns if n_turns else 0,
-            "advancement": sum(s["advancement"] for s in all_turn_scores) / n_turns if n_turns else 0,
-            "age_appropriateness": sum(s["age_appropriateness"] for s in all_turn_scores) / n_turns if n_turns else 0,
-            "question_form": sum(s["question_form"] for s in all_turn_scores) / n_turns if n_turns else 0,
+            "socratic_validity": sum(s["socratic_validity"] for s in all_turn_scores) / n_turns
+            if n_turns
+            else 0,
+            "advancement": sum(s["advancement"] for s in all_turn_scores) / n_turns
+            if n_turns
+            else 0,
+            "age_appropriateness": sum(s["age_appropriateness"] for s in all_turn_scores) / n_turns
+            if n_turns
+            else 0,
+            "question_form": sum(s["question_form"] for s in all_turn_scores) / n_turns
+            if n_turns
+            else 0,
         },
         "per_stage": per_stage,
         "tokens_in": total_in_tokens,

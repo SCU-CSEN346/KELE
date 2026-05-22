@@ -34,7 +34,15 @@ def row(label: str, metrics: dict | None) -> tuple:
     b4 = metrics["bleu4"]
     n_turns = metrics["n_turns"]
     comp = composite(state, r1)
-    return (label, f"{state:.2f}", f"{r1:.2f}", f"{r2:.2f}", f"{b4:.2f}", f"{comp:.2f}", str(n_turns))
+    return (
+        label,
+        f"{state:.2f}",
+        f"{r1:.2f}",
+        f"{r2:.2f}",
+        f"{b4:.2f}",
+        f"{comp:.2f}",
+        str(n_turns),
+    )
 
 
 def main() -> None:
@@ -43,37 +51,68 @@ def main() -> None:
     # All architectures × {sonnet, opus} at n=50
     runs = [
         # Reference: locked Gemma headline at n=50 (BERT + Gemma + 10-shot, no top-3)
-        ("Gemma 4 31B + BERT + 10-shot (locked, ref)", None,  # filled by hardcoded baseline below
-            {"state_accuracy": {"overall": 51.06}, "rouge1": 38.53, "rouge2": 16.93, "bleu4": 9.68, "n_turns": 281}),
-
+        (
+            "Gemma 4 31B + BERT + 10-shot (locked, ref)",
+            None,  # filled by hardcoded baseline below
+            {
+                "state_accuracy": {"overall": 51.06},
+                "rouge1": 38.53,
+                "rouge2": 16.93,
+                "bleu4": 9.68,
+                "n_turns": 281,
+            },
+        ),
         # B: Claude as TEACHER, raw (no exemplars, no top-3)
-        ("Sonnet 4.6 (TEACHER, raw)",
-            results / "bert-claude-sonnet-raw-n50/metrics_summary.json", None),
-        ("Opus 4.6 (TEACHER, raw)",
-            results / "bert-claude-opus-raw-n50/metrics_summary.json", None),
-
+        (
+            "Sonnet 4.6 (TEACHER, raw)",
+            results / "bert-claude-sonnet-raw-n50/metrics_summary.json",
+            None,
+        ),
+        (
+            "Opus 4.6 (TEACHER, raw)",
+            results / "bert-claude-opus-raw-n50/metrics_summary.json",
+            None,
+        ),
         # C: Claude as TEACHER, 10-shot only (no top-3)
-        ("Sonnet 4.6 (TEACHER, 10-shot)",
-            results / "bert-claude-sonnet-fewshot10-n50/metrics_summary.json", None),
-        ("Opus 4.6 (TEACHER, 10-shot)",
-            results / "bert-claude-opus-fewshot10-n50/metrics_summary.json", None),
-
+        (
+            "Sonnet 4.6 (TEACHER, 10-shot)",
+            results / "bert-claude-sonnet-fewshot10-n50/metrics_summary.json",
+            None,
+        ),
+        (
+            "Opus 4.6 (TEACHER, 10-shot)",
+            results / "bert-claude-opus-fewshot10-n50/metrics_summary.json",
+            None,
+        ),
         # Already-completed: Claude as TEACHER, 10-shot + top-3 composed
-        ("Sonnet 4.6 (TEACHER, 10-shot + top-3)",
-            results / "bert-consultant-fewshot10-claude-sonnet-n50/metrics_summary.json", None),
-        ("Opus 4.6 (TEACHER, 10-shot + top-3)",
-            results / "bert-consultant-fewshot10-claude-opus-n50/metrics_summary.json", None),
-
+        (
+            "Sonnet 4.6 (TEACHER, 10-shot + top-3)",
+            results / "bert-consultant-fewshot10-claude-sonnet-n50/metrics_summary.json",
+            None,
+        ),
+        (
+            "Opus 4.6 (TEACHER, 10-shot + top-3)",
+            results / "bert-consultant-fewshot10-claude-opus-n50/metrics_summary.json",
+            None,
+        ),
         # A: Claude as CONSULTANT + SocratTeachLLM teacher (literal GPT-4o baseline mirror)
-        ("Sonnet 4.6 (CONSULTANT, SocratTeachLLM teacher)",
-            results / "claude-sonnet-consultant-socratteachllm-n50/metrics_summary.json", None),
-        ("Opus 4.6 (CONSULTANT, SocratTeachLLM teacher)",
-            results / "claude-opus-consultant-socratteachllm-n50/metrics_summary.json", None),
+        (
+            "Sonnet 4.6 (CONSULTANT, SocratTeachLLM teacher)",
+            results / "claude-sonnet-consultant-socratteachllm-n50/metrics_summary.json",
+            None,
+        ),
+        (
+            "Opus 4.6 (CONSULTANT, SocratTeachLLM teacher)",
+            results / "claude-opus-consultant-socratteachllm-n50/metrics_summary.json",
+            None,
+        ),
     ]
 
     print()
     print("=" * 110)
-    print(f"  {'Configuration':<52} {'State':>7} {'R-1':>7} {'R-2':>7} {'BLEU-4':>7} {'Composite':>10} {'Turns':>6}")
+    print(
+        f"  {'Configuration':<52} {'State':>7} {'R-1':>7} {'R-2':>7} {'BLEU-4':>7} {'Composite':>10} {'Turns':>6}"
+    )
     print("=" * 110)
 
     rows_with_comp: list[tuple] = []
@@ -88,6 +127,7 @@ def main() -> None:
             return -float(r[5])
         except (ValueError, TypeError):
             return float("inf")
+
     rows_with_comp.sort(key=sort_key)
 
     for r in rows_with_comp:

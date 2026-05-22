@@ -101,7 +101,15 @@ def main() -> None:
             per_n = payload["per_n"]
             ns = sorted(int(k) for k in per_n)
             devs = [per_n[str(n)][metric]["abs_dev_p95"] for n in ns]
-            ax.plot(ns, devs, marker="o", markersize=4, linewidth=1.2, label=payload["label"], alpha=0.85)
+            ax.plot(
+                ns,
+                devs,
+                marker="o",
+                markersize=4,
+                linewidth=1.2,
+                label=payload["label"],
+                alpha=0.85,
+            )
         ax.axhline(default_eps, color="black", linestyle="--", linewidth=1, alpha=0.5)
         ax.set_title(label)
         ax.set_xlabel("n (dialogues sampled)")

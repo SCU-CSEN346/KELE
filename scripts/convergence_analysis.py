@@ -75,7 +75,9 @@ TOLERANCES: dict[str, list[float]] = {
 
 
 # ── Per-turn precomputation ──────────────────────────────────────────────────
-def load_run(run_dir: Path) -> tuple[list[int], np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def load_run(
+    run_dir: Path,
+) -> tuple[list[int], np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Load all dialogues; return per-turn signals + dialogue_id-per-turn array.
 
     Returns

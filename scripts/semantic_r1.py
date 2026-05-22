@@ -80,11 +80,15 @@ def main():
         # Embed both lists in batches; bge-m3 outputs are L2-normalized so
         # dot product = cosine sim.
         tr_emb = model.encode(
-            teacher_responses, batch_size=args.batch_size, show_progress_bar=False,
+            teacher_responses,
+            batch_size=args.batch_size,
+            show_progress_bar=False,
             normalize_embeddings=True,
         )
         gt_emb = model.encode(
-            gt_responses, batch_size=args.batch_size, show_progress_bar=False,
+            gt_responses,
+            batch_size=args.batch_size,
+            show_progress_bar=False,
             normalize_embeddings=True,
         )
         sims = (tr_emb * gt_emb).sum(axis=1)  # element-wise cosine via dot of normed
