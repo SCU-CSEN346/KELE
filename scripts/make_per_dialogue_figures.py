@@ -9,6 +9,7 @@ Figures produced:
 - bleu_vs_length.{pdf,png}    — per-dialogue R-1 scatter vs turn count
 - per_dialogue_r1_dist.{pdf,png} — box plot of per-dialogue R-1
 """
+
 from __future__ import annotations
 
 import json
@@ -31,7 +32,9 @@ class CharRouge:
     def __init__(self):
         # Reuse the same tokenizer pattern as metrics.py
         self.scorer = rouge_scorer.RougeScorer(
-            ["rouge1", "rouge2", "rougeL"], use_stemmer=False, tokenizer=type("T", (), {"tokenize": staticmethod(_char_tokenize)})()
+            ["rouge1", "rouge2", "rougeL"],
+            use_stemmer=False,
+            tokenizer=type("T", (), {"tokenize": staticmethod(_char_tokenize)})(),
         )
 
     def score_dialogue(self, dialogue: list[dict]) -> dict:
@@ -120,19 +123,28 @@ def main() -> None:
         all_data[label] = data
         if data:
             r1s = [d["rouge1"] for d in data]
-            print(f"    n={len(data)}, R-1 mean={np.mean(r1s):.2f}, std={np.std(r1s):.2f}, range=[{min(r1s):.1f}, {max(r1s):.1f}]")
+            print(
+                f"    n={len(data)}, R-1 mean={np.mean(r1s):.2f}, std={np.std(r1s):.2f}, range=[{min(r1s):.1f}, {max(r1s):.1f}]"
+            )
 
     # Scatter: R-1 vs length, on the big-n A3B locked full
     if all_data.get("A3B locked full"):
-        fig_r1_vs_length(all_data["A3B locked full"], "r1_vs_length_a3b_full",
-                         "Per-dialogue ROUGE-1 vs turn count — A3B locked full (n=681)")
+        fig_r1_vs_length(
+            all_data["A3B locked full"],
+            "r1_vs_length_a3b_full",
+            "Per-dialogue ROUGE-1 vs turn count — A3B locked full (n=681)",
+        )
     if all_data.get("GPT-4o baseline"):
-        fig_r1_vs_length(all_data["GPT-4o baseline"], "r1_vs_length_baseline",
-                         "Per-dialogue ROUGE-1 vs turn count — GPT-4o baseline (n=681)")
+        fig_r1_vs_length(
+            all_data["GPT-4o baseline"],
+            "r1_vs_length_baseline",
+            "Per-dialogue ROUGE-1 vs turn count — GPT-4o baseline (n=681)",
+        )
 
     # Box plot comparison
-    fig_r1_distribution(all_data, "per_dialogue_r1_dist",
-                        "Per-dialogue ROUGE-1 distribution across systems")
+    fig_r1_distribution(
+        all_data, "per_dialogue_r1_dist", "Per-dialogue ROUGE-1 distribution across systems"
+    )
 
 
 if __name__ == "__main__":

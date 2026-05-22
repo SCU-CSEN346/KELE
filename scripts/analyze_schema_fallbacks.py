@@ -13,6 +13,7 @@ fallback flag — we infer.)
 
 Outputs: docs/figures/schema_fallback_analysis.md
 """
+
 from __future__ import annotations
 
 import json
@@ -37,7 +38,9 @@ def analyze(results_dir: str) -> dict:
     for log in log_files:
         try:
             text = log.read_text(errors="ignore")
-            for m in re.finditer(r"Unified call (?:JSON parse failure|returned empty content|failed)[^\n]*", text):
+            for m in re.finditer(
+                r"Unified call (?:JSON parse failure|returned empty content|failed)[^\n]*", text
+            ):
                 fallback_count_from_log += 1
                 # Categorize: parse_failure, empty, schema
                 msg = m.group(0)
@@ -98,25 +101,43 @@ def main() -> None:
                 continue
             metrics = json.loads(metrics_p.read_text())
             n_turns = metrics.get("n_turns", 0)
-            fb = r["recorded_fallback_count"] if r["recorded_fallback_count"] is not None else r["log_fallbacks"]
+            fb = (
+                r["recorded_fallback_count"]
+                if r["recorded_fallback_count"] is not None
+                else r["log_fallbacks"]
+            )
             rate = (fb / n_turns * 100) if n_turns else 0.0
             cats = r["fallback_categories"]
             cat_str = ", ".join(f"{k}={v}" for k, v in cats.items()) if cats else "—"
             f.write(f"| `{r['results_dir']}` | {n_turns} | {fb} | {rate:.2f}% | {cat_str} |\n")
 
         f.write("\n## Observations\n\n")
-        f.write("1. **Fallback rate consistently below 1.5%** across all runs. The 5% gate has never been triggered.\n")
-        f.write("2. **JSON parse failure** is the dominant category — the model emits malformed JSON occasionally, despite the strict json_schema response_format. This is most likely truncation at the max_tokens limit (the unified call's max_tokens caps both reasoning and output).\n")
-        f.write("3. **Empty content** fallbacks (`response.choices[0].message.content == ''`) are rare — these likely indicate generation collapse, possibly during thinking-mode runs that exhaust the budget on reasoning.\n")
+        f.write(
+            "1. **Fallback rate consistently below 1.5%** across all runs. The 5% gate has never been triggered.\n"
+        )
+        f.write(
+            "2. **JSON parse failure** is the dominant category — the model emits malformed JSON occasionally, despite the strict json_schema response_format. This is most likely truncation at the max_tokens limit (the unified call's max_tokens caps both reasoning and output).\n"
+        )
+        f.write(
+            "3. **Empty content** fallbacks (`response.choices[0].message.content == ''`) are rare — these likely indicate generation collapse, possibly during thinking-mode runs that exhaust the budget on reasoning.\n"
+        )
         f.write("4. **Mitigations to consider:**\n")
-        f.write("   - **JSON-repair retry:** when parse fails, ask the model to repair its own output rather than falling back to two-call. Likely cuts the fallback rate in half.\n")
-        f.write("   - **Streaming + early termination:** stream JSON output and abort as soon as the structure closes — eliminates truncation as a failure mode.\n")
-        f.write("   - **Larger `max_tokens`:** for thinking-enabled runs, increase to e.g. 32K to leave more headroom for the JSON after reasoning.\n")
+        f.write(
+            "   - **JSON-repair retry:** when parse fails, ask the model to repair its own output rather than falling back to two-call. Likely cuts the fallback rate in half.\n"
+        )
+        f.write(
+            "   - **Streaming + early termination:** stream JSON output and abort as soon as the structure closes — eliminates truncation as a failure mode.\n"
+        )
+        f.write(
+            "   - **Larger `max_tokens`:** for thinking-enabled runs, increase to e.g. 32K to leave more headroom for the JSON after reasoning.\n"
+        )
 
     print(f"Wrote {OUT}")
     for r in results:
         if r and r["recorded_fallback_count"] is not None:
-            print(f"  {r['results_dir']}: {r['recorded_fallback_count']} fallbacks (categories from log: {r['fallback_categories']})")
+            print(
+                f"  {r['results_dir']}: {r['recorded_fallback_count']} fallbacks (categories from log: {r['fallback_categories']})"
+            )
 
 
 if __name__ == "__main__":

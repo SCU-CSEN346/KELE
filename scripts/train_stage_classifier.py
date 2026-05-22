@@ -20,6 +20,7 @@ Usage:
 Hardware: requires a GPU but NOT a serving model — must be run when no
 llama-server is running.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -69,10 +70,12 @@ def build_examples() -> list[dict]:
                 continue
             current_input = f"学生: {student}"
             history_text = "\n".join(history_lines + [current_input])
-            examples.append({
-                "text": history_text[-4000:],  # truncate history to last 4K chars
-                "label": STAGE_TO_LABEL[state[0]],
-            })
+            examples.append(
+                {
+                    "text": history_text[-4000:],  # truncate history to last 4K chars
+                    "label": STAGE_TO_LABEL[state[0]],
+                }
+            )
             # Append this turn to the history for the next iteration
             history_lines.append(f"学生: {student}")
             teacher = turn.get("teacher", "").strip()
@@ -122,7 +125,9 @@ def main() -> None:
     def tokenize(batch: dict) -> dict:
         return tokenizer(batch["text"], truncation=True, max_length=args.max_length, padding=False)
 
-    train_ds = Dataset.from_list(train_examples).map(tokenize, batched=True, remove_columns=["text"])
+    train_ds = Dataset.from_list(train_examples).map(
+        tokenize, batched=True, remove_columns=["text"]
+    )
     eval_ds = Dataset.from_list(eval_examples).map(tokenize, batched=True, remove_columns=["text"])
 
     def compute_metrics(pred):

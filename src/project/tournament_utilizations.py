@@ -23,6 +23,7 @@ Tournament cells (see docs/PROMPT_ENGINEERING_PLAN.md §3):
 
 Mutex: at most one of #6, #7, #8 should be enabled per cell.
 """
+
 from __future__ import annotations
 
 import json
@@ -119,7 +120,7 @@ def _apply_length_budget(system_prompt: str, predicted_state: str) -> str:
     p10, median, p90 = _STAGE_LENGTH_BUDGET[stage]
     addition = (
         f"\n本轮处于阶段 {stage}。回答长度应在 {p10}–{p90} 字之间"
-        f"（典型 {median} 字）。只问一个问题，以\"？\"结束。"
+        f'（典型 {median} 字）。只问一个问题，以"？"结束。'
     )
     return system_prompt + addition
 
@@ -162,8 +163,13 @@ def _per_state_exemplar_block(predicted_state: str, k: int = 3) -> str | None:
         return None
 
     chosen = pool[:k]
-    lines = ["---", "", "# 第四部分：教师风格示例（按当前预测状态检索）",
-             f"以下是来自训练集、与当前状态 {predicted_state} 一致的教师回复示例：", ""]
+    lines = [
+        "---",
+        "",
+        "# 第四部分：教师风格示例（按当前预测状态检索）",
+        f"以下是来自训练集、与当前状态 {predicted_state} 一致的教师回复示例：",
+        "",
+    ]
     for i, ex in enumerate(chosen, 1):
         lines.append(f"示例{i}（state={ex['state']}）:")
         lines.append(f"学生: {ex['student']}")
@@ -204,7 +210,8 @@ def _style_matched_exemplar_block(predicted_state: str, k: int = 10) -> str | No
 
     # Build the stage centroid from the median-length k*5 candidates' teacher text
     sorted_by_len_distance = sorted(
-        pool, key=lambda ex: abs(len(ex["teacher"]) - _STAGE_LENGTH_BUDGET.get(stage, (0, 30, 0))[1])
+        pool,
+        key=lambda ex: abs(len(ex["teacher"]) - _STAGE_LENGTH_BUDGET.get(stage, (0, 30, 0))[1]),
     )
     centroid_pool = sorted_by_len_distance[: min(k * 5, len(sorted_by_len_distance))]
     centroid_text = "".join(ex["teacher"] for ex in centroid_pool)
@@ -215,8 +222,13 @@ def _style_matched_exemplar_block(predicted_state: str, k: int = 10) -> str | No
     )
     chosen = ranked[:k]
 
-    lines = ["---", "", "# 第四部分：教师风格示例（按风格相似度检索）",
-             "以下是与当前阶段典型风格最匹配的教师回复示例：", ""]
+    lines = [
+        "---",
+        "",
+        "# 第四部分：教师风格示例（按风格相似度检索）",
+        "以下是与当前阶段典型风格最匹配的教师回复示例：",
+        "",
+    ]
     for i, ex in enumerate(chosen, 1):
         lines.append(f"示例{i}（state={ex['state']}）:")
         lines.append(f"学生: {ex['student']}")
@@ -251,8 +263,7 @@ _NEGATIVE_PAIRS: list[tuple[str, str, str]] = [
 
 
 def _apply_negative_exemplars(system_prompt: str) -> str:
-    lines = ["", "---", "", "# 风格对比：好示例 vs 不推荐",
-             "以下展示了哪些回复风格应该避免：", ""]
+    lines = ["", "---", "", "# 风格对比：好示例 vs 不推荐", "以下展示了哪些回复风格应该避免：", ""]
     for stage, positive, anti in _NEGATIVE_PAIRS:
         lines.append(f"阶段 {stage}：")
         lines.append(f"  好的示例：{positive}")
@@ -285,7 +296,7 @@ def _validate_teacher_output(text: str, predicted_state: str) -> tuple[bool, str
             return False, "multiple questions"
         # Hard cap at 2× p90 to catch runaway preamble
         if len(text) > 2 * p90:
-            return False, f"too long ({len(text)} > {2*p90})"
+            return False, f"too long ({len(text)} > {2 * p90})"
     if any(text.startswith(m) for m in _PREAMBLE_MARKERS):
         return False, "starts with preamble marker"
     return True, "ok"
@@ -445,7 +456,9 @@ def _call_with_format_retry(
         return text
 
     # One retry with error appended to user input
-    retry_prompt = user_input + f"\n\n（上一次回复不合格：{reason}。请按格式重写一句话，以\"？\"结尾，无前言。）"
+    retry_prompt = (
+        user_input + f'\n\n（上一次回复不合格：{reason}。请按格式重写一句话，以"？"结尾，无前言。）'
+    )
     try:
         response = client.chat.completions.create(
             model=model,
@@ -489,7 +502,7 @@ def _call_cot_two_pass(
 
     # Pass 2: final output, given the reasoning
     final_user = user_input + (
-        f"\n\n你的内部分析：{reasoning}\n根据上述分析，输出一句话作为最终的苏格拉底问题，以\"？\"结尾。"
+        f'\n\n你的内部分析：{reasoning}\n根据上述分析，输出一句话作为最终的苏格拉底问题，以"？"结尾。'
         if reasoning
         else ""
     )

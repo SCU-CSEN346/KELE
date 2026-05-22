@@ -6,6 +6,7 @@ Reads results/{stage,state}_classifier_v1/test_eval.json and generates:
 - bert_state_classifier_confusion_5way.{pdf,png}  (collapsed to stages)
 - bert_classifier_per_stage_comparison.{pdf,png}  (vs LLM consultants)
 """
+
 from __future__ import annotations
 
 import json
@@ -34,11 +35,18 @@ def stage_confusion_from_5way() -> None:
     pct = np.where(row_sums > 0, cm / row_sums * 100, 0)
 
     fig, ax = plt.subplots(figsize=(6, 5))
-    sns.heatmap(pct, annot=cm, fmt="d", cmap="Blues",
-                xticklabels=[f"pred {s}" for s in STAGES],
-                yticklabels=[f"gt {s}" for s in STAGES],
-                cbar_kws={"label": "% of gt-row"},
-                vmin=0, vmax=100, ax=ax)
+    sns.heatmap(
+        pct,
+        annot=cm,
+        fmt="d",
+        cmap="Blues",
+        xticklabels=[f"pred {s}" for s in STAGES],
+        yticklabels=[f"gt {s}" for s in STAGES],
+        cbar_kws={"label": "% of gt-row"},
+        vmin=0,
+        vmax=100,
+        ax=ax,
+    )
     ax.set_title("5-stage BERT classifier confusion (test split, n=4,304)")
     ax.set_xlabel("Predicted stage")
     ax.set_ylabel("Ground-truth stage")
@@ -58,10 +66,10 @@ def per_stage_comparison() -> None:
 
     # Reference numbers from existing runs
     systems = {
-        "GPT-4o (n=681)":               [95.15, 36.93, 4.70, 5.04, 11.92],
-        "A3B locked (n=681)":           [91.78, 39.29, 17.57, 14.78, 56.83],
-        "A3B + 10-shot (n=50)":         [96.0, 40.68, 18.95, 27.45, 63.64],
-        "BERT 5-stage classifier":      bert_stage,
+        "GPT-4o (n=681)": [95.15, 36.93, 4.70, 5.04, 11.92],
+        "A3B locked (n=681)": [91.78, 39.29, 17.57, 14.78, 56.83],
+        "A3B + 10-shot (n=50)": [96.0, 40.68, 18.95, 27.45, 63.64],
+        "BERT 5-stage classifier": bert_stage,
     }
 
     x = np.arange(len(STAGES))
@@ -76,7 +84,15 @@ def per_stage_comparison() -> None:
     ax.set_ylabel("Per-stage accuracy (%)")
     ax.set_title("Per-stage stage accuracy by consultant (test-split-comparable)")
     ax.set_xticks(x)
-    ax.set_xticklabels(["a\n(questioning)", "b\n(concept probe)", "c\n(inductive reason)", "d\n(resolution)", "e\n(closure)"])
+    ax.set_xticklabels(
+        [
+            "a\n(questioning)",
+            "b\n(concept probe)",
+            "c\n(inductive reason)",
+            "d\n(resolution)",
+            "e\n(closure)",
+        ]
+    )
     ax.legend(loc="upper right", fontsize=8)
     ax.set_ylim(0, 105)
     ax.grid(axis="y", alpha=0.3)
@@ -106,7 +122,13 @@ def state_classifier_per_state() -> None:
     accs = [a * 100 for _, a, _ in states_with_data]
     ns = [n for _, _, n in states_with_data]
 
-    colors_by_stage = {"a": "#1f77b4", "b": "#ff7f0e", "c": "#2ca02c", "d": "#d62728", "e": "#9467bd"}
+    colors_by_stage = {
+        "a": "#1f77b4",
+        "b": "#ff7f0e",
+        "c": "#2ca02c",
+        "d": "#d62728",
+        "e": "#9467bd",
+    }
     bar_colors = [colors_by_stage[s[0]] for s in states]
 
     fig, ax = plt.subplots(figsize=(11, 6))
@@ -114,19 +136,29 @@ def state_classifier_per_state() -> None:
     # Annotate n on top
     for bar, n in zip(bars, ns):
         h = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width() / 2, h + 1.5, f"n={n}",
-                ha="center", va="bottom", fontsize=6, rotation=90)
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            h + 1.5,
+            f"n={n}",
+            ha="center",
+            va="bottom",
+            fontsize=6,
+            rotation=90,
+        )
 
     ax.set_xticks(range(len(states)))
     ax.set_xticklabels(states, rotation=45, ha="right", fontsize=8)
     ax.set_xlabel("State (grouped by stage; only states in test set shown)")
     ax.set_ylabel("Per-state accuracy (%)")
-    ax.set_title(f"34-state BERT classifier per-state accuracy on test split "
-                 f"(overall: {d['test_state_accuracy']*100:.2f}%, n={d['n_test_turns']:,} turns)")
+    ax.set_title(
+        f"34-state BERT classifier per-state accuracy on test split "
+        f"(overall: {d['test_state_accuracy'] * 100:.2f}%, n={d['n_test_turns']:,} turns)"
+    )
     ax.set_ylim(0, 115)
     ax.grid(axis="y", alpha=0.3)
 
     from matplotlib.patches import Patch
+
     legend_elems = [Patch(facecolor=c, label=f"Stage {s}") for s, c in colors_by_stage.items()]
     ax.legend(handles=legend_elems, loc="upper right")
     plt.tight_layout()

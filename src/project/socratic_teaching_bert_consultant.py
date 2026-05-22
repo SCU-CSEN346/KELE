@@ -8,6 +8,7 @@ contribution of the consultant component.
 Usage from kele.py:
   Use `--bert-consultant <path>` to load a checkpoint, then run as usual.
 """
+
 from __future__ import annotations
 
 import os

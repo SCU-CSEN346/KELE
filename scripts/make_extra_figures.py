@@ -9,6 +9,7 @@ Produces:
   9. fewshot_n_sweep.{pdf,png}     — placeholder for the many-shot sweep result
                                      (regenerates once 5/7/10-shot runs land)
 """
+
 from __future__ import annotations
 
 import json
@@ -39,7 +40,13 @@ def fig_state_frequency() -> None:
     sorted_states = sorted(counts.items(), key=lambda x: (x[0][0], -x[1]))
 
     states, freqs = zip(*sorted_states)
-    colors_by_stage = {"a": "#1f77b4", "b": "#ff7f0e", "c": "#2ca02c", "d": "#d62728", "e": "#9467bd"}
+    colors_by_stage = {
+        "a": "#1f77b4",
+        "b": "#ff7f0e",
+        "c": "#2ca02c",
+        "d": "#d62728",
+        "e": "#9467bd",
+    }
     bar_colors = [colors_by_stage[s[0]] for s in states]
 
     fig, ax = plt.subplots(figsize=(11, 5))
@@ -52,6 +59,7 @@ def fig_state_frequency() -> None:
     ax.grid(axis="y", alpha=0.3)
 
     from matplotlib.patches import Patch
+
     legend_elems = [Patch(facecolor=c, label=f"Stage {s}") for s, c in colors_by_stage.items()]
     ax.legend(handles=legend_elems, loc="upper right")
 
@@ -69,11 +77,19 @@ def fig_dialogue_length_hist() -> None:
     std_len = np.std(lengths)
 
     fig, ax = plt.subplots(figsize=(7, 4))
-    ax.hist(lengths, bins=range(min(lengths), max(lengths) + 2), color="steelblue", edgecolor="white", align="left")
+    ax.hist(
+        lengths,
+        bins=range(min(lengths), max(lengths) + 2),
+        color="steelblue",
+        edgecolor="white",
+        align="left",
+    )
     ax.axvline(mean_len, color="red", linestyle="--", label=f"mean = {mean_len:.2f}")
     ax.set_xlabel("Turns per dialogue (dialogueRound)")
     ax.set_ylabel("Number of dialogues")
-    ax.set_title(f"Dialogue length distribution ({len(data):,} dialogues; μ={mean_len:.2f}, σ={std_len:.2f})")
+    ax.set_title(
+        f"Dialogue length distribution ({len(data):,} dialogues; μ={mean_len:.2f}, σ={std_len:.2f})"
+    )
     ax.set_xticks(range(min(lengths), max(lengths) + 1))
     ax.legend()
     ax.grid(axis="y", alpha=0.3)
@@ -81,7 +97,9 @@ def fig_dialogue_length_hist() -> None:
     plt.savefig(FIGS / "dialogue_length_hist.pdf", bbox_inches="tight")
     plt.savefig(FIGS / "dialogue_length_hist.png", bbox_inches="tight", dpi=200)
     plt.close()
-    print(f"  ✓ dialogue_length_hist.pdf+png  (μ={mean_len:.2f}, range {min(lengths)}–{max(lengths)})")
+    print(
+        f"  ✓ dialogue_length_hist.pdf+png  (μ={mean_len:.2f}, range {min(lengths)}–{max(lengths)})"
+    )
 
 
 def fig_stage_turn_count() -> None:
@@ -94,7 +112,13 @@ def fig_stage_turn_count() -> None:
             if state and state[0] in counts:
                 counts[state[0]] += 1
 
-    colors_by_stage = {"a": "#1f77b4", "b": "#ff7f0e", "c": "#2ca02c", "d": "#d62728", "e": "#9467bd"}
+    colors_by_stage = {
+        "a": "#1f77b4",
+        "b": "#ff7f0e",
+        "c": "#2ca02c",
+        "d": "#d62728",
+        "e": "#9467bd",
+    }
 
     fig, ax = plt.subplots(figsize=(7, 4))
     bars = ax.bar(
@@ -103,19 +127,35 @@ def fig_stage_turn_count() -> None:
         color=[colors_by_stage[s] for s in STAGES],
     )
     for bar, stage in zip(bars, STAGES):
-        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
-                f"{counts[stage]:,}", ha="center", va="bottom", fontsize=10)
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height(),
+            f"{counts[stage]:,}",
+            ha="center",
+            va="bottom",
+            fontsize=10,
+        )
 
     ax.set_xlabel("SocRule stage")
     ax.set_ylabel("Total annotated turns")
     ax.set_title(f"Stage turn distribution (SocratDataset, {sum(counts.values()):,} turns)")
-    ax.set_xticklabels(["a\n(questioning)", "b\n(concept probe)", "c\n(inductive reason)", "d\n(resolution)", "e\n(closure)"])
+    ax.set_xticklabels(
+        [
+            "a\n(questioning)",
+            "b\n(concept probe)",
+            "c\n(inductive reason)",
+            "d\n(resolution)",
+            "e\n(closure)",
+        ]
+    )
     ax.grid(axis="y", alpha=0.3)
     plt.tight_layout()
     plt.savefig(FIGS / "stage_turn_count.pdf", bbox_inches="tight")
     plt.savefig(FIGS / "stage_turn_count.png", bbox_inches="tight", dpi=200)
     plt.close()
-    print(f"  ✓ stage_turn_count.pdf+png  (c={counts['c']:,} is ~{counts['c']/min(counts.values()):.1f}× any other stage)")
+    print(
+        f"  ✓ stage_turn_count.pdf+png  (c={counts['c']:,} is ~{counts['c'] / min(counts.values()):.1f}× any other stage)"
+    )
 
 
 def fig_per_dialogue_turn_count(results_dir: str, outname: str, title: str) -> None:
@@ -130,7 +170,13 @@ def fig_per_dialogue_turn_count(results_dir: str, outname: str, title: str) -> N
     turn_counts = [d.get("num_turns_generated", len(d.get("dialogue", []))) for d in dialogues]
 
     fig, ax = plt.subplots(figsize=(7, 4))
-    ax.hist(turn_counts, bins=range(min(turn_counts), max(turn_counts) + 2), color="seagreen", edgecolor="white", align="left")
+    ax.hist(
+        turn_counts,
+        bins=range(min(turn_counts), max(turn_counts) + 2),
+        color="seagreen",
+        edgecolor="white",
+        align="left",
+    )
     ax.set_xlabel("Turns per dialogue (generated)")
     ax.set_ylabel("Number of dialogues")
     ax.set_title(title)
@@ -150,7 +196,11 @@ def main() -> None:
     print("\n[3] Stage turn count")
     fig_stage_turn_count()
     print("\n[4] Per-dialogue turn count — A3B locked full")
-    fig_per_dialogue_turn_count("qwen35b-a3b-local-unified", "turn_count_a3b_full", "Generated turns per dialogue — A3B locked full (n=681)")
+    fig_per_dialogue_turn_count(
+        "qwen35b-a3b-local-unified",
+        "turn_count_a3b_full",
+        "Generated turns per dialogue — A3B locked full (n=681)",
+    )
 
 
 if __name__ == "__main__":

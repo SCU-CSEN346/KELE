@@ -413,12 +413,14 @@ e34：学生正确给出题目答案
         # can also benefit from the stylistic guidance. Gated on the same
         # env-var dispatch as socratic_teaching_unified for consistency.
         import os as _os
+
         if _os.environ.get("KELE_FEW_SHOT_TEACHER") == "1":
             try:
                 from src.project.socratic_teaching_unified import (  # noqa: PLC0415
                     _LEGACY_FEW_SHOT_TEACHER_BLOCK,
                     _build_few_shot_block_n,
                 )
+
                 n_str = _os.environ.get("KELE_FEW_SHOT_N")
                 if n_str is not None:
                     try:
@@ -450,6 +452,7 @@ e34：学生正确给出题目答案
                 apply_pre_call,
                 call_teacher_wrapped,
             )
+
             system_prompt, user_input = apply_pre_call(
                 system_prompt,
                 user_input,

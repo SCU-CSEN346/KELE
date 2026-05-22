@@ -7,6 +7,7 @@ the most direct replacement for the LLM consultant's state prediction.
 
 Outputs: results/state_classifier_v1/
 """
+
 from __future__ import annotations
 
 import argparse
@@ -44,6 +45,7 @@ STATE_TO_LABEL = {s: i for i, s in enumerate(ALL_STATES)}
 
 def build_examples(split: str) -> list[dict]:
     from src.project.kele import load_dataset
+
     data = load_dataset(split=split)
     examples: list[dict] = []
     for dlg in data:
@@ -55,11 +57,13 @@ def build_examples(split: str) -> list[dict]:
                 continue
             current_input = f"学生: {student}"
             history_text = "\n".join(history_lines + [current_input])
-            examples.append({
-                "text": history_text[-4000:],
-                "label": STATE_TO_LABEL[state],
-                "state": state,
-            })
+            examples.append(
+                {
+                    "text": history_text[-4000:],
+                    "label": STATE_TO_LABEL[state],
+                    "state": state,
+                }
+            )
             history_lines.append(f"学生: {student}")
             teacher = turn.get("teacher", "").strip()
             if teacher:
@@ -102,8 +106,12 @@ def main() -> None:
     def tokenize(batch: dict) -> dict:
         return tokenizer(batch["text"], truncation=True, max_length=args.max_length, padding=False)
 
-    train_ds = Dataset.from_list(train_examples).map(tokenize, batched=True, remove_columns=["text"])
-    eval_ds = Dataset.from_list(eval_examples_in).map(tokenize, batched=True, remove_columns=["text"])
+    train_ds = Dataset.from_list(train_examples).map(
+        tokenize, batched=True, remove_columns=["text"]
+    )
+    eval_ds = Dataset.from_list(eval_examples_in).map(
+        tokenize, batched=True, remove_columns=["text"]
+    )
 
     def compute_metrics(pred):
         preds = pred.predictions.argmax(-1)
@@ -161,7 +169,9 @@ def main() -> None:
         texts = [e["text"] for e in batch]
         labels = [e["label"] for e in batch]
         # Tokenize
-        enc = tokenizer(texts, padding=True, truncation=True, max_length=args.max_length, return_tensors="pt").to(device)
+        enc = tokenizer(
+            texts, padding=True, truncation=True, max_length=args.max_length, return_tensors="pt"
+        ).to(device)
         with torch.no_grad():
             logits = model(**enc).logits
             preds = logits.argmax(-1).cpu().tolist()
@@ -177,8 +187,12 @@ def main() -> None:
                 correct_stage[gt_state[0]] += 1
 
     test_overall = overall_correct / len(test_examples)
-    per_state_acc = {s: (correct_state[s] / total_state[s] if total_state[s] else 0.0) for s in ALL_STATES}
-    per_stage_acc = {s: (correct_stage[s] / total_stage[s] if total_stage[s] else 0.0) for s in "abcde"}
+    per_state_acc = {
+        s: (correct_state[s] / total_state[s] if total_state[s] else 0.0) for s in ALL_STATES
+    }
+    per_stage_acc = {
+        s: (correct_stage[s] / total_stage[s] if total_stage[s] else 0.0) for s in "abcde"
+    }
     out = {
         "n_test_turns": len(test_examples),
         "test_state_accuracy": test_overall,

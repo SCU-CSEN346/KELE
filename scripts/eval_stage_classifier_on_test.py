@@ -10,6 +10,7 @@ Outputs:
   results/stage_classifier_v1/test_eval.json
   results/stage_classifier_v1/test_confusion.png
 """
+
 from __future__ import annotations
 
 import json
@@ -28,6 +29,7 @@ STAGE_TO_LABEL = {s: i for i, s in enumerate(STAGES)}
 
 def build_test_examples() -> list[dict]:
     from src.project.kele import load_dataset
+
     test = load_dataset(split="test")
     examples: list[dict] = []
     for dlg in test:
@@ -39,13 +41,15 @@ def build_test_examples() -> list[dict]:
                 continue
             current_input = f"学生: {student}"
             history_text = "\n".join(history_lines + [current_input])
-            examples.append({
-                "text": history_text[-4000:],
-                "stage": state[0],
-                "label": STAGE_TO_LABEL[state[0]],
-                "dlg_id": dlg.get("id"),
-                "state": state,
-            })
+            examples.append(
+                {
+                    "text": history_text[-4000:],
+                    "stage": state[0],
+                    "label": STAGE_TO_LABEL[state[0]],
+                    "dlg_id": dlg.get("id"),
+                    "state": state,
+                }
+            )
             history_lines.append(f"学生: {student}")
             teacher = turn.get("teacher", "").strip()
             if teacher:
@@ -73,12 +77,14 @@ def main() -> None:
         for i in range(0, len(examples), batch_size):
             batch = examples[i : i + batch_size]
             texts = [e["text"] for e in batch]
-            enc = tokenizer(texts, padding=True, truncation=True, max_length=512, return_tensors="pt").to(device)
+            enc = tokenizer(
+                texts, padding=True, truncation=True, max_length=512, return_tensors="pt"
+            ).to(device)
             logits = model(**enc).logits
             preds = logits.argmax(-1).cpu().tolist()
             all_preds.extend(preds)
             if (i // batch_size) % 10 == 0:
-                print(f"  {min(i+batch_size, len(examples))}/{len(examples)}")
+                print(f"  {min(i + batch_size, len(examples))}/{len(examples)}")
 
     preds = np.array(all_preds)
     labels = np.array(all_labels)

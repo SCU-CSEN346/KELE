@@ -12,6 +12,7 @@ Produces:
 
 All figures saved to docs/figures/. Standalone; no GPU needed.
 """
+
 from __future__ import annotations
 
 import json
@@ -108,10 +109,21 @@ def fig_per_stage_accuracy() -> None:
     ax.set_title("Per-stage state accuracy by system")
     ax.set_xticks(x)
     ax.set_xticklabels(
-        [f"{s} ({{'a':'questioning','b':'concept probe','c':'inductive reason','d':'resolution','e':'closure'}}[{repr(s)}])" for s in STAGES]
+        [
+            f"{s} ({{'a':'questioning','b':'concept probe','c':'inductive reason','d':'resolution','e':'closure'}}[{repr(s)}])"
+            for s in STAGES
+        ]
     )
     # Cleaner labels
-    ax.set_xticklabels(["a\n(questioning)", "b\n(concept probe)", "c\n(inductive reason)", "d\n(resolution)", "e\n(closure)"])
+    ax.set_xticklabels(
+        [
+            "a\n(questioning)",
+            "b\n(concept probe)",
+            "c\n(inductive reason)",
+            "d\n(resolution)",
+            "e\n(closure)",
+        ]
+    )
     ax.legend(loc="upper right", fontsize=8)
     ax.set_ylim(0, 100)
     ax.grid(axis="y", alpha=0.3)
@@ -171,7 +183,12 @@ def fig_per_dialogue_dist(dialogues: list[dict], outname: str, title: str) -> No
     turn_counts = [len(d.get("dialogue", [])) for d in dialogues]
 
     fig, ax = plt.subplots(figsize=(7, 4))
-    ax.hist(turn_counts, bins=range(min(turn_counts), max(turn_counts) + 2), color="steelblue", edgecolor="white")
+    ax.hist(
+        turn_counts,
+        bins=range(min(turn_counts), max(turn_counts) + 2),
+        color="steelblue",
+        edgecolor="white",
+    )
     ax.set_xlabel("Turns per dialogue")
     ax.set_ylabel("Number of dialogues")
     ax.set_title(title)
@@ -232,16 +249,22 @@ def main() -> None:
     print(f"  GPT-4o baseline: {len(baseline)} dialogues")
 
     print("\n[1/5] Stage confusion matrix (A3B locked full)")
-    fig_stage_confusion(a3b_full, "stage_confusion_a3b_full", "5×5 stage confusion — A3B locked full (n=681)")
+    fig_stage_confusion(
+        a3b_full, "stage_confusion_a3b_full", "5×5 stage confusion — A3B locked full (n=681)"
+    )
 
     print("\n[2/5] Stage confusion matrix (baseline)")
-    fig_stage_confusion(baseline, "stage_confusion_baseline", "5×5 stage confusion — GPT-4o baseline (n=681)")
+    fig_stage_confusion(
+        baseline, "stage_confusion_baseline", "5×5 stage confusion — GPT-4o baseline (n=681)"
+    )
 
     print("\n[3/5] Per-stage state accuracy")
     fig_per_stage_accuracy()
 
     print("\n[4/5] Turn-index accuracy curve (A3B locked full)")
-    fig_turn_index_accuracy(a3b_full, "turn_index_accuracy_a3b_full", "State accuracy by turn index — A3B locked full")
+    fig_turn_index_accuracy(
+        a3b_full, "turn_index_accuracy_a3b_full", "State accuracy by turn index — A3B locked full"
+    )
 
     print("\n[5/5] System comparison radar")
     fig_system_radar()

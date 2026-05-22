@@ -6,6 +6,7 @@ Produces docs/figures/fewshot_n_sweep.{pdf,png}:
 - Bars within group: state acc, R-1
 - Per-stage breakdown shown as line plot overlay (optional)
 """
+
 from __future__ import annotations
 
 import json
@@ -27,11 +28,11 @@ def load_metrics(name: str) -> dict | None:
 
 def main() -> None:
     runs = [
-        ("0 (locked)",   "qwen35b-a3b-local-mini-unified"),
+        ("0 (locked)", "qwen35b-a3b-local-mini-unified"),
         ("3 (legacy b/c/d)", "qwen35b-a3b-local-mini-unified-fewshot"),
         ("5 (balanced)", "qwen35b-a3b-local-mini-unified-fewshot5"),
         ("7 (balanced+2)", "qwen35b-a3b-local-mini-unified-fewshot7"),
-        ("10 (full)",    "qwen35b-a3b-local-mini-unified-fewshot10"),
+        ("10 (full)", "qwen35b-a3b-local-mini-unified-fewshot10"),
     ]
 
     state_accs = []
@@ -53,19 +54,43 @@ def main() -> None:
     fig, ax1 = plt.subplots(figsize=(10, 5))
     ax2 = ax1.twinx()
 
-    bars1 = ax1.bar(x - width/2, [s if s is not None else 0 for s in state_accs], width,
-                    label="State accuracy", color="steelblue")
-    bars2 = ax2.bar(x + width/2, [r if r is not None else 0 for r in rouge1s], width,
-                    label="ROUGE-1", color="darkorange")
+    bars1 = ax1.bar(
+        x - width / 2,
+        [s if s is not None else 0 for s in state_accs],
+        width,
+        label="State accuracy",
+        color="steelblue",
+    )
+    bars2 = ax2.bar(
+        x + width / 2,
+        [r if r is not None else 0 for r in rouge1s],
+        width,
+        label="ROUGE-1",
+        color="darkorange",
+    )
 
     for bar, val in zip(bars1, state_accs):
         if val is not None:
-            ax1.text(bar.get_x() + bar.get_width()/2, val + 0.5,
-                     f"{val:.2f}", ha="center", va="bottom", fontsize=8, color="steelblue")
+            ax1.text(
+                bar.get_x() + bar.get_width() / 2,
+                val + 0.5,
+                f"{val:.2f}",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+                color="steelblue",
+            )
     for bar, val in zip(bars2, rouge1s):
         if val is not None:
-            ax2.text(bar.get_x() + bar.get_width()/2, val + 0.3,
-                     f"{val:.2f}", ha="center", va="bottom", fontsize=8, color="darkorange")
+            ax2.text(
+                bar.get_x() + bar.get_width() / 2,
+                val + 0.3,
+                f"{val:.2f}",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+                color="darkorange",
+            )
 
     ax1.set_xlabel("Number of teacher exemplars (N)")
     ax1.set_ylabel("State accuracy (%)", color="steelblue")
@@ -101,7 +126,7 @@ def main() -> None:
         if m is None:
             continue
         ps = [m["state_accuracy"]["per_stage"][s] for s in stages]
-        offset = (i - len(runs)/2 + 0.5) * bw
+        offset = (i - len(runs) / 2 + 0.5) * bw
         ax.bar(bar_x + offset, ps, bw, label=label, color=color)
 
     ax.set_xticks(bar_x)

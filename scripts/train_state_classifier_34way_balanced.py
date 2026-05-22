@@ -8,6 +8,7 @@ and applies them to a weighted cross-entropy loss.
 
 Output: results/state_classifier_v2/
 """
+
 from __future__ import annotations
 
 import argparse
@@ -44,6 +45,7 @@ STATE_TO_LABEL = {s: i for i, s in enumerate(ALL_STATES)}
 
 def build_examples(split: str) -> list[dict]:
     from src.project.kele import load_dataset
+
     data = load_dataset(split=split)
     examples: list[dict] = []
     for dlg in data:
@@ -55,11 +57,13 @@ def build_examples(split: str) -> list[dict]:
                 continue
             current_input = f"学生: {student}"
             history_text = "\n".join(history_lines + [current_input])
-            examples.append({
-                "text": history_text[-4000:],
-                "label": STATE_TO_LABEL[state],
-                "state": state,
-            })
+            examples.append(
+                {
+                    "text": history_text[-4000:],
+                    "label": STATE_TO_LABEL[state],
+                    "state": state,
+                }
+            )
             history_lines.append(f"学生: {student}")
             teacher = turn.get("teacher", "").strip()
             if teacher:
@@ -91,7 +95,12 @@ def main() -> None:
     p.add_argument("--lr", type=float, default=2e-5)
     p.add_argument("--max_length", type=int, default=512)
     p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--weight_temp", type=float, default=0.5, help="Power for inverse-freq weights (0=none, 1=fully balanced)")
+    p.add_argument(
+        "--weight_temp",
+        type=float,
+        default=0.5,
+        help="Power for inverse-freq weights (0=none, 1=fully balanced)",
+    )
     args = p.parse_args()
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -116,10 +125,12 @@ def main() -> None:
     # Add Laplace smoothing to avoid 1/0
     counts = counts + 1.0
     # Power-scaled inverse frequency
-    inv = 1.0 / (counts ** args.weight_temp)
+    inv = 1.0 / (counts**args.weight_temp)
     weights = inv / inv.mean()  # normalize so mean = 1.0
     class_weights = torch.tensor(weights, dtype=torch.float32)
-    print(f"  Class weight range: [{weights.min():.3f}, {weights.max():.3f}]  (temp={args.weight_temp})")
+    print(
+        f"  Class weight range: [{weights.min():.3f}, {weights.max():.3f}]  (temp={args.weight_temp})"
+    )
     print(f"  Top-weighted states: {sorted(zip(weights, ALL_STATES), reverse=True)[:5]}")
 
     rng = np.random.default_rng(args.seed)
@@ -131,8 +142,12 @@ def main() -> None:
     def tokenize(batch: dict) -> dict:
         return tokenizer(batch["text"], truncation=True, max_length=args.max_length, padding=False)
 
-    train_ds = Dataset.from_list(train_examples).map(tokenize, batched=True, remove_columns=["text"])
-    eval_ds = Dataset.from_list(eval_examples_in).map(tokenize, batched=True, remove_columns=["text"])
+    train_ds = Dataset.from_list(train_examples).map(
+        tokenize, batched=True, remove_columns=["text"]
+    )
+    eval_ds = Dataset.from_list(eval_examples_in).map(
+        tokenize, batched=True, remove_columns=["text"]
+    )
 
     def compute_metrics(pred):
         preds = pred.predictions.argmax(-1)
@@ -181,7 +196,9 @@ def main() -> None:
         batch = test_examples[i : i + bs]
         texts = [e["text"] for e in batch]
         labels = [e["label"] for e in batch]
-        enc = tokenizer(texts, padding=True, truncation=True, max_length=args.max_length, return_tensors="pt").to(device)
+        enc = tokenizer(
+            texts, padding=True, truncation=True, max_length=args.max_length, return_tensors="pt"
+        ).to(device)
         with torch.no_grad():
             logits = model(**enc).logits
             preds = logits.argmax(-1).cpu().tolist()
@@ -197,8 +214,12 @@ def main() -> None:
                 correct_stage[gt[0]] += 1
 
     test_overall = overall_correct / len(test_examples)
-    per_state_acc = {s: (correct_state[s] / total_state[s] if total_state[s] else 0.0) for s in ALL_STATES}
-    per_stage_acc = {s: (correct_stage[s] / total_stage[s] if total_stage[s] else 0.0) for s in "abcde"}
+    per_state_acc = {
+        s: (correct_state[s] / total_state[s] if total_state[s] else 0.0) for s in ALL_STATES
+    }
+    per_stage_acc = {
+        s: (correct_stage[s] / total_stage[s] if total_stage[s] else 0.0) for s in "abcde"
+    }
     out = {
         "weight_temp": args.weight_temp,
         "epochs": args.epochs,
@@ -217,7 +238,30 @@ def main() -> None:
         print(f"    Stage {s}: {per_stage_acc[s] * 100:.2f}% (n={total_stage[s]})")
     # Rare-state recovery — show only the rare ones from v1 with non-zero v1 n
     print("  Rare-state recovery (states v1 collapsed):")
-    rare = ["b3", "b7", "c8", "c10", "c11", "c13", "c14", "c15", "c17", "c18", "c20", "c21", "c23", "c24", "c25", "c26", "c27", "c28", "c29", "d30", "d31", "d32"]
+    rare = [
+        "b3",
+        "b7",
+        "c8",
+        "c10",
+        "c11",
+        "c13",
+        "c14",
+        "c15",
+        "c17",
+        "c18",
+        "c20",
+        "c21",
+        "c23",
+        "c24",
+        "c25",
+        "c26",
+        "c27",
+        "c28",
+        "c29",
+        "d30",
+        "d31",
+        "d32",
+    ]
     for s in rare:
         if s in total_state and total_state[s] > 0:
             print(f"    {s}: {per_state_acc[s] * 100:.2f}% (n={total_state[s]})")
