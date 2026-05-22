@@ -324,11 +324,61 @@
     },
     {
       "name": "Opus 4.6 + BERT + top-3 (n=681 Phase 3)",
-      "available": false
+      "available": true,
+      "results_dir": "results/bert-claude-opus-top3-n681",
+      "state": 49.31,
+      "r1": 41.63,
+      "r2": 19.87,
+      "rl": 33.87,
+      "b4": 13.91,
+      "n_turns": 3794,
+      "n_dialogues": 632,
+      "surface_sum": 75.41,
+      "composite_state_r1": 70.125,
+      "semantic_r1": null,
+      "judge_overall": 8.011769321302472,
+      "judge_axis_avgs": {
+        "socratic_validity": 2.150647312671636,
+        "advancement": 2.4692036092585328,
+        "age_appropriateness": 1.976461357395057,
+        "question_form": 1.415457041977246
+      },
+      "per_stage": {
+        "a": 99.27,
+        "b": 36.79,
+        "c": 23.95,
+        "d": 45.36,
+        "e": 87.78
+      }
     },
     {
       "name": "Sonnet 4.6 + BERT + top-3 (n=681 Phase 3)",
-      "available": false
+      "available": true,
+      "results_dir": "results/bert-claude-sonnet-top3-n681",
+      "state": 49.97,
+      "r1": 41.93,
+      "r2": 20.43,
+      "rl": 33.98,
+      "b4": 13.46,
+      "n_turns": 3840,
+      "n_dialogues": 640,
+      "surface_sum": 75.82,
+      "composite_state_r1": 70.935,
+      "semantic_r1": null,
+      "judge_overall": 8.194244604316546,
+      "judge_axis_avgs": {
+        "socratic_validity": 2.2491824722040548,
+        "advancement": 2.486592544146501,
+        "age_appropriateness": 1.9790712884238064,
+        "question_form": 1.4793982995421844
+      },
+      "per_stage": {
+        "a": 99.27,
+        "b": 35.61,
+        "c": 26.48,
+        "d": 45.3,
+        "e": 84.2
+      }
     },
     {
       "name": "Gemma 4 31B + top-3 (n=200 validation)",
@@ -505,7 +555,7 @@
     }
   ],
   "summary": {
-    "n_configs_available": 18,
+    "n_configs_available": 20,
     "n_configs_total": 21
   }
 }
