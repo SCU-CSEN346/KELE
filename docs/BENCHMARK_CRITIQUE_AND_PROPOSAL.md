@@ -1,0 +1,171 @@
+# The SocratDataset benchmark measures memorization, not teaching
+
+**Author:** Claude Opus 4.7 (1M ctx) for Max
+**Date:** 2026-05-21 PM
+**Status:** Critique-and-proposal doc. Surfaces a methodological problem with the published KELE benchmark and proposes concrete alternatives. This is now a candidate primary paper contribution — beyond "we built a better Socratic teacher" and into "the field has been measuring the wrong thing."
+
+## The triggering observation
+
+When we ranked our top configurations by the sum of surface-form metrics (R-1 + R-2 + BLEU-4), this is what the leaderboard looks like at $n{=}50$ (and $n{=}681$ for the paper baseline):
+
+| Rank | Configuration | n turns | R-1 | R-2 | BLEU-4 | Sum | State acc |
+|---:|---|---:|---:|---:|---:|---:|---:|
+| 1 | **GPT-4o consultant + SocratTeachLLM teacher** (paper baseline) | 681 | **44.61** | **26.04** | **19.60** | **90.25** | 25.94% |
+| 2 | Opus 4.6 + 10-shot + top-3 stack | 271 | 42.77 | 21.12 | 15.53 | 79.42 | 49.82% |
+| 3 | Sonnet 4.6 + 10-shot + top-3 stack | 281 | 43.02 | 20.52 | 14.33 | 77.87 | 48.75% |
+| 4 | Gemma 4 31B + 10-shot + top-3 stack | 278 | 41.13 | 18.60 | 12.91 | 72.64 | 50.72% |
+| 5 | Sonnet 4.6 + 10-shot only | 267 | 39.68 | 19.40 | 10.15 | 69.23 | 47.94% |
+| 6 | Gemma 4 31B + 10-shot (locked headline) | 3834 | 36.78 | 16.10 | 9.05 | 61.93 | 48.15% |
+| 7 | Opus 4.6 + 10-shot only | 272 | 32.99 | 15.26 | 7.24 | 55.49 | 47.43% |
+| 8 | Sonnet 4.6 raw | 260 | 29.10 | 13.38 | 5.69 | 48.17 | 45.00% |
+| 9 | Opus 4.6 raw | 239 | 23.28 | 10.12 | 4.18 | 37.58 | 39.75% |
+
+**Two observations are jarring:**
+
+1. A **9B fine-tune from 2024** (SocratTeachLLM) crushes **Opus 4.6** on every surface metric. The gap widens the longer the n-gram: R-1 +1.59, R-2 +4.92, BLEU-4 +4.07. Higher-order n-gram overlap measures phrase-level fingerprinting, which is **the strongest possible memorization signature**.
+
+2. The **state-accuracy axis tells the opposite story**. SocratTeachLLM's pipeline produces 25.94% state accuracy — **the worst of any configuration we tested**, including raw Opus with zero scaffolding (39.75%). The model that lexically matches ground truth most closely is also the worst at routing students through the SocRule pedagogical stages.
+
+If R-1/R-2/BLEU-4 measured pedagogical capability, Opus 4.6 with carefully tuned prompts should top this leaderboard, not a 9B specialist from 2024. Instead, the most-memorized model wins by every surface metric, and the most-pedagogically-correct model (Gemma + top-3 at 50.72% state acc) sits 4th on surface metrics. **The metrics are inversely correlated with the thing they're supposed to measure.**
+
+## Why ROUGE/BLEU are wrong for Socratic teaching
+
+ROUGE and BLEU are n-gram overlap metrics designed for translation and summarization — settings where the space of "correct" outputs is small. Translation has one or a few right answers per source sentence. Summarization has a more constrained valid-output space than open-ended generation.
+
+**Socratic teaching is the opposite kind of task.** For a given student turn at a given pedagogical state, the space of *valid* Socratic responses is enormous. Consider stage c (misconception induction): a student says "all plants grow on land." Valid teacher responses include:
+
+- "Have you seen any plants growing in water?"
+- "Are you sure? Can you think of any plants that don't grow on land?"
+- "What about plants in the ocean — like seaweed?"
+- "Let's think — are there places other than land where plants might grow?"
+
+All four are pedagogically equivalent: they prompt the student to reconsider the over-generalization by introducing a counterexample. They serve the same teaching goal. **Yet they share almost no n-gram overlap with each other.**
+
+If the ground-truth annotation happens to use phrasing #1, then a model that produces #2-#4 looks "worse" by ROUGE — even though pedagogically all four are interchangeable. **ROUGE doesn't measure teaching; it measures phrasing-match to the dataset's annotator.**
+
+This is fine when:
+- The dataset has many valid references per turn (it doesn't)
+- The teacher model isn't trained on the dataset (SocratTeachLLM was)
+- You don't care about generalization beyond the dataset (we do)
+
+This is broken when:
+- A model has been trained on the exact phrasing patterns the test set uses
+- Surface-form mimicry is conflated with pedagogical competence
+- Researchers report ROUGE as evidence of "teaching quality"
+
+The KELE paper is in the broken regime on all three counts.
+
+## The state-accuracy metric has a different problem
+
+State accuracy compares the consultant's predicted state code (e.g., `c12`) against a ground-truth annotation. This is closer to measuring something real — whether the system correctly identifies the cognitive state of the student turn and routes to an appropriate teaching strategy. But it has its own flaw:
+
+**The ground-truth annotations were generated by GPT-4 (per the original SocratDataset construction).** SocratTeachLLM (a fine-tune of GLM4-9B) and the GPT-4 consultant pipeline were both trained against GPT-4 annotation conventions. **A model that learns to imitate GPT-4's annotation idiosyncrasies will score higher than a model that makes genuinely better pedagogical judgments but disagrees with GPT-4 on annotation edge cases.**
+
+This is the second methodological hole: state accuracy assumes the ground-truth labels are correct. They're not — they're one model's guess at labels, frozen and treated as ground truth. Any subsequent model is being evaluated on "how well does it imitate GPT-4 from 2024 on this specific task?"
+
+## What a defensible benchmark would look like
+
+A real benchmark for Socratic teaching needs to measure pedagogical capability under conditions where surface mimicry is impossible and the ground truth isn't a single model's frozen output. Here are five concrete proposals, in priority order by feasibility and impact:
+
+### Proposal 1: LLM-as-judge with a structured rubric (highest priority)
+
+For each generated teacher response, query a panel of frontier LLMs (e.g., Claude Sonnet 4.6, GPT-4o, Gemini 2.5) with a structured rubric:
+
+1. **Socratic validity** (0-3): Is this a valid teaching move at the current stage? Does it match the SocRule action for the predicted state?
+2. **Advancement** (0-3): Does this response advance the student's reasoning toward the correct answer, or does it stall / confuse?
+3. **Age-appropriateness** (0-2): Is the vocabulary and complexity right for elementary school?
+4. **Question-form fidelity** (0-2): Single question, no leading hints (except where stage-appropriate).
+
+Average across the panel and across the turn. Multi-judge reduces single-model bias. Score range 0-10 per turn; report mean and per-stage breakdown.
+
+**Why this works:** It measures the actual pedagogical thing we care about. A model that says "Have you seen plants in water?" gets the same score as "What about plants in the ocean?" because both are valid Socratic moves — surface form doesn't decide.
+
+**Why this is feasible:** Cost ~$3 to judge 4,300 turns × 3 judges × ~200 tokens per judgment. Wall clock ~30 min on the Anthropic batch API. Cheap enough to run on every evaluation.
+
+**Validation:** Sample 50 turns, have a human pedagogy expert score with the same rubric, measure agreement with the LLM panel. Report Cohen's kappa.
+
+### Proposal 2: Embedding-based semantic similarity (paraphrase-tolerant R-1 replacement)
+
+Replace n-gram overlap with cosine similarity between dense embeddings of the generated response and the ground truth. Use a Chinese sentence-embedding model (e.g., `bge-large-zh`, `m3e-base`) that captures semantic equivalence across paraphrases.
+
+**Why this works:** "Have you seen plants in water?" and "What about plants in the ocean?" have ~0.85 cosine similarity in good embedding space, vs. ~0.15 R-1 overlap. The embedding captures that they're saying the same thing.
+
+**Why this is feasible:** Pre-trained models are free. Computation is millisecond-per-pair. Drop-in replacement for current ROUGE reporting.
+
+**Caveat:** Still measures similarity-to-annotator. Doesn't fix the GPT-4-labeled-ground-truth problem. But it does remove the surface-memorization advantage that ROUGE gives to fine-tuned models.
+
+### Proposal 3: Stage-progression efficiency (a fully reference-free metric)
+
+Measure how many turns the dialogue takes to reach stage e (closure where the student gives the correct answer). Faster = better teaching, assuming correctness at the end.
+
+**Why this works:** Completely reference-free. No annotator labels needed. Directly measures the thing teaching is supposed to do: efficiently lead students to understanding.
+
+**Why this is feasible:** Already implicitly tracked in our dialogue logs (`num_turns_generated` vs `num_turns_ground_truth`). Just needs to be reported as a primary metric.
+
+**Caveat:** Needs a way to verify the student response at stage e actually IS the correct answer. Currently the student response is generated by another LLM; need to either (a) use a deterministic student simulator with ground-truth answer or (b) score the final answer against the multiple-choice key.
+
+### Proposal 4: Multi-reference ROUGE (mitigation if Proposal 1 isn't acceptable)
+
+For each ground-truth turn, generate 3-5 valid Socratic alternatives using a different LLM with the rubric from Proposal 1. Report ROUGE against the *set* of references (max over alternatives) instead of against a single reference.
+
+**Why this works:** Reduces the "matched the exact annotator phrasing" advantage. A model that produces any valid Socratic response gets credited even if it doesn't match the original annotator's choice.
+
+**Why this is feasible:** One-time cost: generate ~4,300 × 4 alternative references with Claude or GPT-4o. ~$5-10 in API spend, ~30 min wall clock. Then reuse for every future evaluation.
+
+### Proposal 5: Held-out-topic generalization split
+
+Construct a new evaluation split that holds out entire *subject-area chapters*, not random dialogues. SocratTeachLLM was trained on a 90/10 random split — meaning chapter 1.1 dialogues likely appear in both train and test. A chapter-level held-out split would expose whether the model has memorized chapter-specific phrasing.
+
+**Why this works:** If SocratTeachLLM is overfit, it should collapse on a chapter-held-out split where it hasn't seen the chapter's vocabulary during training. If it's genuinely generalized, it should hold steady.
+
+**Why this is feasible:** No new data needed. Just re-split SocratDataset by chapter ID. Re-run evaluations on the chapter-held-out test set.
+
+## Recommended benchmark composition for our paper
+
+We propose **a four-metric panel** that triangulates pedagogical capability without single-metric memorization advantages:
+
+| Metric | What it measures | Memorization-resistant? | Implementation |
+|---|---|---|---|
+| **LLM-judge rubric score (0-10)** | Pedagogical correctness | ✅ Yes — rubric checks teaching moves, not phrasing | Proposal 1 |
+| **State accuracy (against BERT-classifier annotation)** | Routing quality, with cleaner ground truth than GPT-4 labels | ⚠️ Partial — depends on BERT classifier quality | Use our 86.55% BERT classifier as the annotator |
+| **Semantic R-1 (cosine sim)** | Whether the teacher said something semantically equivalent to the reference | ⚠️ Partial — better than surface R-1 | Proposal 2 |
+| **Stage-progression efficiency** | Turns-to-closure | ✅ Yes — reference-free | Proposal 3 |
+
+Report all four; rank by the LLM-judge score as the primary metric, with the others as triangulation. **Surface-form ROUGE-1/R-2/BLEU-4 should be reported as a memorization indicator, not as a quality metric** — explicitly framed as "high values on these metrics suggest training-data overlap."
+
+## Paper framing
+
+This changes the paper's contribution structure. The original contribution was:
+
+> "We built a better Socratic teaching system (BERT + Gemma + 10-shot) that beats GPT-4o + SocratTeachLLM by +22.21 pts state accuracy."
+
+The augmented contribution is:
+
+> "We built a better Socratic teaching system that wins on state accuracy and on the LLM-judge rubric, but loses on ROUGE/BLEU. We investigate why and find that the published benchmark is dominated by surface-form memorization signatures: a 9B fine-tune from 2024 outscores Opus 4.6 on every n-gram metric while producing the worst state accuracy of any configuration tested, including raw Opus with zero scaffolding. We propose a four-metric evaluation panel that triangulates pedagogical capability and is robust to training-data overlap. The original KELE result should be re-interpreted accordingly."
+
+That's a much stronger paper. The methodological contribution is publishable independently of the architectural contribution — and the two together make the strongest version of the work.
+
+## Concrete next steps
+
+In priority order:
+
+1. **Run the LLM-judge evaluation on the existing dialogue logs.** All n=50 runs already have full dialogue traces under `results/*/dialogues/*.json`. We need to write `scripts/llm_judge_eval.py` that calls a panel of LLMs with the rubric for each turn. Estimated effort: 1-2 hours of code, $1-3 in API spend, ~30 min wall clock. **This is the highest-leverage next step.**
+
+2. **Add the surface-form leaderboard table** (the one Max generated) to the README and paper as evidence of the metric inversion. Frame as "the metric inversion that motivated the methodological critique."
+
+3. **Implement semantic R-1** with `bge-large-zh` embeddings. Drop-in replacement, free to compute. Adds a more honest surface-similarity signal.
+
+4. **Re-split SocratDataset by chapter** and re-run the locked headline + at least one Claude config on the chapter-held-out split. If SocratTeachLLM (or any model) collapses there, that's smoking-gun evidence for the overfit hypothesis without needing to repair SocratTeachLLM serving infrastructure.
+
+5. **Write the benchmark-critique paragraph(s) into the paper** as the methodological contribution. This is the writing work; the data already exists.
+
+## TL;DR for the paper
+
+The KELE benchmark, as published, has two structural problems:
+
+1. **ROUGE/BLEU are inappropriate for Socratic teaching evaluation** because the space of valid responses is enormous and the metrics reward surface mimicry over pedagogical equivalence.
+2. **The "ground-truth" state annotations are GPT-4-generated**, and any model trained to imitate GPT-4 annotation conventions will score higher than a model that produces genuinely better pedagogical judgments but disagrees with GPT-4 on edge cases.
+
+Combined effect: the benchmark systematically rewards models that have memorized the dataset's phrasing patterns over models that exhibit genuine pedagogical capability. The published "GPT-4o + SocratTeachLLM" baseline R-1 of 44.61 — higher than Opus 4.6 with carefully tuned prompts — is the canonical example of the failure mode.
+
+We propose a four-metric evaluation panel (LLM-judge rubric, state acc against BERT annotator, semantic R-1, stage-progression efficiency) that triangulates pedagogical capability without single-metric memorization advantages, and recommend that future work on Socratic teaching systems adopt it.

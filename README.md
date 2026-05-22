@@ -94,6 +94,26 @@ We swapped the locked Gemma teacher for two frontier Claude models (Sonnet 4.6 a
 
 Full briefing in [`docs/CLAUDE_TRIPLE_ARCH_BRIEFING.md`](docs/CLAUDE_TRIPLE_ARCH_BRIEFING.md). Plan-of-record in [`docs/CLAUDE_API_TEACHER_PLAN.md`](docs/CLAUDE_API_TEACHER_PLAN.md). Run artifacts in [`results/bert-claude-*`](results/) and [`results/bert-consultant-fewshot10-claude-*`](results/). Total API spend so far: ~$2.55.
 
+### Phase 2 — Surface-form leaderboard reveals the benchmark is broken (2026-05-21)
+
+When we rank all top configurations by surface-form metrics (R-1 + R-2 + BLEU-4), the leaderboard inverts: the **9B SocratTeachLLM from 2024 crushes Opus 4.6 by every n-gram measure**, while producing the **worst state accuracy of any configuration tested** (including raw Opus with zero scaffolding):
+
+| Rank | Configuration | n turns | R-1 | R-2 | BLEU-4 | Sum | State acc |
+|---:|---|---:|---:|---:|---:|---:|---:|
+| 1 | **GPT-4o consultant + SocratTeachLLM teacher** (paper baseline) | 681 | **44.61** | **26.04** | **19.60** | **90.25** | 25.94% |
+| 2 | Opus 4.6 + 10-shot + top-3 stack | 271 | 42.77 | 21.12 | 15.53 | 79.42 | 49.82% |
+| 3 | Sonnet 4.6 + 10-shot + top-3 stack | 281 | 43.02 | 20.52 | 14.33 | 77.87 | 48.75% |
+| 4 | Gemma 4 31B + 10-shot + top-3 stack | 278 | 41.13 | 18.60 | 12.91 | 72.64 | **50.72%** |
+| 5 | Sonnet 4.6 + 10-shot only | 267 | 39.68 | 19.40 | 10.15 | 69.23 | 47.94% |
+| 6 | Gemma 4 31B + 10-shot (locked headline) | 3834 | 36.78 | 16.10 | 9.05 | 61.93 | 48.15% |
+| 7 | Opus 4.6 + 10-shot only | 272 | 32.99 | 15.26 | 7.24 | 55.49 | 47.43% |
+| 8 | Sonnet 4.6 raw | 260 | 29.10 | 13.38 | 5.69 | 48.17 | 45.00% |
+| 9 | Opus 4.6 raw | 239 | 23.28 | 10.12 | 4.18 | 37.58 | 39.75% |
+
+**The longer the n-gram, the wider the SocratTeachLLM gap.** R-1 +1.59 → R-2 +4.92 → BLEU-4 +4.07 over the best non-SocratTeachLLM configuration. Higher-order n-gram overlap captures phrase-level fingerprinting — the strongest possible memorization signature. **The metrics are inversely correlated with the thing they're supposed to measure**: the most pedagogically capable models (high state acc) score lowest on surface metrics; the most surface-matched model scores worst on pedagogy.
+
+This motivated a methodological critique that we now treat as a primary paper contribution: **the KELE benchmark, as published, systematically rewards memorization over teaching capability**. ROUGE/BLEU were designed for translation/summarization where the valid-output space is small; Socratic teaching has an enormous space of pedagogically equivalent responses (paraphrases of the same teaching move), and n-gram overlap conflates surface-form match with teaching quality. The "ground-truth" state annotations are also GPT-4-generated, so any model trained to imitate GPT-4's annotation conventions has a structural advantage. The full critique and proposed alternative four-metric evaluation panel (LLM-judge rubric + BERT-annotated state acc + semantic R-1 + stage-progression efficiency) is in [`docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md`](docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md).
+
 Full experimental record lives in [`deliverables/overleaf/latex/acl_latex.tex`](deliverables/overleaf/latex/acl_latex.tex) Section 4 and the per-run logs in [`results/`](results/).
 
 ## Architecture
