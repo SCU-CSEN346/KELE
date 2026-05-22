@@ -29,18 +29,56 @@ Output: a pass/fail table to stdout + a list of failing record IDs (if any) save
 
 ---
 
-## Phase 2 — LLM quality eval (exo cluster)
+## Phase 2 — LLM quality eval
 
-Only runs if Phase 1 passes. Scored by Qwen3-27B-4bit via the exo cluster's OpenAI-compatible endpoint.
+Only runs if Phase 1 passes.
+
+### Model and hardware options
+
+| Config | Model | Tok/s | 5% sample (~340 rec) | Full 6,803 | Notes |
+|---|---|---|---|---|---|
+| **27B single node** | Qwen3.6-27B-Q4-MLX | 5.9 | ~78 min | ~26 h | Highest eval quality; matches translation model family |
+| **9B single node** | Qwen3.5-9B-Q4-MLX | 19.5 | ~24 min | ~8 h | Same model family as original translator; good fit |
+| **9B two nodes (parallel)** | Qwen3.5-9B-Q4-MLX × 2 | ~39 | ~12 min | ~4 h | Odds to node 1, evens to node 2; results merged |
+
+**Recommendation:** 9B two-node parallel for the 5% sample (12 min, frees the machines quickly). 27B single-node for a full-dataset run if quality signal matters more than wall clock.
+
+#### Pros and cons
+
+| Config | Pros | Cons |
+|---|---|---|
+| 27B single | Strongest reasoning; more likely to catch subtle meaning drift and tone errors | 5.9 tok/s — slowest; full run is 26 h; ties up one machine |
+| 9B single | Same model family as original Qwen3.5-9B translator — eval and translator share the same stylistic prior, reducing false flags from style divergence | Half the parameter count; may miss nuanced Socratic tone issues |
+| 9B two-node | Fastest wall clock; simple to implement (ID parity split); each node is independent — one crash doesn't lose the other half | Requires merging two result JSONs; slight coordination overhead; both machines occupied; 9B quality ceiling applies to both |
+
+#### Parallelization design (9B two-node)
+
+Split by record ID parity: node 1 processes odd IDs, node 2 processes even IDs. Each node runs the same script with a `--shard` flag:
+
+```bash
+# Node 1 (odd IDs):
+uv run python -m project.validate_translation --shard odd --base-url http://<node1>:8080/v1
+
+# Node 2 (even IDs):
+uv run python -m project.validate_translation --shard even --base-url http://<node2>:8080/v1
+```
+
+After both finish, merge results:
+
+```bash
+uv run python -m project.validate_translation --merge data/validate_llm_scores_odd.json data/validate_llm_scores_even.json
+```
+
+Each shard writes its own `validate_llm_scores_{odd,even}.json` and `validate_llm_flagged_{odd,even}.json`. The merge step concatenates and re-computes the summary table.
 
 ### Sample design
 
-| Mode | Records | Estimated time at 5.8 tok/s |
+| Mode | Records | Recommended config |
 |---|---|---|
-| Default (5% stratified) | ~340 | ~78 min |
-| Full dataset | 6,803 | ~26 h |
+| Default (5% stratified) | ~340 | 9B two-node (~12 min) |
+| Full dataset | 6,803 | 9B two-node (~4 h) or 27B single (~26 h) |
 
-Stratification: sample proportionally across `mission` type (multiple_choice / true_false) and `grade` level so all 12 grade×volume combinations are represented.
+Stratification: sample proportionally across `mission` type (multiple_choice / true_false) and `grade` level so all 12 grade×volume combinations are represented. When sharding, stratification is applied within each shard independently to avoid grade imbalance.
 
 ### Per-record eval call
 
@@ -80,13 +118,15 @@ Fields scored:
 ## Configuration
 
 ```python
-# Exo cluster endpoint (Qwen3-27B-4bit MLX, 2× M4 Mac Mini via TB3)
-BASE_URL: str = "http://<exo-host>:8080/v1"
-MODEL: str = "qwen3-27b"          # exo model name — confirm with `exo ps`
+# LLM endpoint — point at whichever node is running the eval model
+BASE_URL: str = "http://<node>:8080/v1"
+MODEL: str = "qwen3-27b"          # or "qwen3.5-9b" — confirm with `exo ps` / llama-server
 
 SAMPLE_SIZE: float = 0.05         # fraction of dataset; set 1.0 for full run
 SAMPLE_SEED: int = 42
 THINKING_BUDGET: int = 0          # 0 = off; translation eval doesn't need CoT
+
+SHARD: str = "all"                # "all" | "odd" | "even" — for two-node parallel runs
 
 ZH_HF_REPO: str = "ulises-c/SocratDataset"
 EN_HF_REPO: str = "ulises-c/SocratDataset-EN"
@@ -102,14 +142,18 @@ OUTPUT_DIR: str = "data/"
 # Phase 1 only (structural, no LLM):
 uv run python -m project.validate_translation --structural-only
 
-# Phase 1 + Phase 2 on default 5% sample (exo cluster):
-uv run python -m project.validate_translation --base-url http://<exo-host>:8080/v1
+# Phase 1 + Phase 2 on default 5% sample, single node:
+uv run python -m project.validate_translation --base-url http://<node>:8080/v1
 
-# Full dataset LLM eval (background run, ~26 h):
-uv run python -m project.validate_translation --sample 1.0 --base-url http://<exo-host>:8080/v1
+# Two-node parallel (run on each machine simultaneously):
+uv run python -m project.validate_translation --shard odd  --base-url http://<node1>:8080/v1
+uv run python -m project.validate_translation --shard even --base-url http://<node2>:8080/v1
 
-# Override sample size:
-uv run python -m project.validate_translation --sample 0.10
+# Merge shard results after both finish:
+uv run python -m project.validate_translation --merge data/validate_llm_scores_odd.json data/validate_llm_scores_even.json
+
+# Full dataset LLM eval (background run):
+uv run python -m project.validate_translation --sample 1.0 --base-url http://<node>:8080/v1
 ```
 
 ---
@@ -119,9 +163,10 @@ uv run python -m project.validate_translation --sample 0.10
 | Phase | Runs on | Why |
 |---|---|---|
 | Phase 1 (structural) | Mac (local) | No GPU needed; pure Python on loaded JSON |
-| Phase 2 (LLM eval) | Exo cluster (2× M4 Mini 16 GB, TB3) | R9700 free for training; 5.8 tok/s sufficient for ~340-record sample |
+| Phase 2 (LLM eval, 5% sample) | 9B two-node parallel (2× M4 Mini) | 12 min; frees both machines quickly; R9700 stays free for SFT training |
+| Phase 2 (LLM eval, full dataset) | 9B two-node (~4 h) or 27B single (~26 h) | Choose based on quality vs time budget |
 
-The R9700 should stay free for SFT training (feat/multi-dataset-training). The exo cluster is the right target for the background LLM eval.
+The R9700 should stay free for SFT training (feat/multi-dataset-training).
 
 ---
 
