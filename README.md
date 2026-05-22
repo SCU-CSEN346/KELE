@@ -5,9 +5,25 @@
 
 Natural Language Processing — CSEN 346, Santa Clara University.
 
-This project reproduces and extends **KELE**, a multi-agent framework for structured Socratic teaching with LLMs, then pushes it further than the published baseline along two axes: (1) collapsing the two-agent architecture into a single open-weight backbone via a fusion structured-output call, and (2) replacing the LLM consultant with a 24M-parameter BERT classifier that routes the cognitive state with surgical precision while a stage-balanced 10-shot prompt-engineered LLM teacher handles response generation.
+This project reproduces and extends **KELE**, a multi-agent framework for structured Socratic teaching with LLMs, and contributes along three axes: (1) a fusion structured-output architecture that collapses the two-agent stack onto a single open-weight backbone; (2) replacing the LLM consultant with a 24M-parameter BERT classifier that routes cognitive state with surgical precision; and (3) **a methodological critique of the published benchmark itself, showing that surface-form metrics (ROUGE/BLEU) systematically reward training-data memorization over teaching capability** — with a proposed four-metric replacement panel.
 
-Our **locked, full-scale headline** as of 2026-05-18 is the **BERT + Gemma 4 31B + 10-shot integration**: **+22.21 point absolute lift** in overall state accuracy over the GPT-4o baseline on the full 681-dialogue test split (n=681, **48.15% state acc / 36.78 ROUGE-1**), a Pareto win over the prior A3B locked headline on both axes (+9.45 state, +6.15 R-1). Running entirely on a single 32 GB consumer GPU at zero per-run API cost. **Standalone Gemma 4 31B fusion at n=681 underperformed** (31.39% / 27.27 R-1, driven by a 21% schema-fallback rate vs A3B's 0.91%); the BERT-consultant integration removes the schema-fallback dependency entirely by routing state through a deterministic 24M-param classifier — see §4.6 and §4.8.1 of the paper for the methodological finding.
+## Two leaderboards, one inversion
+
+When the same 10 configurations are ranked by the KELE-paper-style surface-form metrics vs. by pedagogical state accuracy, the orderings **invert**. The model the paper celebrates (SocratTeachLLM, a 9B GLM-4 fine-tune from 2024) tops the surface-form ranking and *bottom-of-the-table* on state accuracy. Our open-weight system (Gemma + top-3 stack) sits mid-pack on surface form and **first** on pedagogical correctness:
+
+| | Surface-form ranking (R-1+R-2+BLEU-4) | Pedagogical ranking (state acc) |
+|---:|---|---|
+| 🥇 #1 | GPT-4o + SocratTeachLLM (sum 90.25) | **Gemma 4 31B + top-3 (50.72%)** |
+| 🥈 #2 | Opus 4.6 + top-3 (sum 79.42) | Opus 4.6 + top-3 (49.82%) |
+| 🥉 #3 | Sonnet 4.6 + top-3 (sum 77.87) | Sonnet 4.6 + top-3 (48.75%) |
+| #4 | Gemma 4 31B + top-3 (sum 72.64) | Qwen 35B-A3B + top-3 (48.19%) |
+| #5 | Sonnet 4.6 + 10-shot only (sum 69.23) | Gemma 4 31B + 10-shot (48.15%) |
+| ... | ... | ... |
+| **🚨 #LAST** | Opus 4.6 raw (sum 37.58) | **GPT-4o + SocratTeachLLM (25.94%)** |
+
+**Same nine configurations. Opposite rankings.** Frontier models with prompt scaffolding (Opus, Sonnet) should top a fair benchmark — they do top the pedagogical ranking but lose surface-form to a 9B specialist. The gap widens with n-gram length (R-1 +1.59 → R-2 +4.92 → BLEU-4 +4.07), the strongest possible memorization signature. A 9B fine-tune from 2024 lexically out-mimicking the ground truth more than Opus 4.6 with carefully tuned prompts is statistically inconsistent with normal training conditions. Full critique + four-metric replacement proposal in [`docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md`](docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md).
+
+Our **locked, full-scale headline** as of 2026-05-18 is the **BERT + Gemma 4 31B + 10-shot integration**: **+22.21 point absolute lift** in overall state accuracy over the GPT-4o + SocratTeachLLM baseline on the full 681-dialogue test split (n=681, **48.15% state acc / 36.78 ROUGE-1**), a Pareto win over the prior A3B locked headline on both axes (+9.45 state, +6.15 R-1). The new Phase 2 winner (Gemma 4 31B + 10-shot + top-3 prompt stack at n=50, **50.72% / 41.13 R-1 / composite 71.28**) is the Phase 3 promotion candidate to n=681. Running entirely on a single 32 GB consumer GPU at zero per-run API cost. **Standalone Gemma 4 31B fusion at n=681 underperformed** (31.39% / 27.27 R-1, driven by a 21% schema-fallback rate vs A3B's 0.91%); the BERT-consultant integration removes the schema-fallback dependency entirely by routing state through a deterministic 24M-param classifier — see §4.6 and §4.8.1 of the paper for the methodological finding.
 
 - **Paper we reproduce:** Peng et al., "KELE: A Multi-Agent Framework for Structured Socratic Teaching with Large Language Models", *Findings of EMNLP 2025* — [aclanthology.org/2025.findings-emnlp.888](https://aclanthology.org/2025.findings-emnlp.888/)
 - **Original repository:** https://github.com/yuanpan1020/KELE
