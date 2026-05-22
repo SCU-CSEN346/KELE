@@ -1,8 +1,8 @@
 # Phase 2-Claude triple-architecture briefing
 
 **Author:** Claude Opus 4.7 (1M ctx) for Max
-**Date:** 2026-05-21 PM (Max away ~1h while runs completed)
-**Status:** 6 of 8 planned Claude n=50 runs complete. Experiment A (Claude consultant + SocratTeachLLM teacher) wiring is built and waiting for SocratTeachLLM server boot on your end.
+**Date:** 2026-05-21 PM (revised: experiment A attempted, blocked by infrastructure bit-rot)
+**Status:** 6 of 8 planned Claude n=50 runs complete. **Experiment A (Claude consultant + SocratTeachLLM teacher) is blocked** by a chain of bit-rot in the SocratTeachLLM serving stack — see §3 below. The existing 6 runs already provide strong (though not definitive) preliminary evidence for the SocratTeachLLM-overfit hypothesis; this briefing now treats the question as a *strong suspicion* requiring infrastructure repair to definitively resolve.
 
 ## TL;DR
 
@@ -71,11 +71,20 @@ Observations:
 2. **Even raw Claude (no exemplars) gets a higher state acc** (45.00 Sonnet raw, 39.75 Opus raw) than the paper's GPT-4o + SocratTeachLLM (25.94). With frontier teachers, the consultant matters less and the system is much better at correctly routing students through the SocRule states.
 3. **The +44.61 R-1 from SocratTeachLLM does not translate to higher state acc** — suggesting SocratTeachLLM's high R-1 is surface-form parroting rather than substantive pedagogical understanding. A genuinely better Socratic teacher would lift state acc too.
 
-**What experiment (A) will resolve definitively:** putting Claude in the consultant slot and SocratTeachLLM in the teacher slot tests whether SocratTeachLLM's high R-1 holds with a smarter consultant routing it. Predictions:
+**What experiment (A) WOULD resolve definitively:** putting Claude in the consultant slot and SocratTeachLLM in the teacher slot tests whether SocratTeachLLM's high R-1 holds with a smarter consultant routing it. Predictions:
 - **If SocratTeachLLM is overfit/memorized:** State acc might rise modestly (Claude consultant is better than GPT-4o) but R-1 will stay ~44 (SocratTeachLLM keeps emitting its memorized phrasing regardless of consultant signal). Composite stays low (~30-40).
 - **If SocratTeachLLM is genuinely well-trained:** Both state acc AND R-1 should lift substantially with a better consultant. Composite should approach or exceed the Gemma-as-teacher numbers.
 
-Strong preliminary support for the overfit hypothesis. Run experiment (A) when you can.
+**Experiment A is currently blocked by infrastructure bit-rot.** We launched it once with broken inputs (all turns returned `state="a0"` + fallback teacher response — see `results/claude-{sonnet,opus}-consultant-socratteachllm-n50-BROKEN/`). Root cause is a chain of compatibility issues in the SocratTeachLLM serving stack:
+
+1. **vLLM serving:** `vllm/_C.abi3.so` has an undefined-symbol mismatch against the current PyTorch ABI (`_ZN3c1013MessageLoggerC1EPKciib`). Pinned-PyTorch downgrade would fix but breaks other deps.
+2. **HF Transformers serving (default):** ChatGLM's bundled `modeling_chatglm.py` accesses `config.max_length` which was renamed to `seq_length` in transformers 5.x. *(Patched in `serve_teacher.py` — both the load-time set and post-load clear so `generate()` doesn't reject "modified config".)*
+3. **TorchScript path:** ChatGLM's `@torch.jit.script`-decorated `apply_rotary_pos_emb` requires `libnvrtc-builtins.so.13.0` not present in the current CUDA install. `PYTORCH_JIT=0` does not bypass this since the `@torch.jit.script` decorator runs at import time.
+4. **bitsandbytes 4-bit path:** `transformers/quantizers/base.py` accesses `model.all_tied_weights_keys` not implemented by the ChatGLM `trust_remote_code` module (the existing `_patch_transformers_tied_weights()` shim covers some paths but not this one).
+
+Fixing the chain requires either (a) pinning to an older PyTorch/transformers/CUDA stack that the GLM4 fine-tune was tested against, or (b) further patching the ChatGLM modeling code to remove the JIT decorator and bridge the missing attributes. Both are bounded engineering work (~1-2h focused session), out of scope for this turn.
+
+**Bottom line: the existing 6 runs already constitute strong preliminary evidence (see §3), and the paper-quality framing of the SocratTeachLLM-overfit suspicion does not require experiment A to be defensible** — it requires only that we cite the specific quantitative anomalies (R-1 outlier, low state acc, high R-1 + low state acc divergence) as raising "methodological concerns" rather than definitive misconduct. That framing is in `deliverables/overleaf/latex/acl_latex.tex` §4 ("Frontier-teacher comparison and SocratTeachLLM-overfit hypothesis").
 
 ## 4. Per-stage analysis (where Claude wins / loses)
 

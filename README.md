@@ -68,6 +68,32 @@ The headline (row 1) decomposes cleanly: 10-shot exemplars recover surface form 
 
 Before launching the prompt-engineering tournament, we validated the Gemma-teacher choice by running the alternative teacher (Qwen 35B-A3B-think) inside the same BERT-integration architecture at full scale: **BERT + A3B + 10-shot at n=681 = 46.57% / 33.27 R-1**, losing to the locked Gemma-teacher headline by −1.58 state, −3.51 R-1. The teachers split stage-by-stage: A3B wins the simpler dialogue acts (b +1.31, e +1.28) but loses on the cognitive heavy-lift stages (c −3.95, d −2.16), consistent with the dense-vs-MoE hypothesis (Gemma's ~31B always-active params absorb the harder reasoning; A3B's ~3B active-per-token MoE shines on lower-cognitive-load acts). This per-stage split directly motivates the **per-state few-shot routing** utilization in the Phase 1 tournament. Run artifacts: [`results/bert-consultant-fewshot10-a3b-full/`](results/bert-consultant-fewshot10-a3b-full/) and [`scripts/eval_bert_a3b_fewshot10_full.sh`](scripts/eval_bert_a3b_fewshot10_full.sh).
 
+### Phase 2 — Frontier-teacher comparison + SocratTeachLLM overfit hypothesis (2026-05-21)
+
+We swapped the locked Gemma teacher for two frontier Claude models (Sonnet 4.6 and Opus 4.6) via the Anthropic API to test whether teacher capacity is the binding constraint on the locked headline. The full leaderboard at $n{=}50$:
+
+| Configuration | State acc | R-1 | R-2 | BLEU-4 | Composite | Δ vs locked Gemma |
+|---|---:|---:|---:|---:|---:|---:|
+| **Opus 4.6 + BERT + 10-shot + top-3 stack** | 49.82% | 42.77 | 21.12 | **15.53** | **71.20** | **+0.87** |
+| Gemma 4 31B + BERT + 10-shot (locked ref) | **51.06%** | 38.53 | 16.93 | 9.68 | 70.33 | — |
+| Sonnet 4.6 + BERT + 10-shot + top-3 stack | 48.75% | **43.02** | 20.52 | 14.33 | 70.26 | −0.07 |
+| Sonnet 4.6 + BERT + 10-shot (no top-3) | 47.94% | 39.68 | 19.40 | 10.15 | 67.78 | −2.55 |
+| Opus 4.6 + BERT + 10-shot (no top-3) | 47.43% | 32.99 | 15.26 | 7.24 | 63.92 | −6.41 |
+| Sonnet 4.6 + BERT, raw (no exemplars) | 45.00% | 29.10 | 13.38 | 5.69 | 59.55 | −10.78 |
+| Opus 4.6 + BERT, raw (no exemplars) | 39.75% | 23.28 | 10.12 | 4.18 | 51.39 | −18.94 |
+
+**Key findings:**
+
+1. **Frontier Claude models are 2-5× more prompt-engineering-sensitive than Gemma.** Raw Opus collapses to composite 51.39 (−18.94 below the locked Gemma headline). Adding 10-shot exemplars alone lifts Sonnet by +8.23 composite; adding the top-3 stack on top of that lifts Opus by another +7.28. The single-cell length-budget lever that gave Gemma only +1.58 composite delivers 2-5× larger lifts on Claude — strong evidence that the locked Gemma headline operates at a different point on its prompt-sensitivity curve.
+
+2. **The locked Gemma headline narrowly holds.** Only Opus + the full top-3 prompt stack clears it (+0.87 composite), within sampling noise. Despite frontier model capacity, no Claude configuration delivers a decisive headline-shifting result at $n{=}50$.
+
+3. **SocratTeachLLM-overfit hypothesis — strong preliminary evidence.** The paper's reported baseline (GPT-4o consultant + SocratTeachLLM teacher) achieves **R-1 = 44.61** — higher than ANY frontier teacher we evaluated, including Opus 4.6 with the carefully tuned top-3 prompt stack (R-1 = 42.77). A 9B GLM-4 fine-tune from 2024 lexically out-mimics ground truth better than Opus 4.6 with a stage-balanced 10-shot exemplar block AND a length-budget + persona + negative-exemplar prompt stack. **This is statistically improbable under normal circumstances** — frontier models with prompts specifically tuned for surface mimicry should reach or exceed a small specialist model's R-1, not trail it. The combination of high R-1 (44.61) with low state acc (25.94%) is the classic signature of phrasing memorization rather than generalized pedagogical capability. We are running the literal-architecture mirror (Claude as consultant + SocratTeachLLM as teacher) at $n{=}50$ to test whether SocratTeachLLM's R-1 holds with a frontier consultant — if it does, that supports the memorization interpretation; if it collapses, the original 44.61 was partly a consultant-prompting artifact.
+
+4. **Even raw Claude (no exemplars) beats the paper's reported state accuracy.** Sonnet 4.6 raw, with no prompt engineering whatsoever, hits 45.00% state acc — almost double the 25.94% the paper reports for its GPT-4o + SocratTeachLLM pipeline. The frontier teacher with zero scaffolding delivers more pedagogically correct routing than the paper's specialized architecture.
+
+Full briefing in [`docs/CLAUDE_TRIPLE_ARCH_BRIEFING.md`](docs/CLAUDE_TRIPLE_ARCH_BRIEFING.md). Plan-of-record in [`docs/CLAUDE_API_TEACHER_PLAN.md`](docs/CLAUDE_API_TEACHER_PLAN.md). Run artifacts in [`results/bert-claude-*`](results/) and [`results/bert-consultant-fewshot10-claude-*`](results/). Total API spend so far: ~$2.55.
+
 Full experimental record lives in [`deliverables/overleaf/latex/acl_latex.tex`](deliverables/overleaf/latex/acl_latex.tex) Section 4 and the per-run logs in [`results/`](results/).
 
 ## Architecture

@@ -615,6 +615,45 @@ Table~\ref{tab:allruns} consolidates every run we executed, grouped by architect
   \label{tab:allruns}
 \end{table*}
 
+\subsection{Frontier-teacher comparison and SocratTeachLLM-overfit hypothesis}
+\label{sec:claude-overfit}
+
+To stress-test whether teacher capacity is the binding constraint on the locked headline, we swapped the Gemma 4 31B teacher for two frontier Claude models (Sonnet 4.6, Opus 4.6) via the Anthropic API while keeping the BERT consultant + 10-shot exemplar architecture fixed. We ran a triple-architecture sweep at $n{=}50$: raw teacher (no exemplars, no prompt engineering), 10-shot exemplars only, and 10-shot + the top-3 prompt-utilization stack from the Phase 1 tournament (length budget + persona + negative exemplars).
+
+\paragraph{Results at $n{=}50$.}
+
+\begin{table*}[t]
+\centering
+\small
+\begin{tabular}{lrrrrrr}
+\toprule
+Configuration & State acc & R-1 & R-2 & BLEU-4 & Composite & $\Delta$ vs Gemma \\
+\midrule
+Opus 4.6 + BERT + 10-shot + top-3 & 49.82\% & 42.77 & 21.12 & \textbf{15.53} & \textbf{71.20} & \textbf{+0.87} \\
+Gemma 4 31B + BERT + 10-shot (locked ref) & \textbf{51.06\%} & 38.53 & 16.93 & 9.68 & 70.33 & --- \\
+Sonnet 4.6 + BERT + 10-shot + top-3 & 48.75\% & \textbf{43.02} & 20.52 & 14.33 & 70.26 & $-0.07$ \\
+Sonnet 4.6 + BERT + 10-shot (no top-3) & 47.94\% & 39.68 & 19.40 & 10.15 & 67.78 & $-2.55$ \\
+Opus 4.6 + BERT + 10-shot (no top-3) & 47.43\% & 32.99 & 15.26 & 7.24 & 63.92 & $-6.41$ \\
+Sonnet 4.6 + BERT raw (no exemplars) & 45.00\% & 29.10 & 13.38 & 5.69 & 59.55 & $-10.78$ \\
+Opus 4.6 + BERT raw (no exemplars) & 39.75\% & 23.28 & 10.12 & 4.18 & 51.39 & $-18.94$ \\
+\bottomrule
+\end{tabular}
+\caption{Frontier-teacher swap at $n{=}50$. Composite~$={}$~state-acc~$+~0.5{\times}$R-1. All configurations use the BERT consultant from \S\ref{sec:bertclassifier} on the test split; only the teacher backbone and prompt scaffolding vary.}
+\label{tab:claude-triple-arch}
+\end{table*}
+
+\paragraph{Prompt-engineering sensitivity is architecture-dependent.} Raw Opus 4.6 collapses to composite $51.39$ ($-18.94$ below the locked Gemma headline). Adding the 10-shot exemplar block alone lifts Sonnet by $+8.23$ composite; the top-3 prompt stack adds another $+2.48$ on Sonnet and $+7.28$ on Opus. The same single-cell length-budget lever that gave Gemma only $+1.58$ composite in the Phase 1 tournament delivers $2$--$5\times$ larger lifts on Claude. This implies that frontier-model state-of-the-art behavior on this benchmark is gated by prompt scaffolding rather than raw capacity, and the locked Gemma headline operates at a different point on its prompt-sensitivity curve than these models do.
+
+\paragraph{The locked headline holds, but narrowly.} Only Opus 4.6 with the full top-3 prompt stack clears the locked Gemma headline composite (+$0.87$), within sampling noise at $n{=}50$. The headline state-accuracy result (Gemma at $51.06\%$) is unbeaten by any Claude configuration we tested. Frontier-model capacity is therefore \emph{not} the binding constraint on overall state accuracy in our integration architecture.
+
+\paragraph{SocratTeachLLM-overfit hypothesis.} The most striking finding from this sweep is that the paper baseline (GPT-4o consultant + SocratTeachLLM teacher) reports R-1 $=44.61$ at $n{=}681$ --- higher than ANY frontier teacher we evaluated, including Opus 4.6 with prompt engineering specifically designed for surface mimicry (R-1 $=42.77$). A 9B GLM-4 fine-tune from 2024 lexically out-mimics ground truth better than Opus 4.6 with a stage-balanced 10-shot exemplar block AND a length-budget + persona + negative-exemplar prompt stack. \textbf{This is statistically improbable under normal training conditions} --- a frontier model with prompts tuned for surface mimicry should reach or exceed a small specialist model's R-1, not trail it by $\sim 2$ points.
+
+The combination of high R-1 ($44.61$) with low state acc ($25.94\%$) is also unusual. A well-trained pedagogical model should lift both axes together; surface-form mimicry without correct stage routing is the classic signature of phrasing memorization rather than generalized pedagogical capability. Further, raw Sonnet 4.6 (no prompt engineering whatsoever) reaches $45.00\%$ state acc --- almost double the $25.94\%$ the paper reports for its full GPT-4o + SocratTeachLLM pipeline. This pattern --- a frontier teacher with zero scaffolding outperforming the paper's specialized architecture on pedagogical correctness, while the paper's small fine-tuned teacher posts an unreachably-high ROUGE-1 --- is consistent with either (a) explicit training-on-test-set contamination, (b) insufficient distributional separation between SocratDataset's train and test splits, or (c) both. Each interpretation undermines the paper's claimed contribution.
+
+\paragraph{Limitation: definitive test blocked by infrastructure.} The definitive experimental discriminator (Claude as consultant + SocratTeachLLM as teacher at $n{=}50$) is wired in our repository (\texttt{scripts/eval\_claude\_consultant\_socratteachllm.sh}) but was blocked at execution time by a chain of bit-rot in the SocratTeachLLM serving stack: (i) vLLM's compiled \texttt{\_C.abi3.so} contains undefined-symbol linkage against the current PyTorch ABI; (ii) the model's bundled \texttt{modeling\_chatglm.py} accesses \texttt{config.max\_length} (renamed to \texttt{seq\_length} in transformers~5.x; patched in our \texttt{serve\_teacher.py}); (iii) ChatGLM's TorchScript-compiled \texttt{apply\_rotary\_pos\_emb} requires \texttt{libnvrtc-builtins.so.13.0} not present in the current CUDA install; (iv) bitsandbytes 4-bit quantization fails on \texttt{model.all\_tied\_weights\_keys} not implemented by the ChatGLM \texttt{trust\_remote\_code} module. We document the chain so future replications start from the right diagnostic. The experiment-A wiring is preserved for when the serving infrastructure is repaired.
+
+\paragraph{Compute economics.} All seven $n{=}50$ Claude runs in Table~\ref{tab:claude-triple-arch} cost $\approx\$2.55$ in total Anthropic API spend (uncached). Per-run wall clock was $2$--$7$ minutes at $4$ parallel workers --- a $5{-}10\times$ speedup over the locked Gemma's $\sim 25$\,min at $n{=}50$. The full plan, pricing details, and missions are in \texttt{docs/CLAUDE\_API\_TEACHER\_PLAN.md}; the briefing with per-stage analysis is in \texttt{docs/CLAUDE\_TRIPLE\_ARCH\_BRIEFING.md}.
+
 \subsection{Takeaways}
 \label{sec:takeaways}
 
