@@ -2,6 +2,8 @@
 
 **CSEN 346 · Santa Clara University**
 
+> **Status (2026-05-22).** Steps 1 and 2 are complete (SocratDataset-EN translation and HF publication; see [`TRANSLATION_PLAN.md`](TRANSLATION_PLAN.md)). Steps 3–8 remain stretch / future work. Table 1's baseline numbers pre-date the benchmark critique — read this file alongside [`BENCHMARK_CRITIQUE_AND_PROPOSAL.md`](BENCHMARK_CRITIQUE_AND_PROPOSAL.md), which reframes surface-form metrics as memorization indicators rather than primary quality measures.
+
 Goal: grow beyond the 6,803-record SocratDataset by (a) generating new Socratic dialogues from English question banks and (b) augmenting coverage of underrepresented states and subjects.
 
 ---

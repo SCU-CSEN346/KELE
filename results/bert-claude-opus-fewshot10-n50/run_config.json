@@ -1,0 +1,16 @@
+{
+  "experiment": "bert-claude-opus-fewshot10-n50",
+  "teacher_model": "claude-opus-4-6",
+  "teacher_base_url": "https://api.anthropic.com/v1/",
+  "consultant_model": "claude-opus-4-6",
+  "consultant_base_url": "https://api.anthropic.com/v1/",
+  "thinking_budget": 0,
+  "max_teaching_rounds": 8,
+  "unified": false,
+  "workers": 4,
+  "total_dialogues": 50,
+  "completed": 50,
+  "total_elapsed_seconds": 293.57,
+  "started_at": "2026-05-21 19:52:54",
+  "finished_at": "2026-05-21 19:57:48"
+}

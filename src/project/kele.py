@@ -382,11 +382,14 @@ def run_batch_evaluation(
 
     # Bucket already-done dialogues into the completed counter; only pending
     # items get dispatched. Same crash-recovery semantics as the prior loop.
+    # Empty files (zero bytes) are treated as missing — a crash mid-write leaves
+    # 0-byte placeholders that would otherwise be skipped and later break
+    # metrics computation when json.loads sees an empty string.
     pending: list[dict] = []
     completed = 0
     for item in dataset:
         out_file = dialogues_dir / f"{item['id']:04d}.json"
-        if out_file.exists():
+        if out_file.exists() and out_file.stat().st_size > 0:
             completed += 1
         else:
             pending.append(item)
@@ -519,6 +522,14 @@ def main() -> None:
         "KELE_PARALLEL_WORKERS). Recommended: 4. Server-side -np must be "
         "at least this value.",
     )
+    eval_parser.add_argument(
+        "--dataset-path",
+        type=Path,
+        default=None,
+        help="Path to a SocratDataset JSON file. Defaults to references/KELE/"
+        "SocratDataset.json (the original Chinese dataset). Use "
+        "references/KELE-EN/SocratDataset.json for the English translation.",
+    )
 
     # Quick test mode — run on a handful of dialogues
     test_parser = sub.add_parser("test", help="Quick test with a few dialogues")
@@ -545,6 +556,7 @@ def main() -> None:
         output = args.output or Path(f"results/{args.experiment or 'baseline'}")
         run_batch_evaluation(
             output,
+            dataset_path=args.dataset_path,
             start_id=args.start_id,
             limit=args.limit,
             experiment=args.experiment,
