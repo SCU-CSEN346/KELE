@@ -95,7 +95,7 @@ def fig_r1_distribution(datasets: dict[str, list[dict]], outname: str, title: st
     valid_names = [n for n, d in datasets.items() if d]
     r1_lists = [[x["rouge1"] for x in datasets[n]] for n in valid_names]
     fig, ax = plt.subplots(figsize=(9, 5))
-    bp = ax.boxplot(r1_lists, tick_labels=valid_names, showmeans=True)
+    ax.boxplot(r1_lists, tick_labels=valid_names, showmeans=True)
     ax.set_ylabel("Per-dialogue ROUGE-1")
     ax.set_title(title)
     ax.grid(axis="y", alpha=0.3)

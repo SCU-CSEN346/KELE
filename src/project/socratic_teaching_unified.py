@@ -158,10 +158,6 @@ def _build_few_shot_block_n(n: int) -> str:
     return "\n".join(lines) + "\n"
 
 
-import openai
-
-from src.project.socratic_teaching_system import SocraticTeachingSystem
-
 # Strict JSON schema for the unified call's output.
 # llama.cpp accepts this via response_format and uses GBNF-constrained
 # decoding to make the structured output deterministic. State enum is the

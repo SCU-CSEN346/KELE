@@ -233,7 +233,7 @@ def main() -> None:
 
     print(f"\n=== 34-state v2 (class-weighted) on test split ({len(test_examples)} turns) ===")
     print(f"  Overall state accuracy:        {test_overall * 100:.2f}%")
-    print(f"  Implied stage accuracy:")
+    print("  Implied stage accuracy:")
     for s in "abcde":
         print(f"    Stage {s}: {per_stage_acc[s] * 100:.2f}% (n={total_stage[s]})")
     # Rare-state recovery — show only the rare ones from v1 with non-zero v1 n

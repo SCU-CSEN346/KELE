@@ -50,7 +50,7 @@ def fig_state_frequency() -> None:
     bar_colors = [colors_by_stage[s[0]] for s in states]
 
     fig, ax = plt.subplots(figsize=(11, 5))
-    bars = ax.bar(range(len(states)), freqs, color=bar_colors)
+    ax.bar(range(len(states)), freqs, color=bar_colors)
     ax.set_xticks(range(len(states)))
     ax.set_xticklabels(states, rotation=45, ha="right", fontsize=8)
     ax.set_xlabel("State (grouped by stage)")

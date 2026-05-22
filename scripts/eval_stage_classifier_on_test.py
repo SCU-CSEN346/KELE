@@ -14,7 +14,6 @@ Outputs:
 from __future__ import annotations
 
 import json
-from collections import Counter
 from pathlib import Path
 
 import numpy as np
@@ -101,8 +100,8 @@ def main() -> None:
 
     # Confusion matrix (5x5)
     cm = np.zeros((5, 5), dtype=int)
-    for p, l in zip(preds, labels):
-        cm[l, p] += 1
+    for p, lbl in zip(preds, labels):
+        cm[lbl, p] += 1
 
     out_metrics = {
         "n_test_turns": len(examples),

@@ -102,7 +102,7 @@ def fig_per_stage_accuracy() -> None:
     colors = sns.color_palette("Set2", len(systems))
     for i, (sysname, vals) in enumerate(systems.items()):
         offset = (i - len(systems) / 2 + 0.5) * width
-        bars = ax.bar(x + offset, vals, width, label=sysname, color=colors[i])
+        ax.bar(x + offset, vals, width, label=sysname, color=colors[i])
 
     ax.set_xlabel("SocRule stage")
     ax.set_ylabel("State accuracy (%)")

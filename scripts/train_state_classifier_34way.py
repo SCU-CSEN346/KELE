@@ -155,8 +155,6 @@ def main() -> None:
     print("Per-state inference for breakdown ...")
     model.eval()
     device = next(model.parameters()).device
-    test_texts = [e["text"] for e in test_examples]  # rebuild raw text since we dropped column
-    # Rebuild raw text from test_examples (we still have it)
     correct_state = {s: 0 for s in ALL_STATES}
     total_state = {s: 0 for s in ALL_STATES}
     correct_stage = {s: 0 for s in "abcde"}
@@ -205,10 +203,10 @@ def main() -> None:
 
     print(f"\n=== 34-state classifier on test split ({len(test_examples)} turns) ===")
     print(f"  Overall state accuracy:        {test_overall * 100:.2f}%")
-    print(f"  Implied stage accuracy:")
+    print("  Implied stage accuracy:")
     for s in "abcde":
         print(f"    Stage {s}: {per_stage_acc[s] * 100:.2f}% (n={total_stage[s]})")
-    print(f"  Top per-state hits (rate, n) for stages c+d:")
+    print("  Top per-state hits (rate, n) for stages c+d:")
     for s in ALL_STATES:
         if s[0] in "cd" and total_state[s] > 0:
             print(f"    {s}: {per_state_acc[s] * 100:.2f}% (n={total_state[s]})")
