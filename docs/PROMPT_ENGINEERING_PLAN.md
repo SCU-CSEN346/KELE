@@ -1,8 +1,8 @@
 # Prompt-engineering tournament for the post-BERT-baseline phase
 
 **Author:** Claude Opus 4.7 (1M ctx) for Max
-**Date:** 2026-05-18 (revised 4× — adds Phase 0.5 teacher-choice ablation; updated 2026-05-19 with Phase 0.5 result; updated 2026-05-19 PM with Phase 1 tournament results)
-**Status:** Plan-of-record. **Phase 0 complete** (BERT + Gemma + 10-shot full = 48.15% / 36.78 R-1, locked headline). **Phase 0.5 complete** (BERT + A3B + 10-shot full = 46.57% / 33.27 R-1, Gemma stays locked). **Phase 1 complete** (10-cell n=50 tournament; length_budget #1 wins, +1.58 composite; phase 2 stack identified). Ready for Phase 2 composition runs.
+**Date:** 2026-05-18 (revised 5× — adds Phase 0.5 teacher-choice ablation; updated 2026-05-19 with Phase 0.5 result; updated 2026-05-19 PM with Phase 1 tournament results; updated 2026-05-21 with Phase 2-Claude parallel front)
+**Status:** Plan-of-record. **Phase 0 complete** (BERT + Gemma + 10-shot full = 48.15% / 36.78 R-1, locked headline). **Phase 0.5 complete** (BERT + A3B + 10-shot full = 46.57% / 33.27 R-1, Gemma stays locked). **Phase 1 complete** (10-cell n=50 tournament; length_budget #1 wins, +1.58 composite; phase 2 stack identified). **Phase 2 now runs on twin tracks** — local Gemma composition (Phase 2-Local) and Claude-API teacher swap (Phase 2-Claude). Ready for both.
 **Protocol:** Tournament-style, mirroring the §4.7 13-model no-think tournament. **n=50 × 10 cells = 500 dialogues** in Phase 1.
 
 ## Mission
@@ -57,9 +57,22 @@ All documentation hooks landed (briefing, README, paper §4.8.1 ablation paragra
 4. **Per-state routing (#4) did not deliver the Phase 0.5-predicted lift.** Despite the per-stage split that motivated this utilization (A3B wins b/e, Gemma wins c/d), BERT-conditional retrieval barely moved the needle (+0.26 composite, within sampling noise at n=50). Likely interpretation: the dense Gemma teacher already absorbs the BERT state-name signal in the prompt itself, so explicit per-state retrieval is redundant.
 5. **Lexical-prior priming (#2) is actively harmful** (−6.88 composite). Listing preferred opener 4-grams as "preferred openings" appears to bias the teacher away from correct state-conditional response form — it's gaming a surface pattern at the expense of pedagogical content.
 
-### Phase 2 composition plan
+### Phase 2 composition plan — twin-track structure
 
-Aggregator-selected top-3 non-mutex utilizations:
+Phase 1 identified two independent levers worth pulling at n=50, and they fan out into a parallel-track Phase 2:
+
+| Track | Lever | Cost | Wall clock |
+|---|---|---|---|
+| **Phase 2-Local** | Prompt-stack composition on locked Gemma teacher | $0 (local GPU) | ~25–50 min/cell |
+| **Phase 2-Claude** | Teacher backbone swap (Gemma → Sonnet 4.6 / Opus 4.6) | $0.40–$0.60/cell at n=50 (cached) | ~10–12 min/cell |
+
+The tracks are **orthogonal** (one tunes the prompt, the other tunes the model) and **commutative for Phase 4** (after both winners are known, we can stack them).
+
+---
+
+#### Phase 2-Local — Composed prompt stacks on Gemma
+
+Aggregator-selected top-3 non-mutex utilizations from Phase 1:
 - **#1 length_budget** (+1.58)
 - **#9 persona** (+0.74)
 - **#5 negative_exemplars** (+0.29)
@@ -70,7 +83,50 @@ All three are stack-compatible and incur no extra inference calls — pure promp
 
 **Composed-B (Composed-A + mutex pick):** Composed-A + `KELE_TEACHER_COT=1`. The +0.05 CoT lift alone is borderline, but CoT may interact non-linearly with the length budget (CoT's failure mode was over-explaining; the length budget could clip that).
 
-Run both; pick by composite. Promote the higher to Phase 3 at n=681 if its composite ≥ 72.5.
+Run both; pick by composite. Promote the higher to Phase 3-Local at n=681 if its composite ≥ 72.5.
+
+---
+
+#### Phase 2-Claude — Frontier-teacher swap
+
+**Hypothesis:** the BERT-routed consultant is doing its job (state acc ceiling lifted), so what's left on the table is *teacher-response quality* — especially on stage c (only 30.31% even in the locked headline). A frontier teacher with stronger reasoning may crack that ceiling. Full spec in `docs/CLAUDE_API_TEACHER_PLAN.md`.
+
+**Mission sequence (run in order, gate at each step):**
+
+1. **Mission 1 — n=5 token-calibration probe** (~$0.05, ~5 min). Validate the 0.7× BERT→Claude token-ratio estimate against real `usage.input_tokens` from the API. Decision gate: ±30% of estimate.
+2. **Mission 2 — Sonnet 4.6 at n=50** (~$0.40 cached, ~10 min). Drop-in swap for Gemma in the locked architecture. Decision gate: composite ≥ 70.33 → proceed to Mission 3; composite ≥ 72.5 → schedule full n=681 immediately.
+3. **Mission 3 — Opus 4.6 at n=50** (~$0.60 cached, ~12 min). Frontier-teacher test. Decision gate: must beat both Gemma headline AND Sonnet result by ≥ +1.0 composite to justify the 1.67× premium.
+
+**Pricing snapshot** (verified 2026-05-21):
+
+| Model | n=50 cached | n=681 cached | n=681 batch+cached |
+|---|---:|---:|---:|
+| Sonnet 4.6 | ~$0.40 | ~$5.01 | ~$2.50 |
+| Opus 4.6 | ~$0.60 | ~$8.35 | ~$4.20 |
+
+Full cost tables and the OpenAI-client-compatible wiring path in `docs/CLAUDE_API_TEACHER_PLAN.md`.
+
+---
+
+#### Phase 3 (split) — Full-scale promotion
+
+**Phase 3-Local:** Whichever Composed-A/B clears 72.5 composite at n=50 → run at n=681 on Gemma teacher. Wall clock ~13h.
+
+**Phase 3-Claude:** Whichever Claude teacher clears the locked Gemma headline by ≥ +2.0 composite at n=50 → run at n=681 via the Anthropic API. Cost ~$5–$8 cached. Wall clock ~3–4h (much faster than local because of API parallelism + no model loading).
+
+Either or both may promote. The paper headline goes to whichever Phase 3 hits the highest composite at full scale.
+
+---
+
+#### Phase 4 — Combined stack (conditional)
+
+**Trigger:** both Phase 2-Local AND Phase 2-Claude produced wins.
+
+Stack the Phase 2-Local-winning prompt composition on top of the Phase 2-Claude-winning teacher. This is the upper-bound combined optimization: BERT consultant × frontier teacher × tournament-winning prompt stack. Re-run at n=50 first; if composite ≥ 75, promote to n=681 immediately.
+
+**Why this is the most exciting bet:** Composed-A's hypothesized lift is +2.61 (sub-linear realistic: +1.5). Frontier-teacher hypothesized lift is similar order (+1 to +3 vs Gemma). If they're independent, the combined lift is additive — potentially clearing 55% state acc, which is the aspirational target.
+
+---
 
 ### Artifact pointers (Phase 1)
 
@@ -79,6 +135,12 @@ Run both; pick by composite. Promote the higher to Phase 3 at n=681 if its compo
 - Leaderboard aggregator: `scripts/aggregate_tournament_leaderboard.py`
 - Tournament wrapper: `scripts/eval_prompt_tournament.sh`
 - Run logs: `logs/tournament_2026-05-19T{16-21-39,18-26-00,23-17-13}.log`
+
+### Artifact pointers (Phase 2-Claude)
+
+- Full plan: `docs/CLAUDE_API_TEACHER_PLAN.md`
+- Pricing memory: `~/.claude/projects/.../memory/claude_api_pricing_2026_05_21.md`
+- Result staging convention: `results/sonnet46-bert-fewshot10-n{50,681}/`, `results/opus46-bert-fewshot10-n{50,681}/`
 
 ---
 
