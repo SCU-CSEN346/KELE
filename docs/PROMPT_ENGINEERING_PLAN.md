@@ -1,8 +1,8 @@
 # Prompt-engineering tournament for the post-BERT-baseline phase
 
 **Author:** Claude Opus 4.7 (1M ctx) for Max
-**Date:** 2026-05-18 (revised 5× — adds Phase 0.5 teacher-choice ablation; updated 2026-05-19 with Phase 0.5 result; updated 2026-05-19 PM with Phase 1 tournament results; updated 2026-05-21 with Phase 2-Claude parallel front)
-**Status:** Plan-of-record. **Phase 0 complete** (BERT + Gemma + 10-shot full = 48.15% / 36.78 R-1, locked headline). **Phase 0.5 complete** (BERT + A3B + 10-shot full = 46.57% / 33.27 R-1, Gemma stays locked). **Phase 1 complete** (10-cell n=50 tournament; length_budget #1 wins, +1.58 composite; phase 2 stack identified). **Phase 2 now runs on twin tracks** — local Gemma composition (Phase 2-Local) and Claude-API teacher swap (Phase 2-Claude). Ready for both.
+**Date:** 2026-05-18 (revised 6× — adds Phase 0.5 teacher-choice ablation; updated 2026-05-19 with Phase 0.5 result; updated 2026-05-19 PM with Phase 1 tournament results; updated 2026-05-21 with Phase 2-Claude parallel front; updated 2026-05-21 PM — Composed-B dropped, A3B "for-fun" variant added)
+**Status:** Plan-of-record. **Phase 0 complete** (BERT + Gemma + 10-shot full = 48.15% / 36.78 R-1, locked headline). **Phase 0.5 complete** (BERT + A3B + 10-shot full = 46.57% / 33.27 R-1, Gemma stays locked). **Phase 1 complete** (10-cell n=50 tournament; length_budget #1 wins, +1.58 composite; phase 2 stack identified). **Phase 2 now runs three tracks in parallel** — Composed-Gemma (locked teacher + top-3 prompts), Composed-A3B (fast teacher + top-3 prompts, opportunistic), Claude API teacher swap. Ready for all three.
 **Protocol:** Tournament-style, mirroring the §4.7 13-model no-think tournament. **n=50 × 10 cells = 500 dialogues** in Phase 1.
 
 ## Mission
@@ -57,33 +57,76 @@ All documentation hooks landed (briefing, README, paper §4.8.1 ablation paragra
 4. **Per-state routing (#4) did not deliver the Phase 0.5-predicted lift.** Despite the per-stage split that motivated this utilization (A3B wins b/e, Gemma wins c/d), BERT-conditional retrieval barely moved the needle (+0.26 composite, within sampling noise at n=50). Likely interpretation: the dense Gemma teacher already absorbs the BERT state-name signal in the prompt itself, so explicit per-state retrieval is redundant.
 5. **Lexical-prior priming (#2) is actively harmful** (−6.88 composite). Listing preferred opener 4-grams as "preferred openings" appears to bias the teacher away from correct state-conditional response form — it's gaming a surface pattern at the expense of pedagogical content.
 
-### Phase 2 composition plan — twin-track structure
+### Phase 2 composition plan — three-track structure
 
-Phase 1 identified two independent levers worth pulling at n=50, and they fan out into a parallel-track Phase 2:
+Phase 1 identified the top-3 prompt utilizations as the single concatenated stack worth testing. Phase 2 runs that stack across three teacher backbones in parallel — two local (Gemma locked-headline, A3B for-fun reference), one frontier (Claude API):
 
-| Track | Lever | Cost | Wall clock |
+| Track | Teacher | Cost | Wall clock |
 |---|---|---|---|
-| **Phase 2-Local** | Prompt-stack composition on locked Gemma teacher | $0 (local GPU) | ~25–50 min/cell |
-| **Phase 2-Claude** | Teacher backbone swap (Gemma → Sonnet 4.6 / Opus 4.6) | $0.40–$0.60/cell at n=50 (cached) | ~10–12 min/cell |
+| **Phase 2-Gemma** | Locked headline teacher (Gemma 4 31B local) | $0 | ~25 min |
+| **Phase 2-A3B** | Fast MoE teacher (Qwen 35B-A3B local) | $0 | ~10 min |
+| **Phase 2-Claude** | Frontier teachers (Sonnet 4.6 + Opus 4.6 via Anthropic API) | $0.80–$1.20 (cached) | ~10–12 min/cell |
 
-The tracks are **orthogonal** (one tunes the prompt, the other tunes the model) and **commutative for Phase 4** (after both winners are known, we can stack them).
+The three tracks are **orthogonal** in resource: Gemma and A3B alternate on the local 5090 (one at a time on port 8080); Claude runs on the API and can fire alongside either local run. **Phase 3 promotes whichever track winners clear the gates** to full n=681.
 
 ---
 
-#### Phase 2-Local — Composed prompt stacks on Gemma
+#### The top-3 prompt stack (used by all three tracks)
 
-Aggregator-selected top-3 non-mutex utilizations from Phase 1:
+Aggregator-selected top-3 non-mutex utilizations from Phase 1, all stack-compatible, all pure prompt-string layering (no extra inference calls):
+
 - **#1 length_budget** (+1.58)
 - **#9 persona** (+0.74)
 - **#5 negative_exemplars** (+0.29)
 
-All three are stack-compatible and incur no extra inference calls — pure prompt-string layering. Sum-of-effects upper bound is +2.61 composite (73.94), assuming linear stacking. Most likely outcome is sub-linear; we accept the test.
+**Sum-of-effects upper bound:** +2.61 composite (73.94 from 70.33 baseline), assuming linear stacking. Realistic outcome is sub-linear; we accept the test.
 
-**Composed-A (recommended, cheap stack):** `KELE_FEW_SHOT_TEACHER=1 KELE_FEW_SHOT_N=10 KELE_STAGE_LENGTH_BUDGET=1 KELE_TEACHER_PERSONA=1 KELE_NEGATIVE_EXEMPLARS=1` against Gemma 4 31B at n=50.
+**Why drop Composed-B (CoT add-on, #7):** Phase 1 result for #7 alone was +0.05 composite — essentially noise. The original justification (CoT may interact non-linearly with length budget) is speculative; testing it doubles inference cost for a borderline expected lift. Drop it from Phase 2; revisit only if Composed-Gemma underperforms.
 
-**Composed-B (Composed-A + mutex pick):** Composed-A + `KELE_TEACHER_COT=1`. The +0.05 CoT lift alone is borderline, but CoT may interact non-linearly with the length budget (CoT's failure mode was over-explaining; the length budget could clip that).
+**Why skip #4 (per-state exemplars) despite being 4th-best:** #4 only delivered +0.26 composite (also noise-band), and its hypothesized mechanism — per-stage exemplar routing — is plausibly redundant with #5 (negative exemplars already give the teacher anti-pattern guidance per stage). Diminishing returns; not worth the additional config complexity.
 
-Run both; pick by composite. Promote the higher to Phase 3-Local at n=681 if its composite ≥ 72.5.
+**Shared env-var prefix for all three tracks:**
+```bash
+KELE_FEW_SHOT_TEACHER=1 KELE_FEW_SHOT_N=10 \
+KELE_STAGE_LENGTH_BUDGET=1 KELE_TEACHER_PERSONA=1 KELE_NEGATIVE_EXEMPLARS=1
+```
+
+---
+
+#### Phase 2-Gemma — Top-3 stack on the locked teacher
+
+The apples-to-apples test: does the top-3 prompt composition lift the locked Gemma headline? Result baseline to beat is the Phase 1 length-budget cell (#1 alone): 51.96 / 39.91 / 71.91 composite.
+
+**Promotion to Phase 3-Gemma (n=681) if composite ≥ 72.5.**
+
+#### Phase 2-A3B — Opportunistic fast-teacher test (for-fun)
+
+Same top-3 stack, but with Qwen 35B-A3B as the teacher instead of Gemma. Why bother:
+
+1. A3B is ~4× faster than Gemma at inference — ~10 min for n=50 vs ~25 min. Cheap to add.
+2. Phase 0.5 ablation showed A3B has a per-stage profile *opposite* to Gemma: A3B wins on stages b/e (simpler dialogue acts), Gemma wins on c/d (cognitive heavy-lift). The top-3 prompt stack — especially #1 length_budget — might disproportionately help A3B on the harder stages where it currently loses.
+3. If A3B + top-3 stack closes more than half the c/d gap vs Gemma, it's a genuine surprise and worth a paper paragraph.
+
+**Promotion to Phase 3-A3B (n=681) if composite > Gemma full headline (70.33 equivalent at full n).** Otherwise document as ablation.
+
+#### Phase 2-Claude — Frontier-teacher swap
+
+Same top-3 stack, but with Claude Sonnet 4.6 or Opus 4.6 as the teacher via Anthropic API. Spec lives in `docs/CLAUDE_API_TEACHER_PLAN.md`.
+
+**Mission sequence (run in order, gate at each step):**
+
+1. **Mission 1 — n=5 token-calibration probe** (~$0.05, ~5 min). Validate the 0.7× BERT→Claude token-ratio estimate against real `usage.input_tokens`. Decision gate: ±30% of estimate.
+2. **Mission 2 — Sonnet 4.6 at n=50 with top-3 stack** (~$0.40 cached, ~10 min). Decision gate: composite ≥ 70.33 → proceed to Mission 3; composite ≥ 72.5 → schedule full n=681 immediately.
+3. **Mission 3 — Opus 4.6 at n=50 with top-3 stack** (~$0.60 cached, ~12 min). Decision gate: must beat both Gemma headline AND Sonnet result by ≥ +1.0 composite to justify the 1.67× premium.
+
+Pricing snapshot (verified 2026-05-21):
+
+| Model | n=50 cached | n=681 cached | n=681 batch+cached |
+|---|---:|---:|---:|
+| Sonnet 4.6 | ~$0.40 | ~$5.01 | ~$2.50 |
+| Opus 4.6 | ~$0.60 | ~$8.35 | ~$4.20 |
+
+Full cost tables and wiring details in `docs/CLAUDE_API_TEACHER_PLAN.md`.
 
 ---
 
