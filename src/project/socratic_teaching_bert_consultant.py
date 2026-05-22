@@ -107,7 +107,26 @@ class SocraticTeachingSystemBertConsultant(SocraticTeachingSystem):
             self.bert_id2label = dict(enumerate(ALL_STATES))
 
     def _format_history_for_bert(self, current_input: str) -> str:
-        """Mirror the training-time format: ``学生: ...\n老师: ...\n学生: <current>``."""
+        """Mirror the training-time format: ``学生: ...\n老师: ...\n学生: <current>``.
+
+        IMPORTANT: by the time this method is called, ``current_input`` has
+        already been appended to ``self.conversation_history`` by the parent
+        ``SocraticTeachingSystem.process_student_input`` (line 486:
+        ``self.add_to_history("student", student_input)`` runs BEFORE the
+        consultant call on line 489). So we MUST NOT append ``current_input``
+        again here — that would duplicate the current student utterance and
+        give the classifier ``学生: X\n学生: X`` as input, which never appears
+        in the trainer's ``build_examples`` distribution.
+
+        The duplication bug was found 2026-05-22 PM while diagnosing T4 +
+        Gemma integration mini-test underperformance. T4 (Qwen3.5) was
+        catastrophically affected (~45 pp drop from standalone 67.57% to
+        integration ~22%). bge-small was also affected but less severely
+        (~10 pp drop from standalone 61.34% to integration 51.06%), which is
+        why the bug went undetected in the paper's locked headline.
+        Re-running with the fix on a matched n=50 set is the apples-to-apples
+        comparison.
+        """
         lines: list[str] = []
         for entry in self.conversation_history:
             role = entry.get("role", "")
@@ -116,7 +135,10 @@ class SocraticTeachingSystemBertConsultant(SocraticTeachingSystem):
                 lines.append(f"学生: {content}")
             elif role == "teacher":
                 lines.append(f"老师: {content}")
-        lines.append(f"学生: {current_input.strip()}")
+        # The current student turn is already in conversation_history — do NOT
+        # append `current_input` again. (Keeping the parameter to preserve the
+        # method signature; the value matches the last student entry already.)
+        _ = current_input  # silence unused-arg lint
         full = "\n".join(lines)
         # Mirror training truncation: last 4000 chars
         return full[-4000:]
