@@ -1,5 +1,7 @@
 # Setup Commands — RTX 5090 Rig
 
+> **Status (2026-05-22).** This file documents setup for the *original 2026-04 baseline reproduction* (SocratTeachLLM teacher + Qwen3.5-9B/2B consultant on vLLM). The **current locked headline** uses llama.cpp-served Gemma 4 31B + BERT consultant — see [`RTX5090_SETUP.md`](RTX5090_SETUP.md) for the current rig setup.
+
 ## 1. Install system packages (Arch Linux)
 ```bash
 sudo pacman -Syu --noconfirm

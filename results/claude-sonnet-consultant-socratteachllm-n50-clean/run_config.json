@@ -1,0 +1,16 @@
+{
+  "experiment": "claude-sonnet-consultant-socratteachllm-n50-clean",
+  "teacher_model": "SocratTeachLLM",
+  "teacher_base_url": "http://localhost:8001/v1",
+  "consultant_model": "claude-sonnet-4-6",
+  "consultant_base_url": "https://api.anthropic.com/v1/",
+  "thinking_budget": 0,
+  "max_teaching_rounds": 8,
+  "unified": false,
+  "workers": 1,
+  "total_dialogues": 50,
+  "completed": 50,
+  "total_elapsed_seconds": 2039.1,
+  "started_at": "2026-05-21 22:27:10",
+  "finished_at": "2026-05-21 23:01:09"
+}

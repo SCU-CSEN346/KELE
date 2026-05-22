@@ -319,16 +319,23 @@ e34：学生正确给出题目答案
                         }
                     if self.consultant_num_ctx:
                         extra["options"] = {"num_ctx": self.consultant_num_ctx}
-                    response = self.consultant_client.chat.completions.create(
-                        model=self.consultant_model_name,
-                        messages=[
+                    # Anthropic's OpenAI-compat endpoint rejects
+                    # response_format={"type": "json_object"} (400: requires
+                    # "json_schema"). Detect by base_url and skip the strict
+                    # JSON-mode flag — Claude reliably emits JSON via prompting
+                    # alone, and the downstream parser already handles loose JSON.
+                    create_kwargs: dict = {
+                        "model": self.consultant_model_name,
+                        "messages": [
                             {"role": "system", "content": system_prompt},
                             {"role": "user", "content": user_input},
                         ],
-                        response_format={"type": "json_object"},
-                        max_tokens=self.consultant_max_tokens,
-                        extra_body=extra or None,
-                    )
+                        "max_tokens": self.consultant_max_tokens,
+                        "extra_body": extra or None,
+                    }
+                    if "anthropic.com" not in (self.consultant_base_url or ""):
+                        create_kwargs["response_format"] = {"type": "json_object"}
+                    response = self.consultant_client.chat.completions.create(**create_kwargs)
                     break
                 except openai.RateLimitError as rle:
                     retry_after = None
