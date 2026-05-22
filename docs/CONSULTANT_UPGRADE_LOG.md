@@ -12,7 +12,9 @@ This doc is the **recovery log** — if the machine crashes, a fresh Claude sess
 
 **Interpretation:** frozen Qwen3-Embedding features (596M backbone, only 34K trainable head params) cannot beat fully-fine-tuned bge-small (24M params, all trainable). Embedding-pretrained features are optimized for retrieval/similarity, not 34-way classification. Trainable parameter count appears to matter more than backbone size on this task.
 
-**T2 is currently running** (v3 attempt, after two OOMs at bs=32 and bs=16). Started 2026-05-22 ~12:54 PDT. Output dir: `results/state-clf-qwen3-emb-0.6b-lora/`. Config: `Qwen/Qwen3-Embedding-0.6B + LoRA r=8 α=16 batch_size=8` (auto target_modules: q/k/v/o_proj on all 28 attention blocks → 2,329,600 trainable params = 0.39% of 598M total).
+**T2 landed.** Final test state accuracy: **66.66%** vs locked bge-small 61.34% → **Δ = +5.32 pp** (T2 WINS). Per-stage Pareto: a 100% (tied), b 90.67% (~tied), **c 84.87% (+7.54)**, d 74.93% (~tied), e 96.48% (+1.18). The stage-c win is the architectural breakthrough — cracks the 22-way within-stage classification that's been the persistent weakness across the entire campaign. Trained model saved to `results/state-clf-qwen3-emb-0.6b-lora/final/` (2.3 GB merged-weight safetensors). Total wall-clock: ~37 min at bs=8 with manual training loop.
+
+**T3 is currently running** (Qwen3.5-0.8B-Base frozen + linear head, bs=32). Started 2026-05-22 ~13:32 PDT. Output dir: `results/state-clf-qwen3.5-0.8b-frozen/`. Frozen-probe memory profile so should fit easily at bs=32 (same as T1). Expected ETA ~25-30 min based on T1's pace × ~1.3× for the larger backbone.
 
 **Working launch command for T2 (use this if re-launching):**
 ```bash
