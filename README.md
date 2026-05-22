@@ -207,7 +207,41 @@ Two findings:
 
 Per-stage at full scale shows where the frontier teachers win and lose: Sonnet n=681 = a:99.27 / b:35.61 / c:26.48 / d:45.30 / e:84.20; Opus n=681 = a:99.27 / b:36.79 / c:23.95 / d:45.36 / e:87.78; locked Gemma = a:99.27 / b:23.26 / c:30.31 / d:41.50 / e:82.77. The frontier teachers beat Gemma on **b** (early-reasoning dialogue acts) and **d/e** (resolution + closure); Gemma beats them on **c** (the 22-state misconception induction). The dense-31B-and-pre-trained-on-Chinese-pedagogy combination still wins the hardest single stage.
 
-Run artifacts: [`results/bert-claude-sonnet-top3-n681/`](results/bert-claude-sonnet-top3-n681/), [`results/bert-claude-opus-top3-n681/`](results/bert-claude-opus-top3-n681/), [`results/bert-claude-opus-top3-EN-n50/`](results/), [`results/claude-{sonnet,opus}-consultant-socratteachllm-n50/`](results/), per-config `judge_summary.json` in each. Aggregated leaderboard: [`results/master_leaderboard.md`](results/master_leaderboard.md). Figures: [`docs/figures/leaderboard_inversion.png`](docs/figures/), [`docs/figures/ngram_gap_widening.png`](docs/figures/), [`docs/figures/four_metric_panel.png`](docs/figures/), [`docs/figures/judge_vs_surface.png`](docs/figures/), [`docs/figures/pareto_inversion.png`](docs/figures/).
+Run artifacts: [`results/bert-claude-sonnet-top3-n681/`](results/bert-claude-sonnet-top3-n681/), [`results/bert-claude-opus-top3-n681/`](results/bert-claude-opus-top3-n681/), [`results/bert-claude-opus-top3-EN-n50/`](results/), [`results/claude-{sonnet,opus}-consultant-socratteachllm-n50/`](results/), per-config `judge_summary.json` in each.
+
+### Phase 3 — Sample-size calibration: n=400 is the canonical ground-truth size (2026-05-22)
+
+The 681-dialogue test split is **over-sampled** for ranking purposes. A bootstrap convergence analysis across all 7 of our full-scale n=681 configurations (B=500 random subsamples without replacement, at each n in a 13-point grid from 25 to 600) shows the smallest n at which the 95th-percentile bootstrap deviation from the n=681 truth stays under a chosen tolerance — for every metric, simultaneously, across every configuration:
+
+| tolerance ε | state_acc | ROUGE-1 | ROUGE-2 | sent-BLEU-4 |
+|---:|---:|---:|---:|---:|
+| 0.5 pp | 600 | 500 | 500 | 400 |
+| **1.0 pp** | **600** | **200** | **200** | **175** |
+| **2.0 pp** | **400** | **75**  | **75**  | **75**  |
+
+**State accuracy is the binding constraint** — surface-form metrics (R-1, R-2, BLEU-4) converge ~3–4× faster than the per-turn 34-state classification accuracy because the latter is a high-variance binary indicator while the former are continuous and tightly distributed per turn.
+
+**Canonical decision: n = 400 dialogues** is the ground-truth size for all future full-scale evaluation runs in this project. It satisfies ε ≤ 2 pp on all four primary metrics across every configuration we've tested, and saves **~41% compute, wall-clock, and API spend** vs. the n=681 test split with no loss of decision precision on any ranking ≥ 2 pp:
+
+| Track | n=681 cost | n=400 cost | Saving |
+|---|---:|---:|---:|
+| Anthropic Sonnet 4.6 (full top-3 stack) | ~$5 | ~$2.94 | 41% |
+| Anthropic Opus 4.6 | ~$8 | ~$4.70 | 41% |
+| Gemma 4 31B local (RTX 5090) | 12.9 GPU-h | ~7.6 GPU-h | 41% |
+| A3B fusion-think local | 16.5 GPU-h | ~9.7 GPU-h | 41% |
+| LLM-judge eval (per config) | ~$3–4 | ~$1.75–2.35 | 41% |
+
+**Tier structure for future evaluations:**
+
+- **n = 200** — *screening tier*: prompt-engineering tournament cells, configuration pruning, anything where Δ ≥ 3 pp is decision-relevant.
+- **n = 400** — *canonical headline tier*: any leaderboard-changing claim. Replaces n=681 as the default.
+- **n = 600+** — *high-precision tier*: paper-defining decisions where state-acc resolution ≤ 1 pp matters (rare).
+
+**The new dialogue-sequence dataset under construction should target n=400 random dialogues** as its canonical evaluation tier — or **n=200-300 dialogues stratified by stage × subject** as a tighter alternative (stratification converges faster than random sampling and likely halves the required n for the same tolerance).
+
+Full method + tolerance sweep + per-metric per-config plateau table in [`docs/CONVERGENCE_ANALYSIS.md`](docs/CONVERGENCE_ANALYSIS.md). Reproducer: [`scripts/convergence_analysis.py`](scripts/convergence_analysis.py) (~3s for all 7 runs). Figure: [`docs/figures/convergence_curves.png`](docs/figures/convergence_curves.png).
+
+> **Note on prior n=681 results.** The locked open-weight headline (BERT+Gemma+10-shot at 48.15% state / 36.78 R-1, n=681) and the Phase 3-Claude frontier ceilings (Sonnet 49.97% / Opus 49.31%) remain canonical — we ran the full n=681 and report the full numbers. The n=400 recommendation governs **future** runs and the new dataset we're constructing; existing n=681 results stand as documented. Aggregated leaderboard: [`results/master_leaderboard.md`](results/master_leaderboard.md). Figures: [`docs/figures/leaderboard_inversion.png`](docs/figures/), [`docs/figures/ngram_gap_widening.png`](docs/figures/), [`docs/figures/four_metric_panel.png`](docs/figures/), [`docs/figures/judge_vs_surface.png`](docs/figures/), [`docs/figures/pareto_inversion.png`](docs/figures/).
 
 Full experimental record lives in [`deliverables/overleaf/latex/acl_latex.tex`](deliverables/overleaf/latex/acl_latex.tex) Section 4 and the per-run logs in [`results/`](results/).
 
