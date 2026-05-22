@@ -203,6 +203,11 @@ def main() -> None:
                    help="Recompute activations during backward instead of saving them. "
                         "Cuts activation memory by ~4x at ~30%% wall-clock cost. "
                         "Essential for LoRA on larger backbones (T4 on Qwen3.5).")
+    p.add_argument("--bf16-autocast", action="store_true",
+                   help="Wrap forward passes in torch.autocast(dtype=bfloat16). Model "
+                        "stays fp32 (params + optimizer state), only forward computes "
+                        "in bf16. Cuts forward time/memory ~2x. Safe with manual loop: "
+                        "the HF Trainer issues that bit us earlier don't apply here.")
     p.add_argument("--lora", action="store_true",
                    help="Wrap the backbone with a PEFT LoRA adapter; adapters are "
                         "merged into the base weights before save so the artifact is "
@@ -308,16 +313,20 @@ def main() -> None:
         tokenize, batched=True, remove_columns=["text", "state"]
     )
 
-    # Manual training loop — bypassing HF Trainer entirely.
-    # When using Trainer with Qwen3-Embedding-0.6B (frozen probe), gradients
-    # went NaN within the first 200 steps regardless of AMP setting (fp16, bf16,
-    # or pure fp32 all failed). An identical manual SGD probe (model.train()
-    # mode, AdamW lr=1e-3, frozen backbone, pure fp32) converged cleanly:
-    # loss 5.47 → 0.01 across 8 steps, grad_norms 64 → 1.4, no NaN. Root cause
-    # of the Trainer-integration failure is unidentified (suspects: Accelerator
-    # .prepare() wrapping, lr scheduler interaction, default grad clipping at
-    # max_norm=1.0). Manual loop sidesteps the entire surface.
-    print(f"  precision: pure fp32, no AMP (model dtype={next(model.parameters()).dtype})")
+    # Manual training loop — bypassing HF Trainer entirely (rationale in commit history).
+    # Model stays fp32 (params + optimizer state); --bf16-autocast wraps the forward
+    # pass in torch.autocast for bf16 forward compute and ~2x speed/memory savings.
+    import contextlib
+
+    def amp_ctx():
+        if args.bf16_autocast and torch.cuda.is_available():
+            return torch.autocast(device_type="cuda", dtype=torch.bfloat16)
+        return contextlib.nullcontext()
+
+    if args.bf16_autocast:
+        print(f"  precision: fp32 weights + bf16 autocast forward (model dtype={next(model.parameters()).dtype})")
+    else:
+        print(f"  precision: pure fp32, no AMP (model dtype={next(model.parameters()).dtype})")
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model.to(device)
@@ -346,7 +355,7 @@ def main() -> None:
     model.train()
     diag_batch = next(iter(train_loader))
     diag_batch = {k: v.to(device) for k, v in diag_batch.items()}
-    with torch.no_grad():
+    with torch.no_grad(), amp_ctx():
         diag_out = model(**diag_batch)
     print(f"  [diagnostic] pre-training forward: "
           f"logits[{diag_out.logits.min().item():.3g}, {diag_out.logits.max().item():.3g}], "
@@ -364,8 +373,9 @@ def main() -> None:
         epoch_steps = 0
         for batch in train_loader:
             batch = {k: v.to(device) for k, v in batch.items()}
-            out = model(**batch)
-            loss = out.loss
+            with amp_ctx():
+                out = model(**batch)
+                loss = out.loss
             loss.backward()
             grad_norm = torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=1.0).item()
             optimizer.step()
@@ -384,7 +394,7 @@ def main() -> None:
         eval_total = 0
         eval_loss_sum = 0.0
         eval_steps = 0
-        with torch.no_grad():
+        with torch.no_grad(), amp_ctx():
             for batch in eval_loader:
                 batch = {k: v.to(device) for k, v in batch.items()}
                 out = model(**batch)
@@ -409,7 +419,7 @@ def main() -> None:
     test_total = 0
     test_loss_sum = 0.0
     test_steps = 0
-    with torch.no_grad():
+    with torch.no_grad(), amp_ctx():
         for batch in test_loader:
             batch = {k: v.to(device) for k, v in batch.items()}
             out = model(**batch)
@@ -442,7 +452,7 @@ def main() -> None:
         enc = tokenizer(
             texts, padding=True, truncation=True, max_length=args.max_length, return_tensors="pt"
         ).to(device)
-        with torch.no_grad():
+        with torch.no_grad(), amp_ctx():
             logits = model(**enc).logits
             preds = logits.argmax(-1).cpu().tolist()
         for p, lab, e in zip(preds, labels, batch):

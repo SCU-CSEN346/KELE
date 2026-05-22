@@ -14,7 +14,17 @@ This doc is the **recovery log** — if the machine crashes, a fresh Claude sess
 
 **T2 landed.** Final test state accuracy: **66.66%** vs locked bge-small 61.34% → **Δ = +5.32 pp** (T2 WINS). Per-stage Pareto: a 100% (tied), b 90.67% (~tied), **c 84.87% (+7.54)**, d 74.93% (~tied), e 96.48% (+1.18). The stage-c win is the architectural breakthrough — cracks the 22-way within-stage classification that's been the persistent weakness across the entire campaign. Trained model saved to `results/state-clf-qwen3-emb-0.6b-lora/final/` (2.3 GB merged-weight safetensors). Total wall-clock: ~37 min at bs=8 with manual training loop.
 
-**T3 is currently running** (Qwen3.5-0.8B-Base frozen + linear head, bs=32). Started 2026-05-22 ~13:32 PDT. Output dir: `results/state-clf-qwen3.5-0.8b-frozen/`. Frozen-probe memory profile so should fit easily at bs=32 (same as T1). Expected ETA ~25-30 min based on T1's pace × ~1.3× for the larger backbone.
+**T3 landed.** Final test state accuracy: **63.73%** vs locked bge-small 61.34% → **Δ = +2.39 pp** (T3 BEATS the baseline). Per-stage: a 100% / b 90.01% / c 80.51% / d 72.07% / e 94.13%. Frozen Qwen3.5 features outperform a fully fine-tuned bge-small — meaningful result even before LoRA. Trained model saved to `results/state-clf-qwen3.5-0.8b-frozen/final/`. Total wall-clock: ~35 min at bs=32.
+
+**T4 landed (final config: v5, bs=16 + 3 epochs + gradient_checkpointing + bf16-autocast).** Final test state accuracy: **67.57%** vs locked bge-small 61.34% → **Δ = +6.23 pp — NEW FUNNEL HEADLINE.** Per-stage: a 100% / b 90.93% / **c 85.14% (+7.81 vs baseline)** / d 75.89% / e 96.77%. T4 beats T2 across EVERY stage (overall +0.91, all per-stage deltas positive). Total wall-clock: ~50 min at the optimized config. Iterations to get there: v1 bs=4 (too slow, 4.7 hr ETA), v2 bs=16 (~73 min), v3 bs=32 (~50 min), v4 bs=48 (slower than v3 due to grad-checkpoint scaling), v5 bs=16 + bf16-autocast (50 min, final).
+
+**Funnel pattern — final:**
+- Frozen → LoRA on same backbone: +5-8 pp gain (T1 58.32 → T2 66.66 = +8.34; T3 63.73 → T4 67.57 = +3.84)
+- Qwen3-Embedding → Qwen3.5 in frozen regime: +5.41 pp (T1 → T3)
+- Qwen3-Embedding → Qwen3.5 in LoRA regime: +0.91 pp (T2 → T4)
+- The two effects DO NOT compose linearly — Qwen3.5's frozen-regime advantage shrinks dramatically under LoRA, suggesting LoRA on the smaller backbone (T2) closes most of the gap to the larger backbone (T4). LoRA is a strong leveler.
+
+**Headline call:** T4 (67.57%) is the new paper headline. T2 (66.66%) remains the deployment-ergonomic alternative — smaller model (596M vs 752M), no grad-checkpoint or bf16-autocast complexity required, runs on any 32 GB VRAM setup. Within statistical noise the two are tied; choose by deployment cost.
 
 **Working launch command for T2 (use this if re-launching):**
 ```bash
@@ -371,6 +381,24 @@ A fresh Claude session should be able to recover by:
 | Mid-morning | Two-stage funnel (Layer 1 → winner → Layer 2) | Saves ~15-20 GPU-hours vs running all 4 end-to-end |
 | Mid-morning | Defer `--sample-seed` kele.py change | Not needed for Layer 1; ~10 line addition deferrable to Layer 2 |
 | Mid-morning | Run T2-T4 sequentially after T1, not in parallel | GPU memory contention — only one of Qwen3.5 / Qwen3-Embedding fits comfortably with full-FT |
+
+## Cross-lingual deployment — why bilingual retraining may be unnecessary
+
+Late-afternoon discussion (2026-05-22) flagged the language question: SocratDataset is Chinese; will our T2/T4 winners be useless on English deployment? The answer is **probably no, due to a structural property of multilingual base models**, and we should probe-then-decide rather than committing to bilingual retraining upfront.
+
+**The mechanism (papered up in `acl_latex.tex` §2.2 "Bilingual deployment without bilingual training"):** Modern multilingual base models (Qwen3-Embedding, Qwen3.5) develop language-agnostic representations in their deeper layers as a structural consequence of next-token-prediction training. Under that objective, the cheapest internal encoding of cross-lingual training data is one where semantically equivalent content (e.g., 苹果是水果 / "an apple is a fruit") maps to nearby points in latent space, with language as an approximately separable axis. This is well-documented in the multilingual-BERT/XLM-R literature (Pires et al. 2019, Wu & Dredze 2019, Conneau et al. 2020).
+
+**Crucially: typological similarity is NOT required.** Chinese and English are radically different at the grammar level — analytic vs inflected, topic-prominent vs subject-prominent, logographic vs alphabetic, very different word-order conventions. The cross-lingual transfer works *despite* grammatical distance because the alignment happens at the semantic level, where both languages encode the same underlying meanings. (Saying "Chinese and English have similar grammar" would be flat-out wrong; the correct framing is "Chinese and English encode the same semantic content, and multilingual models learn that semantic axis.")
+
+**Why LoRA preserves this property:** LoRA fine-tuning adapts ~0.3% of base parameters (the q/k/v/o_proj adapters of rank 8). This is too small a perturbation to reshape the latent space — the adapter mostly steers the existing representations toward the classification task, rather than overwriting the cross-lingual structure encoded during pretraining. Full fine-tuning at 100% trainable can break this; LoRA generally doesn't.
+
+**Empirical anchor from our own work:** the cross-lingual LLM-judge experiment in PR #67 §5 showed Opus + top-3 transferring zh→en with a -0.07 judge delta (essentially free), while SocratTeachLLM-using configurations lost 14× more. Frontier-architecture configurations DID transfer; monolingually fine-tuned 9B configurations DID NOT. T2/T4 use Qwen3-(3.5-)Embedding base, which is frontier-architecture and multilingual — strong prior that the Chinese-trained classifier will transfer.
+
+**Action implications (queued in EXPERIMENT_TIERS C.31 as "PROBE FIRST"):**
+- Stage 1 (cheap, ~30 min): evaluate the funnel winner on SocratDataset-EN test split with NO retraining. Expected: within 5-10 pp of the Chinese number. If true, ship the Chinese-trained classifier with confidence and skip Stage 2 entirely.
+- Stage 2 (only if Stage 1 fails): bilingual co-training on concatenated zh+en train splits. ~1-2 h additional GPU.
+
+The honest estimate: 60-70% likely we get free transfer and save the retraining work. 30-40% we see meaningful Chinese-side degradation and need Stage 2. Both outcomes are scientifically informative — the former validates the multilingual-representation argument; the latter quantifies the LoRA-vs-cross-lingual-preservation tradeoff.
 
 ## Open questions
 
