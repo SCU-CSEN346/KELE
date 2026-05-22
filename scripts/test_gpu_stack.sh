@@ -14,6 +14,11 @@
 #
 # No model weights are downloaded. Each step is independent.
 #
+# TODO: extend step 1 to also support NVIDIA/CUDA (nvidia-smi) for RTX 5090.
+#   When nvidia-smi is found, skip ROCm-specific probes and use CUDA backend
+#   checks instead. This allows the same script to run on both AMD and NVIDIA
+#   machines without manual modification.
+#
 # Usage:
 #   bash scripts/test_gpu_stack.sh
 #
