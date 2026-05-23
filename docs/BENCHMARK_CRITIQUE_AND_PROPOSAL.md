@@ -131,6 +131,66 @@ Empirically (see [`CONVERGENCE_ANALYSIS.md`](CONVERGENCE_ANALYSIS.md)), the Socr
 
 **Caveat:** the analysis above assumes random sampling. A stage-and-subject-stratified subsample (forcing balanced coverage of stages a–e and across chemistry / biology / physics chapters) should converge faster — likely making n ≈ 200 stratified equivalent to n = 400 random for the same tolerance. Worth pursuing when constructing the new dataset.
 
+### Proposal 7: Stage-balanced state accuracy (closes the closure-blindness gap) — **TODO, deferred**
+
+**Status:** Pending. Math is sketched but not implemented; final weighting choice deferred — see "Open weighting question" below.
+
+**The triggering observation (2026-05-22):** Qwen 27B think mode, run as the teacher behind the bge-small consultant at n=50 (partial, in flight as of write time), produces these per-stage accuracies after 175 turns:
+
+```
+stage   acc      n_turns
+  a    100.0%    33
+  b     36.8%    38
+  c     21.1%    57   ← most frequent stage, dominates the macro
+  d     41.4%    29
+  e     83.3%    18   ← rarest stage; +8-17 pp lead over every other cell
+```
+
+Stage e (closure) is **+8 pp over A3B (75.0)**, **+11 pp over Gemma (72.7)**, **+17 pp over both T4-consultant cells (66.7)**. This is the largest single-stage lead any teacher has shown across the 6 cells we have full data on.
+
+Yet the headline macro state accuracy is only ~49% — essentially tied with the locked headline (48.15%). The reason is that stage e is only **10.3%** of the test split's turns. Frequency-weighted macro state acc therefore credits Qwen 27B's closure dominance with only ~1.7 pp of headline lift, while the +12 pp deficit on stage c (Qwen 21.1% vs T4 × Gemma 33.3%) costs ~3.9 pp because stage c is 32.6% of turns. **The composite is dominated by stage c, and Qwen 27B's pedagogically most-important strength is invisible to the headline.**
+
+**Why this matters pedagogically.** Stage e is *closure* — the point at which the teacher consolidates the learning and seals the conversation. It is:
+
+- The *rarest* stage by frequency (one closure per dialogue, vs ≥1 questioning turn per dialogue, often several).
+- The *most pedagogically load-bearing* — closure is what makes the learning stick. A botched closure leaves the student without resolution, regardless of how skillfully the teacher anchored or questioned earlier.
+- The stage where surface-form metrics are *most blind* — a closure that uses different vocabulary but conveys the same consolidation looks fine on ROUGE but mediocre on stage-correct.
+
+This is the same pathology this doc already identifies for ROUGE/BLEU (Proposal 1's motivating argument): **frequency-weighted averaging hides what is pedagogically important**. The corollary for state accuracy: macro state-acc under-weights closure.
+
+**The math, with three weighting options.** Let $p_s$ be the per-stage accuracy and $f_s$ the per-stage frequency on the test split.
+
+- **Current (frequency-weighted macro):** $\text{macro} = \sum_s f_s \cdot p_s$. Each turn counts once.
+- **Option A — Stage-balanced macro (recommended baseline):** $\text{stage\_bal} = \frac{1}{5}\sum_s p_s$. Each stage weighted equally; methodologically standard "macro-F1" move from multi-class classification.
+- **Option B — Pedagogically-weighted:** assign weights by pedagogical importance, e.g. $w_a{=}0.10$, $w_b{=}0.20$, $w_c{=}0.25$, $w_d{=}0.20$, $w_e{=}0.25$ (gives closure parity with questioning). Requires citation from KELE/SocRule literature on relative stage importance to be defensible.
+- **Option C — Frequency-inverse weighted:** $w_s \propto 1/f_s$, normalized. Mathematically gives rare stages more weight; theoretically clean but may overcorrect (stage e gets ~3× weight of stage c under this).
+
+Under the same Qwen 27B partial data (and the four already-complete n=50 cells):
+
+| Cell | Current macro | Stage-balanced (Option A) | Δ |
+|---|---:|---:|---:|
+| T4 × A3B | 54.86% | 58.62% | +3.8 |
+| Qwen 27B think × bge (partial, 175 turns) | 49.14% | **56.52%** | **+7.4** ← biggest jump |
+| T4 × Gemma | 51.58% | 56.13% | +4.6 |
+| bge × Gemma | 45.94% | 52.73% | +6.8 |
+| bge × A3B | 45.36% | 52.48% | +7.1 |
+
+Under stage-balanced, Qwen 27B leapfrogs T4 × Gemma into #2 on a *weaker consultant*. The +7.4 pp lift is the largest of any cell, entirely driven by stage e.
+
+**Open weighting question — deferred to the paper-writing pass.** Recommendation (informed by ML convention): **adopt Option A (stage-balanced macro) as the new primary headline state-acc metric**, with the current frequency-weighted macro reported as a secondary "test-distribution-matched" number, and the per-stage table (a/b/c/d/e) reported in full as the most informative single artifact. This mirrors the macro-vs-micro F1 convention in multi-class classification literature. Options B/C remain available if a pedagogical-weights argument warrants the extra complexity.
+
+**Why not pick now.** Picking the weighting *after* seeing the data is metric-shopping; the chain currently in flight uses the original macro for its promote decision precisely to avoid that bias. Finalizing the weighting belongs to the paper-writing pass, when we can co-design the metric with the per-stage reporting table and pick whichever option is cleanest to defend in the limitations section.
+
+**Why this is feasible.** All per-stage data already exists. `metrics_summary.json` writes per-stage accuracies for every run we've ever done. The metric is `~5 lines` to add to `compute_all_metrics()` once the weighting is settled. No new infrastructure, no new runs.
+
+**Connection to existing critique.** This is the third rung on the same ladder this doc already climbs:
+
+1. ROUGE/BLEU are frequency-weighted over n-grams → reward phrase-level mimicry over teaching equivalence.
+2. Macro state-acc is frequency-weighted over turns → under-counts closure, the pedagogically critical rare stage.
+3. The KELE benchmark, as published, has no per-stage breakdown in its headline at all → invisibility of pedagogical structure becomes the norm.
+
+Adopting stage-balanced macro is the natural co-headline to the four-metric panel.
+
 ## Recommended benchmark composition for our paper
 
 We propose **a four-metric panel** that triangulates pedagogical capability without single-metric memorization advantages:
@@ -169,6 +229,8 @@ In priority order:
 4. **Re-split SocratDataset by chapter** and re-run the locked headline + at least one Claude config on the chapter-held-out split. If SocratTeachLLM (or any model) collapses there, that's smoking-gun evidence for the overfit hypothesis without needing to repair SocratTeachLLM serving infrastructure.
 
 5. **Write the benchmark-critique paragraph(s) into the paper** as the methodological contribution. This is the writing work; the data already exists.
+
+6. **TODO — Stage-balanced state accuracy (Proposal 7).** Finalize the weighting choice (recommended: Option A, plain stage-balanced macro = ML-standard macro-F1 move), then add ~5 lines to `compute_all_metrics()` so every future `metrics_summary.json` reports stage-balanced macro alongside the current frequency-weighted macro. Decision belongs to the paper-writing pass to avoid metric-shopping mid-experiment. Triggered by the Qwen 27B think run on 2026-05-22: its stage-e dominance (83.3% vs 66.7-75.0% across all other teachers) is currently invisible to the headline because stage e is only 10% of turns. See Proposal 7 above for the math and three weighting options.
 
 ## TL;DR for the paper
 
