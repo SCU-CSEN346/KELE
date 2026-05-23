@@ -10,7 +10,10 @@
 #
 # n=50 wall clock projection: ~55-65 min based on Gemma and A3B baselines.
 # Server: serve_qwen27b_q5_think.sh on port 8080, alias "Qwen 27B Q5".
-# At Q5_K_XL + 416K context, llama-server uses ~26 GB VRAM (~6 GB headroom).
+# At Q5_K_XL + 256K context (= native n_ctx_train), llama-server uses ~25 GB
+# VRAM (~7 GB headroom). The previous 416K config tripped NVRM Xid 8 watchdog
+# lockups on 2026-05-22 — KV cache plus prompt cache pushed VRAM past the
+# safe threshold.
 #
 # Usage:
 #   ./scripts/eval_bert_qwen27b_fewshot10_full.sh
@@ -58,8 +61,8 @@ echo
 if command -v nvidia-smi &>/dev/null; then
   VRAM_FREE=$(nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits 2>/dev/null | head -1)
   echo "GPU VRAM free: ${VRAM_FREE} MiB"
-  if [[ "$VRAM_FREE" =~ ^[0-9]+$ ]] && [[ "$VRAM_FREE" -lt 27000 ]]; then
-    echo "WARN: less than 27 GB VRAM free — Qwen 27B Q5_K_XL needs ~26 GB at 416K ctx." >&2
+  if [[ "$VRAM_FREE" =~ ^[0-9]+$ ]] && [[ "$VRAM_FREE" -lt 25500 ]]; then
+    echo "WARN: less than 25.5 GB VRAM free — Qwen 27B Q5_K_XL needs ~25 GB at 256K ctx." >&2
   fi
 fi
 
@@ -142,7 +145,15 @@ echo "Parallel workers: $KELE_PARALLEL_WORKERS (server -np must be ≥ this)"
 LIMIT_ARGS=()
 if [[ -n "$LIMIT" ]]; then
   LIMIT_ARGS=(--limit "$LIMIT")
-  echo "Limit: first $LIMIT dialogues only (mini-tier eval)"
+  echo "Limit: $LIMIT dialogues"
+fi
+if [[ -n "${SAMPLE_SEED:-}" ]]; then
+  LIMIT_ARGS+=(--sample-seed "$SAMPLE_SEED")
+  echo "Sample seed: $SAMPLE_SEED (random subsample, not first-N-by-ID)"
+fi
+if [[ -n "${DATASET_PATH:-}" ]]; then
+  LIMIT_ARGS+=(--dataset-path "$DATASET_PATH")
+  echo "Dataset: $DATASET_PATH"
 fi
 
 PATH="$ROOT/.venv/bin:$PATH" \
