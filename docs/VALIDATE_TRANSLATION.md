@@ -171,7 +171,7 @@ When it's time to run (each Mac Mini does this independently):
 
 ```bash
 # Terminal 1 — start the LLM server
-source configs/consultants/m4-mlx.env
+set -a && source configs/consultants/m4-mlx.env && set +a
 ./scripts/serve_consultant_mlx.sh
 
 # Terminal 2 — run this machine's shard
