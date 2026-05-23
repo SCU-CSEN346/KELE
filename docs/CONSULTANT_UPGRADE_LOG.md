@@ -520,6 +520,35 @@ The finding has **three direct implications for the paper**:
 - Add a paragraph in the "Limitations / Reproducibility" section explaining the input-format dependency
 - Update the n=681 locked headline reproducibility note: the 48.15% bge-small + Gemma + 10shot result was achieved with the buggy consultant; re-running with the fix is queued (Tier S follow-up)
 
+## T4 stage-e weakness — to address in the next training cycle
+
+Discovered 2026-05-22 PM during Run 2 (T4 + Gemma + 10shot + fix at n=50). At the n=32 matched-pair scrape, T4 beats the paper-anchor baseline on the harder stages but LOSES on stage e (closure, the easiest stage besides stage a):
+
+| Stage | T4-fix | paper-bug | Δ | Notes |
+|---|---:|---:|---:|---|
+| a (probe) | 100% | 100% | 0 | trivial, both perfect |
+| **b** (concept) | 43.24% | 29.73% | **+13.51** ✓ | T4 dominates |
+| **c** (rules, 22-way) | 31.58% | 23.64% | **+7.94** ✓ | T4 wins the hardest stage |
+| **d** (build) | 45.16% | 40.00% | **+5.16** ✓ | T4 ahead |
+| **e** (closure) | 64.00% | 82.61% | **−18.61** ⚠️ | T4 LOSES |
+
+**The pattern:** T4 wins on the **deep classification stages** (b/c/d, where the model has to distinguish many within-stage states) but loses on stage **e** (closure, just 1 state: `e34`).
+
+**Hypothesis:** T4 may have a slight bias against predicting `e34` in favor of stage-d-ish states. Possible mechanisms:
+- The LoRA adapter on Qwen3.5's hybrid Mamba+attention architecture may have specialized too heavily on the discriminative middle-stage features (the 22-way stage-c classification dominates the training signal at ~33.7% of all turns).
+- Stage e is a closure state where the dialogue context is fully built up; a deeper model may pattern-match to "let's wrap up" but predict a d-state because the previous turn was a d-state.
+- The trainer's class-balanced loss could under-weight stage-e because it's a single class (vs 22 classes for stage c).
+
+**Action items for the next training-cycle improvement to T4 (or T5 successor):**
+1. **Stage-weighted loss.** Re-weight the cross-entropy loss to up-weight stage-e turns. The dataset has ~6,803 stage-e turns out of 42,892 total (~15.9%) — under-represented vs stage c's 33.7%. Suggested weight: `1 / sqrt(stage_freq)` so closure gets ~2× the weight of stage c.
+2. **Curriculum/oversampling.** During training, oversample stage-e turns so the model sees more closure context. Could be done at the DataLoader level via WeightedRandomSampler.
+3. **Stage-e-aware exemplar pool.** The 10-shot exemplars in the teacher prompt are stage-balanced, but the consultant's training data isn't. Adding explicit stage-e-emphasis in the trainer's loss could fix this without changing the teacher prompt.
+4. **Investigate per-turn confusion matrix.** When T4 predicts wrong on a stage-e turn, what does it predict instead? If consistently a d-state, that confirms the d→e transition is the failure mode.
+
+**For the paper:** report this as a known limitation in §5 (Improvements) — "while T4 achieves +9 pp over bge-small on the integrated headline, this is concentrated on stages b/c/d; T4 underperforms on stage e (closure), suggesting an opportunity for stage-weighted training in future work."
+
+This is queued in EXPERIMENT_TIERS.md as a Tier A follow-up — high-value, modest cost (~1-2 hr re-train with stage-weighting added to the loss).
+
 ## Open questions
 
 1. **Should we commit the refactor + doc now or wait until T1-T4 land?** Working tree has uncommitted changes to `scripts/train_state_classifier_34way.py` (+114/-11) and `docs/EXPERIMENT_TIERS.md` (+12/-12, plus this doc). Awaiting Max's call.
