@@ -2,6 +2,15 @@
 
 **CSEN 346 · Santa Clara University · started 2026-05-04**
 
+> **⚠ Status header (added 2026-05-23, audit pass).** This log captures the original Qwen exploration up through the A3B fusion full-run headline (2026-05-04 → 2026-05-05). Subsequent Qwen 27B work landed 2026-05-22 → 2026-05-23:
+>
+> - **Qwen 27B served via local llama.cpp at 256K context** (native `n_ctx_train`; previously 416K which triggered NVRM Xid 8 GPU lockup on 2026-05-22). Serve scripts at `scripts/serve_qwen27b_q5.sh` (no-think) and `scripts/serve_qwen27b_q5_think.sh`. Hard cap rationale + failure-mode forensics in `memory/feedback_qwen27b_context_cap.md`.
+> - **Sustained think-mode runs at n≥100 risk CUDA launch timeout** (cache eviction stall observed at n=200 on 2026-05-23). Safe operating envelope: n≤50 in think mode, n=200+ in no-think mode.
+> - **Qwen 27B 4-cell cross-teacher grid landed 2026-05-23.** Two consultants × two reasoning modes at n=50. Full results in `docs/EXPERIMENT_LOG.md` 2026-05-23 entry. Cross-teacher winner is `qwen3.5 × Gemma-31B · fewshot10 · n=50` (unified 68.94); Qwen 27B cells land at unified 64.25–66.89.
+> - **Qwen 27B as classifier consultant** is the `qwen3.5` label (T4 = Qwen3.5-0.8B-Base + LoRA, the consultant-upgrade-funnel winner). See `docs/CONSULTANT_UPGRADE_LOG.md` §FINAL STATE.
+>
+> The original A3B-fusion headline numbers below remain canonical for the 2026-05-04 → 2026-05-05 window; the locked open-weight headline subsequently moved to the BERT-integration architecture on 2026-05-18 (Gemma 4 31B teacher).
+
 ## 🏆 Full run results — A3B fusion think (n=681)
 
 **Run window:** 2026-05-04 19:46:48 PDT → 2026-05-05 12:16:05 PDT
