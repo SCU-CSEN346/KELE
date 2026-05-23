@@ -493,6 +493,33 @@ The 200 MB threshold lets bge-small (95 MB) stay on CUDA even when memory is tig
 - Model cards should mention this routing logic in the "How to use" section: large consultant checkpoints (T2/T3/T4) need CPU placement when paired with a multi-GB teacher.
 - A user with two GPUs could place teacher on GPU 0 and consultant on GPU 1 — out of scope for our single-5090 setup, but worth flagging.
 
+## Asymmetric sensitivity to input-format perturbation — a finding worth surfacing
+
+Discovered 2026-05-22 PM during the T4 Layer-2 mini-test campaign. The BERT consultant's `_format_history_for_bert` had been duplicating the current student utterance (appending `current_input` after iterating `conversation_history`, even though the parent `SocraticTeachingSystem.process_student_input` adds it to history just BEFORE calling the consultant). Net result: every classifier input was `学生: X\n学生: X` instead of the trainer-faithful `学生: X`.
+
+The fix (`3d68d4a`) removes the redundant append. But the resulting matched-pair comparison surfaced an **unexpected asymmetry** that is worth a paragraph in the paper:
+
+| Consultant | with duplication ("buggy") | without duplication ("fixed") | Δ from fix |
+|---|---:|---:|---:|
+| **bge-small (24M params, BERT)** | ~51.3% (paper-anchor) | ~45-47% (Run 1 partial, ↓5-6 pp) | **−5 pp** (HURT) |
+| **T4 (Qwen3.5-0.8B-Base, hybrid Mamba+attention)** | ~22% (mini-test partial) | ~63-67% (probe + expected) | **+40 pp** (HUGE WIN) |
+
+The same input-format perturbation has opposite effects on the two classifiers. Possible mechanism:
+
+- **bge-small** was trained on non-duplicated text (single utterance per turn from `build_examples`), but its small attention capacity benefits from the duplicated signal at inference time as a form of inadvertent data augmentation — the repeated student utterance gives self-attention more chances to weight the relevant content, and the model's representations were apparently robust enough to leverage the redundancy.
+- **T4** has much more capacity (752M vs 24M) and the LoRA adapter has specialized the q/k/v/o projections to the trainer's input distribution. The duplication creates an out-of-distribution input pattern (`学生: X\n学生: X`) that breaks the attention pattern T4 expects, collapsing predictions toward incorrect within-stage states.
+
+The finding has **three direct implications for the paper**:
+
+1. **Locked-headline reproducibility.** The paper's cited n=50 baseline of 51.06% (bge-small + Gemma + 10-shot) was achieved with the duplicated input. Anyone re-implementing the pipeline from the trainer's `build_examples` alone (without seeing the consultant code) would get a de-duplicated input and land ~5 pp lower. The paper should disclose this and recommend the de-duplicated format as the canonical one going forward.
+2. **The integration architecture is more sensitive than realized.** Standalone classifier accuracy (the trainer's `test_eval.json` numbers) does not perfectly predict integration accuracy. The mapping is mediated by the consultant code's input-format choices. Future consultant upgrades should validate end-to-end and not just at the classifier level.
+3. **Apples-to-apples consultant comparison requires matched input formats.** A "fairer" headline comparison is "best-format-per-consultant" — but that's an unfair comparison across configs. The defensible scientific framing is to fix the input format (the de-duplicated, trainer-faithful one) and report all consultants under that single format. T4 wins decisively in that framing; bge-small drops by ~5 pp from its paper-cited number.
+
+**Action items for the next paper revision pass:**
+- Replace n=50 baseline tables with the fixed-format numbers (bge-small ~46-47%, T4 ~63-67%) — Tables in §4.x
+- Add a paragraph in the "Limitations / Reproducibility" section explaining the input-format dependency
+- Update the n=681 locked headline reproducibility note: the 48.15% bge-small + Gemma + 10shot result was achieved with the buggy consultant; re-running with the fix is queued (Tier S follow-up)
+
 ## Open questions
 
 1. **Should we commit the refactor + doc now or wait until T1-T4 land?** Working tree has uncommitted changes to `scripts/train_state_classifier_34way.py` (+114/-11) and `docs/EXPERIMENT_TIERS.md` (+12/-12, plus this doc). Awaiting Max's call.
