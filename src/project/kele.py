@@ -71,18 +71,40 @@ def create_system(
     )
 
 
-def load_dataset(path: Path | None = None, split: str = "test", seed: int = 42) -> list[dict]:
+def load_dataset(
+    path: Path | None = None,
+    split: str = "test",
+    seed: int = 42,
+    source: str = "hf",
+    hf_repo: str | list[str] = [  # noqa: B006
+        "ulises-c/SocratDataset-EN",
+        "ulises-c/SocratDataset",
+    ],
+) -> list[dict]:
     """Load the SocratDataset with train/test split.
 
     The paper uses a 90/10 train/test split. We evaluate on the test set (~680 dialogues).
     Args:
         split: "test" (10%, for evaluation), "train" (90%), or "all" (full dataset).
         seed: Random seed for reproducible splits.
+        source: "hf" to load from HuggingFace (default), "local" to read from a JSON file.
+            Passing an explicit path implies source="local" regardless of this argument.
+        hf_repo: One or more HuggingFace repo IDs loaded and concatenated when source="hf".
+            Each repo must have dialogue records with {id, question, answer, dialogue} fields
+            including state annotations (only SocratDataset / SocratDataset-EN qualify).
     """
-    if path is None:
-        path = RESOURCES_DIR / "SocratDataset.json"
-    with open(path, encoding="utf-8") as f:
-        data = json.load(f)
+    if source == "hf" and path is None:
+        from datasets import load_dataset as hf_load
+
+        repos = [hf_repo] if isinstance(hf_repo, str) else list(hf_repo)
+        data: list[dict] = []
+        for repo in repos:
+            data.extend(dict(r) for r in hf_load(repo, split="train"))
+    else:
+        if path is None:
+            path = RESOURCES_DIR / "SocratDataset.json"
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
 
     if split == "all":
         return data
