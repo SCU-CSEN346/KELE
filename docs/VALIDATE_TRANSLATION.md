@@ -37,9 +37,9 @@ Only runs if Phase 1 passes.
 
 | Config | Model | Tok/s | 5% sample (~340 rec) | Full 6,803 | Notes |
 |---|---|---|---|---|---|
-| **27B single node** | Qwen3.6-27B-Q4-MLX | 5.9 | ~78 min | ~26 h | Highest eval quality; matches translation model family |
-| **9B single node** | `mlx-community/Qwen3.5-9B-MLX-4bit` | 19.5 | ~24 min | ~8 h | Same model family as original translator; good fit |
-| **9B two nodes (parallel)** | `mlx-community/Qwen3.5-9B-MLX-4bit` × 2 | ~39 | ~12 min | ~4 h | Odds to node 1, evens to node 2; results merged |
+| **27B single node** | `mlx-community/Qwen3.6-27B-4bit` | 5.9 | ~78 min | ~26 h | Highest eval quality; matches translation model family |
+| **9B single node** | `mlx-community/Qwen3.5-9B-4bit` | 19.5 | ~24 min | ~8 h | Same model family as original translator; good fit |
+| **9B two nodes (parallel)** | `mlx-community/Qwen3.5-9B-4bit` × 2 | ~39 | ~12 min | ~4 h | Odds to node 1, evens to node 2; results merged |
 
 **Recommendation:** 9B two-node parallel for the 5% sample (12 min, frees the machines quickly). 27B single-node for a full-dataset run if quality signal matters more than wall clock.
 
@@ -120,7 +120,7 @@ Fields scored:
 ```python
 # LLM endpoint — point at whichever node is running the eval model
 BASE_URL: str = "http://<node>:8080/v1"
-MODEL: str = "mlx-community/Qwen3.5-9B-MLX-4bit"   # HF repo ID as served by mlx_lm.server
+MODEL: str = "~/.models/mlx-community--Qwen3.5-9B-4bit"   # local path; same on both Mac Minis
 
 SAMPLE_SIZE: float = 0.05         # fraction of dataset; set 1.0 for full run
 SAMPLE_SEED: int = 42
@@ -151,11 +151,10 @@ uv run python -m project.validate_translation --structural-only
 
 ### Phase 2 (LLM quality eval — mlx-lm)
 
-Install `mlx-lm` and download the model (one-time):
+Install `mlx-lm` (one-time; model is already at `~/.models/`):
 
 ```bash
 uv add mlx-lm
-uv run huggingface-cli download mlx-community/Qwen3.5-9B-MLX-4bit  # ~4 GB; no login needed
 ```
 
 Start the server using the existing script (or directly):
@@ -164,7 +163,7 @@ Start the server using the existing script (or directly):
 source configs/consultants/m4-mlx.env
 ./scripts/serve_consultant_mlx.sh          # recommended — adds caffeinate + warmup
 # or directly:
-# python -m mlx_lm.server --model mlx-community/Qwen3.5-9B-MLX-4bit --host 0.0.0.0 --port 8080
+# python -m mlx_lm.server --model ~/.models/mlx-community--Qwen3.5-9B-4bit --host 0.0.0.0 --port 8080
 ```
 
 Then run Phase 2 from either Mac Mini (single-node) or both in parallel (two-node):
