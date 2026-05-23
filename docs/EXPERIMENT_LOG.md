@@ -70,7 +70,16 @@ The parity claim is verified at $n{=}50$ (post-fix cells) + $n{=}681$ (legacy pr
 | `qwen3.5 × A3B-35B · fewshot10 · n=681` | Second-best local; A3B is the fastest teacher | ~5 h |
 | `qwen3.5 × Qwen-27B · think · fewshot10 · n=681` | Closure-strong local; **blocked on CUDA-launch-timeout mitigation** per `memory/feedback_qwen27b_context_cap.md`. If unresolved, drop to n=400. | ~14 h (or ~9 h at n=400) |
 
-Plus LLM-judge on each (~$0.10 + ~20 min API per cell). Total: ~35 GPU-h + ~$0.40 API. Tracked as item 7 in `docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md` §Concrete next steps. **Output: a full-sample-size local sub-leaderboard that lets the paper claim local–frontier parity at canonical sample size, not just at the screening tier.**
+Plus LLM-judge on each (~$0.10 + ~20 min API per cell). Total: ~35 GPU-h + ~$0.40 API. Tracked as item 7 in `docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md` §Concrete next steps. **Output: a full-sample-size local sub-leaderboard that lets the paper claim local–frontier parity at canonical sample size, not just at the screening tier.** GPU returns from the in-flight retry chain + a separate-project window before this work can launch.
+
+### TODO — bilingual probe at canonical scale
+
+The retry-chain bilingual probe (`qwen3.5 × Gemma-31B · fewshot10 · EN · n=100 · seed=42`, in flight as of 2026-05-23) is screening-tier. After it lands, decision gate:
+
+- **Stage 1 confirmation** (if EN drop ≤ 10 pp vs ZH): scale to `n=400 seed=42` for canonical cross-lingual transfer claim. ~5 GPU-h + ~$0.10 judge. Informs paper §`sec:dataset-en`.
+- **Stage 2 retrain** (if EN drop > 10 pp): bilingual co-training. LoRA fine-tune the qwen3.5-0.8B-Base classifier on the union of SocratDataset (ZH) + SocratDataset-EN (~42K labeled turns), then re-eval at n=400 on both splits. ~1-2 GPU-h training + ~5 GPU-h eval + ~$0.10 judge.
+
+Tracked as item 8 in `docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md` §Concrete next steps. GPU returns from the in-flight retry chain + separate-project window before this work can launch.
 
 ### Consultant glossary
 
