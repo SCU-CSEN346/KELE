@@ -47,7 +47,30 @@ Cell labels follow `docs/NAMING_CONVENTION.md`.
 
 ### What this leaves open (the "headline candidate" question)
 
-n=50 cannot definitively pick a paper headline (±6 pp variance per `CONVERGENCE_ANALYSIS.md`). The top 4 unified cells cluster within 2.05 points (T4 × Gemma 68.94 → T4 × Qwen-think 66.89), which is within n=50 noise. Three retries are running now to validate Qwen-think at random-sample (no-think n=200 + think n=100 + EN bilingual n=100) and stress-test the CUDA-timeout envelope.
+n=50 cannot definitively pick a paper headline (±6 pp variance per `CONVERGENCE_ANALYSIS.md`). The top 4 unified cells cluster within 2.05 points (qwen3.5 × Gemma 68.94 → qwen3.5 × Qwen-think 66.89), which is within n=50 noise. Three retries are running now to validate Qwen-think at random-sample (no-think n=200 + think n=100 + EN bilingual n=100) and stress-test the CUDA-timeout envelope.
+
+### Local–frontier parity finding (the unified-metric revelation)
+
+Across the 25-config judged master list, the best frontier teacher (`bert × Claude-Sonnet · top3 · n=681` at unified **70.06**) beats the best honest open-weight teacher (`qwen3.5 × Gemma-31B · fewshot10 · n=50` at unified **68.94**) by only **1.12 unified points** on a [0, 100] scale. At full sample size ($n{=}681$), the legacy locked headline (`bert × Gemma-31B · fewshot10 · n=681` at 68.65) sits **1.41 points** below the best frontier — and ~1 of those points is the pre-fix `bert` measurement artifact (asymmetric input-format duplication). The honest open-weight headline is essentially within n=50 noise of the frontier ceiling. **Three reasons this parity is genuine and paper-grade:**
+
+1. The unified metric excludes surface-form metrics, eliminating SocratTeachLLM-style mimicry from the ranking and the corresponding frontier-model R-1 advantage.
+2. Gemma's judge scores (8.17–8.26) are slightly higher than Claude Opus's (8.01–8.08) within matched prompt regimes — the judge isn't biased toward Claude.
+3. Prompt engineering compounds: the Phase 1 `length_budget + cot_scaffold + negative_exemplars` stack lifts Gemma from ~65 unified to ~70, roughly the same magnitude as the entire local-vs-frontier gap.
+
+**Pre-fix `bert` artifact, quantified.** Direct same-teacher comparison: `bert × Gemma-31B · fewshot10 · n=681` 68.65 (pre-fix, locked) vs.\ `bert-fixed × Gemma-31B · fewshot10 · n=50` 67.65 (post-fix) — the ~1-pt gap is the duplicated-input measurement artifact. Effect is asymmetric across consultant architectures: BERT-class gains ~1–2 pp from the bug, qwen3.5 LoRA loses ~2–3 pp. All forward post-fix work uses `bert-fixed` or `qwen3.5`; legacy `bert` cells in the leaderboard are flagged with the artifact for paper-grade comparisons.
+
+### TODO — full-test-set ($n{=}681$) local sub-leaderboard
+
+The parity claim is verified at $n{=}50$ (post-fix cells) + $n{=}681$ (legacy pre-fix locked headline). The apples-to-apples confirmation at canonical sample size requires four targeted $n{=}681$ runs:
+
+| Cell | Why | Wall clock |
+|---|---|---|
+| `bert-fixed × Gemma-31B · fewshot10 · n=681` | Clean re-baseline of the locked headline (removes the pre-fix artifact) | ~8 h |
+| `qwen3.5 × Gemma-31B · fewshot10 · n=681` | Current cross-teacher winner at full sample | ~8 h |
+| `qwen3.5 × A3B-35B · fewshot10 · n=681` | Second-best local; A3B is the fastest teacher | ~5 h |
+| `qwen3.5 × Qwen-27B · think · fewshot10 · n=681` | Closure-strong local; **blocked on CUDA-launch-timeout mitigation** per `memory/feedback_qwen27b_context_cap.md`. If unresolved, drop to n=400. | ~14 h (or ~9 h at n=400) |
+
+Plus LLM-judge on each (~$0.10 + ~20 min API per cell). Total: ~35 GPU-h + ~$0.40 API. Tracked as item 7 in `docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md` §Concrete next steps. **Output: a full-sample-size local sub-leaderboard that lets the paper claim local–frontier parity at canonical sample size, not just at the screening tier.**
 
 ### Consultant glossary
 

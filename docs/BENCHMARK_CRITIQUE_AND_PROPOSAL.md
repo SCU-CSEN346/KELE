@@ -275,6 +275,14 @@ In priority order:
 
 6. **TODO — Stage-balanced state accuracy (Proposal 7). BACKTEST FIRST.** All **147** historical `metrics_summary.json` files already carry `state_accuracy.per_stage`. Recomputing the full leaderboard under stage-balanced macro requires zero new runs and ~30 lines of aggregation Python. **Do the backtest before writing any paper numbers down** — we do not yet know whether the locked headline survives the metric switch, whether the Phase 2 Claude tournament rankings invert, whether SocratTeachLLM's overfit signature looks even more lopsided at stage-level resolution, or whether some run we previously dismissed beats the current headline under the new metric. Sequence: backtest → write methodology paragraph informed by what it reveals → finalize weighting choice → add ~5 lines to `compute_all_metrics()` so new runs report it natively. See Proposal 7 §Backtesting for scope (priority-ordered) and expected output. **This is the load-bearing analysis of the project's final write-up, not a tail polish item.**
 
+7. **TODO — Full-test-set ($n{=}681$) local-vs-frontier comparison at parity.** The local–frontier parity finding (best honest open-weight 68.94 unified vs.\ best frontier 70.06 unified; 1.12-pt gap; documented in `docs/UNIFIED_RANKING.md` and `docs/EXPERIMENT_LOG.md` 2026-05-23) rests on $n{=}50$ post-fix data + the legacy pre-fix `bert` $n{=}681$ headline. The asymmetric sample-size coverage means we cannot yet make an apples-to-apples local-vs-frontier statement at canonical sample size. Run four targeted $n{=}681$ cells:
+   - `bert-fixed × Gemma-31B · fewshot10 · n=681` — clean re-baseline of the locked headline (~8 GPU-h)
+   - `qwen3.5 × Gemma-31B · fewshot10 · n=681` — current cross-teacher winner at full sample (~8 GPU-h)
+   - `qwen3.5 × A3B-35B · fewshot10 · n=681` — second-best local at full sample (~5 GPU-h, A3B is faster)
+   - `qwen3.5 × Qwen-27B · think · fewshot10 · n=681` — closure-strong local at full sample (~14 GPU-h, contingent on the CUDA-launch-timeout mitigation; see `memory/feedback_qwen27b_context_cap.md`)
+
+   Compare against the existing `bert × Claude-Sonnet · top3 · n=681` (unified 70.06) and `bert × Claude-Opus · top3 · n=681` (unified 69.37). Each cell needs both `metrics_summary.json` and `judge_summary.json` to land on the unified leaderboard (judge ~$0.10 per n=681 cell, ~20 min wall clock; total ~$0.40 + ~80 min API). Total budget: ~35 GPU-h + ~$0.40 API. **This produces the full-sample-size local sub-leaderboard the paper needs to confirm parity definitively** (rather than as a screening-tier finding). Currently blocked by GPU stability for sustained think-mode runs (the Qwen-27B cell may need to drop to n=400 if the CUDA-launch-timeout pattern recurs); the other three cells are safe at n=681 under the current 256K Qwen / 180K Gemma context caps.
+
 ## TL;DR for the paper
 
 The KELE benchmark, as published, has two structural problems:
