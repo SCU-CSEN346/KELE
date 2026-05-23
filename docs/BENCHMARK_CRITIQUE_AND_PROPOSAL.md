@@ -283,6 +283,22 @@ In priority order:
 
    Compare against the existing `bert × Claude-Sonnet · top3 · n=681` (unified 70.06) and `bert × Claude-Opus · top3 · n=681` (unified 69.37). Each cell needs both `metrics_summary.json` and `judge_summary.json` to land on the unified leaderboard (judge ~$0.10 per n=681 cell, ~20 min wall clock; total ~$0.40 + ~80 min API). Total budget: ~35 GPU-h + ~$0.40 API. **This produces the full-sample-size local sub-leaderboard the paper needs to confirm parity definitively** (rather than as a screening-tier finding). Currently blocked by GPU stability for sustained think-mode runs (the Qwen-27B cell may need to drop to n=400 if the CUDA-launch-timeout pattern recurs); the other three cells are safe at n=681 under the current 256K Qwen / 180K Gemma context caps. **GPU returns from the in-flight retry chain and a separate-project window before this work can launch.**
 
+9. **TODO — SocratTeachLLM × local-consultants 4-cell bilingual probe.** All seven existing SocratTeachLLM (STL) cells use Claude as consultant; we have NEVER paired STL with our local BERT-class consultants. Run 4 cells at n=50:
+   - `bert-fixed × SocratTeachLLM · fewshot10 · n=50` (ZH)
+   - `bert-fixed × SocratTeachLLM · EN · fewshot10 · n=50`
+   - `qwen3.5 × SocratTeachLLM · fewshot10 · n=50` (ZH)
+   - `qwen3.5 × SocratTeachLLM · EN · fewshot10 · n=50`
+
+   ~3 GPU-h + ~$0.40 LLM-judge total. Paper value: confirms STL's poor pedagogy is teacher-driven (not consultant-driven) by holding the consultant axis to our headline BERT-class choices; quantifies cross-lingual degradation under matched consultant infrastructure (currently only measured under Claude consultants). Predicted leaderboard placement: unified 42-54, bottom quartile of the master list — exactly where they belong if the memorization hypothesis is right.
+
+   **Infrastructure ready 2026-05-23** — the legacy vLLM serving path (`scripts/serve_socratteachllm.sh`, written by Max's teammate) suffered chained bit-rot. Replaced with a new llama.cpp-based serving stack mirroring our Gemma/Qwen pattern:
+   - `scripts/convert_socratteachllm_to_gguf.sh` — one-shot HF → Q8_0 GGUF conversion (CPU-only, ~10 min)
+   - `scripts/serve_socratteachllm_llamacpp.sh` — llama-server wrapper, 32K ctx, 12 parallel slots (2× Qwen 27B default; can push higher)
+   - `scripts/eval_bert_socratteachllm_fewshot10_full.sh` — eval orchestrator, KELE_PARALLEL_WORKERS=4 default
+   - `configs/socratteachllm-local.env` — env config mirroring `qwen27b-local.env` pattern
+
+   **Untested as of 2026-05-23** — GPU is in use by the retry chain + a separate project window. Run the conversion script first (no GPU needed), then a 5-min smoke test of the serve script when GPU returns.
+
 8. **TODO — Bilingual probe at canonical scale (Stage 1 or Stage 2).** The retry-chain bilingual probe (`qwen3.5 × Gemma-31B · fewshot10 · EN · n=100 · seed=42`, in flight as of 2026-05-23) is screening-tier. After it lands, decide:
    - **Stage 1 confirmation** if EN state-acc drop $\leq 10$ pp vs the Chinese baseline: scale to $n{=}400$ random seed=42 for canonical cross-lingual transfer claim (~5 GPU-h + ~$0.10 judge). Tier C.31 Stage 1 per `docs/EXPERIMENT_TIERS.md`; informs paper §`sec:dataset-en` cross-lingual claim.
    - **Stage 2 retrain** if EN drop $> 10$ pp: trigger bilingual co-training. LoRA fine-tune the qwen3.5-0.8B-Base classifier on the union of SocratDataset (ZH) + SocratDataset-EN (~42K labeled turns), then re-eval at $n{=}400$ on both splits. ~1-2 GPU-h training + ~5 GPU-h eval + ~$0.10 judge. Implementation pointer: `scripts/train_state_classifier_34way.py` is already parameterized for new datasets.
