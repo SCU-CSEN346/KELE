@@ -7,6 +7,7 @@ and adds batch evaluation for running against the SocratDataset.
 
 import json
 import os
+import random
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -333,6 +334,7 @@ def run_batch_evaluation(
     num_workers: int = 1,
     bert_consultant: str | None = None,
     workers: int | None = None,
+    sample_seed: int | None = None,
 ) -> None:
     """Run the full evaluation pipeline on the dataset.
 
@@ -355,8 +357,14 @@ def run_batch_evaluation(
     dataset = load_dataset(dataset_path, split=split)
     total = len(dataset)
 
-    # Filter to start_id, apply limit, then stride for parallel workers
+    # Filter to start_id, optionally random-subsample, then apply limit.
+    # sample_seed is needed when --limit << len(split): without it, --limit
+    # picks first-N-by-sorted-ID, which collides with the convergence
+    # analysis's random-subsample assumption (ε≤2pp at n=400 requires
+    # random draw, not the first 400 by ID).
     dataset = [d for d in dataset if d["id"] >= start_id]
+    if sample_seed is not None:
+        random.Random(sample_seed).shuffle(dataset)
     if limit is not None:
         dataset = dataset[:limit]
     if num_workers > 1:
@@ -551,6 +559,14 @@ def main() -> None:
     eval_parser.add_argument("--start-id", type=int, default=1, help="Resume from this dialogue ID")
     eval_parser.add_argument("--limit", type=int, default=None, help="Max dialogues to process")
     eval_parser.add_argument(
+        "--sample-seed",
+        type=int,
+        default=None,
+        help="If set with --limit, randomly subsample N dialogues using this "
+        "seed (instead of taking the first N by sorted ID). Required for "
+        "the n=400 convergence-budget runs.",
+    )
+    eval_parser.add_argument(
         "--unified",
         action="store_true",
         help="Use single-call fusion architecture (consultant + teacher in one LLM call). "
@@ -627,6 +643,7 @@ def main() -> None:
             num_workers=args.num_workers,
             bert_consultant=args.bert_consultant,
             workers=args.workers,
+            sample_seed=args.sample_seed,
         )
     elif args.command == "test":
         run_batch_evaluation(

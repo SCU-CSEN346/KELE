@@ -142,7 +142,15 @@ echo "Parallel workers: $KELE_PARALLEL_WORKERS (server -np must be ≥ this)"
 LIMIT_ARGS=()
 if [[ -n "$LIMIT" ]]; then
   LIMIT_ARGS=(--limit "$LIMIT")
-  echo "Limit: first $LIMIT dialogues only (mini-tier eval)"
+  echo "Limit: $LIMIT dialogues"
+fi
+if [[ -n "${SAMPLE_SEED:-}" ]]; then
+  LIMIT_ARGS+=(--sample-seed "$SAMPLE_SEED")
+  echo "Sample seed: $SAMPLE_SEED (random subsample, not first-N-by-ID)"
+fi
+if [[ -n "${DATASET_PATH:-}" ]]; then
+  LIMIT_ARGS+=(--dataset-path "$DATASET_PATH")
+  echo "Dataset: $DATASET_PATH"
 fi
 
 PATH="$ROOT/.venv/bin:$PATH" \
