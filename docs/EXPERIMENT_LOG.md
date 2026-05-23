@@ -14,14 +14,14 @@ Engineering decisions, what we've tried, and what's next. Each entry is dated an
 
 | u# | Cell | macro | sb | judge | **unified** | stage e |
 |:-:|---|---:|---:|---:|---:|---:|
-| 🥇 | **T4 × Gemma 31B** | 51.58 | 56.13 | **8.18** | **68.94** | 66.7 |
-| 🥈 | **bge × Gemma 31B** | 45.94 | 52.73 | **8.26** | **67.65** | 72.7 |
-| 🥉 | T4 × A3B 35B | 54.86 | 58.62 | 7.52 | **66.91** | 66.7 |
-| 4 | T4 × Qwen27B-think | 53.19 | **58.68** | 7.51 | **66.89** | 78.8 |
-| 5 | bge × Qwen27B-think | 49.08 | 57.15 | 7.41 | **65.65** | **84.6** |
-| 6 | T4 × Qwen27B-no-think | 51.89 | 55.45 | 7.56 | **65.54** | 58.3 |
-| 7 | bge × Qwen27B-no-think | 46.85 | 52.62 | 7.59 | **64.25** | 70.6 |
-| 8 | bge × A3B 35B | 45.36 | 52.48 | 7.49 | **63.70** | 75.0 |
+| 🥇 | **qwen3.5 × Gemma 31B** | 51.58 | 56.13 | **8.18** | **68.94** | 66.7 |
+| 🥈 | **bert-fixed × Gemma 31B** | 45.94 | 52.73 | **8.26** | **67.65** | 72.7 |
+| 🥉 | qwen3.5 × A3B 35B | 54.86 | 58.62 | 7.52 | **66.91** | 66.7 |
+| 4 | qwen3.5 × Qwen27B-think | 53.19 | **58.68** | 7.51 | **66.89** | 78.8 |
+| 5 | bert-fixed × Qwen27B-think | 49.08 | 57.15 | 7.41 | **65.65** | **84.6** |
+| 6 | qwen3.5 × Qwen27B-no-think | 51.89 | 55.45 | 7.56 | **65.54** | 58.3 |
+| 7 | bert-fixed × Qwen27B-no-think | 46.85 | 52.62 | 7.59 | **64.25** | 70.6 |
+| 8 | bert-fixed × A3B 35B | 45.36 | 52.48 | 7.49 | **63.70** | 75.0 |
 
 ### Six headline findings
 
@@ -48,22 +48,35 @@ Engineering decisions, what we've tried, and what's next. Each entry is dated an
 
 n=50 cannot definitively pick a paper headline (±6 pp variance per `CONVERGENCE_ANALYSIS.md`). The top 4 unified cells cluster within 2.05 points (T4 × Gemma 68.94 → T4 × Qwen-think 66.89), which is within n=50 noise. Three retries are running now to validate Qwen-think at random-sample (no-think n=200 + think n=100 + EN bilingual n=100) and stress-test the CUDA-timeout envelope.
 
-### Master ranked list — top 10 of 25 judged configs by unified
+### Consultant glossary
 
-Display labels: `bge` = bge-small consultant; `T4` = Qwen3.5-0.8B-LoRA consultant. (Older dirs were named with the legacy `bert-` prefix even when the consultant is bge-small; `scripts/backtest_stage_balanced.py` now rewrites those for the leaderboard.)
+The project has cycled through multiple state-classifier consultants. Display labels in the leaderboards below:
+
+| Label | Model | Source | Notes |
+|---|---|---|---|
+| `bert` | BAAI bge-small-zh / state_classifier_v1 (model_type=bert) | locked baseline | Legacy downstream runs (pre-2026-05-22 input-format fix). |
+| `bert-fixed` | same as `bert` | post-fix runs | After commit 3d68d4a fixed the input-format duplication bug (2026-05-22). Dirs use `bge-small-bert-*-fixed`. |
+| `qwen3` | Qwen3-Embedding-0.6B | T1 (frozen), T2 (LoRA) from consultant-upgrade funnel | Layer-1 only — no downstream eval cells. |
+| `qwen3.5` | Qwen3.5-0.8B-Base | T3 (frozen), T4 (LoRA) from consultant-upgrade funnel | T4 (LoRA) is the funnel winner; all downstream cells use T4. Dirs use `t4-bert-*`. |
+
+`scripts/backtest_stage_balanced.py` rewrites raw dir names to these labels for every leaderboard it writes; on-disk dir names are unchanged.
+
+### Master ranked list — top 10 of 25 judged configs by unified
 
 | u# | Config | n | **unified** | sb | judge | macro | R-1 |
 |:-:|---|---:|---:|---:|---:|---:|---:|
-| 🥇 | `bge-gemma-composed-top3-n50` | 278 | **70.08** | 58.48 | 8.17 | 50.72 | 41.13 |
-| 🥈 | `bge-claude-sonnet-top3-n681` | 3840 | **70.06** | 58.17 | 8.19 | 49.97 | 41.93 |
-| 🥉 | `bge-consultant-fewshot10-claude-opus-n50` | 271 | **69.79** | 58.73 | 8.08 | 49.82 | 42.77 |
-| 4 | `bge-claude-opus-top3-n681` | 3794 | **69.37** | 58.63 | 8.01 | 49.31 | 41.63 |
-| 5 | `bge-consultant-fewshot10-claude-sonnet-n50` | 281 | **69.16** | 57.18 | 8.11 | 48.75 | 43.02 |
-| 6 | `T4-gemma-fewshot10-n50-fixed` (the cross-teacher winner) | 285 | **68.94** | 56.13 | 8.18 | 51.58 | 38.76 |
-| 7 | `bge-consultant-fewshot10-gemma-full` ← **LOCKED HEADLINE** (n=681) | 3834 | **68.65** | 55.42 | 8.19 | 48.15 | 36.78 |
-| 8 | `bge-claude-sonnet-fewshot10-n50` | 267 | **67.85** | 57.32 | 7.84 | 47.94 | 39.68 |
-| 9 | `bge-gemma-fewshot10-n50-fixed` | 283 | **67.65** | 52.73 | 8.26 | 45.94 | 38.69 |
-| 10 | `T4-a3b-fewshot10-n50-fixed` | 288 | **66.91** | 58.62 | 7.52 | 54.86 | 35.67 |
+| 🥇 | `bert-gemma-composed-top3-n50` | 278 | **70.08** | 58.48 | 8.17 | 50.72 | 41.13 |
+| 🥈 | `bert-claude-sonnet-top3-n681` | 3840 | **70.06** | 58.17 | 8.19 | 49.97 | 41.93 |
+| 🥉 | `bert-consultant-fewshot10-claude-opus-n50` | 271 | **69.79** | 58.73 | 8.08 | 49.82 | 42.77 |
+| 4 | `bert-claude-opus-top3-n681` | 3794 | **69.37** | 58.63 | 8.01 | 49.31 | 41.63 |
+| 5 | `bert-consultant-fewshot10-claude-sonnet-n50` | 281 | **69.16** | 57.18 | 8.11 | 48.75 | 43.02 |
+| 6 | `qwen3.5-gemma-fewshot10-n50` (cross-teacher winner; post-fix) | 285 | **68.94** | 56.13 | 8.18 | 51.58 | 38.76 |
+| 7 | `bert-consultant-fewshot10-gemma-full` ← **LOCKED HEADLINE** (n=681) | 3834 | **68.65** | 55.42 | 8.19 | 48.15 | 36.78 |
+| 8 | `bert-claude-sonnet-fewshot10-n50` | 267 | **67.85** | 57.32 | 7.84 | 47.94 | 39.68 |
+| 9 | `bert-fixed-gemma-fewshot10-n50` | 283 | **67.65** | 52.73 | 8.26 | 45.94 | 38.69 |
+| 10 | `qwen3.5-a3b-fewshot10-n50` | 288 | **66.91** | 58.62 | 7.52 | 54.86 | 35.67 |
+
+Note: ranks 1-5, 7, 8 are pre-fix `bert` (legacy); ranks 6, 10 are post-fix `qwen3.5`; rank 9 is post-fix `bert-fixed`. The pre-fix BERT runs benefit from the input-format duplication that was later patched out — so their lead over the post-fix runs is partially a measurement artifact rather than a pure capability gap. See `docs/CONSULTANT_UPGRADE_LOG.md` §"Asymmetric consultant sensitivity" for the detailed analysis.
 
 **The locked headline survives at #7 unified** — a meaningful but not-decisive vindication. Five n=50 configs technically score higher, but four are open-weight cells where n=50 vs n=681 dispersion (±6 pp on state acc) easily covers the gap. **The first config that meaningfully beats the locked headline at full sample size is `bert-claude-sonnet-top3-n681`** at unified 70.06 — confirming the "Claude top3 frontier ceiling" finding at the proper sample size, with a 1.41-point unified lead over the locked open-weight result.
 

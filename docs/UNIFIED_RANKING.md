@@ -64,16 +64,16 @@ All 8 cells now judged:
 
 | sb# | u# | Cell | macro | stage_bal | judge | **unified** |
 |:-:|:-:|---|---:|---:|---:|---:|
-| 1 | 4 | T4 × Qwen27B-think | 53.19 | 58.68 | 7.51 | **66.89** |
-| 2 | 3 | T4 × A3B 35B | 54.86 | 58.62 | 7.52 | **66.91** |
-| 3 | 5 | bge × Qwen27B-think | 49.08 | 57.15 | 7.41 | **65.65** |
-| 4 | 🥇 1 | **T4 × Gemma 31B** | 51.58 | 56.13 | **8.18** | **68.94** |
-| 5 | 6 | T4 × Qwen27B-no-think | 51.89 | 55.45 | 7.56 | **65.54** |
-| 6 | 🥈 2 | **bge × Gemma 31B** | 45.94 | 52.73 | **8.26** | **67.65** |
-| 7 | 7 | bge × Qwen27B-no-think | 46.85 | 52.62 | 7.59 | **64.25** |
-| 8 | 8 | bge × A3B 35B | 45.36 | 52.48 | 7.49 | **63.70** |
+| 1 | 4 | qwen3.5 × Qwen27B-think | 53.19 | 58.68 | 7.51 | **66.89** |
+| 2 | 3 | qwen3.5 × A3B 35B | 54.86 | 58.62 | 7.52 | **66.91** |
+| 3 | 5 | bert-fixed × Qwen27B-think | 49.08 | 57.15 | 7.41 | **65.65** |
+| 4 | 🥇 1 | **qwen3.5 × Gemma 31B** | 51.58 | 56.13 | **8.18** | **68.94** |
+| 5 | 6 | qwen3.5 × Qwen27B-no-think | 51.89 | 55.45 | 7.56 | **65.54** |
+| 6 | 🥈 2 | **bert-fixed × Gemma 31B** | 45.94 | 52.73 | **8.26** | **67.65** |
+| 7 | 7 | bert-fixed × Qwen27B-no-think | 46.85 | 52.62 | 7.59 | **64.25** |
+| 8 | 8 | bert-fixed × A3B 35B | 45.36 | 52.48 | 7.49 | **63.70** |
 
-**The headline shifts.** Under stage_bal alone, T4 × Qwen 27B-think narrowly wins (58.68); under unified, **T4 × Gemma 31B wins decisively** (68.94 vs Qwen-think's 66.89 — a 2.05-point margin, well outside n=50 noise on the judge axis). Even bge × Gemma 31B (67.65) beats both Qwen-think configurations on unified.
+**The headline shifts.** Under stage_bal alone, T4 × Qwen 27B-think narrowly wins (58.68); under unified, **qwen3.5 × Gemma 31B wins decisively** (68.94 vs Qwen-think's 66.89 — a 2.05-point margin, well outside n=50 noise on the judge axis). Even bert-fixed × Gemma 31B (67.65) beats both Qwen-think configurations on unified.
 
 The driver is judge score: Gemma sits at **8.18–8.26** across both consultants while Qwen sits at **7.41–7.59**. That ~0.65-point judge gap (×10 = 6.5 unified-pp) more than swallows the stage_bal advantage Qwen had on closure.
 

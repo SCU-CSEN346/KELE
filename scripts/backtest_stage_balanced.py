@@ -81,23 +81,54 @@ def fmt_pct(v: float | None) -> str:
 
 def display_name(config: str) -> str:
     """Translate raw results/-relative config dir name to a display label
-    that reflects the actual consultant in use. The dir naming convention
-    is historical:
-      - `bert-*`           → legacy default = bge-small consultant
-      - `bge-small-bert-*` → explicit bge-small consultant (newer fixed runs)
-      - `t4-bert-*`        → T4 (Qwen3.5-0.8B-LoRA) consultant
-      - `claude-*-consultant-*`, `bert-claude-*` etc. — left untouched
-    Rewrite the "bert" infix to "bge" wherever it actually means bge-small,
-    so the leaderboard is read as `bge × …` and `T4 × …`. Claude-consultant
-    cells (e.g., `claude-opus-consultant-socratteachllm-*`) are unaffected.
+    that reflects the actual consultant in use.
+
+    Consultant identities used across the project:
+
+    - `bert`         The locked baseline BERT classifier (state_classifier_v1,
+                     model_type=bert; same model file as the BAAI bge-small-zh
+                     embedding, BERT-architecture). Used in legacy downstream
+                     eval runs BEFORE the 2026-05-22 input-format duplication
+                     fix (commit 3d68d4a). Dir convention: `bert-*`. Locked
+                     at ~48% macro on n=681.
+    - `bert-fixed`   Same BERT classifier, but with the 2026-05-22 input-format
+                     fix applied (stop duplicating current student utterance).
+                     Dir convention: `bge-small-bert-*-fixed`.
+    - `qwen3`        Qwen3-Embedding-0.6B classifier (T1 frozen / T2 LoRA from
+                     the funnel). Layer-1 only — no downstream eval cells
+                     currently exist. Dir convention: `state-clf-qwen3-emb-0.6b-*`.
+    - `qwen3.5`      Qwen3.5-0.8B-Base classifier (T3 frozen / T4 LoRA). T4 is
+                     the funnel winner; used in downstream eval. Dir convention:
+                     `t4-bert-*` (with `-fixed` suffix for post-fix runs, which
+                     is all of them in practice).
+
+    Claude-consultant cells (e.g., `claude-opus-consultant-socratteachllm-*`)
+    are not bert-family — left untouched.
     """
-    if config.startswith("bge-small-bert-"):
-        return "bge-" + config[len("bge-small-bert-"):]
-    if config.startswith("t4-bert-"):
-        return "T4-" + config[len("t4-bert-"):]
-    if config.startswith("bert-"):
-        return "bge-" + config[len("bert-"):]
-    return config
+    name = config
+    # Layer-1 classifier-only dirs (no downstream pipeline eval; rare in master list)
+    if name.startswith("state-clf-qwen3-emb-0.6b-"):
+        return "qwen3-classifier-" + name[len("state-clf-qwen3-emb-0.6b-"):]
+    if name.startswith("state-clf-qwen3.5-0.8b-"):
+        return "qwen3.5-classifier-" + name[len("state-clf-qwen3.5-0.8b-"):]
+
+    # Post-fix BERT downstream: `bge-small-bert-X-fixed` → `bert-fixed-X`
+    if name.startswith("bge-small-bert-"):
+        rest = name[len("bge-small-bert-"):]
+        if rest.endswith("-fixed"):
+            rest = rest[: -len("-fixed")]
+        return "bert-fixed-" + rest
+
+    # T4 (qwen3.5 LoRA) downstream: `t4-bert-X[-fixed]` → `qwen3.5-X`
+    if name.startswith("t4-bert-"):
+        rest = name[len("t4-bert-"):]
+        if rest.endswith("-fixed"):
+            rest = rest[: -len("-fixed")]
+        return "qwen3.5-" + rest
+
+    # Legacy BERT (pre-fix): `bert-*` — leave the prefix as-is to mark it
+    # as the legacy/pre-fix variant, distinguishing it from `bert-fixed-*`.
+    return name
 
 
 def main() -> int:
