@@ -57,16 +57,16 @@ Split by record ID parity: node 1 processes odd IDs, node 2 processes even IDs. 
 
 ```bash
 # Node 1 (odd IDs):
-uv run python -m project.validate_translation --shard odd --base-url http://<node1>:8080/v1
+uv run python -m src.project.validate_translation --shard odd --base-url http://<node1>:8080/v1
 
 # Node 2 (even IDs):
-uv run python -m project.validate_translation --shard even --base-url http://<node2>:8080/v1
+uv run python -m src.project.validate_translation --shard even --base-url http://<node2>:8080/v1
 ```
 
 After both finish, merge results:
 
 ```bash
-uv run python -m project.validate_translation --merge data/validate_llm_scores_odd.json data/validate_llm_scores_even.json
+uv run python -m src.project.validate_translation --merge data/validate_llm_scores_odd.json data/validate_llm_scores_even.json
 ```
 
 Each shard writes its own `validate_llm_scores_{odd,even}.json` and `validate_llm_flagged_{odd,even}.json`. The merge step concatenates and re-computes the summary table.
@@ -150,7 +150,7 @@ Only needs Python + `datasets`. No model download, no server.
 
 ```bash
 uv sync
-uv run python -m project.validate_translation --structural-only
+uv run python -m src.project.validate_translation --structural-only
 ```
 
 > Both HF repos are public — no login required. Anonymous downloads are rate-limited; set `HF_TOKEN` if you hit 429s.
@@ -181,7 +181,7 @@ set -a && source configs/consultants/m4-mlx.env && set +a
 ./scripts/serve_consultant_mlx.sh
 
 # Terminal 2 — run this machine's shard
-python -m project.validate_translation --shard "$VALIDATE_SHARD" --base-url http://localhost:8080/v1
+python -m src.project.validate_translation --shard "$VALIDATE_SHARD" --base-url http://localhost:8080/v1
 ```
 
 ---
@@ -190,20 +190,20 @@ python -m project.validate_translation --shard "$VALIDATE_SHARD" --base-url http
 
 ```bash
 # Phase 1 only (structural, no LLM):
-uv run python -m project.validate_translation --structural-only
+uv run python -m src.project.validate_translation --structural-only
 
 # Phase 1 + Phase 2 on default 5% sample, single node:
-uv run python -m project.validate_translation --base-url http://<node>:8080/v1
+uv run python -m src.project.validate_translation --base-url http://<node>:8080/v1
 
 # Two-node parallel (run on each machine simultaneously):
-uv run python -m project.validate_translation --shard odd  --base-url http://<node1>:8080/v1
-uv run python -m project.validate_translation --shard even --base-url http://<node2>:8080/v1
+uv run python -m src.project.validate_translation --shard odd  --base-url http://<node1>:8080/v1
+uv run python -m src.project.validate_translation --shard even --base-url http://<node2>:8080/v1
 
 # Merge shard results after both finish:
-uv run python -m project.validate_translation --merge data/validate_llm_scores_odd.json data/validate_llm_scores_even.json
+uv run python -m src.project.validate_translation --merge data/validate_llm_scores_odd.json data/validate_llm_scores_even.json
 
 # Full dataset LLM eval (background run):
-uv run python -m project.validate_translation --sample 1.0 --base-url http://<node>:8080/v1
+uv run python -m src.project.validate_translation --sample 1.0 --base-url http://<node>:8080/v1
 ```
 
 ---

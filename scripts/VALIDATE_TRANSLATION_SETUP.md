@@ -99,13 +99,13 @@ curl http://localhost:8080/v1/models
 **Phase 1 — structural checks (no LLM, runs in seconds):**
 
 ```bash
-uv run python -m project.validate_translation --structural-only
+uv run python -m src.project.validate_translation --structural-only
 ```
 
 **Phase 2 — LLM quality eval (requires server from step 6):**
 
 ```bash
-uv run python -m project.validate_translation \
+uv run python -m src.project.validate_translation \
     --shard "$VALIDATE_SHARD" \
     --base-url http://localhost:8080/v1
 ```
@@ -115,7 +115,7 @@ Run this on both Mac Minis simultaneously. Each machine processes its assigned s
 **Merge results** (run on either machine after both finish):
 
 ```bash
-uv run python -m project.validate_translation \
+uv run python -m src.project.validate_translation \
     --merge data/validate_llm_scores_odd.json data/validate_llm_scores_even.json
 ```
 
