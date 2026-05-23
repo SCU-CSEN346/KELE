@@ -319,16 +319,23 @@ e34：学生正确给出题目答案
                         }
                     if self.consultant_num_ctx:
                         extra["options"] = {"num_ctx": self.consultant_num_ctx}
-                    response = self.consultant_client.chat.completions.create(
-                        model=self.consultant_model_name,
-                        messages=[
+                    # Anthropic's OpenAI-compat endpoint rejects
+                    # response_format={"type": "json_object"} (400: requires
+                    # "json_schema"). Detect by base_url and skip the strict
+                    # JSON-mode flag — Claude reliably emits JSON via prompting
+                    # alone, and the downstream parser already handles loose JSON.
+                    create_kwargs: dict = {
+                        "model": self.consultant_model_name,
+                        "messages": [
                             {"role": "system", "content": system_prompt},
                             {"role": "user", "content": user_input},
                         ],
-                        response_format={"type": "json_object"},
-                        max_tokens=self.consultant_max_tokens,
-                        extra_body=extra or None,
-                    )
+                        "max_tokens": self.consultant_max_tokens,
+                        "extra_body": extra or None,
+                    }
+                    if "anthropic.com" not in (self.consultant_base_url or ""):
+                        create_kwargs["response_format"] = {"type": "json_object"}
+                    response = self.consultant_client.chat.completions.create(**create_kwargs)
                     break
                 except openai.RateLimitError as rle:
                     retry_after = None
@@ -407,10 +414,37 @@ e34：学生正确给出题目答案
 - 如果接收到的建议操作为：对题目进行总结，则总结题目且不再提出问题
         """
 
+        # Opt-in: enrich the teacher system prompt with the same N-shot
+        # exemplars used by the unified fusion architecture, so two-call
+        # consultant configurations (e.g., the BERT-consultant integration)
+        # can also benefit from the stylistic guidance. Gated on the same
+        # env-var dispatch as socratic_teaching_unified for consistency.
+        import os as _os
+
+        if _os.environ.get("KELE_FEW_SHOT_TEACHER") == "1":
+            try:
+                from src.project.socratic_teaching_unified import (  # noqa: PLC0415
+                    _LEGACY_FEW_SHOT_TEACHER_BLOCK,
+                    _build_few_shot_block_n,
+                )
+
+                n_str = _os.environ.get("KELE_FEW_SHOT_N")
+                if n_str is not None:
+                    try:
+                        block = _build_few_shot_block_n(int(n_str))
+                    except ValueError:
+                        block = _LEGACY_FEW_SHOT_TEACHER_BLOCK
+                else:
+                    block = _LEGACY_FEW_SHOT_TEACHER_BLOCK
+                system_prompt = system_prompt + "\n" + block
+            except Exception:
+                pass  # leave system_prompt unchanged on any import issue
+
         # 准备用户输入
+        formatted_history = self.get_formatted_history()
         user_input = f"""
 历史对话记录:
-{self.get_formatted_history()}
+{formatted_history}
 
 当前学生输入: {student_input}
 
@@ -418,19 +452,29 @@ e34：学生正确给出题目答案
 苏格拉底教学顾问建议的操作: {action}
 """
 
-        # 调用API - 使用教师专用客户端
+        # Apply Phase 1 prompt-engineering tournament utilizations (env-gated).
+        # Default (no env vars set) reproduces the Phase 0 locked behavior exactly.
         try:
-            response = self.teacher_client.chat.completions.create(
-                model=self.teacher_model_name,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_input},
-                ],
+            from src.project.tournament_utilizations import (  # noqa: PLC0415
+                apply_pre_call,
+                call_teacher_wrapped,
             )
 
-            # 获取返回结果
-            return response.choices[0].message.content or ""
-
+            system_prompt, user_input = apply_pre_call(
+                system_prompt,
+                user_input,
+                predicted_state=self.current_state,
+                teacher_client=self.teacher_client,
+                teacher_model_name=self.teacher_model_name,
+                formatted_history=formatted_history,
+            )
+            return call_teacher_wrapped(
+                self.teacher_client,
+                self.teacher_model_name,
+                system_prompt,
+                user_input,
+                predicted_state=self.current_state,
+            )
         except Exception as e:
             print(f"苏格拉底教师调用失败: {e}")
             return "我需要思考一下如何回答你的问题。请稍等片刻，让我组织一下思路。"

@@ -1,0 +1,561 @@
+{
+  "rows": [
+    {
+      "name": "GPT-4o + SocratTeachLLM (paper baseline)",
+      "available": true,
+      "results_dir": null,
+      "state": 25.94,
+      "r1": 44.61,
+      "r2": 26.04,
+      "rl": 38.02,
+      "b4": 19.6,
+      "n_turns": 4294,
+      "n_dialogues": 681,
+      "surface_sum": 90.25,
+      "composite_state_r1": 48.245000000000005,
+      "semantic_r1": null,
+      "judge_overall": null
+    },
+    {
+      "name": "Gemma 4 31B + top-3 stack",
+      "available": true,
+      "results_dir": "results/bert-gemma-composed-top3-n50",
+      "state": 50.72,
+      "r1": 41.13,
+      "r2": 18.6,
+      "rl": 32.13,
+      "b4": 12.91,
+      "n_turns": 278,
+      "n_dialogues": 46,
+      "surface_sum": 72.64,
+      "composite_state_r1": 71.285,
+      "semantic_r1": 0.7326166033744812,
+      "judge_overall": 8.16906474820144,
+      "judge_axis_avgs": {
+        "socratic_validity": 2.2446043165467624,
+        "advancement": 2.4136690647482015,
+        "age_appropriateness": 1.974820143884892,
+        "question_form": 1.5359712230215827
+      },
+      "per_stage": {
+        "a": 100.0,
+        "b": 33.9,
+        "c": 24.47,
+        "d": 46.51,
+        "e": 87.5
+      }
+    },
+    {
+      "name": "Qwen 35B-A3B + top-3 stack",
+      "available": true,
+      "results_dir": "results/bert-a3b-composed-top3-n50",
+      "state": 48.19,
+      "r1": 37.64,
+      "r2": 15.69,
+      "rl": 28.64,
+      "b4": 9.97,
+      "n_turns": 276,
+      "n_dialogues": 46,
+      "surface_sum": 63.3,
+      "composite_state_r1": 67.00999999999999,
+      "semantic_r1": 0.7273936867713928,
+      "judge_overall": 7.4855072463768115,
+      "judge_axis_avgs": {
+        "socratic_validity": 1.9565217391304348,
+        "advancement": 2.2028985507246377,
+        "age_appropriateness": 1.9166666666666667,
+        "question_form": 1.4094202898550725
+      },
+      "per_stage": {
+        "a": 100.0,
+        "b": 32.2,
+        "c": 19.57,
+        "d": 45.65,
+        "e": 86.21
+      }
+    },
+    {
+      "name": "Gemma 4 31B + 10-shot (n=50 ref)",
+      "available": true,
+      "results_dir": null,
+      "state": 51.06,
+      "r1": 38.53,
+      "r2": 16.93,
+      "rl": 29.48,
+      "b4": 9.68,
+      "n_turns": 284,
+      "n_dialogues": 50,
+      "surface_sum": 65.14,
+      "composite_state_r1": 70.325,
+      "semantic_r1": null,
+      "judge_overall": null
+    },
+    {
+      "name": "Gemma 4 31B + 10-shot (n=681 LOCKED)",
+      "available": true,
+      "results_dir": "results/bert-consultant-fewshot10-gemma-full",
+      "state": 48.15,
+      "r1": 36.78,
+      "r2": 16.1,
+      "rl": 28.2,
+      "b4": 9.05,
+      "n_turns": 3834,
+      "n_dialogues": 639,
+      "surface_sum": 61.93000000000001,
+      "composite_state_r1": 66.53999999999999,
+      "semantic_r1": 0.723320722579956,
+      "judge_overall": 8.188054251434533,
+      "judge_axis_avgs": {
+        "socratic_validity": 2.2772561293688054,
+        "advancement": 2.5002608242044864,
+        "age_appropriateness": 1.9728742827334376,
+        "question_form": 1.4376630151278038
+      },
+      "per_stage": {
+        "a": 99.27,
+        "b": 23.26,
+        "c": 30.31,
+        "d": 41.5,
+        "e": 82.77
+      }
+    },
+    {
+      "name": "Qwen 35B-A3B + 10-shot (n=681)",
+      "available": true,
+      "results_dir": "results/bert-consultant-fewshot10-a3b-full",
+      "state": 46.57,
+      "r1": 33.27,
+      "r2": 13.89,
+      "rl": 24.84,
+      "b4": 6.96,
+      "n_turns": 3762,
+      "n_dialogues": 627,
+      "surface_sum": 54.120000000000005,
+      "composite_state_r1": 63.205,
+      "semantic_r1": 0.7200338840484619,
+      "judge_overall": 7.422984836392658,
+      "judge_axis_avgs": {
+        "socratic_validity": 2.0274009044958765,
+        "advancement": 2.313115190210162,
+        "age_appropriateness": 1.9036977919659483,
+        "question_form": 1.1787709497206704
+      },
+      "per_stage": {
+        "a": 99.27,
+        "b": 24.57,
+        "c": 26.36,
+        "d": 39.34,
+        "e": 84.05
+      }
+    },
+    {
+      "name": "Sonnet 4.6 + BERT + top-3",
+      "available": true,
+      "results_dir": "results/bert-consultant-fewshot10-claude-sonnet-n50",
+      "state": 48.75,
+      "r1": 43.02,
+      "r2": 20.52,
+      "rl": 34.09,
+      "b4": 14.33,
+      "n_turns": 281,
+      "n_dialogues": 46,
+      "surface_sum": 77.87,
+      "composite_state_r1": 70.26,
+      "semantic_r1": 0.750015139579773,
+      "judge_overall": 8.113879003558718,
+      "judge_axis_avgs": {
+        "socratic_validity": 2.2348754448398576,
+        "advancement": 2.4377224199288254,
+        "age_appropriateness": 1.9679715302491103,
+        "question_form": 1.4733096085409252
+      },
+      "per_stage": {
+        "a": 100.0,
+        "b": 33.9,
+        "c": 20.21,
+        "d": 44.68,
+        "e": 87.1
+      }
+    },
+    {
+      "name": "Opus 4.6 + BERT + top-3",
+      "available": true,
+      "results_dir": "results/bert-consultant-fewshot10-claude-opus-n50",
+      "state": 49.82,
+      "r1": 42.77,
+      "r2": 21.12,
+      "rl": 35.16,
+      "b4": 15.53,
+      "n_turns": 271,
+      "n_dialogues": 45,
+      "surface_sum": 79.42,
+      "composite_state_r1": 71.205,
+      "semantic_r1": 0.7522604465484619,
+      "judge_overall": 8.084870848708487,
+      "judge_axis_avgs": {
+        "socratic_validity": 2.1918819188191883,
+        "advancement": 2.4833948339483394,
+        "age_appropriateness": 1.977859778597786,
+        "question_form": 1.4317343173431734
+      },
+      "per_stage": {
+        "a": 100.0,
+        "b": 33.9,
+        "c": 20.88,
+        "d": 50.0,
+        "e": 88.89
+      }
+    },
+    {
+      "name": "Sonnet 4.6 + BERT + 10-shot only",
+      "available": true,
+      "results_dir": "results/bert-claude-sonnet-fewshot10-n50",
+      "state": 47.94,
+      "r1": 39.68,
+      "r2": 19.4,
+      "rl": 30.91,
+      "b4": 10.15,
+      "n_turns": 267,
+      "n_dialogues": 44,
+      "surface_sum": 69.23,
+      "composite_state_r1": 67.78,
+      "semantic_r1": 0.7394542098045349,
+      "judge_overall": 7.8389513108614235,
+      "judge_axis_avgs": {
+        "socratic_validity": 2.149812734082397,
+        "advancement": 2.4794007490636703,
+        "age_appropriateness": 1.9737827715355805,
+        "question_form": 1.2359550561797752
+      },
+      "per_stage": {
+        "a": 100.0,
+        "b": 30.51,
+        "c": 24.73,
+        "d": 35.71,
+        "e": 95.65
+      }
+    },
+    {
+      "name": "Opus 4.6 + BERT + 10-shot only",
+      "available": true,
+      "results_dir": "results/bert-claude-opus-fewshot10-n50",
+      "state": 47.43,
+      "r1": 32.99,
+      "r2": 15.26,
+      "rl": 25.16,
+      "b4": 7.24,
+      "n_turns": 272,
+      "n_dialogues": 45,
+      "surface_sum": 55.49,
+      "composite_state_r1": 63.925,
+      "semantic_r1": 0.7288748025894165,
+      "judge_overall": 7.444852941176471,
+      "judge_axis_avgs": {
+        "socratic_validity": 2.025735294117647,
+        "advancement": 2.3970588235294117,
+        "age_appropriateness": 1.9816176470588236,
+        "question_form": 1.0404411764705883
+      },
+      "per_stage": {
+        "a": 100.0,
+        "b": 32.2,
+        "c": 24.21,
+        "d": 37.21,
+        "e": 84.0
+      }
+    },
+    {
+      "name": "Sonnet 4.6 + BERT raw (no exemplars)",
+      "available": true,
+      "results_dir": "results/bert-claude-sonnet-raw-n50",
+      "state": 45.0,
+      "r1": 29.1,
+      "r2": 13.38,
+      "rl": 21.72,
+      "b4": 5.69,
+      "n_turns": 260,
+      "n_dialogues": 43,
+      "surface_sum": 48.17,
+      "composite_state_r1": 59.55,
+      "semantic_r1": 0.7207031846046448,
+      "judge_overall": 7.25,
+      "judge_axis_avgs": {
+        "socratic_validity": 1.9384615384615385,
+        "advancement": 2.3384615384615386,
+        "age_appropriateness": 1.976923076923077,
+        "question_form": 0.9961538461538462
+      },
+      "per_stage": {
+        "a": 100.0,
+        "b": 27.12,
+        "c": 21.98,
+        "d": 37.5,
+        "e": 80.0
+      }
+    },
+    {
+      "name": "Opus 4.6 + BERT raw (no exemplars)",
+      "available": true,
+      "results_dir": "results/bert-claude-opus-raw-n50",
+      "state": 39.75,
+      "r1": 23.28,
+      "r2": 10.12,
+      "rl": 17.03,
+      "b4": 4.18,
+      "n_turns": 239,
+      "n_dialogues": 39,
+      "surface_sum": 37.58,
+      "composite_state_r1": 51.39,
+      "semantic_r1": 0.7170211672782898,
+      "judge_overall": 6.799163179916318,
+      "judge_axis_avgs": {
+        "socratic_validity": 1.7782426778242677,
+        "advancement": 2.192468619246862,
+        "age_appropriateness": 1.9665271966527196,
+        "question_form": 0.8619246861924686
+      },
+      "per_stage": {
+        "a": 100.0,
+        "b": 22.03,
+        "c": 17.65,
+        "d": 36.67,
+        "e": 40.0
+      }
+    },
+    {
+      "name": "Opus 4.6 + BERT + top-3 (n=681 Phase 3)",
+      "available": true,
+      "results_dir": "results/bert-claude-opus-top3-n681",
+      "state": 49.31,
+      "r1": 41.63,
+      "r2": 19.87,
+      "rl": 33.87,
+      "b4": 13.91,
+      "n_turns": 3794,
+      "n_dialogues": 632,
+      "surface_sum": 75.41,
+      "composite_state_r1": 70.125,
+      "semantic_r1": null,
+      "judge_overall": 8.011769321302472,
+      "judge_axis_avgs": {
+        "socratic_validity": 2.150647312671636,
+        "advancement": 2.4692036092585328,
+        "age_appropriateness": 1.976461357395057,
+        "question_form": 1.415457041977246
+      },
+      "per_stage": {
+        "a": 99.27,
+        "b": 36.79,
+        "c": 23.95,
+        "d": 45.36,
+        "e": 87.78
+      }
+    },
+    {
+      "name": "Sonnet 4.6 + BERT + top-3 (n=681 Phase 3)",
+      "available": true,
+      "results_dir": "results/bert-claude-sonnet-top3-n681",
+      "state": 49.97,
+      "r1": 41.93,
+      "r2": 20.43,
+      "rl": 33.98,
+      "b4": 13.46,
+      "n_turns": 3840,
+      "n_dialogues": 640,
+      "surface_sum": 75.82,
+      "composite_state_r1": 70.935,
+      "semantic_r1": null,
+      "judge_overall": 8.194244604316546,
+      "judge_axis_avgs": {
+        "socratic_validity": 2.2491824722040548,
+        "advancement": 2.486592544146501,
+        "age_appropriateness": 1.9790712884238064,
+        "question_form": 1.4793982995421844
+      },
+      "per_stage": {
+        "a": 99.27,
+        "b": 35.61,
+        "c": 26.48,
+        "d": 45.3,
+        "e": 84.2
+      }
+    },
+    {
+      "name": "Gemma 4 31B + top-3 (n=200 validation)",
+      "available": false
+    },
+    {
+      "name": "Sonnet 4.6 consultant + SocratTeachLLM (n=50)",
+      "available": true,
+      "results_dir": "results/claude-sonnet-consultant-socratteachllm-n50",
+      "state": 0.0,
+      "r1": 43.88,
+      "r2": 24.45,
+      "rl": 36.56,
+      "b4": 16.4,
+      "n_turns": 308,
+      "n_dialogues": 51,
+      "surface_sum": 84.72999999999999,
+      "composite_state_r1": 21.94,
+      "semantic_r1": 0.7437310814857483,
+      "judge_overall": null,
+      "judge_axis_avgs": null,
+      "per_stage": {
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0,
+        "d": 0.0,
+        "e": 0.0
+      }
+    },
+    {
+      "name": "Sonnet 4.6 consultant + SocratTeachLLM (n=50 clean rerun)",
+      "available": true,
+      "results_dir": "results/claude-sonnet-consultant-socratteachllm-n50-clean",
+      "state": 18.57,
+      "r1": 45.61,
+      "r2": 26.7,
+      "rl": 38.4,
+      "b4": 20.45,
+      "n_turns": 307,
+      "n_dialogues": 51,
+      "surface_sum": 92.76,
+      "composite_state_r1": 41.375,
+      "semantic_r1": null,
+      "judge_overall": 7.631921824104235,
+      "judge_axis_avgs": {
+        "socratic_validity": 2.0749185667752443,
+        "advancement": 1.9413680781758957,
+        "age_appropriateness": 1.9022801302931596,
+        "question_form": 1.713355048859935
+      },
+      "per_stage": {
+        "a": 10.0,
+        "b": 27.12,
+        "c": 16.67,
+        "d": 11.32,
+        "e": 28.57
+      }
+    },
+    {
+      "name": "Opus 4.6 consultant + SocratTeachLLM (n=50)",
+      "available": true,
+      "results_dir": "results/claude-opus-consultant-socratteachllm-n50",
+      "state": 38.44,
+      "r1": 47.58,
+      "r2": 28.06,
+      "rl": 39.59,
+      "b4": 21.21,
+      "n_turns": 307,
+      "n_dialogues": 51,
+      "surface_sum": 96.85,
+      "composite_state_r1": 62.23,
+      "semantic_r1": 0.7691779136657715,
+      "judge_overall": 7.804560260586319,
+      "judge_axis_avgs": {
+        "socratic_validity": 2.1628664495114007,
+        "advancement": 2.0684039087947883,
+        "age_appropriateness": 1.9218241042345277,
+        "question_form": 1.6514657980456027
+      },
+      "per_stage": {
+        "a": 100.0,
+        "b": 35.59,
+        "c": 23.96,
+        "d": 1.89,
+        "e": 46.94
+      }
+    },
+    {
+      "name": "Sonnet 4.6 consultant + SocratTeachLLM (EN)",
+      "available": true,
+      "results_dir": "results/claude-sonnet-consultant-socratteachllm-EN-n50",
+      "state": 22.11,
+      "r1": 55.85,
+      "r2": 33.79,
+      "rl": 34.94,
+      "b4": 3.56,
+      "n_turns": 303,
+      "n_dialogues": 50,
+      "surface_sum": 93.2,
+      "composite_state_r1": 50.035,
+      "semantic_r1": null,
+      "judge_overall": 6.617161716171617,
+      "judge_axis_avgs": {
+        "socratic_validity": 1.8745874587458746,
+        "advancement": 1.7227722772277227,
+        "age_appropriateness": 1.8184818481848184,
+        "question_form": 1.2013201320132014
+      },
+      "per_stage": {
+        "a": 36.0,
+        "b": 28.81,
+        "c": 18.75,
+        "d": 9.62,
+        "e": 19.57
+      }
+    },
+    {
+      "name": "Opus 4.6 consultant + SocratTeachLLM (EN)",
+      "available": true,
+      "results_dir": "results/claude-opus-consultant-socratteachllm-EN-n50",
+      "state": 30.26,
+      "r1": 44.22,
+      "r2": 26.2,
+      "rl": 27.79,
+      "b4": 2.96,
+      "n_turns": 304,
+      "n_dialogues": 50,
+      "surface_sum": 73.38,
+      "composite_state_r1": 52.370000000000005,
+      "semantic_r1": null,
+      "judge_overall": 6.766447368421052,
+      "judge_axis_avgs": {
+        "socratic_validity": 1.8782894736842106,
+        "advancement": 1.707236842105263,
+        "age_appropriateness": 1.799342105263158,
+        "question_form": 1.381578947368421
+      },
+      "per_stage": {
+        "a": 96.0,
+        "b": 35.59,
+        "c": 10.42,
+        "d": 1.96,
+        "e": 25.0
+      }
+    },
+    {
+      "name": "Opus 4.6 + BERT + top-3 (EN)",
+      "available": true,
+      "results_dir": "results/bert-claude-opus-top3-EN-n50",
+      "state": 34.44,
+      "r1": 0.47,
+      "r2": 0.19,
+      "rl": 0.37,
+      "b4": 0.01,
+      "n_turns": 270,
+      "n_dialogues": 45,
+      "surface_sum": 0.6699999999999999,
+      "composite_state_r1": 34.675,
+      "semantic_r1": null,
+      "judge_overall": 8.007407407407408,
+      "judge_axis_avgs": {
+        "socratic_validity": 2.2,
+        "advancement": 2.3777777777777778,
+        "age_appropriateness": 1.9074074074074074,
+        "question_form": 1.5222222222222221
+      },
+      "per_stage": {
+        "a": 100.0,
+        "b": 13.56,
+        "c": 11.7,
+        "d": 26.19,
+        "e": 52.0
+      }
+    }
+  ],
+  "summary": {
+    "n_configs_available": 20,
+    "n_configs_total": 21
+  }
+}

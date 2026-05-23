@@ -107,11 +107,13 @@ sync-mirror:
 	@CURRENT_BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
 	if [ "$$CURRENT_BRANCH" = "main" ]; then \
 		echo "Already on main. Performing standard pull/push sync..."; \
-		git pull origin main && git push origin main --tags; \
+		git pull origin main; \
 	else \
-		echo "On $$CURRENT_BRANCH. Performing background sync for main..."; \
-		git fetch origin main:main && git push origin main:main --tags; \
+		echo "On $$CURRENT_BRANCH. Fetching main..."; \
+		git fetch origin main:main; \
 	fi
+	@git push git@github.com:ulises-c/csen-346.git main --tags
+	@git push --force git@github.com:SCU-CSEN346/KELE.git main:main --tags
 	@echo "Mirror sync successful."
 
 # ── Entry point ──────────────────────────────────────────────────────────────

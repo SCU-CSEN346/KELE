@@ -55,7 +55,11 @@ def load_env_file(path: Path | None = None) -> None:
                 continue
             key, _, value = line.partition("=")
             key = key.strip()
-            value = value.strip().strip("'\"")
+            value = value.strip()
+            # Shell env files allow trailing comments (e.g. KEY=val # note); strip them.
+            if " #" in value:
+                value = value[: value.index(" #")].strip()
+            value = value.strip("'\"")
             os.environ.setdefault(key, value)
 
 

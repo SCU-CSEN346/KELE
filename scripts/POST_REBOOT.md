@@ -1,5 +1,7 @@
 # After Reboot — Launch Overnight Baseline Eval
 
+> **Status (2026-05-22).** This file documents the boot sequence for the *original 2026-04 baseline run* (SocratTeachLLM teacher on vLLM). The **current** locked headline uses llama.cpp-served Gemma 4 31B + BERT consultant — see [`RTX5090_SETUP.md`](RTX5090_SETUP.md) for current rig setup, and `make serve-gemma4-31b` for the current serving command.
+
 ```bash
 # 1. Verify GPU is clean
 nvidia-smi

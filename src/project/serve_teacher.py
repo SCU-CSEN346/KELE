@@ -188,6 +188,14 @@ def load_runtime(model_path: str):
     log.info("Loading tokenizer...")
     tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
     log.info("Tokenizer loaded. Loading model weights (this may take 1-2 min)...")
+    # ChatGLM's modeling code accesses config.max_length in __init__, which was
+    # renamed to seq_length in newer transformers. Bridge the attribute here.
+    from transformers import AutoConfig
+
+    config = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
+    if not hasattr(config, "max_length") or config.max_length is None:
+        config.max_length = getattr(config, "seq_length", 8192)
+    kwargs["config"] = config
     model = AutoModelForCausalLM.from_pretrained(model_path, **kwargs)
 
     if not use_bnb:
@@ -198,6 +206,12 @@ def load_runtime(model_path: str):
     # max_new_tokens to generate() doesn't trigger a noisy conflict warning.
     if hasattr(model, "generation_config") and model.generation_config.max_length is not None:
         model.generation_config.max_length = None
+    # Also clear config.max_length — newer transformers errors on
+    # generate() if it sees config.max_length set ("modified to control
+    # generation"). We only needed it set during __init__ for ChatGLM's
+    # internal self.max_sequence_length assignment.
+    if hasattr(model.config, "max_length"):
+        model.config.max_length = None
 
     # Patch ChatGLMModel.forward to convert DynamicCache → legacy tuple format.
     # Transformers 5.x passes DynamicCache everywhere; ChatGLM's trust_remote_code
