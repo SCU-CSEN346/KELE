@@ -79,56 +79,144 @@ def fmt_pct(v: float | None) -> str:
     return f"{v:5.2f}" if v is not None else "  —  "
 
 
+import re
+
+# ─── Naming convention ────────────────────────────────────────────────────
+# Display format produced by display_name():
+#
+#     <consultant> × <teacher> [· <variant>...] · n=<N>
+#
+# Full spec + vocabulary in docs/NAMING_CONVENTION.md.
+
+_CONSULTANT_MAP = [
+    # Order matters: longest prefix wins
+    ("bge-small-bert-",           "bert-fixed"),     # post-fix BERT
+    ("t4-bert-",                  "qwen3.5"),        # T4 = qwen3.5 LoRA
+    ("claude-opus-consultant-",   "Claude-Opus"),    # LLM-as-consultant
+    ("claude-sonnet-consultant-", "Claude-Sonnet"),
+    ("bert-",                     "bert"),           # legacy pre-fix BERT
+    ("state-clf-qwen3-emb-0.6b-", "qwen3-classifier"),     # Layer-1 only
+    ("state-clf-qwen3.5-0.8b-",   "qwen3.5-classifier"),   # Layer-1 only
+]
+
+_TEACHER_MAP = [
+    # (token-in-dir, display-name, implicit-variant-if-any)
+    # Order matters: more-specific tokens (e.g. "qwen27b-nothink") before less.
+    ("qwen27b-nothink", "Qwen-27B",        "no-think"),
+    ("qwen27b",         "Qwen-27B",        "think"),       # implicit think mode
+    ("gemma",           "Gemma-31B",       None),
+    ("a3b",             "A3B-35B",         None),
+    ("claude-opus",     "Claude-Opus",     None),
+    ("claude-sonnet",   "Claude-Sonnet",   None),
+    ("socratteachllm",  "SocratTeachLLM",  None),
+]
+
+# Variants the parser will split apart on `-` boundaries if all residue
+# tokens are recognized. If the residue contains any unknown token, the
+# whole residue is kept as a single variant string (e.g. "composed-top3").
+_KNOWN_VARIANTS = {
+    "think", "nothink", "no-think",
+    "top3", "composed", "composed-top3",
+    "raw", "clean", "fixed",
+    "EN", "ZH",
+    "fewshot10", "fewshot7", "fewshot",
+    "mini", "smoke", "full",
+}
+
+
+def _extract_n_label(name: str) -> tuple[str, str | None]:
+    """Pull out the dialogue-count marker (-n123, -full, -mini). Returns
+    (residue, n_label) where n_label is None if nothing matched."""
+    # -n<digits> at the end
+    m = re.search(r"-n(\d+)$", name)
+    if m:
+        return name[: m.start()], f"n={m.group(1)}"
+    # -n<digits> in the middle
+    m = re.search(r"-n(\d+)-", name)
+    if m:
+        return (name[: m.start()] + name[m.end() - 1 :]), f"n={m.group(1)}"
+    # -full at end → n=681 (the full SocratDataset test split)
+    if name.endswith("-full"):
+        return name[: -len("-full")], "n=681"
+    if "-full-" in name:
+        return name.replace("-full-", "-", 1), "n=681"
+    # -mini at end → variable, just mark as mini
+    if name.endswith("-mini"):
+        return name[: -len("-mini")], "n=mini"
+    if "-mini-" in name:
+        return name.replace("-mini-", "-", 1), "n=mini"
+    return name, None
+
+
 def display_name(config: str) -> str:
-    """Translate raw results/-relative config dir name to a display label
-    that reflects the actual consultant in use.
+    """Parse a config dir name into structured format:
 
-    Consultant identities used across the project:
+        <consultant> × <teacher> [· <variant>...] · n=<N>
 
-    - `bert`         The locked baseline BERT classifier (state_classifier_v1,
-                     model_type=bert; same model file as the BAAI bge-small-zh
-                     embedding, BERT-architecture). Used in legacy downstream
-                     eval runs BEFORE the 2026-05-22 input-format duplication
-                     fix (commit 3d68d4a). Dir convention: `bert-*`. Locked
-                     at ~48% macro on n=681.
-    - `bert-fixed`   Same BERT classifier, but with the 2026-05-22 input-format
-                     fix applied (stop duplicating current student utterance).
-                     Dir convention: `bge-small-bert-*-fixed`.
-    - `qwen3`        Qwen3-Embedding-0.6B classifier (T1 frozen / T2 LoRA from
-                     the funnel). Layer-1 only — no downstream eval cells
-                     currently exist. Dir convention: `state-clf-qwen3-emb-0.6b-*`.
-    - `qwen3.5`      Qwen3.5-0.8B-Base classifier (T3 frozen / T4 LoRA). T4 is
-                     the funnel winner; used in downstream eval. Dir convention:
-                     `t4-bert-*` (with `-fixed` suffix for post-fix runs, which
-                     is all of them in practice).
-
-    Claude-consultant cells (e.g., `claude-opus-consultant-socratteachllm-*`)
-    are not bert-family — left untouched.
+    See docs/NAMING_CONVENTION.md for the full schema. Returns the raw
+    config string unchanged if it doesn't fit the known prefix patterns
+    (e.g. tournament-cell-*, wave-*).
     """
     name = config
-    # Layer-1 classifier-only dirs (no downstream pipeline eval; rare in master list)
-    if name.startswith("state-clf-qwen3-emb-0.6b-"):
-        return "qwen3-classifier-" + name[len("state-clf-qwen3-emb-0.6b-"):]
-    if name.startswith("state-clf-qwen3.5-0.8b-"):
-        return "qwen3.5-classifier-" + name[len("state-clf-qwen3.5-0.8b-"):]
 
-    # Post-fix BERT downstream: `bge-small-bert-X-fixed` → `bert-fixed-X`
-    if name.startswith("bge-small-bert-"):
-        rest = name[len("bge-small-bert-"):]
-        if rest.endswith("-fixed"):
-            rest = rest[: -len("-fixed")]
-        return "bert-fixed-" + rest
+    # ── 1. consultant prefix ──
+    consultant = None
+    for prefix, label in _CONSULTANT_MAP:
+        if name.startswith(prefix):
+            consultant = label
+            name = name[len(prefix):]
+            break
+    if consultant is None:
+        return config  # untouched (tournament, smoke, wave, ad-hoc dirs)
 
-    # T4 (qwen3.5 LoRA) downstream: `t4-bert-X[-fixed]` → `qwen3.5-X`
-    if name.startswith("t4-bert-"):
-        rest = name[len("t4-bert-"):]
-        if rest.endswith("-fixed"):
-            rest = rest[: -len("-fixed")]
-        return "qwen3.5-" + rest
+    # Strip "consultant-" infix (it's a noise word in legacy bert-* dirs)
+    if name.startswith("consultant-"):
+        name = name[len("consultant-"):]
 
-    # Legacy BERT (pre-fix): `bert-*` — leave the prefix as-is to mark it
-    # as the legacy/pre-fix variant, distinguishing it from `bert-fixed-*`.
-    return name
+    # Strip trailing "-fixed" (now implied by consultant label)
+    if name.endswith("-fixed"):
+        name = name[: -len("-fixed")]
+
+    # ── 2. dialogue-count marker (extract early so it doesn't confuse the teacher match) ──
+    name, n_label = _extract_n_label(name)
+
+    # ── 3. teacher ──
+    teacher = None
+    implicit_variant = None
+    for token, label, iv in _TEACHER_MAP:
+        for pat in (rf"-{re.escape(token)}-", rf"-{re.escape(token)}$",
+                    rf"^{re.escape(token)}-", rf"^{re.escape(token)}$"):
+            m = re.search(pat, name)
+            if m:
+                teacher = label
+                implicit_variant = iv
+                name = (name[: m.start()] + name[m.end():]).strip("-")
+                name = re.sub(r"-+", "-", name).strip("-")
+                break
+        if teacher:
+            break
+    if teacher is None:
+        return config  # untouched if we can't find a teacher
+
+    # ── 4. variants (residue) ──
+    variants: list[str] = []
+    if implicit_variant:
+        variants.append(implicit_variant)
+    if name:
+        tokens = name.split("-")
+        # If every residue token is a known variant, split them apart
+        if all(t in _KNOWN_VARIANTS for t in tokens) and len(tokens) > 1:
+            variants.extend(tokens)
+        else:
+            variants.append(name)
+
+    # ── 5. format ──
+    out = f"{consultant} × {teacher}"
+    for v in variants:
+        out += f" · {v}"
+    if n_label:
+        out += f" · {n_label}"
+    return out
 
 
 def main() -> int:

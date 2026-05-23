@@ -19,31 +19,31 @@ Only cells with both stage_bal AND judge get a unified score (25/122 configs).
 
 | u# | config | n | **unified** | unified_ped | stage_bal | judge | macro | R-1 |
 |---:|---|---:|---:|---:|---:|---:|---:|---:|
-| 1 | `bert-gemma-composed-top3-n50` | 278 | **70.08** | 67.88 | 58.48 |  8.17 | 50.72 | 41.13 |
-| 2 | `bert-claude-sonnet-top3-n681` | 3840 | **70.06** | 67.86 | 58.17 |  8.19 | 49.97 | 41.93 |
-| 3 | `bert-consultant-fewshot10-claude-opus-n50` | 271 | **69.79** | 67.54 | 58.73 |  8.08 | 49.82 | 42.77 |
-| 4 | `bert-claude-opus-top3-n681` | 3794 | **69.37** | 67.20 | 58.63 |  8.01 | 49.31 | 41.63 |
-| 5 | `bert-consultant-fewshot10-claude-sonnet-n50` | 281 | **69.16** | 66.84 | 57.18 |  8.11 | 48.75 | 43.02 |
-| 6 | `qwen3.5-gemma-fewshot10-n50` | 285 | **68.94** | 66.44 | 56.13 |  8.18 | 51.58 | 38.76 |
-| 7 | `bert-consultant-fewshot10-gemma-full` | 3834 | **68.65** | 66.51 | 55.42 |  8.19 | 48.15 | 36.78 |
-| 8 | `bert-claude-sonnet-fewshot10-n50` | 267 | **67.85** | 65.86 | 57.32 |  7.84 | 47.94 | 39.68 |
-| 9 | `bert-fixed-gemma-fewshot10-n50` | 283 | **67.65** | 64.95 | 52.73 |  8.26 | 45.94 | 38.69 |
-| 10 | `qwen3.5-a3b-fewshot10-n50` | 288 | **66.91** | 64.57 | 58.62 |  7.52 | 54.86 | 35.67 |
-| 11 | `qwen3.5-qwen27b-fewshot10-n50` | 282 | **66.89** | 64.65 | 58.68 |  7.51 | 53.19 | 35.28 |
-| 12 | `bert-a3b-composed-top3-n50` | 276 | **65.79** | 63.44 | 56.73 |  7.49 | 48.19 | 37.64 |
-| 13 | `bert-fixed-qwen27b-fewshot10-n50` | 271 | **65.65** | 63.35 | 57.15 |  7.41 | 49.08 | 34.91 |
-| 14 | `qwen3.5-qwen27b-nothink-fewshot10-n50` | 291 | **65.54** | 62.86 | 55.45 |  7.56 | 51.89 | 37.38 |
-| 15 | `bert-claude-opus-fewshot10-n50` | 272 | **64.99** | 62.69 | 55.52 |  7.44 | 47.43 | 32.99 |
-| 16 | `bert-consultant-fewshot10-a3b-full` | 3762 | **64.47** | 62.27 | 54.72 |  7.42 | 46.57 | 33.27 |
-| 17 | `bert-fixed-qwen27b-nothink-fewshot10-n50` | 286 | **64.25** | 61.64 | 52.62 |  7.59 | 46.85 | 37.81 |
-| 18 | `bert-fixed-a3b-fewshot10-n50` | 280 | **63.70** | 61.10 | 52.48 |  7.49 | 45.36 | 34.99 |
-| 19 | `bert-claude-sonnet-raw-n50` | 260 | **62.91** | 60.46 | 53.32 |  7.25 | 45.00 | 29.10 |
-| 20 | `bert-claude-opus-top3-EN-n50` | 270 | **60.38** | 56.97 | 40.69 |  8.01 | 34.44 |  0.47 |
-| 21 | `claude-opus-consultant-socratteachllm-n50` | 307 | **59.86** | 56.63 | 41.68 |  7.80 | 38.44 | 47.58 |
-| 22 | `bert-claude-opus-raw-n50` | 239 | **55.63** | 52.07 | 43.27 |  6.80 | 39.75 | 23.28 |
-| 23 | `claude-opus-consultant-socratteachllm-EN-n50` | 304 | **50.73** | 46.81 | 33.79 |  6.77 | 30.26 | 44.22 |
-| 24 | `claude-sonnet-consultant-socratteachllm-n50-clean` | 307 | **47.53** | 48.16 | 18.74 |  7.63 | 18.57 | 45.61 |
-| 25 | `claude-sonnet-consultant-socratteachllm-EN-n50` | 303 | **44.36** | 43.52 | 22.55 |  6.62 | 22.11 | 55.85 |
+| 1 | `bert × Gemma-31B · composed · top3 · n=50` | 278 | **70.08** | 67.88 | 58.48 |  8.17 | 50.72 | 41.13 |
+| 2 | `bert × Claude-Sonnet · top3 · n=681` | 3840 | **70.06** | 67.86 | 58.17 |  8.19 | 49.97 | 41.93 |
+| 3 | `bert × Claude-Opus · fewshot10 · n=50` | 271 | **69.79** | 67.54 | 58.73 |  8.08 | 49.82 | 42.77 |
+| 4 | `bert × Claude-Opus · top3 · n=681` | 3794 | **69.37** | 67.20 | 58.63 |  8.01 | 49.31 | 41.63 |
+| 5 | `bert × Claude-Sonnet · fewshot10 · n=50` | 281 | **69.16** | 66.84 | 57.18 |  8.11 | 48.75 | 43.02 |
+| 6 | `qwen3.5 × Gemma-31B · fewshot10 · n=50` | 285 | **68.94** | 66.44 | 56.13 |  8.18 | 51.58 | 38.76 |
+| 7 | `bert × Gemma-31B · fewshot10 · n=681` | 3834 | **68.65** | 66.51 | 55.42 |  8.19 | 48.15 | 36.78 |
+| 8 | `bert × Claude-Sonnet · fewshot10 · n=50` | 267 | **67.85** | 65.86 | 57.32 |  7.84 | 47.94 | 39.68 |
+| 9 | `bert-fixed × Gemma-31B · fewshot10 · n=50` | 283 | **67.65** | 64.95 | 52.73 |  8.26 | 45.94 | 38.69 |
+| 10 | `qwen3.5 × A3B-35B · fewshot10 · n=50` | 288 | **66.91** | 64.57 | 58.62 |  7.52 | 54.86 | 35.67 |
+| 11 | `qwen3.5 × Qwen-27B · think · fewshot10 · n=50` | 282 | **66.89** | 64.65 | 58.68 |  7.51 | 53.19 | 35.28 |
+| 12 | `bert × A3B-35B · composed · top3 · n=50` | 276 | **65.79** | 63.44 | 56.73 |  7.49 | 48.19 | 37.64 |
+| 13 | `bert-fixed × Qwen-27B · think · fewshot10 · n=50` | 271 | **65.65** | 63.35 | 57.15 |  7.41 | 49.08 | 34.91 |
+| 14 | `qwen3.5 × Qwen-27B · no-think · fewshot10 · n=50` | 291 | **65.54** | 62.86 | 55.45 |  7.56 | 51.89 | 37.38 |
+| 15 | `bert × Claude-Opus · fewshot10 · n=50` | 272 | **64.99** | 62.69 | 55.52 |  7.44 | 47.43 | 32.99 |
+| 16 | `bert × A3B-35B · fewshot10 · n=681` | 3762 | **64.47** | 62.27 | 54.72 |  7.42 | 46.57 | 33.27 |
+| 17 | `bert-fixed × Qwen-27B · no-think · fewshot10 · n=50` | 286 | **64.25** | 61.64 | 52.62 |  7.59 | 46.85 | 37.81 |
+| 18 | `bert-fixed × A3B-35B · fewshot10 · n=50` | 280 | **63.70** | 61.10 | 52.48 |  7.49 | 45.36 | 34.99 |
+| 19 | `bert × Claude-Sonnet · raw · n=50` | 260 | **62.91** | 60.46 | 53.32 |  7.25 | 45.00 | 29.10 |
+| 20 | `bert × Claude-Opus · top3 · EN · n=50` | 270 | **60.38** | 56.97 | 40.69 |  8.01 | 34.44 |  0.47 |
+| 21 | `Claude-Opus × SocratTeachLLM · n=50` | 307 | **59.86** | 56.63 | 41.68 |  7.80 | 38.44 | 47.58 |
+| 22 | `bert × Claude-Opus · raw · n=50` | 239 | **55.63** | 52.07 | 43.27 |  6.80 | 39.75 | 23.28 |
+| 23 | `Claude-Opus × SocratTeachLLM · EN · n=50` | 304 | **50.73** | 46.81 | 33.79 |  6.77 | 30.26 | 44.22 |
+| 24 | `Claude-Sonnet × SocratTeachLLM · clean · n=50` | 307 | **47.53** | 48.16 | 18.74 |  7.63 | 18.57 | 45.61 |
+| 25 | `Claude-Sonnet × SocratTeachLLM · EN · n=50` | 303 | **44.36** | 43.52 | 22.55 |  6.62 | 22.11 | 55.85 |
 
 ## Stage-balanced leaderboard (all configs; sorted by stage_bal; Δrank vs macro; 25/122 have judge scores)
 
@@ -53,40 +53,40 @@ Only cells with both stage_bal AND judge get a unified score (25/122 configs).
 | 2 | 3 | +1 | `bert-consultant-fewshot10-a4b-mini` | 139 | 53.24 | **60.52** | 56.31 | 66.61 |   —   | 36.26 |
 | 3 | 6 | +3 | `tournament-cell-1-length_budget` | 281 | 51.96 | **59.50** | 55.01 | 66.04 |   —   | 39.91 |
 | 4 | 11 | +7 | `tournament-cell-7-cot_scaffold` | 281 | 50.89 | **59.02** | 54.78 | 66.39 |   —   | 38.98 |
-| 5 | 17 | +12 | `bert-consultant-fewshot10-claude-opus-n50` | 271 | 49.82 | **58.73** | 54.22 | 67.15 |  8.08 | 42.77 |
+| 5 | 17 | +12 | `bert × Claude-Opus · fewshot10 · n=50` | 271 | 49.82 | **58.73** | 54.22 | 67.15 |  8.08 | 42.77 |
 | 6 | 14 | +8 | `tournament-cell-5-negative_exemplars` | 282 | 50.71 | **58.71** | 54.58 | 66.15 |   —   | 39.82 |
-| 7 | 4 | -3 | `qwen3.5-qwen27b-fewshot10-n50` | 282 | 53.19 | **58.68** | 54.22 | 63.30 |  7.51 | 35.28 |
-| 8 | 18 | +10 | `bert-claude-opus-top3-n681` | 3794 | 49.31 | **58.63** | 54.29 | 66.95 |  8.01 | 41.63 |
-| 9 | 1 | -8 | `qwen3.5-a3b-fewshot10-n50` | 288 | 54.86 | **58.62** | 53.93 | 61.58 |  7.52 | 35.67 |
-| 10 | 13 | +3 | `bert-gemma-composed-top3-n50` | 278 | 50.72 | **58.48** | 54.07 | 65.15 |  8.17 | 41.13 |
-| 11 | 10 | -1 | `bert-consultant-fewshot10-gemma-n50` | 284 | 51.06 | **58.47** | 54.16 | 65.04 |   —   | 38.53 |
-| 12 | 16 | +4 | `bert-claude-sonnet-top3-n681` | 3840 | 49.97 | **58.17** | 53.78 | 65.20 |  8.19 | 41.93 |
+| 7 | 4 | -3 | `qwen3.5 × Qwen-27B · think · fewshot10 · n=50` | 282 | 53.19 | **58.68** | 54.22 | 63.30 |  7.51 | 35.28 |
+| 8 | 18 | +10 | `bert × Claude-Opus · top3 · n=681` | 3794 | 49.31 | **58.63** | 54.29 | 66.95 |  8.01 | 41.63 |
+| 9 | 1 | -8 | `qwen3.5 × A3B-35B · fewshot10 · n=50` | 288 | 54.86 | **58.62** | 53.93 | 61.58 |  7.52 | 35.67 |
+| 10 | 13 | +3 | `bert × Gemma-31B · composed · top3 · n=50` | 278 | 50.72 | **58.48** | 54.07 | 65.15 |  8.17 | 41.13 |
+| 11 | 10 | -1 | `bert × Gemma-31B · fewshot10 · n=50` | 284 | 51.06 | **58.47** | 54.16 | 65.04 |   —   | 38.53 |
+| 12 | 16 | +4 | `bert × Claude-Sonnet · top3 · n=681` | 3840 | 49.97 | **58.17** | 53.78 | 65.20 |  8.19 | 41.93 |
 | 13 | 9 | -4 | `tournament-cell-9-persona` | 275 | 51.27 | **57.65** | 53.33 | 63.80 |   —   | 39.60 |
 | 14 | 5 | -9 | `phase3-t4-bert-qwen27b-nothink-n200-seed42` | 1172 | 52.13 | **57.45** | 52.57 | 61.38 |   —   | 37.11 |
-| 15 | 27 | +12 | `bert-claude-sonnet-fewshot10-n50` | 267 | 47.94 | **57.32** | 53.34 | 67.76 |  7.84 | 39.68 |
-| 16 | 22 | +6 | `bert-consultant-fewshot10-claude-sonnet-n50` | 281 | 48.75 | **57.18** | 52.54 | 64.77 |  8.11 | 43.02 |
+| 15 | 27 | +12 | `bert × Claude-Sonnet · fewshot10 · n=50` | 267 | 47.94 | **57.32** | 53.34 | 67.76 |  7.84 | 39.68 |
+| 16 | 22 | +6 | `bert × Claude-Sonnet · fewshot10 · n=50` | 281 | 48.75 | **57.18** | 52.54 | 64.77 |  8.11 | 43.02 |
 | 17 | 12 | -5 | `tournament-cell-4-per_state_exemplars` | 285 | 50.88 | **57.18** | 52.83 | 62.65 |   —   | 39.42 |
-| 18 | 21 | +3 | `bert-fixed-qwen27b-fewshot10-n50` | 271 | 49.08 | **57.15** | 52.56 | 64.76 |  7.41 | 34.91 |
+| 18 | 21 | +3 | `bert-fixed × Qwen-27B · think · fewshot10 · n=50` | 271 | 49.08 | **57.15** | 52.56 | 64.76 |  7.41 | 34.91 |
 | 19 | 25 | +6 | `bert-consultant-fewshot10-n50` | 276 | 48.19 | **57.03** | 52.27 | 64.68 |   —   | 35.57 |
-| 20 | 19 | -1 | `bert-consultant-a3b-mini` | 128 | 49.22 | **56.95** | 52.31 | 63.94 |   —   | 26.94 |
-| 21 | 15 | -6 | `bert-consultant-fewshot10-gemma-mini` | 137 | 50.36 | **56.87** | 52.56 | 62.50 |   —   | 35.93 |
-| 22 | 24 | +2 | `bert-a3b-composed-top3-n50` | 276 | 48.19 | **56.73** | 52.02 | 64.63 |  7.49 | 37.64 |
-| 23 | 8 | -15 | `qwen3.5-gemma-fewshot10-n50` | 285 | 51.58 | **56.13** | 51.13 | 59.63 |  8.18 | 38.76 |
+| 20 | 19 | -1 | `bert × A3B-35B · n=mini` | 128 | 49.22 | **56.95** | 52.31 | 63.94 |   —   | 26.94 |
+| 21 | 15 | -6 | `bert × Gemma-31B · fewshot10 · n=mini` | 137 | 50.36 | **56.87** | 52.56 | 62.50 |   —   | 35.93 |
+| 22 | 24 | +2 | `bert × A3B-35B · composed · top3 · n=50` | 276 | 48.19 | **56.73** | 52.02 | 64.63 |  7.49 | 37.64 |
+| 23 | 8 | -15 | `qwen3.5 × Gemma-31B · fewshot10 · n=50` | 285 | 51.58 | **56.13** | 51.13 | 59.63 |  8.18 | 38.76 |
 | 24 | 23 | -1 | `bert-consultant-fewshot10-a4b-n50` | 274 | 48.54 | **56.12** | 51.75 | 63.49 |   —   | 37.49 |
-| 25 | 29 | +4 | `bert-claude-opus-fewshot10-n50` | 272 | 47.43 | **55.52** | 50.93 | 63.45 |  7.44 | 32.99 |
-| 26 | 7 | -19 | `qwen3.5-qwen27b-nothink-fewshot10-n50` | 291 | 51.89 | **55.45** | 50.09 | 57.90 |  7.56 | 37.38 |
-| 27 | 26 | -1 | `bert-consultant-fewshot10-gemma-full` | 3834 | 48.15 | **55.42** | 51.15 | 62.18 |  8.19 | 36.78 |
+| 25 | 29 | +4 | `bert × Claude-Opus · fewshot10 · n=50` | 272 | 47.43 | **55.52** | 50.93 | 63.45 |  7.44 | 32.99 |
+| 26 | 7 | -19 | `qwen3.5 × Qwen-27B · no-think · fewshot10 · n=50` | 291 | 51.89 | **55.45** | 50.09 | 57.90 |  7.56 | 37.38 |
+| 27 | 26 | -1 | `bert × Gemma-31B · fewshot10 · n=681` | 3834 | 48.15 | **55.42** | 51.15 | 62.18 |  8.19 | 36.78 |
 | 28 | 33 | +5 | `tournament-cell-3-style_matched_exemplars` | 274 | 46.72 | **55.15** | 50.20 | 62.55 |   —   | 42.17 |
-| 29 | 34 | +5 | `bert-consultant-fewshot10-a3b-full` | 3762 | 46.57 | **54.72** | 50.31 | 62.43 |  7.42 | 33.27 |
+| 29 | 34 | +5 | `bert × A3B-35B · fewshot10 · n=681` | 3762 | 46.57 | **54.72** | 50.31 | 62.43 |  7.42 | 33.27 |
 | 30 | 30 | · | `tournament-cell-8-nbest_rerank` | 281 | 47.33 | **53.61** | 48.89 | 59.26 |   —   | 38.27 |
-| 31 | 41 | +10 | `bert-claude-sonnet-raw-n50` | 260 | 45.00 | **53.32** | 48.42 | 62.13 |  7.25 | 29.10 |
+| 31 | 41 | +10 | `bert × Claude-Sonnet · raw · n=50` | 260 | 45.00 | **53.32** | 48.42 | 62.13 |  7.25 | 29.10 |
 | 32 | 28 | -4 | `tournament-cell-10-compressed_history` | 280 | 47.50 | **52.87** | 47.86 | 57.65 |   —   | 38.79 |
-| 33 | 37 | +4 | `bert-fixed-gemma-fewshot10-n50` | 283 | 45.94 | **52.73** | 47.32 | 58.29 |  8.26 | 38.69 |
+| 33 | 37 | +4 | `bert-fixed × Gemma-31B · fewshot10 · n=50` | 283 | 45.94 | **52.73** | 47.32 | 58.29 |  8.26 | 38.69 |
 | 34 | 20 | -14 | `bert-consultant-richeval-mini` | 126 | 49.21 | **52.67** | 47.08 | 55.25 |   —   | 26.53 |
-| 35 | 32 | -3 | `bert-fixed-qwen27b-nothink-fewshot10-n50` | 286 | 46.85 | **52.62** | 47.41 | 57.42 |  7.59 | 37.81 |
-| 36 | 39 | +3 | `bert-fixed-a3b-fewshot10-n50` | 280 | 45.36 | **52.48** | 47.28 | 58.41 |  7.49 | 34.99 |
+| 35 | 32 | -3 | `bert-fixed × Qwen-27B · no-think · fewshot10 · n=50` | 286 | 46.85 | **52.62** | 47.41 | 57.42 |  7.59 | 37.81 |
+| 36 | 39 | +3 | `bert-fixed × A3B-35B · fewshot10 · n=50` | 280 | 45.36 | **52.48** | 47.28 | 58.41 |  7.49 | 34.99 |
 | 37 | 36 | -1 | `tournament-cell-6-format_retry` | 282 | 46.45 | **52.36** | 47.56 | 57.97 |   —   | 39.60 |
-| 38 | 44 | +6 | `bert-consultant-a3b-n50` | 261 | 44.06 | **52.31** | 47.37 | 61.44 |   —   | 28.36 |
+| 38 | 44 | +6 | `bert × A3B-35B · n=50` | 261 | 44.06 | **52.31** | 47.37 | 61.44 |   —   | 28.36 |
 | 39 | 46 | +7 | `tournament-cell-2-lexical_priors` | 262 | 43.89 | **50.97** | 45.78 | 57.81 |   —   | 39.12 |
 | 40 | 35 | -5 | `phase3-t4-bert-qwen27b-think-n200-seed42-BROKEN-CUDA-LAUNCH-TIMEOUT` | 1245 | 46.51 | **50.82** | 44.53 | 53.99 |   —   | 15.07 |
 | 41 | 31 | -10 | `qwen35b-a3b-local-mini-unified-fewshot10` | 147 | 46.94 | **50.73** | 45.23 | 53.34 |   —   | 34.41 |
@@ -104,16 +104,16 @@ Only cells with both stage_bal AND judge get a unified score (25/122 configs).
 | 53 | 56 | +3 | `qwen35b-a3b-local-unified` | 4171 | 38.70 | **44.05** | 38.59 | 47.88 |   —   | 30.63 |
 | 54 | 54 | · | `tournament/archive/d9ac39c5/round1/gemma4-26b-a4b` | 303 | 39.27 | **43.49** | 37.04 | 43.49 |   —   | 31.60 |
 | 55 | 55 | · | `gemma4-26b-a4b-local-mini-unified` | 147 | 38.78 | **43.31** | 36.89 | 46.78 |   —   | 32.04 |
-| 56 | 53 | -3 | `bert-claude-opus-raw-n50` | 239 | 39.75 | **43.27** | 36.15 | 43.51 |  6.80 | 23.28 |
+| 56 | 53 | -3 | `bert × Claude-Opus · raw · n=50` | 239 | 39.75 | **43.27** | 36.15 | 43.51 |  6.80 | 23.28 |
 | 57 | 57 | · | `tournament/archive/497374dd/round1/gemma4-26b-a4b` | 300 | 38.67 | **43.03** | 35.89 | 43.03 |   —   | 32.19 |
 | 58 | 59 | +1 | `qwen35b-a3b-local-mini-unified-fewshot5` | 146 | 38.36 | **42.85** | 36.72 | 46.05 |   —   | 34.60 |
 | 59 | 60 | +1 | `tournament/round1/gemma4-31b` | 303 | 38.28 | **42.19** | 35.41 | 42.19 |   —   | 33.04 |
 | 60 | 61 | +1 | `qwen35b-a3b-local-n50-unified` | 299 | 38.13 | **42.11** | 37.75 | 45.20 |   —   | 32.87 |
 | 61 | 63 | +2 | `qwen35b-a3b-local-n50-unified-fewshot` | 298 | 37.58 | **41.96** | 36.96 | 45.23 |   —   | 33.33 |
 | 62 | 62 | · | `tournament/round1/gemma4-26b-a4b` | 303 | 37.62 | **41.78** | 35.46 | 41.78 |   —   | 32.48 |
-| 63 | 58 | -5 | `claude-opus-consultant-socratteachllm-n50` | 307 | 38.44 | **41.68** | 35.22 | 44.39 |  7.80 | 47.58 |
+| 63 | 58 | -5 | `Claude-Opus × SocratTeachLLM · n=50` | 307 | 38.44 | **41.68** | 35.22 | 44.39 |  7.80 | 47.58 |
 | 64 | 64 | · | `tournament/archive/368b6431/round1/gemma4-26b-a4b` | 298 | 36.24 | **40.85** | 34.94 | 40.85 |   —   | 31.95 |
-| 65 | 68 | +3 | `bert-claude-opus-top3-EN-n50` | 270 | 34.44 | **40.69** | 33.88 | 45.40 |  8.01 |  0.47 |
+| 65 | 68 | +3 | `bert × Claude-Opus · top3 · EN · n=50` | 270 | 34.44 | **40.69** | 33.88 | 45.40 |  8.01 |  0.47 |
 | 66 | 67 | +1 | `qwen35b-a3b-local-mini-unified` | 145 | 35.17 | **39.67** | 34.13 | 42.71 |   —   | 30.51 |
 | 67 | 65 | -2 | `tournament/archive/497374dd/round1/gemma4-31b` | 304 | 35.86 | **39.58** | 32.40 | 39.58 |   —   | 33.03 |
 | 68 | 69 | +1 | `tournament/round1/qwen35b-a3b` | 300 | 34.33 | **38.32** | 33.65 | 38.32 |   —   | 31.28 |
@@ -123,7 +123,7 @@ Only cells with both stage_bal AND judge get a unified score (25/122 configs).
 | 72 | 74 | +2 | `gemma4-31b-local-unified` | 4246 | 31.39 | **35.60** | 30.33 | 38.62 |   —   | 27.27 |
 | 73 | 72 | -1 | `tournament/archive/d9ac39c5/round1/qwen27b` | 307 | 31.60 | **35.51** | 30.02 | 35.51 |   —   | 33.33 |
 | 74 | 73 | -1 | `tournament/archive/368b6431/round1/qwen27b` | 305 | 31.48 | **35.37** | 29.62 | 35.37 |   —   | 33.56 |
-| 75 | 76 | +1 | `claude-opus-consultant-socratteachllm-EN-n50` | 304 | 30.26 | **33.79** | 25.97 | 36.34 |  6.77 | 44.22 |
+| 75 | 76 | +1 | `Claude-Opus × SocratTeachLLM · EN · n=50` | 304 | 30.26 | **33.79** | 25.97 | 36.34 |  6.77 | 44.22 |
 | 76 | 75 | -1 | `tournament/archive/497374dd/round1/qwen27b-q4` | 300 | 30.67 | **33.13** | 28.47 | 33.13 |   —   | 33.25 |
 | 77 | 77 | · | `qwopus35b-a3b-local-mini-unified` | 146 | 30.14 | **32.69** | 26.63 | 34.31 |   —   | 35.39 |
 | 78 | 78 | · | `tournament/archive/497374dd/round1/qwen27b` | 304 | 28.62 | **32.35** | 26.66 | 32.35 |   —   | 33.42 |
@@ -139,7 +139,7 @@ Only cells with both stage_bal AND judge get a unified score (25/122 configs).
 | 88 | 89 | +1 | `tournament/archive/d9ac39c5/round1/qwen35b-a3b` | 297 | 21.55 | **23.99** | 22.48 | 23.99 |   —   | 31.43 |
 | 89 | 88 | -1 | `tournament/archive/497374dd/round1/mistral-24b` | 302 | 21.85 | **23.61** | 20.03 | 23.61 |   —   | 37.06 |
 | 90 | 91 | +1 | `tournament/archive/368b6431/round1/mistral-24b` | 308 | 20.13 | **23.35** | 18.60 | 23.35 |   —   | 37.49 |
-| 91 | 86 | -5 | `claude-sonnet-consultant-socratteachllm-EN-n50` | 303 | 22.11 | **22.55** | 20.87 | 22.80 |  6.62 | 55.85 |
+| 91 | 86 | -5 | `Claude-Sonnet × SocratTeachLLM · EN · n=50` | 303 | 22.11 | **22.55** | 20.87 | 22.80 |  6.62 | 55.85 |
 | 92 | 93 | +1 | `qwen35b-a3b-local-n50-unified-nothink` | 300 | 19.67 | **22.20** | 20.14 | 24.13 |   —   | 30.55 |
 | 93 | 94 | +1 | `tournament/archive/d9ac39c5/round1/qwen35-9b` | 305 | 19.02 | **21.88** | 17.50 | 21.88 |   —   | 28.41 |
 | 94 | 92 | -2 | `tournament/archive/497374dd/round1/qwen35b-a3b` | 304 | 19.74 | **21.86** | 20.91 | 21.86 |   —   | 31.30 |
@@ -148,7 +148,7 @@ Only cells with both stage_bal AND judge get a unified score (25/122 configs).
 | 97 | 99 | +2 | `tournament/archive/368b6431/round1/qwopus35b-a3b` | 307 | 17.92 | **20.73** | 15.20 | 20.73 |   —   | 33.13 |
 | 98 | 98 | · | `tournament/archive/d9ac39c5/round1/gemma3-27b` | 306 | 18.30 | **20.15** | 17.18 | 20.15 |   —   | 34.35 |
 | 99 | 101 | +2 | `tournament/archive/d9ac39c5/round1/mistral-24b` | 307 | 17.26 | **19.87** | 14.85 | 19.87 |   —   | 37.48 |
-| 100 | 96 | -4 | `claude-sonnet-consultant-socratteachllm-n50-clean` | 307 | 18.57 | **18.74** | 20.00 | 18.81 |  7.63 | 45.61 |
+| 100 | 96 | -4 | `Claude-Sonnet × SocratTeachLLM · clean · n=50` | 307 | 18.57 | **18.74** | 20.00 | 18.81 |  7.63 | 45.61 |
 | 101 | 103 | +2 | `R9700_Mac-M4` | 4262 | 15.16 | **18.41** | 11.89 | 18.41 |   —   | 43.57 |
 | 102 | 100 | -2 | `tournament/round1/qwen3-14b` | 306 | 17.65 | **18.37** | 19.44 | 18.37 |   —   | 36.40 |
 | 103 | 104 | +1 | `baseline_run1_en_bug` | 3978 | 15.08 | **17.92** | 13.90 | 19.81 |   —   |  0.29 |
@@ -168,58 +168,58 @@ Only cells with both stage_bal AND judge get a unified score (25/122 configs).
 | 117 | 117 | · | `tournament/round1/phi4-14b` | 298 |  9.73 | **10.70** |  7.75 | 10.70 |   —   | 35.64 |
 | 118 | 118 | · | `tournament/archive/d9ac39c5/round1/glm47-23b` | 305 |  9.51 | **10.67** |  8.59 | 10.67 |   —   | 30.90 |
 | 119 | 119 | · | `tournament/archive/497374dd/round1/deepseek-r1-14b` | 306 |  8.17 | ** 9.24** |  7.05 |  9.24 |   —   | 35.70 |
-| 120 | 120 | · | `claude-opus-consultant-socratteachllm-n50-BROKEN` | 308 |  0.00 | ** 0.00** |  0.00 |  0.00 |   —   | 13.20 |
-| 121 | 121 | · | `claude-sonnet-consultant-socratteachllm-n50` | 308 |  0.00 | ** 0.00** |  0.00 |  0.00 |   —   | 43.88 |
-| 122 | 122 | · | `claude-sonnet-consultant-socratteachllm-n50-BROKEN` | 308 |  0.00 | ** 0.00** |  0.00 |  0.00 |   —   | 13.20 |
+| 120 | 120 | · | `Claude-Opus × SocratTeachLLM · BROKEN · n=50` | 308 |  0.00 | ** 0.00** |  0.00 |  0.00 |   —   | 13.20 |
+| 121 | 121 | · | `Claude-Sonnet × SocratTeachLLM · n=50` | 308 |  0.00 | ** 0.00** |  0.00 |  0.00 |   —   | 43.88 |
+| 122 | 122 | · | `Claude-Sonnet × SocratTeachLLM · BROKEN · n=50` | 308 |  0.00 | ** 0.00** |  0.00 |  0.00 |   —   | 13.20 |
 
 ## Big movers UP (≥3 ranks under stage-balanced)
 
 | Δ | sb# | macro# | config | n | macro → stage_bal | stage_e |
 |---:|---:|---:|---|---:|---|---:|
-| +12 | 5 | 17 | `bert-consultant-fewshot10-claude-opus-n50` | 271 | 49.82 → 58.73 | 88.9% |
-| +12 | 15 | 27 | `bert-claude-sonnet-fewshot10-n50` | 267 | 47.94 → 57.32 | 95.7% |
-| +10 | 8 | 18 | `bert-claude-opus-top3-n681` | 3794 | 49.31 → 58.63 | 87.8% |
-| +10 | 31 | 41 | `bert-claude-sonnet-raw-n50` | 260 | 45.00 → 53.32 | 80.0% |
+| +12 | 5 | 17 | `bert × Claude-Opus · fewshot10 · n=50` | 271 | 49.82 → 58.73 | 88.9% |
+| +12 | 15 | 27 | `bert × Claude-Sonnet · fewshot10 · n=50` | 267 | 47.94 → 57.32 | 95.7% |
+| +10 | 8 | 18 | `bert × Claude-Opus · top3 · n=681` | 3794 | 49.31 → 58.63 | 87.8% |
+| +10 | 31 | 41 | `bert × Claude-Sonnet · raw · n=50` | 260 | 45.00 → 53.32 | 80.0% |
 | +8 | 6 | 14 | `tournament-cell-5-negative_exemplars` | 282 | 50.71 → 58.71 | 90.3% |
 | +7 | 4 | 11 | `tournament-cell-7-cot_scaffold` | 281 | 50.89 → 59.02 | 90.6% |
 | +7 | 39 | 46 | `tournament-cell-2-lexical_priors` | 262 | 43.89 → 50.97 | 73.9% |
-| +6 | 16 | 22 | `bert-consultant-fewshot10-claude-sonnet-n50` | 281 | 48.75 → 57.18 | 87.1% |
+| +6 | 16 | 22 | `bert × Claude-Sonnet · fewshot10 · n=50` | 281 | 48.75 → 57.18 | 87.1% |
 | +6 | 19 | 25 | `bert-consultant-fewshot10-n50` | 276 | 48.19 → 57.03 | 86.7% |
-| +6 | 38 | 44 | `bert-consultant-a3b-n50` | 261 | 44.06 → 52.31 | 80.0% |
+| +6 | 38 | 44 | `bert × A3B-35B · n=50` | 261 | 44.06 → 52.31 | 80.0% |
 | +5 | 28 | 33 | `tournament-cell-3-style_matched_exemplars` | 274 | 46.72 → 55.15 | 82.8% |
-| +5 | 29 | 34 | `bert-consultant-fewshot10-a3b-full` | 3762 | 46.57 → 54.72 | 84.0% |
-| +4 | 12 | 16 | `bert-claude-sonnet-top3-n681` | 3840 | 49.97 → 58.17 | 84.2% |
-| +4 | 25 | 29 | `bert-claude-opus-fewshot10-n50` | 272 | 47.43 → 55.52 | 84.0% |
-| +4 | 33 | 37 | `bert-fixed-gemma-fewshot10-n50` | 283 | 45.94 → 52.73 | 72.7% |
+| +5 | 29 | 34 | `bert × A3B-35B · fewshot10 · n=681` | 3762 | 46.57 → 54.72 | 84.0% |
+| +4 | 12 | 16 | `bert × Claude-Sonnet · top3 · n=681` | 3840 | 49.97 → 58.17 | 84.2% |
+| +4 | 25 | 29 | `bert × Claude-Opus · fewshot10 · n=50` | 272 | 47.43 → 55.52 | 84.0% |
+| +4 | 33 | 37 | `bert-fixed × Gemma-31B · fewshot10 · n=50` | 283 | 45.94 → 52.73 | 72.7% |
 | +3 | 3 | 6 | `tournament-cell-1-length_budget` | 281 | 51.96 → 59.50 | 83.9% |
-| +3 | 10 | 13 | `bert-gemma-composed-top3-n50` | 278 | 50.72 → 58.48 | 87.5% |
-| +3 | 18 | 21 | `bert-fixed-qwen27b-fewshot10-n50` | 271 | 49.08 → 57.15 | 84.6% |
-| +3 | 36 | 39 | `bert-fixed-a3b-fewshot10-n50` | 280 | 45.36 → 52.48 | 75.0% |
+| +3 | 10 | 13 | `bert × Gemma-31B · composed · top3 · n=50` | 278 | 50.72 → 58.48 | 87.5% |
+| +3 | 18 | 21 | `bert-fixed × Qwen-27B · think · fewshot10 · n=50` | 271 | 49.08 → 57.15 | 84.6% |
+| +3 | 36 | 39 | `bert-fixed × A3B-35B · fewshot10 · n=50` | 280 | 45.36 → 52.48 | 75.0% |
 | +3 | 42 | 45 | `bert-v2-consultant-fewshot10-n50` | 287 | 43.90 → 50.60 | 75.0% |
 
 ## Big movers DOWN (≥3 ranks under stage-balanced)
 
 | Δ | sb# | macro# | config | n | macro → stage_bal | stage_c |
 |---:|---:|---:|---|---:|---|---:|
-| -19 | 26 | 7 | `qwen3.5-qwen27b-nothink-fewshot10-n50` | 291 | 51.89 → 55.45 | 34.4% |
-| -15 | 23 | 8 | `qwen3.5-gemma-fewshot10-n50` | 285 | 51.58 → 56.13 | 33.3% |
+| -19 | 26 | 7 | `qwen3.5 × Qwen-27B · no-think · fewshot10 · n=50` | 291 | 51.89 → 55.45 | 34.4% |
+| -15 | 23 | 8 | `qwen3.5 × Gemma-31B · fewshot10 · n=50` | 285 | 51.58 → 56.13 | 33.3% |
 | -14 | 34 | 20 | `bert-consultant-richeval-mini` | 126 | 49.21 → 52.67 | 30.0% |
 | -10 | 41 | 31 | `qwen35b-a3b-local-mini-unified-fewshot10` | 147 | 46.94 → 50.73 | 25.5% |
 | -9 | 14 | 5 | `phase3-t4-bert-qwen27b-nothink-n200-seed42` | 1172 | 52.13 → 57.45 | 32.6% |
-| -8 | 9 | 1 | `qwen3.5-a3b-fewshot10-n50` | 288 | 54.86 → 58.62 | 39.6% |
-| -6 | 21 | 15 | `bert-consultant-fewshot10-gemma-mini` | 137 | 50.36 → 56.87 | 25.0% |
+| -8 | 9 | 1 | `qwen3.5 × A3B-35B · fewshot10 · n=50` | 288 | 54.86 → 58.62 | 39.6% |
+| -6 | 21 | 15 | `bert × Gemma-31B · fewshot10 · n=mini` | 137 | 50.36 → 56.87 | 25.0% |
 | -5 | 17 | 12 | `tournament-cell-4-per_state_exemplars` | 285 | 50.88 → 57.18 | 29.8% |
 | -5 | 40 | 35 | `phase3-t4-bert-qwen27b-think-n200-seed42-BROKEN-CUDA-LAUNCH-TIMEOUT` | 1245 | 46.51 → 50.82 | 27.5% |
 | -5 | 43 | 38 | `qwen27b-local-mini-unified` | 146 | 45.89 → 50.16 | 21.3% |
-| -5 | 63 | 58 | `claude-opus-consultant-socratteachllm-n50` | 307 | 38.44 → 41.68 | 24.0% |
-| -5 | 91 | 86 | `claude-sonnet-consultant-socratteachllm-EN-n50` | 303 | 22.11 → 22.55 | 18.8% |
+| -5 | 63 | 58 | `Claude-Opus × SocratTeachLLM · n=50` | 307 | 38.44 → 41.68 | 24.0% |
+| -5 | 91 | 86 | `Claude-Sonnet × SocratTeachLLM · EN · n=50` | 303 | 22.11 → 22.55 | 18.8% |
 | -4 | 13 | 9 | `tournament-cell-9-persona` | 275 | 51.27 → 57.65 | 30.8% |
 | -4 | 32 | 28 | `tournament-cell-10-compressed_history` | 280 | 47.50 → 52.87 | 29.8% |
 | -4 | 44 | 40 | `qwen35b-a3b-local-mini-unified-fewshot7` | 148 | 45.27 → 49.78 | 19.1% |
 | -4 | 46 | 42 | `bert-v2-consultant-fewshot10-mini` | 142 | 44.37 → 49.08 | 23.9% |
-| -4 | 100 | 96 | `claude-sonnet-consultant-socratteachllm-n50-clean` | 307 | 18.57 → 18.74 | 16.7% |
-| -3 | 7 | 4 | `qwen3.5-qwen27b-fewshot10-n50` | 282 | 53.19 → 58.68 | 31.9% |
-| -3 | 35 | 32 | `bert-fixed-qwen27b-nothink-fewshot10-n50` | 286 | 46.85 → 52.62 | 25.3% |
+| -4 | 100 | 96 | `Claude-Sonnet × SocratTeachLLM · clean · n=50` | 307 | 18.57 → 18.74 | 16.7% |
+| -3 | 7 | 4 | `qwen3.5 × Qwen-27B · think · fewshot10 · n=50` | 282 | 53.19 → 58.68 | 31.9% |
+| -3 | 35 | 32 | `bert-fixed × Qwen-27B · no-think · fewshot10 · n=50` | 286 | 46.85 → 52.62 | 25.3% |
 | -3 | 50 | 47 | `qwen35b-a3b-local-mini-unified-fewshot` | 148 | 43.24 → 45.74 | 27.7% |
 
 ## Per-stage breakdown (top 25 by stage_bal)
@@ -230,24 +230,24 @@ Only cells with both stage_bal AND judge get a unified score (25/122 configs).
 | 2 | `bert-consultant-fewshot10-a4b-mini` | 139 | 100.00 | 32.14 | 27.66 | 54.55 | 88.24 |
 | 3 | `tournament-cell-1-length_budget` | 281 | 100.00 | 37.29 | 26.32 | 50.00 | 83.87 |
 | 4 | `tournament-cell-7-cot_scaffold` | 281 | 100.00 | 32.20 | 24.47 | 47.83 | 90.62 |
-| 5 | `bert-consultant-fewshot10-claude-opus-n50` | 271 | 100.00 | 33.90 | 20.88 | 50.00 | 88.89 |
+| 5 | `bert × Claude-Opus · fewshot10 · n=50` | 271 | 100.00 | 33.90 | 20.88 | 50.00 | 88.89 |
 | 6 | `tournament-cell-5-negative_exemplars` | 282 | 100.00 | 30.51 | 27.08 | 45.65 | 90.32 |
-| 7 | `qwen3.5-qwen27b-fewshot10-n50` | 282 | 100.00 | 45.76 | 31.91 | 36.96 | 78.79 |
-| 8 | `bert-claude-opus-top3-n681` | 3794 | 99.27 | 36.79 | 23.95 | 45.36 | 87.78 |
-| 9 | `qwen3.5-a3b-fewshot10-n50` | 288 | 100.00 | 50.85 | 39.58 | 36.00 | 66.67 |
-| 10 | `bert-gemma-composed-top3-n50` | 278 | 100.00 | 33.90 | 24.47 | 46.51 | 87.50 |
-| 11 | `bert-consultant-fewshot10-gemma-n50` | 284 | 100.00 | 33.90 | 25.53 | 44.68 | 88.24 |
-| 12 | `bert-claude-sonnet-top3-n681` | 3840 | 99.27 | 35.61 | 26.48 | 45.30 | 84.20 |
+| 7 | `qwen3.5 × Qwen-27B · think · fewshot10 · n=50` | 282 | 100.00 | 45.76 | 31.91 | 36.96 | 78.79 |
+| 8 | `bert × Claude-Opus · top3 · n=681` | 3794 | 99.27 | 36.79 | 23.95 | 45.36 | 87.78 |
+| 9 | `qwen3.5 × A3B-35B · fewshot10 · n=50` | 288 | 100.00 | 50.85 | 39.58 | 36.00 | 66.67 |
+| 10 | `bert × Gemma-31B · composed · top3 · n=50` | 278 | 100.00 | 33.90 | 24.47 | 46.51 | 87.50 |
+| 11 | `bert × Gemma-31B · fewshot10 · n=50` | 284 | 100.00 | 33.90 | 25.53 | 44.68 | 88.24 |
+| 12 | `bert × Claude-Sonnet · top3 · n=681` | 3840 | 99.27 | 35.61 | 26.48 | 45.30 | 84.20 |
 | 13 | `tournament-cell-9-persona` | 275 | 100.00 | 35.59 | 30.77 | 39.13 | 82.76 |
 | 14 | `phase3-t4-bert-qwen27b-nothink-n200-seed42` | 1172 | 100.00 | 47.51 | 32.61 | 37.37 | 69.78 |
-| 15 | `bert-claude-sonnet-fewshot10-n50` | 267 | 100.00 | 30.51 | 24.73 | 35.71 | 95.65 |
-| 16 | `bert-consultant-fewshot10-claude-sonnet-n50` | 281 | 100.00 | 33.90 | 20.21 | 44.68 | 87.10 |
+| 15 | `bert × Claude-Sonnet · fewshot10 · n=50` | 267 | 100.00 | 30.51 | 24.73 | 35.71 | 95.65 |
+| 16 | `bert × Claude-Sonnet · fewshot10 · n=50` | 281 | 100.00 | 33.90 | 20.21 | 44.68 | 87.10 |
 | 17 | `tournament-cell-4-per_state_exemplars` | 285 | 100.00 | 27.12 | 29.79 | 45.65 | 83.33 |
-| 18 | `bert-fixed-qwen27b-fewshot10-n50` | 271 | 100.00 | 35.59 | 23.66 | 41.86 | 84.62 |
+| 18 | `bert-fixed × Qwen-27B · think · fewshot10 · n=50` | 271 | 100.00 | 35.59 | 23.66 | 41.86 | 84.62 |
 | 19 | `bert-consultant-fewshot10-n50` | 276 | 100.00 | 33.90 | 18.09 | 46.51 | 86.67 |
-| 20 | `bert-consultant-a3b-mini` | 128 | 100.00 | 25.00 | 21.43 | 52.63 | 85.71 |
-| 21 | `bert-consultant-fewshot10-gemma-mini` | 137 | 100.00 | 25.00 | 25.00 | 45.45 | 88.89 |
-| 22 | `bert-a3b-composed-top3-n50` | 276 | 100.00 | 32.20 | 19.57 | 45.65 | 86.21 |
-| 23 | `qwen3.5-gemma-fewshot10-n50` | 285 | 100.00 | 42.37 | 33.33 | 38.30 | 66.67 |
+| 20 | `bert × A3B-35B · n=mini` | 128 | 100.00 | 25.00 | 21.43 | 52.63 | 85.71 |
+| 21 | `bert × Gemma-31B · fewshot10 · n=mini` | 137 | 100.00 | 25.00 | 25.00 | 45.45 | 88.89 |
+| 22 | `bert × A3B-35B · composed · top3 · n=50` | 276 | 100.00 | 32.20 | 19.57 | 45.65 | 86.21 |
+| 23 | `qwen3.5 × Gemma-31B · fewshot10 · n=50` | 285 | 100.00 | 42.37 | 33.33 | 38.30 | 66.67 |
 | 24 | `bert-consultant-fewshot10-a4b-n50` | 274 | 100.00 | 27.12 | 26.88 | 40.91 | 85.71 |
-| 25 | `bert-claude-opus-fewshot10-n50` | 272 | 100.00 | 32.20 | 24.21 | 37.21 | 84.00 |
+| 25 | `bert × Claude-Opus · fewshot10 · n=50` | 272 | 100.00 | 32.20 | 24.21 | 37.21 | 84.00 |

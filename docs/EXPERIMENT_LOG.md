@@ -8,20 +8,21 @@ Engineering decisions, what we've tried, and what's next. Each entry is dated an
 
 **Ran:** Four-cell Qwen 27B grid (2 consultants × 2 reasoning modes) at n=50 fixed format, plus LLM-judge re-evaluation across all eight current cross-teacher cells (Gemma 31B / A3B 35B / Qwen 27B × bge-small / T4, with Qwen at both think and no-think). Total ~6h wall clock for the grid (think-mode bottlenecked) + ~$0.80 in Claude Sonnet 4.6 rubric judging. Introduced `docs/UNIFIED_RANKING.md` and a `unified` column on the backtest leaderboard.
 
-### 8-cell cross-teacher leaderboard (n=50 fixed format) — by **unified score**
+### 8-cell cross-teacher leaderboard (all at fewshot10, n=50, post-fix) — by **unified score**
 
-`unified = 0.5 × stage_balanced + 0.5 × (judge × 10)` (see `docs/UNIFIED_RANKING.md`)
+`unified = 0.5 × stage_balanced + 0.5 × (judge × 10)` (see `docs/UNIFIED_RANKING.md`).
+Cell labels follow `docs/NAMING_CONVENTION.md`.
 
 | u# | Cell | macro | sb | judge | **unified** | stage e |
 |:-:|---|---:|---:|---:|---:|---:|
-| 🥇 | **qwen3.5 × Gemma 31B** | 51.58 | 56.13 | **8.18** | **68.94** | 66.7 |
-| 🥈 | **bert-fixed × Gemma 31B** | 45.94 | 52.73 | **8.26** | **67.65** | 72.7 |
-| 🥉 | qwen3.5 × A3B 35B | 54.86 | 58.62 | 7.52 | **66.91** | 66.7 |
-| 4 | qwen3.5 × Qwen27B-think | 53.19 | **58.68** | 7.51 | **66.89** | 78.8 |
-| 5 | bert-fixed × Qwen27B-think | 49.08 | 57.15 | 7.41 | **65.65** | **84.6** |
-| 6 | qwen3.5 × Qwen27B-no-think | 51.89 | 55.45 | 7.56 | **65.54** | 58.3 |
-| 7 | bert-fixed × Qwen27B-no-think | 46.85 | 52.62 | 7.59 | **64.25** | 70.6 |
-| 8 | bert-fixed × A3B 35B | 45.36 | 52.48 | 7.49 | **63.70** | 75.0 |
+| 🥇 | **`qwen3.5 × Gemma-31B · fewshot10 · n=50`** | 51.58 | 56.13 | **8.18** | **68.94** | 66.7 |
+| 🥈 | **`bert-fixed × Gemma-31B · fewshot10 · n=50`** | 45.94 | 52.73 | **8.26** | **67.65** | 72.7 |
+| 🥉 | `qwen3.5 × A3B-35B · fewshot10 · n=50` | 54.86 | 58.62 | 7.52 | **66.91** | 66.7 |
+| 4 | `qwen3.5 × Qwen-27B · think · fewshot10 · n=50` | 53.19 | **58.68** | 7.51 | **66.89** | 78.8 |
+| 5 | `bert-fixed × Qwen-27B · think · fewshot10 · n=50` | 49.08 | 57.15 | 7.41 | **65.65** | **84.6** |
+| 6 | `qwen3.5 × Qwen-27B · no-think · fewshot10 · n=50` | 51.89 | 55.45 | 7.56 | **65.54** | 58.3 |
+| 7 | `bert-fixed × Qwen-27B · no-think · fewshot10 · n=50` | 46.85 | 52.62 | 7.59 | **64.25** | 70.6 |
+| 8 | `bert-fixed × A3B-35B · fewshot10 · n=50` | 45.36 | 52.48 | 7.49 | **63.70** | 75.0 |
 
 ### Six headline findings
 
@@ -63,18 +64,20 @@ The project has cycled through multiple state-classifier consultants. Display la
 
 ### Master ranked list — top 10 of 25 judged configs by unified
 
-| u# | Config | n | **unified** | sb | judge | macro | R-1 |
+Cell labels follow `docs/NAMING_CONVENTION.md`: `<consultant> × <teacher> · variant... · n=N`.
+
+| u# | Config | n_turns | **unified** | sb | judge | macro | R-1 |
 |:-:|---|---:|---:|---:|---:|---:|---:|
-| 🥇 | `bert-gemma-composed-top3-n50` | 278 | **70.08** | 58.48 | 8.17 | 50.72 | 41.13 |
-| 🥈 | `bert-claude-sonnet-top3-n681` | 3840 | **70.06** | 58.17 | 8.19 | 49.97 | 41.93 |
-| 🥉 | `bert-consultant-fewshot10-claude-opus-n50` | 271 | **69.79** | 58.73 | 8.08 | 49.82 | 42.77 |
-| 4 | `bert-claude-opus-top3-n681` | 3794 | **69.37** | 58.63 | 8.01 | 49.31 | 41.63 |
-| 5 | `bert-consultant-fewshot10-claude-sonnet-n50` | 281 | **69.16** | 57.18 | 8.11 | 48.75 | 43.02 |
-| 6 | `qwen3.5-gemma-fewshot10-n50` (cross-teacher winner; post-fix) | 285 | **68.94** | 56.13 | 8.18 | 51.58 | 38.76 |
-| 7 | `bert-consultant-fewshot10-gemma-full` ← **LOCKED HEADLINE** (n=681) | 3834 | **68.65** | 55.42 | 8.19 | 48.15 | 36.78 |
-| 8 | `bert-claude-sonnet-fewshot10-n50` | 267 | **67.85** | 57.32 | 7.84 | 47.94 | 39.68 |
-| 9 | `bert-fixed-gemma-fewshot10-n50` | 283 | **67.65** | 52.73 | 8.26 | 45.94 | 38.69 |
-| 10 | `qwen3.5-a3b-fewshot10-n50` | 288 | **66.91** | 58.62 | 7.52 | 54.86 | 35.67 |
+| 🥇 | `bert × Gemma-31B · composed · top3 · n=50` | 278 | **70.08** | 58.48 | 8.17 | 50.72 | 41.13 |
+| 🥈 | `bert × Claude-Sonnet · top3 · n=681` | 3840 | **70.06** | 58.17 | 8.19 | 49.97 | 41.93 |
+| 🥉 | `bert × Claude-Opus · fewshot10 · n=50` | 271 | **69.79** | 58.73 | 8.08 | 49.82 | 42.77 |
+| 4 | `bert × Claude-Opus · top3 · n=681` | 3794 | **69.37** | 58.63 | 8.01 | 49.31 | 41.63 |
+| 5 | `bert × Claude-Sonnet · fewshot10 · n=50` | 281 | **69.16** | 57.18 | 8.11 | 48.75 | 43.02 |
+| 6 | **`qwen3.5 × Gemma-31B · fewshot10 · n=50`** ← cross-teacher winner (post-fix) | 285 | **68.94** | 56.13 | 8.18 | 51.58 | 38.76 |
+| 7 | `bert × Gemma-31B · fewshot10 · n=681` ← **LOCKED HEADLINE** | 3834 | **68.65** | 55.42 | 8.19 | 48.15 | 36.78 |
+| 8 | `bert × Claude-Sonnet · fewshot10 · n=50` | 267 | **67.85** | 57.32 | 7.84 | 47.94 | 39.68 |
+| 9 | `bert-fixed × Gemma-31B · fewshot10 · n=50` | 283 | **67.65** | 52.73 | 8.26 | 45.94 | 38.69 |
+| 10 | `qwen3.5 × A3B-35B · fewshot10 · n=50` | 288 | **66.91** | 58.62 | 7.52 | 54.86 | 35.67 |
 
 Note: ranks 1-5, 7, 8 are pre-fix `bert` (legacy); ranks 6, 10 are post-fix `qwen3.5`; rank 9 is post-fix `bert-fixed`. The pre-fix BERT runs benefit from the input-format duplication that was later patched out — so their lead over the post-fix runs is partially a measurement artifact rather than a pure capability gap. See `docs/CONSULTANT_UPGRADE_LOG.md` §"Asymmetric consultant sensitivity" for the detailed analysis.
 
