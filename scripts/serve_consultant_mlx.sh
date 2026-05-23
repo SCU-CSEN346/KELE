@@ -16,15 +16,12 @@ HOST="${CONSULTANT_HOST:-0.0.0.0}"
 PORT="${CONSULTANT_PORT:-8080}"
 MODEL="${CONSULTANT_MODEL_NAME:?Set CONSULTANT_MODEL_NAME to the HF repo ID (e.g. source configs/consultants/m4-mlx.env)}"
 LOG_FILE="${CONSULTANT_LOG_FILE:-logs/mlx_consultant.log}"
-KV_SIZE="${CONSULTANT_NUM_CTX:-16384}"
-
 mkdir -p logs
 
 echo "=== mlx_lm Consultant (Mac Mini) ==="
 echo "Model:    $MODEL"
 echo "Host:     $HOST"
 echo "Port:     $PORT"
-echo "KV size:  $KV_SIZE"
 echo "Log:      $LOG_FILE"
 echo ""
 
@@ -43,7 +40,6 @@ else
         --model "$MODEL" \
         --host "$HOST" \
         --port "$PORT" \
-        --max-kv-size "$KV_SIZE" \
         > "$LOG_FILE" 2>&1 &
     MLX_PID=$!
     echo "PID: $MLX_PID  Log: $LOG_FILE"
