@@ -39,6 +39,7 @@ Approximate total memory per quant level:
 |---|---|---|---|---|---|
 | Qwen3.5-9B UD-Q6_K_XL | GGUF | ~9.5 GB | ~1.9 GB | ~11.4 GB | Borderline |
 | Qwen3.5-9B UD-Q5_K_XL | GGUF | ~7.5 GB | ~1.9 GB | ~9.4 GB | Yes |
+| **Qwen3.5-9B** | **MLX 4-bit** | **~5.5 GB** | **~1.9 GB** | **~7.4 GB** | **Yes** |
 | Qwen3-8B | MLX 4-bit | ~4.8 GB | ~1.2 GB | ~6 GB | Comfortable |
 | Qwen3-8B | MLX 8-bit | ~8.5 GB | ~1.2 GB | ~9.7 GB | Yes |
 | Qwen2.5-7B | MLX 4-bit | ~4.3 GB | ~1.0 GB | ~5.3 GB | Comfortable |
@@ -74,6 +75,9 @@ python -m mlx_lm.server --help
 Models live in the `mlx-community/` organization on Hugging Face. No conversion needed.
 
 ```bash
+# 4-bit Qwen3.5-9B (~5.5 GB) — model used in the dual-Mac MLX eval
+huggingface-cli download mlx-community/Qwen3.5-9B-MLX-4bit
+
 # 4-bit Qwen3-8B (~4.8 GB) — best speed/quality tradeoff for 16 GB M4
 huggingface-cli download mlx-community/Qwen3-8B-4bit
 
@@ -149,6 +153,34 @@ curl http://Ulisess-Mac-mini.local:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{"model":"Qwen3-8B-4bit","messages":[{"role":"user","content":"say hi"}],"max_tokens":5}'
 ```
+
+---
+
+## Dual-Mac parallel eval
+
+With two Mac Mini M4s both serving `mlx-community/Qwen3.5-9B-MLX-4bit`, the eval workload
+is split by dialogue index: even IDs → MAC1, odd IDs → MAC2.
+
+**On each Mac Mini (run once per session):**
+```bash
+source configs/consultants/m4-mlx.env
+./scripts/serve_consultant_mlx.sh
+```
+
+**On the AMD host (after both Macs are serving):**
+```bash
+./scripts/eval_amd_2mac_mlx.sh                # full run
+./scripts/eval_amd_2mac_mlx.sh --limit 10     # smoke test
+```
+
+Override hostnames if needed:
+```bash
+MAC1_CONSULTANT_URL=http://192.168.1.10:8080/v1 \
+MAC2_CONSULTANT_URL=http://192.168.1.11:8080/v1 \
+./scripts/eval_amd_2mac_mlx.sh
+```
+
+Results land in `results/local-mac-m4-mlx/`.
 
 ---
 
