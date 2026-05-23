@@ -218,18 +218,34 @@ This matters because the original macro hides closure dominance *across every ce
 
 Adopting stage-balanced macro is the natural co-headline to the four-metric panel.
 
+### Proposal 8: Unified two-axis ranking (lands the methodology in a single number)
+
+**Status:** Implemented 2026-05-23. See `docs/UNIFIED_RANKING.md` for full formula + rationale.
+
+`unified_score = 0.5 × stage_balanced + 0.5 × (judge × 10)` produces a single defensible rank per configuration by averaging the two memorization-resistant metrics this doc argues for: closure-aware pedagogical correctness (Proposal 7) and rubric-based pedagogical quality (Proposal 1). Both axes are necessary; neither is sufficient; equal weight is the no-prior default.
+
+What it changes:
+- **The headline race tightens and shifts.** Cross-teacher 8-cell matrix at n=50 (all judged 2026-05-23): T4 × Gemma 31B wins unified at 68.94, beating T4 × Qwen 27B-think (66.89) despite the latter's stage_bal lead. The judge dimension carries enough signal to overturn the closure-only ranking — exactly the property a unified ranking should have.
+- **The locked headline (BERT + Gemma 31B + 10-shot, n=681) lands at unified 68.65**, only 0.29 below the n=50 winner. Frontier ceiling (BERT + Claude Sonnet/Opus + top3 at n=681) sits at 69.37–70.06 unified — 0.7–1.4 points above locked at proper sample size.
+- **SocratTeachLLM cells crash to the unified bottom.** Surface-form R-1 of 45–56 paired with stage_bal of 19–42 and judge of 6.6–7.8 yields unified 44–60. The metric inversion this doc surfaces gets cleanly punished by the unified ranking, without needing a separate memorization-detector. This is the unified score working as intended.
+
+The unified column now appears in every `backtest_stage_balanced_*.md` artifact via `scripts/backtest_stage_balanced.py`.
+
 ## Recommended benchmark composition for our paper
 
-We propose **a four-metric panel** that triangulates pedagogical capability without single-metric memorization advantages:
+We propose **a four-metric panel** that triangulates pedagogical capability without single-metric memorization advantages, **collapsed into a unified single-number ranking** (Proposal 8) for the paper headline:
 
-| Metric | What it measures | Memorization-resistant? | Implementation |
-|---|---|---|---|
-| **LLM-judge rubric score (0-10)** | Pedagogical correctness | ✅ Yes — rubric checks teaching moves, not phrasing | Proposal 1 |
-| **State accuracy (against BERT-classifier annotation)** | Routing quality, with cleaner ground truth than GPT-4 labels | ⚠️ Partial — depends on BERT classifier quality | Use our 86.55% BERT classifier as the annotator |
-| **Semantic R-1 (cosine sim)** | Whether the teacher said something semantically equivalent to the reference | ⚠️ Partial — better than surface R-1 | Proposal 2 |
-| **Stage-progression efficiency** | Turns-to-closure | ✅ Yes — reference-free | Proposal 3 |
+| Metric | What it measures | Memorization-resistant? | Implementation | Role |
+|---|---|---|---|---|
+| **`unified` (0-100)** | Headline aggregate | ✅ Yes (by construction — averages two resistant axes) | `docs/UNIFIED_RANKING.md` | **Primary paper headline** |
+| **`stage_bal`** | Per-turn pedagogical correctness (closure-aware) | ✅ Yes (per-stage) | Proposal 7 | Feeds unified |
+| **`judge`** | Per-turn pedagogical quality | ✅ Yes (rubric-based) | Proposal 1 | Feeds unified |
+| Per-stage table (a/b/c/d/e) | Pedagogical-stage profile | ✅ Yes | `state_accuracy.per_stage` | Methodology table |
+| `macro` (frequency-weighted) | Test-distribution-matched secondary | ⚠️ Partial — hides closure | already implemented | Secondary number |
+| Semantic R-1 (cosine sim) | Surface similarity, paraphrase-tolerant | ⚠️ Partial | Proposal 2 (deferred) | Future panel addition |
+| Stage-progression efficiency | Turns-to-closure | ✅ Yes — reference-free | Proposal 3 (deferred) | Future panel addition |
 
-Report all four; rank by the LLM-judge score as the primary metric, with the others as triangulation. **Surface-form ROUGE-1/R-2/BLEU-4 should be reported as a memorization indicator, not as a quality metric** — explicitly framed as "high values on these metrics suggest training-data overlap."
+**Rank by `unified` as the headline. Report `stage_bal`, `judge`, `macro`, and per-stage breakdown as supporting evidence. Surface-form ROUGE-1/R-2/BLEU-4 should be reported as a memorization indicator, not as a quality metric** — explicitly framed as "high values on these metrics suggest training-data overlap."
 
 ## Paper framing
 

@@ -120,6 +120,18 @@ def main() -> int:
                 judge_score = json.loads(jfile.read_text()).get("overall_avg")
             except Exception:
                 pass
+        # Unified score — 50/50 blend of stage_balanced (closure-aware
+        # correctness) and judge*10 (memorization-resistant quality).
+        # See docs/UNIFIED_RANKING.md for the formula's full rationale.
+        # Both inputs on [0,100] → output on [0,100]. Only defined when both
+        # stage_bal and judge are available (cells without judge get None,
+        # not a fallback — we won't fake-rank an unjudged cell).
+        unified = None
+        unified_ped = None
+        if sb is not None and judge_score is not None:
+            unified = 0.5 * sb + 0.5 * (judge_score * 10.0)
+            if ped is not None:
+                unified_ped = 0.5 * ped + 0.5 * (judge_score * 10.0)
         rows.append({
             "config": mfile.parent.relative_to(args.results_root).as_posix(),
             "n": n_turns,
@@ -128,6 +140,8 @@ def main() -> int:
             "pedagogical": ped,
             "freq_inv": finv,
             "judge": judge_score,
+            "unified": unified,
+            "unified_ped": unified_ped,
             "rouge1": m.get("rouge1"),
             "per_stage": per_stage,
             "counts": counts,
@@ -137,6 +151,8 @@ def main() -> int:
     rows_with_sb.sort(key=lambda r: -r["stage_bal"])
     rows_by_macro = sorted(rows, key=lambda r: -(r["macro"] or 0))
     macro_rank = {r["config"]: i + 1 for i, r in enumerate(rows_by_macro)}
+    rows_with_unified = [r for r in rows if r["unified"] is not None]
+    rows_with_unified.sort(key=lambda r: -r["unified"])
 
     if args.out is None:
         from datetime import datetime
@@ -155,10 +171,27 @@ def main() -> int:
     lines.append("- **pedagogical** — Option B: weights `a=.10 b=.20 c=.25 d=.20 e=.25` giving closure parity with questioning.")
     lines.append("- **freq_inv** — Option C: weights ∝ 1/(per-stage turn count); falls back to stage_bal when counts unavailable.")
     lines.append("- **judge** — LLM-judge `overall_avg` from `judge_summary.json` (Claude Sonnet 4.6 rubric, 0-10 scale); `—` if not judged.")
+    lines.append("- **unified** — `0.5 × stage_bal + 0.5 × (judge × 10)`. The recommended single-number ranking for the paper headline. See `docs/UNIFIED_RANKING.md` for full rationale.")
+    lines.append("- **unified_ped** — same as `unified` but using `pedagogical` instead of `stage_bal`. Pedagogically-informed alternative.")
     lines.append("- **Δrank** — `macro_rank − stage_bal_rank` (positive = moved UP under stage-balanced; negative = moved DOWN).")
     lines.append("")
     n_judged = sum(1 for r in rows_with_sb if r["judge"] is not None)
-    lines.append(f"## Leaderboard (sorted by stage_bal; Δrank vs macro; {n_judged}/{len(rows_with_sb)} have judge scores)")
+    n_unified = len(rows_with_unified)
+    lines.append("## Master ranked list (by unified score = 0.5 × stage_bal + 0.5 × (judge × 10))")
+    lines.append("")
+    lines.append(f"Only cells with both stage_bal AND judge get a unified score ({n_unified}/{len(rows_with_sb)} configs).")
+    lines.append("")
+    lines.append("| u# | config | n | **unified** | unified_ped | stage_bal | judge | macro | R-1 |")
+    lines.append("|---:|---|---:|---:|---:|---:|---:|---:|---:|")
+    for i, r in enumerate(rows_with_unified, 1):
+        lines.append(
+            f"| {i} | `{r['config']}` | {r['n']} | "
+            f"**{r['unified']:5.2f}** | {r['unified_ped']:5.2f} | "
+            f"{fmt_pct(r['stage_bal'])} | {r['judge']:5.2f} | "
+            f"{fmt_pct(r['macro'])} | {fmt_pct(r['rouge1'])} |"
+        )
+    lines.append("")
+    lines.append(f"## Stage-balanced leaderboard (all configs; sorted by stage_bal; Δrank vs macro; {n_judged}/{len(rows_with_sb)} have judge scores)")
     lines.append("")
     lines.append("| sb# | macro# | Δ | config | n | macro | stage_bal | pedagogical | freq_inv | judge | R-1 |")
     lines.append("|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|")
