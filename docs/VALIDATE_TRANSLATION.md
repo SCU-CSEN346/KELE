@@ -144,9 +144,10 @@ Only needs Python + `datasets`. No model download, no server.
 
 ```bash
 uv sync
-uv run huggingface-cli login   # or set HF_TOKEN env var
 uv run python -m project.validate_translation --structural-only
 ```
+
+> Both HF repos are public — no login required. Anonymous downloads are rate-limited; set `HF_TOKEN` if you hit 429s.
 
 ### Phase 2 (LLM quality eval — mlx-lm)
 
@@ -154,7 +155,7 @@ Install `mlx-lm` and download the model (one-time):
 
 ```bash
 uv add mlx-lm
-uv run huggingface-cli download mlx-community/Qwen3.5-9B-MLX-4bit
+uv run huggingface-cli download mlx-community/Qwen3.5-9B-MLX-4bit  # ~4 GB; no login needed
 ```
 
 Start the server using the existing script (or directly):
