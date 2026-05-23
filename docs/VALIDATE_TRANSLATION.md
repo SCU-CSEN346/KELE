@@ -125,6 +125,12 @@ MODEL: str = "~/.models/mlx-community--Qwen3.5-9B-4bit"   # local path; same on 
 SAMPLE_SIZE: float = 0.05         # fraction of dataset; set 1.0 for full run
 SAMPLE_SEED: int = 42
 THINKING_BUDGET: int = 0          # 0 = off; translation eval doesn't need CoT
+# When THINKING_BUDGET == 0, pass to every API call:
+#   extra_body={"chat_template_kwargs": {"enable_thinking": False}}
+# When > 0 (llama.cpp only):
+#   extra_body={"chat_template_kwargs": {"thinking_budget": THINKING_BUDGET}}
+# Note: Qwen3's chat template ignores thinking_budget — enable_thinking is the real toggle.
+# See translate_dataset.py for the reference implementation of this pattern.
 
 SHARD: str = "all"                # "all" | "odd" | "even" — for two-node parallel runs
 
