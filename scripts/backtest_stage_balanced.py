@@ -112,6 +112,14 @@ def main() -> int:
         sb = stage_balanced(per_stage)
         ped = pedagogical(per_stage)
         finv = freq_inverse(per_stage, counts)
+        # LLM-judge: read judge_summary.json sibling if present
+        judge_score = None
+        jfile = mfile.parent / "judge_summary.json"
+        if jfile.exists():
+            try:
+                judge_score = json.loads(jfile.read_text()).get("overall_avg")
+            except Exception:
+                pass
         rows.append({
             "config": mfile.parent.relative_to(args.results_root).as_posix(),
             "n": n_turns,
@@ -119,6 +127,7 @@ def main() -> int:
             "stage_bal": sb,
             "pedagogical": ped,
             "freq_inv": finv,
+            "judge": judge_score,
             "rouge1": m.get("rouge1"),
             "per_stage": per_stage,
             "counts": counts,
@@ -145,21 +154,24 @@ def main() -> int:
     lines.append("- **stage_bal** — Option A: `(1/5) × Σ p_s`. ML-standard macro-F1 move; recommended new headline.")
     lines.append("- **pedagogical** — Option B: weights `a=.10 b=.20 c=.25 d=.20 e=.25` giving closure parity with questioning.")
     lines.append("- **freq_inv** — Option C: weights ∝ 1/(per-stage turn count); falls back to stage_bal when counts unavailable.")
+    lines.append("- **judge** — LLM-judge `overall_avg` from `judge_summary.json` (Claude Sonnet 4.6 rubric, 0-10 scale); `—` if not judged.")
     lines.append("- **Δrank** — `macro_rank − stage_bal_rank` (positive = moved UP under stage-balanced; negative = moved DOWN).")
     lines.append("")
-    lines.append("## Leaderboard (sorted by stage_bal; Δrank vs macro)")
+    n_judged = sum(1 for r in rows_with_sb if r["judge"] is not None)
+    lines.append(f"## Leaderboard (sorted by stage_bal; Δrank vs macro; {n_judged}/{len(rows_with_sb)} have judge scores)")
     lines.append("")
-    lines.append("| sb# | macro# | Δ | config | n | macro | stage_bal | pedagogical | freq_inv | R-1 |")
-    lines.append("|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|")
+    lines.append("| sb# | macro# | Δ | config | n | macro | stage_bal | pedagogical | freq_inv | judge | R-1 |")
+    lines.append("|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|")
     for i, r in enumerate(rows_with_sb, 1):
         mrank = macro_rank.get(r["config"], 0)
         drank = mrank - i
         d_str = f"+{drank}" if drank > 0 else (f"{drank}" if drank < 0 else "·")
+        judge_str = f"{r['judge']:5.2f}" if r["judge"] is not None else "  —  "
         lines.append(
             f"| {i} | {mrank} | {d_str} | `{r['config']}` | {r['n']} | "
             f"{fmt_pct(r['macro'])} | **{fmt_pct(r['stage_bal'])}** | "
             f"{fmt_pct(r['pedagogical'])} | {fmt_pct(r['freq_inv'])} | "
-            f"{fmt_pct(r['rouge1'])} |"
+            f"{judge_str} | {fmt_pct(r['rouge1'])} |"
         )
 
     big_movers_up = [(i + 1, macro_rank[r["config"]] - (i + 1), r)
