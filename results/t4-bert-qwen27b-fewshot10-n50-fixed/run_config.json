@@ -1,0 +1,16 @@
+{
+  "experiment": "t4-bert-qwen27b-fewshot10-n50-fixed",
+  "teacher_model": "Qwen 27B Q5",
+  "teacher_base_url": "http://localhost:8080/v1",
+  "consultant_model": "Qwen 27B Q5",
+  "consultant_base_url": "http://localhost:8080/v1",
+  "thinking_budget": 0,
+  "max_teaching_rounds": 8,
+  "unified": false,
+  "workers": 1,
+  "total_dialogues": 50,
+  "completed": 50,
+  "total_elapsed_seconds": 8041.32,
+  "started_at": "2026-05-22 23:12:18",
+  "finished_at": "2026-05-23 01:26:20"
+}

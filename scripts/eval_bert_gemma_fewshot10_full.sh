@@ -53,8 +53,8 @@ echo
 if command -v nvidia-smi &>/dev/null; then
   VRAM_FREE=$(nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits 2>/dev/null | head -1)
   echo "GPU VRAM free: ${VRAM_FREE} MiB"
-  if [[ "$VRAM_FREE" =~ ^[0-9]+$ ]] && [[ "$VRAM_FREE" -lt 30500 ]]; then
-    echo "WARN: less than 30.5 GB VRAM free — server may OOM at 220K context." >&2
+  if [[ "$VRAM_FREE" =~ ^[0-9]+$ ]] && [[ "$VRAM_FREE" -lt 26500 ]]; then
+    echo "WARN: less than 26.5 GB VRAM free — server may OOM at 180K context." >&2
   fi
 fi
 
