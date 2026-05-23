@@ -79,6 +79,27 @@ def fmt_pct(v: float | None) -> str:
     return f"{v:5.2f}" if v is not None else "  —  "
 
 
+def display_name(config: str) -> str:
+    """Translate raw results/-relative config dir name to a display label
+    that reflects the actual consultant in use. The dir naming convention
+    is historical:
+      - `bert-*`           → legacy default = bge-small consultant
+      - `bge-small-bert-*` → explicit bge-small consultant (newer fixed runs)
+      - `t4-bert-*`        → T4 (Qwen3.5-0.8B-LoRA) consultant
+      - `claude-*-consultant-*`, `bert-claude-*` etc. — left untouched
+    Rewrite the "bert" infix to "bge" wherever it actually means bge-small,
+    so the leaderboard is read as `bge × …` and `T4 × …`. Claude-consultant
+    cells (e.g., `claude-opus-consultant-socratteachllm-*`) are unaffected.
+    """
+    if config.startswith("bge-small-bert-"):
+        return "bge-" + config[len("bge-small-bert-"):]
+    if config.startswith("t4-bert-"):
+        return "T4-" + config[len("t4-bert-"):]
+    if config.startswith("bert-"):
+        return "bge-" + config[len("bert-"):]
+    return config
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--min-turns", type=int, default=50)
@@ -185,7 +206,7 @@ def main() -> int:
     lines.append("|---:|---|---:|---:|---:|---:|---:|---:|---:|")
     for i, r in enumerate(rows_with_unified, 1):
         lines.append(
-            f"| {i} | `{r['config']}` | {r['n']} | "
+            f"| {i} | `{display_name(r['config'])}` | {r['n']} | "
             f"**{r['unified']:5.2f}** | {r['unified_ped']:5.2f} | "
             f"{fmt_pct(r['stage_bal'])} | {r['judge']:5.2f} | "
             f"{fmt_pct(r['macro'])} | {fmt_pct(r['rouge1'])} |"
@@ -201,7 +222,7 @@ def main() -> int:
         d_str = f"+{drank}" if drank > 0 else (f"{drank}" if drank < 0 else "·")
         judge_str = f"{r['judge']:5.2f}" if r["judge"] is not None else "  —  "
         lines.append(
-            f"| {i} | {mrank} | {d_str} | `{r['config']}` | {r['n']} | "
+            f"| {i} | {mrank} | {d_str} | `{display_name(r['config'])}` | {r['n']} | "
             f"{fmt_pct(r['macro'])} | **{fmt_pct(r['stage_bal'])}** | "
             f"{fmt_pct(r['pedagogical'])} | {fmt_pct(r['freq_inv'])} | "
             f"{judge_str} | {fmt_pct(r['rouge1'])} |"
@@ -223,7 +244,7 @@ def main() -> int:
         for sb_rank, d, r in sorted(big_movers_up, key=lambda x: -x[1])[:20]:
             stage_e = r["per_stage"].get("e", 0)
             lines.append(
-                f"| +{d} | {sb_rank} | {macro_rank[r['config']]} | `{r['config']}` | {r['n']} | "
+                f"| +{d} | {sb_rank} | {macro_rank[r['config']]} | `{display_name(r['config'])}` | {r['n']} | "
                 f"{r['macro']:.2f} → {r['stage_bal']:.2f} | {stage_e:.1f}% |"
             )
 
@@ -236,7 +257,7 @@ def main() -> int:
         for sb_rank, d, r in sorted(big_movers_dn, key=lambda x: x[1])[:20]:
             stage_c = r["per_stage"].get("c", 0)
             lines.append(
-                f"| {d} | {sb_rank} | {macro_rank[r['config']]} | `{r['config']}` | {r['n']} | "
+                f"| {d} | {sb_rank} | {macro_rank[r['config']]} | `{display_name(r['config'])}` | {r['n']} | "
                 f"{r['macro']:.2f} → {r['stage_bal']:.2f} | {stage_c:.1f}% |"
             )
 
@@ -248,7 +269,7 @@ def main() -> int:
     for i, r in enumerate(rows_with_sb[: args.top], 1):
         ps = r["per_stage"]
         lines.append(
-            f"| {i} | `{r['config']}` | {r['n']} | "
+            f"| {i} | `{display_name(r['config'])}` | {r['n']} | "
             f"{fmt_pct(ps.get('a'))} | {fmt_pct(ps.get('b'))} | {fmt_pct(ps.get('c'))} | "
             f"{fmt_pct(ps.get('d'))} | {fmt_pct(ps.get('e'))} |"
         )

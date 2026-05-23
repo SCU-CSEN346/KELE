@@ -50,18 +50,20 @@ n=50 cannot definitively pick a paper headline (±6 pp variance per `CONVERGENCE
 
 ### Master ranked list — top 10 of 25 judged configs by unified
 
+Display labels: `bge` = bge-small consultant; `T4` = Qwen3.5-0.8B-LoRA consultant. (Older dirs were named with the legacy `bert-` prefix even when the consultant is bge-small; `scripts/backtest_stage_balanced.py` now rewrites those for the leaderboard.)
+
 | u# | Config | n | **unified** | sb | judge | macro | R-1 |
 |:-:|---|---:|---:|---:|---:|---:|---:|
-| 🥇 | `bert-gemma-composed-top3-n50` | 278 | **70.08** | 58.48 | 8.17 | 50.72 | 41.13 |
-| 🥈 | `bert-claude-sonnet-top3-n681` | 3840 | **70.06** | 58.17 | 8.19 | 49.97 | 41.93 |
-| 🥉 | `bert-consultant-fewshot10-claude-opus-n50` | 271 | **69.79** | 58.73 | 8.08 | 49.82 | 42.77 |
-| 4 | `bert-claude-opus-top3-n681` | 3794 | **69.37** | 58.63 | 8.01 | 49.31 | 41.63 |
-| 5 | `bert-consultant-fewshot10-claude-sonnet-n50` | 281 | **69.16** | 57.18 | 8.11 | 48.75 | 43.02 |
-| 6 | `t4-bert-gemma-fewshot10-n50-fixed` (the cross-teacher winner) | 285 | **68.94** | 56.13 | 8.18 | 51.58 | 38.76 |
-| 7 | `bert-consultant-fewshot10-gemma-full` ← **LOCKED HEADLINE** (n=681) | 3834 | **68.65** | 55.42 | 8.19 | 48.15 | 36.78 |
-| 8 | `bert-claude-sonnet-fewshot10-n50` | 267 | **67.85** | 57.32 | 7.84 | 47.94 | 39.68 |
-| 9 | `bge-small-bert-gemma-fewshot10-n50-fixed` | 283 | **67.65** | 52.73 | 8.26 | 45.94 | 38.69 |
-| 10 | `t4-bert-a3b-fewshot10-n50-fixed` | 288 | **66.91** | 58.62 | 7.52 | 54.86 | 35.67 |
+| 🥇 | `bge-gemma-composed-top3-n50` | 278 | **70.08** | 58.48 | 8.17 | 50.72 | 41.13 |
+| 🥈 | `bge-claude-sonnet-top3-n681` | 3840 | **70.06** | 58.17 | 8.19 | 49.97 | 41.93 |
+| 🥉 | `bge-consultant-fewshot10-claude-opus-n50` | 271 | **69.79** | 58.73 | 8.08 | 49.82 | 42.77 |
+| 4 | `bge-claude-opus-top3-n681` | 3794 | **69.37** | 58.63 | 8.01 | 49.31 | 41.63 |
+| 5 | `bge-consultant-fewshot10-claude-sonnet-n50` | 281 | **69.16** | 57.18 | 8.11 | 48.75 | 43.02 |
+| 6 | `T4-gemma-fewshot10-n50-fixed` (the cross-teacher winner) | 285 | **68.94** | 56.13 | 8.18 | 51.58 | 38.76 |
+| 7 | `bge-consultant-fewshot10-gemma-full` ← **LOCKED HEADLINE** (n=681) | 3834 | **68.65** | 55.42 | 8.19 | 48.15 | 36.78 |
+| 8 | `bge-claude-sonnet-fewshot10-n50` | 267 | **67.85** | 57.32 | 7.84 | 47.94 | 39.68 |
+| 9 | `bge-gemma-fewshot10-n50-fixed` | 283 | **67.65** | 52.73 | 8.26 | 45.94 | 38.69 |
+| 10 | `T4-a3b-fewshot10-n50-fixed` | 288 | **66.91** | 58.62 | 7.52 | 54.86 | 35.67 |
 
 **The locked headline survives at #7 unified** — a meaningful but not-decisive vindication. Five n=50 configs technically score higher, but four are open-weight cells where n=50 vs n=681 dispersion (±6 pp on state acc) easily covers the gap. **The first config that meaningfully beats the locked headline at full sample size is `bert-claude-sonnet-top3-n681`** at unified 70.06 — confirming the "Claude top3 frontier ceiling" finding at the proper sample size, with a 1.41-point unified lead over the locked open-weight result.
 
