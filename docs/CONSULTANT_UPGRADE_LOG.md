@@ -1,12 +1,36 @@
 # Consultant-Axis Upgrade — campaign log
 
 **Started:** 2026-05-22 (mid-morning, PDT)
-**Branch:** `mk/final-project-legs`
+**Branch:** `mk/final-project-legs` (this work shipped, then `mk/post-funnel-experiments` continued the downstream evaluation)
 **Goal:** Test 4 candidate backbones to potentially upgrade the locked state-classifier consultant from `bge-small-zh-v1.5` (86.55% stage / 61.64% state) to something better. Spec in [`EXPERIMENT_TIERS.md`](EXPERIMENT_TIERS.md#-locked-next-steps-queue--consultant-axis-upgrade-2026-05-22).
 
 This doc is the **recovery log** — if the machine crashes, a fresh Claude session can read this doc + the EXPERIMENT_TIERS queue + `git log` and resume without losing context.
 
-## ⚡ LIVE STATE — last updated 2026-05-22 ~16:32 PDT (PM session, Layer-2 mini-tests)
+## ✅ FINAL STATE — campaign complete as of 2026-05-23 (updated 2026-05-23 PM)
+
+**Funnel winner: T4 (Qwen3.5-0.8B-Base + LoRA r=8)** at 67.57% Layer-1 state accuracy (+6.23 pp over bge-small baseline). Detailed Layer-1 numbers and rationale preserved below.
+
+**Layer-2 (end-to-end pipeline eval) is complete.** All four cross-teacher cells with the T4 consultant (now labeled `qwen3.5` per [`docs/NAMING_CONVENTION.md`](NAMING_CONVENTION.md)) landed at n=50 between 2026-05-22 PM and 2026-05-23. Under the new unified ranking metric (`docs/UNIFIED_RANKING.md`):
+
+| Cell | macro state | stage_bal | judge | **unified** |
+|---|---:|---:|---:|---:|
+| `qwen3.5 × Gemma-31B · fewshot10 · n=50` | 51.58 | 56.13 | 8.18 | **68.94** (cross-teacher winner) |
+| `qwen3.5 × A3B-35B · fewshot10 · n=50` | 54.86 | 58.62 | 7.52 | **66.91** |
+| `qwen3.5 × Qwen-27B · think · fewshot10 · n=50` | 53.19 | 58.68 | 7.51 | **66.89** |
+| `qwen3.5 × Qwen-27B · no-think · fewshot10 · n=50` | 51.89 | 55.45 | 7.56 | **65.54** |
+
+**Compared to the legacy locked headline** (`bert × Gemma-31B · fewshot10 · n=681`, pre-fix, unified **68.65**): `qwen3.5 × Gemma-31B · fewshot10 · n=50` beats it by +0.29 unified — cleanly, on the post-fix consultant, but at the screening sample size (n=50) rather than the canonical n=681. The full-test-set ($n{=}681$) re-confirmation is queued as TODO item 7 in [`docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md`](BENCHMARK_CRITIQUE_AND_PROPOSAL.md).
+
+**Open queue items** (deferred):
+- Task #15 — HF Hub publish of 5 funnel checkpoints. Awaits Max bringing his HF account online.
+- T4 stage-e weighted-loss retrain — listed as Step 6 stub in `scripts/overnight_qwen27b_chain.sh`; not auto-run.
+- Full-n=681 qwen3.5 cross-teacher sub-leaderboard for parity confirmation.
+
+**The "LIVE STATE" section below is preserved as a 2026-05-22 PM snapshot** for the historical record. It captures the in-flight state at that moment; subsequent landing is documented above.
+
+---
+
+## ⚡ LIVE STATE — last updated 2026-05-22 ~16:32 PDT (PM session, Layer-2 mini-tests) — HISTORICAL SNAPSHOT
 
 **Funnel is locked** (T1-T4 results, see below). Currently running **Layer-2 mini-tests** — feeding the winning T4 classifier into the full kele.py pipeline with each of the two locked open-weight teachers (Gemma 4 31B, Qwen 35B-A3B) at n=50.
 

@@ -2,8 +2,10 @@
 
 **Author:** Claude Opus 4.7 (1M ctx) for Max
 **Date:** 2026-05-18 (revised 6× — adds Phase 0.5 teacher-choice ablation; updated 2026-05-19 with Phase 0.5 result; updated 2026-05-19 PM with Phase 1 tournament results; updated 2026-05-21 with Phase 2-Claude parallel front; updated 2026-05-21 PM — Composed-B dropped, A3B "for-fun" variant added)
-**Status:** Plan-of-record. **Phase 0 complete** (BERT + Gemma + 10-shot full = 48.15% / 36.78 R-1, locked headline). **Phase 0.5 complete** (BERT + A3B + 10-shot full = 46.57% / 33.27 R-1, Gemma stays locked). **Phase 1 complete** (10-cell n=50 tournament; length_budget #1 wins, +1.58 composite; phase 2 stack identified). **Phase 2 now runs three tracks in parallel** — Composed-Gemma (locked teacher + top-3 prompts), Composed-A3B (fast teacher + top-3 prompts, opportunistic), Claude API teacher swap. Ready for all three.
+**Status:** Plan-of-record (Phase 1 & Phase 2 complete). **Phase 0 complete** (BERT + Gemma + 10-shot full = 48.15% / 36.78 R-1, locked headline). **Phase 0.5 complete** (BERT + A3B + 10-shot full = 46.57% / 33.27 R-1, Gemma stays locked). **Phase 1 complete** (10-cell n=50 tournament; length_budget #1 wins, +1.58 composite; phase 2 stack identified). **Phase 2 complete** (Composed-Gemma, Composed-A3B, Claude API teacher swap all landed; results in `docs/EXPERIMENT_LOG.md` 2026-05-21 and 2026-05-23 entries).
 **Protocol:** Tournament-style, mirroring the §4.7 13-model no-think tournament. **n=50 × 10 cells = 500 dialogues** in Phase 1.
+
+> **⚠ Ranking metric note (added 2026-05-23):** Phase 1 and Phase 2 ranked cells by the **composite** metric (`state + 0.5×R-1`) shown throughout this doc. That was the correct metric at decision time. **For the paper headline, the project has since adopted the `unified` metric** (`0.5 × stage_balanced + 0.5 × (judge × 10)`) — see `docs/UNIFIED_RANKING.md`. Under unified, the Phase 1 winner (`bert × Gemma-31B · length_budget · n=50`, composite 71.91) re-ranks within the top 6 of the 25-config master list at unified 70-ish. The composite numbers in this doc remain correct for the decision-window they governed; readers should consult `results/_orchestrator_logs/backtest_stage_balanced_latest.md` for the current unified rankings.
 
 ## Mission
 

@@ -113,13 +113,13 @@ About 5 minutes and ~$0.10 per cell. The output `backtest_stage_balanced_latest.
 
 ## What changes when we apply unified going forward
 
-1. **Promote-or-defer decisions** (`scripts/promote_if_winner.py`) currently use `composite = state + 0.5 × R-1`. **TODO:** swap to `unified = 0.5 × stage_bal + 0.5 × (judge × 10)` once we are willing to gate live runs on judge availability. Until then, promote uses the composite at decision time and the unified is reported post-hoc.
+1. **Paper headline** uses `unified` as the primary single-number ranking (landed 2026-05-23). Paper §`sec:unified-ranking-parity` defines the metric; Limitations flags the pre-fix bert artifact and the n=50-vs-n=681 verification asymmetry. Master ranked list in `results/_orchestrator_logs/backtest_stage_balanced_latest.md`.
 
-2. **Paper §4 (Results)** swaps the headline table from macro-only to unified-primary with the full per-metric breakdown beneath.
+2. **Promote-or-defer decisions** (`scripts/promote_if_winner.py`) still use the older `composite = state + 0.5 × R-1` because live-chain decisions require the metric at-decision-time and judge runs are post-hoc. **Open TODO:** wire the chain to run LLM-judge in-line before promote so the chain can decide on unified directly. ~30 lines plus a wait-for-judge step in the orchestrator. Not blocking the paper.
 
-3. **Paper §5 (Limitations)** picks up a paragraph explaining the unified formula and why two-axis aggregation is the honest move on a benchmark with known per-axis pathologies.
+3. **Future runs** report unified as their primary number whenever the run is judged. Cells without judge appear in the stage_bal leaderboard but NOT in the master ranked list (we don't fake-rank an unjudged cell). To bring a new cell onto the master list, run `scripts/llm_judge_eval.py results/<cell> --model claude-sonnet-4-6 --workers 10` (~5 min, ~$0.10) and re-run the backtest.
 
-4. **Future runs** report unified as their primary number whenever the run is judged; otherwise report stage_bal as the headline and flag that judge is pending.
+4. **Cross-references in other docs.** Per the audit on 2026-05-23, `docs/EXPERIMENT_LOG.md` (2026-05-23 entry), `docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md` (Proposal 8), and the paper (`sec:unified-ranking-parity`) now all reference this doc as the canonical definition. `docs/PROMPT_ENGINEERING_PLAN.md` and other Phase 1/2 docs that use the older `composite` should be read as historical — the metric they used was correct for their decision-window but is superseded for paper-headline purposes.
 
 ## What this does NOT replace
 

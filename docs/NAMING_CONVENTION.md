@@ -28,7 +28,7 @@ Separators are load-bearing: `×` between consultant and teacher signals their r
 | `bert` | BAAI bge-small-zh / state_classifier_v1 (model_type=bert) | Legacy downstream runs **before** 2026-05-22 input-format duplication fix (commit 3d68d4a) | `bert-` |
 | `bert-fixed` | Same model, post-fix | Downstream runs **after** the 2026-05-22 fix | `bge-small-bert-…-fixed` |
 | `qwen3` | Qwen3-Embedding-0.6B (T1 frozen / T2 LoRA from consultant-upgrade funnel) | Layer-1 classifier training only — no downstream eval cells yet | `state-clf-qwen3-emb-0.6b-` |
-| `qwen3.5` | Qwen3.5-0.8B-Base (T3 frozen / T4 LoRA). T4 is the funnel winner; all downstream cells use T4 | Downstream runs using the upgraded classifier | `t4-bert-` |
+| `qwen3.5` | Qwen3.5-0.8B-Base (T3 frozen / T4 LoRA). T4 is the funnel winner; all downstream cells use T4 | Downstream runs using the upgraded classifier | `t4-bert-` (where "T4" = the funnel-tier label, **not** the NVIDIA Tesla T4 GPU — see `docs/CONSULTANT_UPGRADE_LOG.md`) |
 | `Claude-Opus` | Claude Opus 4.6 used as an LLM-as-consultant | SocratTeachLLM-overfit experiments only | `claude-opus-consultant-` |
 | `Claude-Sonnet` | Claude Sonnet 4.6 used as an LLM-as-consultant | SocratTeachLLM-overfit experiments only | `claude-sonnet-consultant-` |
 
