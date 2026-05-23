@@ -310,7 +310,7 @@ e34：学生正确给出题目答案
             response = None
             for attempt in range(6):
                 try:
-                    extra = {}
+                    extra: dict[str, Any] = {}
                     if self.consultant_disable_thinking:
                         extra["chat_template_kwargs"] = {"enable_thinking": False}
                     elif self.consultant_thinking_budget > 0:
@@ -358,12 +358,12 @@ e34：学生正确给出题目答案
             # 获取原始响应内容
             raw_content = response.choices[0].message.content or ""
 
-            # 处理可能包含markdown代码块的响应
-            if raw_content.startswith("```json") and raw_content.endswith("```"):
-                # 移除markdown代码块标记
-                raw_content = raw_content.replace("```json", "", 1)
-                raw_content = raw_content.replace("```", "", 1)
-                raw_content = raw_content.strip()
+            # Strip markdown code fences that some models emit despite json_object format.
+            stripped = raw_content.strip()
+            if stripped.startswith("```"):
+                stripped = stripped.split("\n", 1)[-1]  # drop the opening ```[json] line
+                stripped = stripped.rstrip("`").strip()
+                raw_content = stripped
 
             try:
                 # 尝试解析JSON

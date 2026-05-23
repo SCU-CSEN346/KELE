@@ -10,6 +10,7 @@ import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 from pathlib import Path
 
 from src.project.config import load_config
@@ -327,6 +328,9 @@ def run_batch_evaluation(
     experiment: str | None = None,
     split: str = "test",
     unified: bool = False,
+    fresh: bool = False,
+    worker_id: int = 0,
+    num_workers: int = 1,
     bert_consultant: str | None = None,
     workers: int | None = None,
 ) -> None:
@@ -351,10 +355,12 @@ def run_batch_evaluation(
     dataset = load_dataset(dataset_path, split=split)
     total = len(dataset)
 
-    # Filter to start_id and apply limit
+    # Filter to start_id, apply limit, then stride for parallel workers
     dataset = [d for d in dataset if d["id"] >= start_id]
     if limit is not None:
         dataset = dataset[:limit]
+    if num_workers > 1:
+        dataset = [d for i, d in enumerate(dataset) if i % num_workers == worker_id]
 
     # Always create one "probe" system for header info + run config metadata.
     # In sequential mode this is also the workhorse; in parallel mode each
@@ -366,10 +372,49 @@ def run_batch_evaluation(
     output_dir.mkdir(parents=True, exist_ok=True)
     dialogues_dir = output_dir / "dialogues"
     dialogues_dir.mkdir(exist_ok=True)
-    progress_log = output_dir / "progress.log"
-    start_time = time.time()
 
-    print(f"Starting evaluation: {len(dataset)} dialogues (of {total} in {split} split)")
+    if fresh:
+        # Archive previous run_config + metrics into run{N}_{timestamp}/
+        prev_config = output_dir / "run_config.json"
+        prev_metrics = output_dir / "metrics_summary.json"
+        if prev_config.exists() or prev_metrics.exists():
+            existing = sorted(output_dir.glob("run[0-9]*_*/"))
+            next_n = len(existing) + 1
+            try:
+                ts_raw = (
+                    json.loads(prev_config.read_text())["started_at"]
+                    if prev_config.exists()
+                    else None
+                )
+            except Exception:
+                ts_raw = None
+            ts = (ts_raw or datetime.now().astimezone().isoformat(timespec="seconds")).replace(
+                ":", "-"
+            )
+            archive_dir = output_dir / f"run{next_n}_{ts}"
+            archive_dir.mkdir()
+            for src in (prev_config, prev_metrics):
+                if src.exists():
+                    src.rename(archive_dir / src.name)
+
+        # Clear dialogues and all progress logs
+        for f in dialogues_dir.glob("*.json"):
+            f.unlink()
+        for p in output_dir.glob("progress*.log"):
+            p.unlink()
+
+    progress_log_name = f"progress_worker{worker_id + 1}.log" if num_workers > 1 else "progress.log"
+    progress_log = output_dir / progress_log_name
+    start_time = time.time()
+    started_at = datetime.now().astimezone()
+
+    fresh_tag = "  [NEW — previous results cleared]" if fresh else ""
+    worker_tag = f"  [worker {worker_id + 1}/{num_workers}]" if num_workers > 1 else ""
+    print(
+        f"Starting evaluation: {len(dataset)} dialogues (of {total} in {split} split)"
+        f"{worker_tag}{fresh_tag}"
+    )
+    print(f"Started: {started_at.isoformat(timespec='seconds')}")
     print(f"Output: {output_dir}")
     print(f"Teacher model: {system.teacher_model_name}")
     print(f"Consultant model: {system.consultant_model_name}")
@@ -431,7 +476,6 @@ def run_batch_evaluation(
 
     print(f"\nDone. {completed} dialogues saved to {dialogues_dir}")
 
-    # Save run config
     cfg = load_config()
     run_config = {
         "experiment": output_dir.name,
@@ -446,22 +490,29 @@ def run_batch_evaluation(
         "total_dialogues": len(dataset),
         "completed": completed,
         "total_elapsed_seconds": round(time.time() - start_time, 2),
-        "started_at": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time)),
-        "finished_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "started_at": started_at.isoformat(timespec="seconds"),
+        "finished_at": datetime.now().astimezone().isoformat(timespec="seconds"),
     }
     if unified and hasattr(system, "_unified_fallback_count"):
         run_config["unified_fallback_count"] = system._unified_fallback_count  # type: ignore[reportAttributeAccessIssue]
-    with open(output_dir / "run_config.json", "w") as f:
-        json.dump(run_config, f, indent=2)
 
-    # Auto-compute metrics after run completes
-    print("\nComputing metrics...")
-    from src.project.metrics import compute_all_metrics, format_metrics_table
+    if num_workers > 1:
+        # Multi-worker: write a per-worker config; orchestrator merges and computes metrics
+        config_name = f"run_config_worker{worker_id + 1}.json"
+        with open(output_dir / config_name, "w") as f:
+            json.dump(run_config, f, indent=2)
+        print(f"Worker {worker_id + 1} done. Config saved to {config_name}")
+    else:
+        with open(output_dir / "run_config.json", "w") as f:
+            json.dump(run_config, f, indent=2)
 
-    metrics = compute_all_metrics(dialogues_dir)
-    with open(output_dir / "metrics_summary.json", "w") as f:
-        json.dump(metrics, f, indent=2)
-    print(format_metrics_table(metrics))
+        print("\nComputing metrics...")
+        from src.project.metrics import compute_all_metrics, format_metrics_table
+
+        metrics = compute_all_metrics(dialogues_dir)
+        with open(output_dir / "metrics_summary.json", "w") as f:
+            json.dump(metrics, f, indent=2)
+        print(format_metrics_table(metrics))
 
 
 def interactive() -> None:
@@ -504,6 +555,15 @@ def main() -> None:
         action="store_true",
         help="Use single-call fusion architecture (consultant + teacher in one LLM call). "
         "See docs/SOCRATIC_FUSION_PLAN.md.",
+    )
+    eval_parser.add_argument(
+        "--new", action="store_true", help="Start fresh — clear any existing results before running"
+    )
+    eval_parser.add_argument(
+        "--worker-id", type=int, default=0, help="0-indexed worker number (for parallel runs)"
+    )
+    eval_parser.add_argument(
+        "--num-workers", type=int, default=1, help="Total number of parallel workers"
     )
     eval_parser.add_argument(
         "--bert-consultant",
@@ -562,6 +622,9 @@ def main() -> None:
             experiment=args.experiment,
             split=args.split,
             unified=args.unified,
+            fresh=args.new,
+            worker_id=args.worker_id,
+            num_workers=args.num_workers,
             bert_consultant=args.bert_consultant,
             workers=args.workers,
         )

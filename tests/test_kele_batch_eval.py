@@ -92,6 +92,139 @@ def test_run_batch_evaluation_skips_existing_dialogue_files(tmp_path, monkeypatc
     assert json.loads((dialogues_dir / "0001.json").read_text()) == existing
 
 
+def test_run_batch_evaluation_fresh_archives_previous_run(tmp_path, monkeypatch):
+    dataset = [{"id": 1, "question": "Q1", "answer": "A1", "dialogue": []}]
+    output_dir = tmp_path / "results"
+    dialogues_dir = output_dir / "dialogues"
+    dialogues_dir.mkdir(parents=True)
+
+    prev_config = {"started_at": "2026-01-01T00:00:00+00:00", "completed": 1}
+    (output_dir / "run_config.json").write_text(json.dumps(prev_config))
+    (output_dir / "metrics_summary.json").write_text("{}")
+    (dialogues_dir / "0001.json").write_text("{}")
+    (output_dir / "progress.log").write_text("1/1")
+
+    system = SimpleNamespace(
+        teacher_model_name="teacher-model", consultant_model_name="consultant-model"
+    )
+    monkeypatch.setattr(kele, "load_dataset", lambda *a, **kw: dataset)
+    monkeypatch.setattr(kele, "create_system", lambda *a, **kw: system)
+    monkeypatch.setattr(
+        kele, "run_single_dialogue", lambda _s, item: {"id": item["id"], "dialogue": []}
+    )
+    monkeypatch.setattr(kele, "load_config", lambda *a, **kw: fake_config())
+    install_fake_metrics(monkeypatch, {"rouge1": 0})
+
+    kele.run_batch_evaluation(output_dir, fresh=True)
+
+    archives = sorted(output_dir.glob("run[0-9]*_*/"))
+    assert len(archives) == 1
+    assert (archives[0] / "run_config.json").exists()
+    assert (archives[0] / "metrics_summary.json").exists()
+    assert (output_dir / "run_config.json").exists()
+    assert json.loads((output_dir / "run_config.json").read_text())["completed"] == 1
+
+
+def test_run_batch_evaluation_fresh_clears_dialogues_and_progress(tmp_path, monkeypatch):
+    dataset = [{"id": 1, "question": "Q1", "answer": "A1", "dialogue": []}]
+    output_dir = tmp_path / "results"
+    dialogues_dir = output_dir / "dialogues"
+    dialogues_dir.mkdir(parents=True)
+    (dialogues_dir / "0001.json").write_text('{"id": 1}')
+    (output_dir / "progress.log").write_text("old progress")
+
+    system = SimpleNamespace(
+        teacher_model_name="teacher-model", consultant_model_name="consultant-model"
+    )
+    monkeypatch.setattr(kele, "load_dataset", lambda *a, **kw: dataset)
+    monkeypatch.setattr(kele, "create_system", lambda *a, **kw: system)
+    monkeypatch.setattr(
+        kele, "run_single_dialogue", lambda _s, item: {"id": item["id"], "dialogue": []}
+    )
+    monkeypatch.setattr(kele, "load_config", lambda *a, **kw: fake_config())
+    install_fake_metrics(monkeypatch, {"rouge1": 0})
+
+    kele.run_batch_evaluation(output_dir, fresh=True)
+
+    saved = json.loads((dialogues_dir / "0001.json").read_text())
+    assert "error" not in saved
+
+
+def test_run_batch_evaluation_fresh_with_malformed_config_uses_fallback_timestamp(
+    tmp_path, monkeypatch
+):
+    dataset = [{"id": 1, "question": "Q1", "answer": "A1", "dialogue": []}]
+    output_dir = tmp_path / "results"
+    dialogues_dir = output_dir / "dialogues"
+    dialogues_dir.mkdir(parents=True)
+    (output_dir / "run_config.json").write_text("not valid json")
+
+    system = SimpleNamespace(
+        teacher_model_name="teacher-model", consultant_model_name="consultant-model"
+    )
+    monkeypatch.setattr(kele, "load_dataset", lambda *a, **kw: dataset)
+    monkeypatch.setattr(kele, "create_system", lambda *a, **kw: system)
+    monkeypatch.setattr(
+        kele, "run_single_dialogue", lambda _s, item: {"id": item["id"], "dialogue": []}
+    )
+    monkeypatch.setattr(kele, "load_config", lambda *a, **kw: fake_config())
+    install_fake_metrics(monkeypatch, {"rouge1": 0})
+
+    kele.run_batch_evaluation(output_dir, fresh=True)
+
+    archives = sorted(output_dir.glob("run[0-9]*_*/"))
+    assert len(archives) == 1
+    assert (archives[0] / "run_config.json").exists()
+
+
+def test_run_batch_evaluation_unified_records_fallback_count(tmp_path, monkeypatch):
+    dataset = [{"id": 1, "question": "Q1", "answer": "A1", "dialogue": []}]
+    system = SimpleNamespace(
+        teacher_model_name="teacher-model",
+        consultant_model_name="consultant-model",
+        _unified_fallback_count=3,
+    )
+    monkeypatch.setattr(kele, "load_dataset", lambda *a, **kw: dataset)
+    monkeypatch.setattr(kele, "create_system", lambda *a, **kw: system)
+    monkeypatch.setattr(
+        kele, "run_single_dialogue", lambda _s, item: {"id": item["id"], "dialogue": []}
+    )
+    monkeypatch.setattr(kele, "load_config", lambda *a, **kw: fake_config())
+    install_fake_metrics(monkeypatch, {"rouge1": 0})
+
+    output_dir = tmp_path / "results"
+    kele.run_batch_evaluation(output_dir, unified=True)
+
+    config = json.loads((output_dir / "run_config.json").read_text())
+    assert config["unified_fallback_count"] == 3
+
+
+def test_run_batch_evaluation_multi_worker_strides_and_writes_worker_config(tmp_path, monkeypatch):
+    dataset = [
+        {"id": i, "question": f"Q{i}", "answer": f"A{i}", "dialogue": []} for i in range(1, 5)
+    ]
+    seen_ids = []
+    system = SimpleNamespace(
+        teacher_model_name="teacher-model", consultant_model_name="consultant-model"
+    )
+    monkeypatch.setattr(kele, "load_dataset", lambda *a, **kw: dataset)
+    monkeypatch.setattr(kele, "create_system", lambda *a, **kw: system)
+    monkeypatch.setattr(
+        kele,
+        "run_single_dialogue",
+        lambda _s, item: seen_ids.append(item["id"]) or {"id": item["id"], "dialogue": []},
+    )
+    monkeypatch.setattr(kele, "load_config", lambda *a, **kw: fake_config())
+
+    output_dir = tmp_path / "results"
+    kele.run_batch_evaluation(output_dir, worker_id=0, num_workers=2)
+
+    assert seen_ids == [1, 3]
+    assert (output_dir / "run_config_worker1.json").exists()
+    assert not (output_dir / "run_config.json").exists()
+    assert (output_dir / "progress_worker1.log").exists()
+
+
 def test_run_batch_evaluation_writes_error_json_for_failed_dialogue(tmp_path, monkeypatch):
     dataset = [{"id": 1, "question": "Q1", "answer": "A1", "dialogue": []}]
     system = SimpleNamespace(

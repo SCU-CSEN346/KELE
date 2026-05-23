@@ -137,6 +137,56 @@ pre-commit:
 	uvx ruff check --fix .
 	uv run pytest -rs
 
+# ── Torch install ────────────────────────────────────────────────────────────
+# torch is not declared in pyproject.toml because Poetry cannot resolve the
+# +rocm6.3 / +cu126 local-version identifiers alongside PyPI's CPU wheel.
+# These targets install torch after `poetry install --no-root`.
+
+# Auto-detect: prefer ROCm if rocm-smi is present, fall back to CUDA.
+install:
+	@echo "→ Installing base dependencies …"
+	poetry install --no-root
+	@if command -v rocm-smi >/dev/null 2>&1 && rocm-smi >/dev/null 2>&1; then \
+	  echo "→ AMD/ROCm GPU detected — installing torch+rocm6.3"; \
+	  $(MAKE) _install-torch-rocm; \
+	elif command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; then \
+	  echo "→ NVIDIA GPU detected — installing torch+cu126"; \
+	  $(MAKE) _install-torch-cuda; \
+	else \
+	  echo ""; \
+	  echo "  No GPU detected (rocm-smi and nvidia-smi both unavailable)."; \
+	  echo "  Re-run with an explicit target:"; \
+	  echo "    make install-rocm   # AMD / ROCm"; \
+	  echo "    make install-cuda   # NVIDIA / CUDA"; \
+	  echo ""; \
+	  exit 1; \
+	fi
+
+install-rocm:
+	poetry install --no-root
+	$(MAKE) _install-torch-rocm
+
+install-cuda:
+	poetry install --no-root
+	$(MAKE) _install-torch-cuda
+
+# Internal targets — call via install-rocm / install-cuda / install
+_install-torch-rocm:
+	poetry run pip install --force-reinstall --no-deps \
+	  --index-url https://download.pytorch.org/whl/rocm6.3 \
+	  "torch==2.9.1+rocm6.3"
+	@echo "✓ torch 2.9.1+rocm6.3 installed"
+	poetry run pip install -e . --no-deps
+	@echo "✓ project entry points installed"
+
+_install-torch-cuda:
+	poetry run pip install --force-reinstall --no-deps \
+	  --index-url https://download.pytorch.org/whl/cu126 \
+	  "torch>=2.9.0"
+	@echo "✓ torch+cu126 installed"
+	poetry run pip install -e . --no-deps
+	@echo "✓ project entry points installed"
+
 # ── Developer setup ──────────────────────────────────────────────────────────
 
 install-hooks:
