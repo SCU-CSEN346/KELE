@@ -49,6 +49,21 @@ Cell labels follow `docs/NAMING_CONVENTION.md`.
 
 n=50 cannot definitively pick a paper headline (±6 pp variance per `CONVERGENCE_ANALYSIS.md`). The top 4 unified cells cluster within 2.05 points (qwen3.5 × Gemma 68.94 → qwen3.5 × Qwen-think 66.89), which is within n=50 noise. Three retries are running now to validate Qwen-think at random-sample (no-think n=200 + think n=100 + EN bilingual n=100) and stress-test the CUDA-timeout envelope.
 
+### Methodology caveat — n=50 first-N systematically under-samples Qwen 27B variants
+
+The cross-teacher matrix above uses **first-50-by-sorted-ID** for the n=50 cells (the legacy `--limit 50` behavior, before `--sample-seed` plumbing landed; see commit `e7bdf2f` for the patch). The retry-chain runs at random-sample seed=42 reveal a consistent positive bias in the *random* numbers vs the *first-N* numbers, **specifically for the Qwen 27B variants**:
+
+| Cell | n=50 first-N | n≥100 random seed=42 | Δ stage_bal |
+|---|---:|---:|---:|
+| `qwen3.5 × Qwen-27B · no-think · fewshot10` | sb 55.45 (n=50) | sb 57.45 (n=200) | **+2.00** |
+| `qwen3.5 × Qwen-27B · think · fewshot10` | sb 58.68 (n=50) | sb ~60.55 (n=100 partial @ 52/100) | **+1.87** so far |
+
+Same direction, same magnitude (~+2 pp stage_bal) under both reasoning modes. Stage e on no-think jumped most: 58.3 → 69.78 (+11.5 pp). Stage b on think jumped 45.8 → 56.4 (+10.6 pp).
+
+**Implication for the local–frontier parity finding above.** The reported "Gemma 31B wins by ~2 unified pts over Qwen 27B" gap (qwen3.5 × Gemma 68.94 vs qwen3.5 × Qwen-27B-think 66.89) was computed with the n=50 first-N method for both cells. Under random sampling, the Qwen 27B cell appears to lift ~2 unified pts (judge-axis assumed stable across n), which would close the gap to **roughly 0 — i.e., Gemma and Qwen 27B are statistically tied under proper random sampling at the screening tier.**
+
+We do NOT know whether the same first-N-vs-random bias exists for the Gemma and A3B cells. The other six cross-teacher cells haven't been re-run at random sample yet. Caveat: if the bias is Qwen-specific, the Gemma-wins claim weakens. If it's uniform across teachers, the Gemma-wins ordering survives but the absolute numbers all shift up ~2 pts. **The full-n=681 sub-leaderboard TODO (item 7 in `docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md`) resolves this — at n=681 the first-N-vs-random distinction collapses because the sample IS the whole test split.**
+
 ### Local–frontier parity finding (the unified-metric revelation)
 
 Across the 25-config judged master list, the best frontier teacher (`bert × Claude-Sonnet · top3 · n=681` at unified **70.06**) beats the best honest open-weight teacher (`qwen3.5 × Gemma-31B · fewshot10 · n=50` at unified **68.94**) by only **1.12 unified points** on a [0, 100] scale. At full sample size ($n{=}681$), the legacy locked headline (`bert × Gemma-31B · fewshot10 · n=681` at 68.65) sits **1.41 points** below the best frontier — and ~1 of those points is the pre-fix `bert` measurement artifact (asymmetric input-format duplication). The honest open-weight headline is essentially within n=50 noise of the frontier ceiling. **Three reasons this parity is genuine and paper-grade:**

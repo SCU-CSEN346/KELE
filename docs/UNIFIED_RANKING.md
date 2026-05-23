@@ -121,6 +121,19 @@ About 5 minutes and ~$0.10 per cell. The output `backtest_stage_balanced_latest.
 
 4. **Cross-references in other docs.** Per the audit on 2026-05-23, `docs/EXPERIMENT_LOG.md` (2026-05-23 entry), `docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md` (Proposal 8), and the paper (`sec:unified-ranking-parity`) now all reference this doc as the canonical definition. `docs/PROMPT_ENGINEERING_PLAN.md` and other Phase 1/2 docs that use the older `composite` should be read as historical — the metric they used was correct for their decision-window but is superseded for paper-headline purposes.
 
+## Caveat — n=50 first-N vs random-sample bias (added 2026-05-23 PM)
+
+The cross-teacher 8-cell matrix above uses **first-50-by-sorted-ID** for the n=50 cells (legacy `--limit 50` behavior; the `--sample-seed` plumbing landed mid-day on 2026-05-23). The retry-chain re-runs of the Qwen 27B cells at random-sample seed=42 reveal that **first-N systematically under-samples the Qwen 27B variants by ~2 stage_bal points**:
+
+- `qwen3.5 × Qwen-27B · no-think`: n=50 first-N sb 55.45 → n=200 random seed=42 sb 57.45 (+2.00)
+- `qwen3.5 × Qwen-27B · think`: n=50 first-N sb 58.68 → n=100 random seed=42 sb ~60.55 partial @ 52/100 (+1.87 so far)
+
+Under the unified metric (judge-axis assumed stable across $n$), this implies the Qwen 27B cells appear ~2 unified points lower than their random-sample truth. The "Gemma wins cross-teacher by ~2 unified pts over Qwen 27B" gap reported above could close to roughly 0 once both cells are re-run at random sample — **Gemma and Qwen 27B would then be statistically tied on this benchmark at the screening tier**, with the unified-metric winner depending on stage-c (Gemma's slight edge) vs stage-e/closure (Qwen 27B's clear edge).
+
+We have NOT verified whether the first-N vs random bias is Qwen-specific or uniform across teachers. The other six cross-teacher cells (bert-fixed × Gemma/A3B/Qwen-27B-both-modes, qwen3.5 × Gemma/A3B) haven't been re-run at random sample yet. **The full-n=681 sub-leaderboard TODO (item 7 in `docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md`) eliminates this concern entirely** — at n=681 the sample IS the whole test split and first-N vs random is a vacuous distinction.
+
+Until then: report the cross-teacher matrix with this caveat in the paper, and treat the "Gemma wins by 2 pts" claim as provisional until either (a) the four cross-teacher cells re-run at random-sample n≥100, or (b) the full-n=681 sub-leaderboard lands. Option (b) is the planned-of-record fix.
+
 ## What this does NOT replace
 
 - The full per-metric table (macro, stage_bal, pedagogical, freq_inv, judge axes, R-1/R-2/BLEU-4, per-stage breakdown) stays as the methodology-section artifact. Unified is the single-number ranking; the full table is the supporting evidence.
