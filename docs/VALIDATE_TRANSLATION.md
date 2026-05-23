@@ -154,27 +154,28 @@ uv run python -m project.validate_translation --structural-only
 Install `mlx-lm` (one-time; model is already at `~/.models/`):
 
 ```bash
-uv add mlx-lm
+brew install mlx-lm
 ```
 
-Start the server using the existing script (or directly):
+Each Mac Mini knows its own shard via `VALIDATE_SHARD` — set this once in `~/.zshrc` (or `~/.bash_profile`):
 
 ```bash
+# Mac Mini 1:
+echo 'export VALIDATE_SHARD=odd'  >> ~/.zshrc
+
+# Mac Mini 2:
+echo 'export VALIDATE_SHARD=even' >> ~/.zshrc
+```
+
+When it's time to run (each Mac Mini does this independently):
+
+```bash
+# Terminal 1 — start the LLM server
 source configs/consultants/m4-mlx.env
-./scripts/serve_consultant_mlx.sh          # recommended — adds caffeinate + warmup
-# or directly:
-# python -m mlx_lm.server --model ~/.models/mlx-community--Qwen3.5-9B-4bit --host 0.0.0.0 --port 8080
-```
+./scripts/serve_consultant_mlx.sh
 
-Then run Phase 2 from either Mac Mini (single-node) or both in parallel (two-node):
-
-```bash
-# Single-node 5% sample (~24 min):
-uv run python -m project.validate_translation --base-url http://localhost:8080/v1
-
-# Two-node parallel (~12 min) — run simultaneously on each Mac Mini:
-uv run python -m project.validate_translation --shard odd  --base-url http://localhost:8080/v1
-uv run python -m project.validate_translation --shard even --base-url http://localhost:8080/v1
+# Terminal 2 — run this machine's shard
+python -m project.validate_translation --shard "$VALIDATE_SHARD" --base-url http://localhost:8080/v1
 ```
 
 ---

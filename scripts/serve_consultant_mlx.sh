@@ -39,7 +39,7 @@ if curl -sf "http://localhost:${PORT}/v1/models" > /dev/null 2>&1; then
 else
     echo "mlx_lm.server not running — starting..."
 
-    python -m mlx_lm.server \
+    mlx_lm.server \
         --model "$MODEL" \
         --host "$HOST" \
         --port "$PORT" \
