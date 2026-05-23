@@ -244,6 +244,9 @@ serve-qwen27b-q4:
 serve-socratteachllm:
 	bash scripts/serve_socratteachllm.sh
 
+serve-socratteachllm-llamacpp:
+	bash scripts/serve_socratteachllm_llamacpp.sh
+
 serve-teacher-online:
 	bash scripts/serve_teacher_online.sh
 
