@@ -76,16 +76,16 @@ Models live in the `mlx-community/` organization on Hugging Face. No conversion 
 
 ```bash
 # 4-bit Qwen3.5-9B (~5.5 GB) — model used in the dual-Mac MLX eval
-huggingface-cli download mlx-community/Qwen3.5-9B-MLX-4bit
+hf download mlx-community/Qwen3.5-9B-MLX-4bit
 
 # 4-bit Qwen3-8B (~4.8 GB) — best speed/quality tradeoff for 16 GB M4
-huggingface-cli download mlx-community/Qwen3-8B-4bit
+hf download mlx-community/Qwen3-8B-4bit
 
 # 8-bit Qwen3-8B (~8.5 GB) — higher quality, still fits comfortably
-huggingface-cli download mlx-community/Qwen3-8B-8bit
+hf download mlx-community/Qwen3-8B-8bit
 
 # 4-bit Qwen2.5-7B — if you need an exact Qwen2.5 series model
-huggingface-cli download mlx-community/Qwen2.5-7B-Instruct-4bit
+hf download mlx-community/Qwen2.5-7B-Instruct-4bit
 ```
 
 Models are cached in `~/.cache/huggingface/hub/` automatically.

@@ -23,10 +23,10 @@ uv sync --group dev --python ~/.pyenv/versions/3.12.*/bin/python
 ## 4. Download models
 ```bash
 # Teacher: SocratTeachLLM (~19GB)
-huggingface-cli download yuanpan/SocratTeachLLM --local-dir ~/hf_models/SocratTeachLLM
+hf download yuanpan/SocratTeachLLM --local-dir ~/hf_models/SocratTeachLLM
 
 # Consultant: Qwen3.5-9B (~17GB)
-huggingface-cli download Qwen/Qwen3.5-9B --local-dir ~/hf_models/Qwen3.5-9B
+hf download Qwen/Qwen3.5-9B --local-dir ~/hf_models/Qwen3.5-9B
 ```
 
 ## 5. Configure environment

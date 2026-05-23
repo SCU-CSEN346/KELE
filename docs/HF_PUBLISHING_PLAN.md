@@ -138,7 +138,7 @@ For-loop over the 5 funnel candidates: build model card, then publish. With `--d
 When Max brings his HF account online:
 
 1. ☐ `pip install -U huggingface_hub` (verify version ≥ 0.20)
-2. ☐ `huggingface-cli login` — paste token from huggingface.co/settings/tokens (scope: write to maxjkh/*)
+2. ☐ `hf auth login` — paste token from huggingface.co/settings/tokens (scope: write to maxjkh/*)
 3. ☐ Confirm HF namespace = `maxjkh` (or whichever) by visiting profile page
 4. ☐ Verify all 5 `results/<dir>/test_eval.json` files exist with sensible numbers
 5. ☐ Write the three scripts (~150 lines total; ~1 hour effort)

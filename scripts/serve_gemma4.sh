@@ -16,7 +16,7 @@ mkdir -p logs
 if [ ! -d "$MODEL_PATH" ]; then
     echo "ERROR: Model not found at $MODEL_PATH"
     echo "Download it first:"
-    echo "  huggingface-cli download nvidia/Gemma-4-31B-IT-NVFP4 --local-dir $MODEL_PATH"
+    echo "  hf download nvidia/Gemma-4-31B-IT-NVFP4 --local-dir $MODEL_PATH"
     exit 1
 fi
 

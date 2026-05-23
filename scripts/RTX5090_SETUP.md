@@ -33,13 +33,13 @@ Download all models upfront so we're not bottlenecked by network during experime
 mkdir -p ~/hf_models
 
 # Model 1: SocratTeachLLM (9.4B, GLM4-9B fine-tune, ~19GB BF16) — teacher agent
-huggingface-cli download yuanpan/SocratTeachLLM --local-dir ~/hf_models/SocratTeachLLM
+hf download yuanpan/SocratTeachLLM --local-dir ~/hf_models/SocratTeachLLM
 
 # Model 2: Qwen3.5-9B (~17GB BF16, ~5GB Q4) — consultant agent (replaces GPT-4)
-huggingface-cli download Qwen/Qwen3.5-9B --local-dir ~/hf_models/Qwen3.5-9B
+hf download Qwen/Qwen3.5-9B --local-dir ~/hf_models/Qwen3.5-9B
 
 # Model 3 (Phase 1 Run 2): Gemma-4-31B — extension experiment
-# huggingface-cli download google/gemma-4-31B --local-dir ~/hf_models/gemma-4-31B
+# hf download google/gemma-4-31B --local-dir ~/hf_models/gemma-4-31B
 ```
 
 ### Verify downloads
