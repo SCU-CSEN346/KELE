@@ -183,6 +183,33 @@ Under stage-balanced, Qwen 27B leapfrogs T4 × Gemma into #2 on a *weaker consul
 
 **Why this is feasible.** All per-stage data already exists. `metrics_summary.json` writes per-stage accuracies for every run we've ever done. The metric is `~5 lines` to add to `compute_all_metrics()` once the weighting is settled. No new infrastructure, no new runs.
 
+### Backtesting (the load-bearing part — do this FIRST)
+
+**Verified 2026-05-22:** every one of the **147 `metrics_summary.json` files** under `results/` already carries `state_accuracy.per_stage` for stages a/b/c/d/e. **The full historical leaderboard can be recomputed under stage-balanced macro with zero new runs and ~30 lines of throwaway aggregation Python.** This is not a tweak to a tail metric — it is a re-analysis of the **entire experimental record of the project**.
+
+This matters because the original macro hides closure dominance *across every cell we've ever run*, not just Qwen 27B. We do not yet know:
+
+- Whether the **locked headline (BERT + Gemma + 10-shot, n=681, 48.15% macro)** is still the headline under stage-balanced — or whether one of the runs we previously dismissed actually beats it.
+- Whether the **Phase 2 Claude tournament rankings** (Opus + top-3 = 71.20 composite, narrowly beating Gemma at 70.33) survive the metric switch, or whether the per-stage profile inverts the order.
+- Whether the **consultant upgrade campaign (T1-T4) rankings** hold — T4 won the Layer-1 classifier-only race at 67.57%, but stage-balanced macro on the *downstream* runs may tell a different story about which classifier produces the best closure quality.
+- Whether the **SocratTeachLLM overfit hypothesis** strengthens or weakens — does the surface-form-winner also win on closure, or does its per-stage profile reveal an even more lopsided memorization signature than R-2 already shows?
+- Whether the **teacher arms (Gemma vs A3B vs Claude vs Qwen 27B)** maintain their current ordering or re-sort. Each teacher likely has a per-stage profile and the headline ordering may not reflect *real* pedagogical capability.
+
+**This is where the real insight lives.** The current paper narrative is built on rankings that may not survive a metric that actually credits closure. The honest move is to recompute everything before writing the headline numbers down — *especially* the locked headline, *especially* the SocratTeachLLM comparison, *especially* anything we currently treat as "settled."
+
+**Backtest scope, in priority order:**
+
+1. **Locked headline run** (`results/bert-consultant-fewshot10-gemma-full/metrics_summary.json`, n=681). Recompute stage-balanced macro. This is the number that anchors the paper.
+2. **All n=681 full runs** (~7 configurations per `CONVERGENCE_ANALYSIS.md`). Re-rank under stage-balanced.
+3. **The Phase 2 Claude triple-arch tournament** (6 configs at n=50). Does the +1 pt Opus-over-Gemma margin survive?
+4. **The SocratTeachLLM Chinese vs English experiment** (4 configs). Does the memorization signature look even more lopsided when we look at stage-level performance?
+5. **The 4-cell Qwen 27B grid** (in flight tonight). The cell that motivated this proposal.
+6. **Every other config** (~140 remaining `metrics_summary.json` files). Sweep for any sleeper that beats the locked headline under the new metric.
+
+**Output of the backtest:** a single `results/backtest_stage_balanced_2026_XX_XX.md` table with all 147 configurations ranked by both metrics side-by-side, plus the per-stage breakdown for the top 20. Anything that changes rank by ≥3 positions deserves a sentence of analysis in the paper. Anything that *beats the locked headline under the new metric but lost under the old one* deserves a section.
+
+**Sequence:** backtest FIRST → write the methodology paragraph (informed by what the backtest reveals) → only THEN finalize which weighting variant becomes the paper headline. Implementing stage-balanced macro in `compute_all_metrics()` is the *last* step, not the first — by the time we add it to the live code, the backtest will already have told us what to expect every new run will look like under it.
+
 **Connection to existing critique.** This is the third rung on the same ladder this doc already climbs:
 
 1. ROUGE/BLEU are frequency-weighted over n-grams → reward phrase-level mimicry over teaching equivalence.
@@ -230,7 +257,7 @@ In priority order:
 
 5. **Write the benchmark-critique paragraph(s) into the paper** as the methodological contribution. This is the writing work; the data already exists.
 
-6. **TODO — Stage-balanced state accuracy (Proposal 7).** Finalize the weighting choice (recommended: Option A, plain stage-balanced macro = ML-standard macro-F1 move), then add ~5 lines to `compute_all_metrics()` so every future `metrics_summary.json` reports stage-balanced macro alongside the current frequency-weighted macro. Decision belongs to the paper-writing pass to avoid metric-shopping mid-experiment. Triggered by the Qwen 27B think run on 2026-05-22: its stage-e dominance (83.3% vs 66.7-75.0% across all other teachers) is currently invisible to the headline because stage e is only 10% of turns. See Proposal 7 above for the math and three weighting options.
+6. **TODO — Stage-balanced state accuracy (Proposal 7). BACKTEST FIRST.** All **147** historical `metrics_summary.json` files already carry `state_accuracy.per_stage`. Recomputing the full leaderboard under stage-balanced macro requires zero new runs and ~30 lines of aggregation Python. **Do the backtest before writing any paper numbers down** — we do not yet know whether the locked headline survives the metric switch, whether the Phase 2 Claude tournament rankings invert, whether SocratTeachLLM's overfit signature looks even more lopsided at stage-level resolution, or whether some run we previously dismissed beats the current headline under the new metric. Sequence: backtest → write methodology paragraph informed by what it reveals → finalize weighting choice → add ~5 lines to `compute_all_metrics()` so new runs report it natively. See Proposal 7 §Backtesting for scope (priority-ordered) and expected output. **This is the load-bearing analysis of the project's final write-up, not a tail polish item.**
 
 ## TL;DR for the paper
 
