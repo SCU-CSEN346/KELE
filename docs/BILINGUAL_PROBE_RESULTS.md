@@ -145,17 +145,33 @@ snapshot at `results/_orchestrator_logs/backtest_stage_balanced_2026_05_23_post_
   (`bert × Gemma-31B · fewshot10 · n=681` = 68.65) — i.e. within Monte-Carlo
   noise of the paper headline, on a Chinese-only fine-tuned 9B teacher at n=50.
 
-### The SocratTeachLLM overfit hypothesis: confirmed
+### The SocratTeachLLM overfit hypothesis: CONFIRMED — and stronger than the name suggests
 
 The qwen3.5 × STL ZH cell hits **stage_bal #1 in the entire experimental record**
 while scoring **judge 7.30 — lower than every cell in the top 10 unified ranking**.
-This is the empirically-grounded version of the benchmark critique
-(`docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md`): STL produces responses that align
-near-perfectly with the SocRule state distribution the benchmark scores against,
-but an independent Claude Sonnet judge penalizes them on Socratic validity and
-advancement axes. Both metrics are measuring "Socratic teaching quality"; they
-disagree on which model is best. **A surface-form benchmark and a content-judging
-LLM look at the same STL output and reach opposite conclusions.**
+Same outputs, opposite verdicts depending on metric family.
+
+The contamination probe (run 2026-05-23 PM, see
+`docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md`) upgrades this from "overfit
+hypothesis" to "**measured benchmark-contamination signature**." STL was
+trained on the entire SocratDataset — not just one side of a split — so its
+"benchmark performance" is a memorization ceiling, not a generalization
+score. Two independent signatures fire simultaneously:
+
+1. **Heavy right tail with exact matches.** 4 exact-match test turns out of
+   288 (1.4%), 17 near-verbatim (≥80 char-ROUGE) turns; the Gemma 31B
+   control on the same dataset produces ZERO exact matches and ZERO
+   near-verbatim turns.
+2. **Train/test distributions statistically identical.** STL on a 50-dialogue
+   random train sample = mean ROUGE-1 48.28; STL on a 50-dialogue random
+   test sample = 48.06. Δ = +0.22, well inside noise. The model didn't
+   distinguish train from test because it saw both during training.
+
+Both metrics — surface-form and judge — are honest. They disagree because they
+measure different things: surface-form rewards memorization, the judge scores
+the actual pedagogical move. STL maxes the former and gets penalized on the
+latter. See `docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md` for the full proof,
+the smoking-gun exact-match examples, and the implications for the paper.
 
 ### Judge-direction reversal vs the Gemma probe — paper-grade
 
