@@ -1,0 +1,16 @@
+{
+  "experiment": "CLEANPROBE-t4-bert-socratteachllm-fewshot10-SYNTH-n50-seed42",
+  "teacher_model": "SocratTeachLLM",
+  "teacher_base_url": "http://localhost:8001/v1",
+  "consultant_model": "SocratTeachLLM",
+  "consultant_base_url": "http://localhost:8001/v1",
+  "thinking_budget": 0,
+  "max_teaching_rounds": 8,
+  "unified": false,
+  "workers": 1,
+  "total_dialogues": 37,
+  "completed": 37,
+  "total_elapsed_seconds": 87.18,
+  "started_at": "2026-05-23T20:07:22-07:00",
+  "finished_at": "2026-05-23T20:08:49-07:00"
+}

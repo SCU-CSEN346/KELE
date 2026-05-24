@@ -113,13 +113,13 @@ if $DO_COMPARE && [[ ! -f "$BASELINE_DIR/metrics_summary.json" ]]; then
 fi
 
 # GPU VRAM sanity (informational).
-# Gemma 4 31B Q5_K_XL at 220K ctx measured 30,688 MiB total / 2,080 MiB headroom.
-# Headroom is exactly at the 2 GB rule, so warn if free < 30.5 GB.
+# Gemma 4 31B Q5_K_XL at 180K ctx measures ~26 GB total / ~6 GB headroom
+# (reduced from 220K on 2026-05-23 so a co-resident BERT consultant fits).
 if command -v nvidia-smi &>/dev/null; then
   VRAM_FREE=$(nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits 2>/dev/null | head -1 || echo 0)
   echo "GPU VRAM free: ${VRAM_FREE} MiB"
-  if [[ "$VRAM_FREE" =~ ^[0-9]+$ ]] && [[ "$VRAM_FREE" -lt 30500 ]]; then
-    echo "WARN: less than 30.5 GB VRAM free — server may OOM at 220K context." >&2
+  if [[ "$VRAM_FREE" =~ ^[0-9]+$ ]] && [[ "$VRAM_FREE" -lt 26500 ]]; then
+    echo "WARN: less than 26.5 GB VRAM free — server may OOM at 180K context." >&2
   fi
 fi
 

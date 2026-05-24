@@ -150,6 +150,16 @@ def _force_correct_head(model: torch.nn.Module, num_labels: int) -> None:
             torch.nn.init.zeros_(new_head.bias)
         setattr(model, head_name, new_head)
         model.config.num_labels = num_labels
+        # Restore the canonical id2label/label2id. Qwen3_5ForSequenceClassification's
+        # original 2-class head leaves model.config.id2label = {0: "LABEL_0", 1: "LABEL_1"}
+        # which then persists through from_pretrained(id2label=...) and reaches the
+        # on-disk config.json after save_pretrained. The classifier still learns the
+        # right indices, but the saved string-label mapping is wrong → kele.py's
+        # bert-consultant emits "LABEL_17" instead of "c17" → all string-vs-string
+        # comparisons fail → state_acc collapses to ~0%. Fix here so future saves
+        # carry the right mapping; broken T3/T4 configs were patched in-place separately.
+        model.config.id2label = {i: s for i, s in enumerate(ALL_STATES)}
+        model.config.label2id = {s: i for i, s in enumerate(ALL_STATES)}
         reason = []
         if shape_wrong:
             reason.append(f"shape {head.out_features}->{num_labels}")

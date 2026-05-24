@@ -1,0 +1,16 @@
+{
+  "experiment": "MEMPROBE-t4-bert-socratteachllm-fewshot10-TRAIN-n50-seed42",
+  "teacher_model": "SocratTeachLLM",
+  "teacher_base_url": "http://localhost:8001/v1",
+  "consultant_model": "SocratTeachLLM",
+  "consultant_base_url": "http://localhost:8001/v1",
+  "thinking_budget": 0,
+  "max_teaching_rounds": 8,
+  "unified": false,
+  "workers": 1,
+  "total_dialogues": 50,
+  "completed": 50,
+  "total_elapsed_seconds": 112.32,
+  "started_at": "2026-05-23 19:21:15",
+  "finished_at": "2026-05-23 19:23:07"
+}

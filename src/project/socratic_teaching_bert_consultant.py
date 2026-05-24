@@ -62,10 +62,64 @@ class SocraticTeachingSystemBertConsultant(SocraticTeachingSystem):
                 f"Train via `uv run python scripts/train_state_classifier_34way.py`."
             )
         self.bert_tokenizer = AutoTokenizer.from_pretrained(ckpt_path)
-        self.bert_model = AutoModelForSequenceClassification.from_pretrained(ckpt_path)
-        self.bert_device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.bert_model.to(self.bert_device).eval()
+        # Load fp32 first, post-cast to bf16 after device transfer. The naive
+        # `from_pretrained(..., dtype=torch.bfloat16, low_cpu_mem_usage=True)`
+        # call has a thread race on transformers 5.x + torch 2.11: the meta-
+        # tensor materialization path leaks fp32 sub-buffers into nominally-
+        # bf16 modules, and concurrent loads in different threads land with
+        # partially fp32 weights despite reporting bf16 in named_parameters().
+        # Inference then explodes with `mat1/mat2 must have the same dtype,
+        # got BFloat16 and Float`. Discovered 2026-05-23 while bringing up
+        # the 4-cell STL bilingual probe at KELE_PARALLEL_WORKERS=4 (3 of 4
+        # worker threads failed identically; the v3 load-then-cast pattern
+        # tested 4/4 OK).
+        # attn_implementation=eager — transformers 5.8.1's default SDPA path
+        # for Qwen3.5 MLA crashes with "cannot reshape tensor of 0 elements"
+        # on first forward (modeling_qwen3_5.py:450). Eager attention works
+        # cleanly. BERT-class models silently ignore the kwarg, so passing
+        # it unconditionally is safe across all consultant backbones.
+        self.bert_model = AutoModelForSequenceClassification.from_pretrained(
+            ckpt_path,
+            low_cpu_mem_usage=True,
+            attn_implementation="eager",
+        )
+        # Device selection: default to CPU when KELE_BERT_DEVICE=cpu (or 'auto'
+        # when the teacher already occupies most VRAM). Otherwise CUDA.
+        # A 24M bge-small fits anywhere; Qwen3*-Embedding (~600M-750M params,
+        # 1.2-1.5 GB in bf16) plus a 28 GB teacher (Gemma 4 31B Q5) on a 32 GB
+        # 5090 leaves only ~2 GB of free + fragmented VRAM, where even 16 MB
+        # contiguous allocations fail. CPU inference is ~100-300ms per turn on
+        # a Qwen3.5-class model — ~3% overhead on a 50-min Gemma eval. Tiny
+        # cost; massive reliability win.
+        env_device = os.environ.get("KELE_BERT_DEVICE", "auto").lower()
+        if env_device == "cpu":
+            self.bert_device = "cpu"
+        elif env_device == "cuda":
+            self.bert_device = "cuda"
+        else:  # auto: pick CPU when the BERT model is >100 MB AND CUDA is busy
+            backbone_params_mb = sum(p.numel() for p in self.bert_model.parameters()) * 2 / 1e6
+            cuda_busy = False
+            if torch.cuda.is_available():
+                free_bytes, _total = torch.cuda.mem_get_info()
+                # If less than 3 GB free, fall back to CPU regardless of model size
+                cuda_busy = free_bytes < 3 * 1024**3
+            if backbone_params_mb > 200 and cuda_busy:
+                self.bert_device = "cpu"
+                print(
+                    f"  [bert-consultant] {backbone_params_mb:.0f} MB model + busy CUDA "
+                    f"({free_bytes / 1024**3:.1f} GB free) -> CPU inference"
+                )
+            else:
+                self.bert_device = "cuda" if torch.cuda.is_available() else "cpu"
+        # Force bf16 AFTER device transfer (see comment above) — this is the
+        # cast that actually sticks under multi-thread loads.
+        self.bert_model.to(self.bert_device).to(dtype=torch.bfloat16).eval()  # pyright: ignore[reportPrivateImportUsage]
         self.bert_max_length = 512
+        # Ensure pad_token_id is set on the model config (Qwen3* classifiers
+        # need this for last-non-pad-token pooling; tokenizer ships with one
+        # already, but model.config may not).
+        if self.bert_model.config.pad_token_id is None:
+            self.bert_model.config.pad_token_id = self.bert_tokenizer.pad_token_id
         # id2label: trust the saved config but fall back to ALL_STATES order
         try:
             self.bert_id2label = {int(k): v for k, v in self.bert_model.config.id2label.items()}
@@ -73,7 +127,26 @@ class SocraticTeachingSystemBertConsultant(SocraticTeachingSystem):
             self.bert_id2label = dict(enumerate(ALL_STATES))
 
     def _format_history_for_bert(self, current_input: str) -> str:
-        """Mirror the training-time format: ``学生: ...\n老师: ...\n学生: <current>``."""
+        """Mirror the training-time format: ``学生: ...\n老师: ...\n学生: <current>``.
+
+        IMPORTANT: by the time this method is called, ``current_input`` has
+        already been appended to ``self.conversation_history`` by the parent
+        ``SocraticTeachingSystem.process_student_input`` (line 486:
+        ``self.add_to_history("student", student_input)`` runs BEFORE the
+        consultant call on line 489). So we MUST NOT append ``current_input``
+        again here — that would duplicate the current student utterance and
+        give the classifier ``学生: X\n学生: X`` as input, which never appears
+        in the trainer's ``build_examples`` distribution.
+
+        The duplication bug was found 2026-05-22 PM while diagnosing T4 +
+        Gemma integration mini-test underperformance. T4 (Qwen3.5) was
+        catastrophically affected (~45 pp drop from standalone 67.57% to
+        integration ~22%). bge-small was also affected but less severely
+        (~10 pp drop from standalone 61.34% to integration 51.06%), which is
+        why the bug went undetected in the paper's locked headline.
+        Re-running with the fix on a matched n=50 set is the apples-to-apples
+        comparison.
+        """
         lines: list[str] = []
         for entry in self.conversation_history:
             role = entry.get("role", "")
@@ -82,7 +155,10 @@ class SocraticTeachingSystemBertConsultant(SocraticTeachingSystem):
                 lines.append(f"学生: {content}")
             elif role == "teacher":
                 lines.append(f"老师: {content}")
-        lines.append(f"学生: {current_input.strip()}")
+        # The current student turn is already in conversation_history — do NOT
+        # append `current_input` again. (Keeping the parameter to preserve the
+        # method signature; the value matches the last student entry already.)
+        _ = current_input  # silence unused-arg lint
         full = "\n".join(lines)
         # Mirror training truncation: last 4000 chars
         return full[-4000:]

@@ -1,0 +1,16 @@
+{
+  "experiment": "bge-small-bert-gemma-fewshot10-n50-fixed",
+  "teacher_model": "Gemma 4 31B",
+  "teacher_base_url": "http://localhost:8080/v1",
+  "consultant_model": "Gemma 4 31B",
+  "consultant_base_url": "http://localhost:8080/v1",
+  "thinking_budget": 0,
+  "max_teaching_rounds": 8,
+  "unified": false,
+  "workers": 1,
+  "total_dialogues": 50,
+  "completed": 50,
+  "total_elapsed_seconds": 3277.52,
+  "started_at": "2026-05-22 16:53:40",
+  "finished_at": "2026-05-22 17:48:18"
+}

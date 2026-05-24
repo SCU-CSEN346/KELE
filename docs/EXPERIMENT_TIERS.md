@@ -4,6 +4,16 @@ Reference doc for prioritizing additional experiments. Generated 2026-05-15 afte
 
 Update this list as items move from `pending` → `in_progress` → `done`. Move done items to the bottom of their tier with a `[✓ commit-hash, date]` annotation.
 
+> **⚠ Status header (added 2026-05-23, audit pass).** Much of this doc is now historical:
+>
+> - **Consultant-axis upgrade (queue at top below):** all four T1–T4 cells complete. Winner: T4 (qwen3.5-0.8B-LoRA, now labeled `qwen3.5` per `docs/NAMING_CONVENTION.md`). 67.57% Layer-1, full Layer-2 cross-teacher matrix landed by 2026-05-23. See `docs/CONSULTANT_UPGRADE_LOG.md` §FINAL STATE for the unified-metric numbers.
+> - **Tier S items (Gemma 31B full, LoRA SFT, hierarchical BERT classifier):** S.1 done and retracted at scale (21% schema-fallback collapse). S.3 done as the locked headline `bert × Gemma-31B · fewshot10 · n=681` (now augmented by the BERT-integration architecture). S.2 still deferred.
+> - **Tier A think-mode adds (Qwen 27B, Gemma 4 A4B, etc.):** Qwen 27B full grid landed 2026-05-23 (cross-teacher matrix). The other think-mode adds are still pending.
+> - **Tier B observability items:** the radar chart (B.20) and a few others landed; most still pending.
+> - **Tier C dataset-expansion items:** translation + bilingual probe partially done (see `docs/TRANSLATION_PLAN.md`).
+>
+> Forward-looking work is tracked in `docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md` §Concrete next steps (the canonical TODO list) and the live entries in `docs/EXPERIMENT_LOG.md`. The full-n=681 local–frontier parity sub-leaderboard (item 7 in BENCHMARK_CRITIQUE) is the highest-priority remaining experimental item.
+
 ---
 
 ## 🎯 Locked next-steps queue — consultant-axis upgrade (2026-05-22)

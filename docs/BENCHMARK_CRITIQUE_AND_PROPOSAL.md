@@ -131,18 +131,121 @@ Empirically (see [`CONVERGENCE_ANALYSIS.md`](CONVERGENCE_ANALYSIS.md)), the Socr
 
 **Caveat:** the analysis above assumes random sampling. A stage-and-subject-stratified subsample (forcing balanced coverage of stages a–e and across chemistry / biology / physics chapters) should converge faster — likely making n ≈ 200 stratified equivalent to n = 400 random for the same tolerance. Worth pursuing when constructing the new dataset.
 
+### Proposal 7: Stage-balanced state accuracy (closes the closure-blindness gap) — **TODO, deferred**
+
+**Status:** Pending. Math is sketched but not implemented; final weighting choice deferred — see "Open weighting question" below.
+
+**The triggering observation (2026-05-22):** Qwen 27B think mode, run as the teacher behind the bge-small consultant at n=50 (partial, in flight as of write time), produces these per-stage accuracies after 175 turns:
+
+```
+stage   acc      n_turns
+  a    100.0%    33
+  b     36.8%    38
+  c     21.1%    57   ← most frequent stage, dominates the macro
+  d     41.4%    29
+  e     83.3%    18   ← rarest stage; +8-17 pp lead over every other cell
+```
+
+Stage e (closure) is **+8 pp over A3B (75.0)**, **+11 pp over Gemma (72.7)**, **+17 pp over both T4-consultant cells (66.7)**. This is the largest single-stage lead any teacher has shown across the 6 cells we have full data on.
+
+Yet the headline macro state accuracy is only ~49% — essentially tied with the locked headline (48.15%). The reason is that stage e is only **10.3%** of the test split's turns. Frequency-weighted macro state acc therefore credits Qwen 27B's closure dominance with only ~1.7 pp of headline lift, while the +12 pp deficit on stage c (Qwen 21.1% vs T4 × Gemma 33.3%) costs ~3.9 pp because stage c is 32.6% of turns. **The composite is dominated by stage c, and Qwen 27B's pedagogically most-important strength is invisible to the headline.**
+
+**Why this matters pedagogically.** Stage e is *closure* — the point at which the teacher consolidates the learning and seals the conversation. It is:
+
+- The *rarest* stage by frequency (one closure per dialogue, vs ≥1 questioning turn per dialogue, often several).
+- The *most pedagogically load-bearing* — closure is what makes the learning stick. A botched closure leaves the student without resolution, regardless of how skillfully the teacher anchored or questioned earlier.
+- The stage where surface-form metrics are *most blind* — a closure that uses different vocabulary but conveys the same consolidation looks fine on ROUGE but mediocre on stage-correct.
+
+This is the same pathology this doc already identifies for ROUGE/BLEU (Proposal 1's motivating argument): **frequency-weighted averaging hides what is pedagogically important**. The corollary for state accuracy: macro state-acc under-weights closure.
+
+**The math, with three weighting options.** Let $p_s$ be the per-stage accuracy and $f_s$ the per-stage frequency on the test split.
+
+- **Current (frequency-weighted macro):** $\text{macro} = \sum_s f_s \cdot p_s$. Each turn counts once.
+- **Option A — Stage-balanced macro (recommended baseline):** $\text{stage\_bal} = \frac{1}{5}\sum_s p_s$. Each stage weighted equally; methodologically standard "macro-F1" move from multi-class classification.
+- **Option B — Pedagogically-weighted:** assign weights by pedagogical importance, e.g. $w_a{=}0.10$, $w_b{=}0.20$, $w_c{=}0.25$, $w_d{=}0.20$, $w_e{=}0.25$ (gives closure parity with questioning). Requires citation from KELE/SocRule literature on relative stage importance to be defensible.
+- **Option C — Frequency-inverse weighted:** $w_s \propto 1/f_s$, normalized. Mathematically gives rare stages more weight; theoretically clean but may overcorrect (stage e gets ~3× weight of stage c under this).
+
+Under the same Qwen 27B partial data (and the four already-complete n=50 cells):
+
+| Cell | Current macro | Stage-balanced (Option A) | Δ |
+|---|---:|---:|---:|
+| T4 × A3B | 54.86% | 58.62% | +3.8 |
+| Qwen 27B think × bge (partial, 175 turns) | 49.14% | **56.52%** | **+7.4** ← biggest jump |
+| T4 × Gemma | 51.58% | 56.13% | +4.6 |
+| bge × Gemma | 45.94% | 52.73% | +6.8 |
+| bge × A3B | 45.36% | 52.48% | +7.1 |
+
+Under stage-balanced, Qwen 27B leapfrogs T4 × Gemma into #2 on a *weaker consultant*. The +7.4 pp lift is the largest of any cell, entirely driven by stage e.
+
+**Open weighting question — deferred to the paper-writing pass.** Recommendation (informed by ML convention): **adopt Option A (stage-balanced macro) as the new primary headline state-acc metric**, with the current frequency-weighted macro reported as a secondary "test-distribution-matched" number, and the per-stage table (a/b/c/d/e) reported in full as the most informative single artifact. This mirrors the macro-vs-micro F1 convention in multi-class classification literature. Options B/C remain available if a pedagogical-weights argument warrants the extra complexity.
+
+**Why not pick now.** Picking the weighting *after* seeing the data is metric-shopping; the chain currently in flight uses the original macro for its promote decision precisely to avoid that bias. Finalizing the weighting belongs to the paper-writing pass, when we can co-design the metric with the per-stage reporting table and pick whichever option is cleanest to defend in the limitations section.
+
+**Why this is feasible.** All per-stage data already exists. `metrics_summary.json` writes per-stage accuracies for every run we've ever done. The metric is `~5 lines` to add to `compute_all_metrics()` once the weighting is settled. No new infrastructure, no new runs.
+
+### Backtesting (the load-bearing part — do this FIRST)
+
+**Verified 2026-05-22:** every one of the **147 `metrics_summary.json` files** under `results/` already carries `state_accuracy.per_stage` for stages a/b/c/d/e. **The full historical leaderboard can be recomputed under stage-balanced macro with zero new runs and ~30 lines of throwaway aggregation Python.** This is not a tweak to a tail metric — it is a re-analysis of the **entire experimental record of the project**.
+
+This matters because the original macro hides closure dominance *across every cell we've ever run*, not just Qwen 27B. We do not yet know:
+
+- Whether the **locked headline (BERT + Gemma + 10-shot, n=681, 48.15% macro)** is still the headline under stage-balanced — or whether one of the runs we previously dismissed actually beats it.
+- Whether the **Phase 2 Claude tournament rankings** (Opus + top-3 = 71.20 composite, narrowly beating Gemma at 70.33) survive the metric switch, or whether the per-stage profile inverts the order.
+- Whether the **consultant upgrade campaign (T1-T4) rankings** hold — T4 won the Layer-1 classifier-only race at 67.57%, but stage-balanced macro on the *downstream* runs may tell a different story about which classifier produces the best closure quality.
+- Whether the **SocratTeachLLM overfit hypothesis** strengthens or weakens — does the surface-form-winner also win on closure, or does its per-stage profile reveal an even more lopsided memorization signature than R-2 already shows?
+- Whether the **teacher arms (Gemma vs A3B vs Claude vs Qwen 27B)** maintain their current ordering or re-sort. Each teacher likely has a per-stage profile and the headline ordering may not reflect *real* pedagogical capability.
+
+**This is where the real insight lives.** The current paper narrative is built on rankings that may not survive a metric that actually credits closure. The honest move is to recompute everything before writing the headline numbers down — *especially* the locked headline, *especially* the SocratTeachLLM comparison, *especially* anything we currently treat as "settled."
+
+**Backtest scope, in priority order:**
+
+1. **Locked headline run** (`results/bert-consultant-fewshot10-gemma-full/metrics_summary.json`, n=681). Recompute stage-balanced macro. This is the number that anchors the paper.
+2. **All n=681 full runs** (~7 configurations per `CONVERGENCE_ANALYSIS.md`). Re-rank under stage-balanced.
+3. **The Phase 2 Claude triple-arch tournament** (6 configs at n=50). Does the +1 pt Opus-over-Gemma margin survive?
+4. **The SocratTeachLLM Chinese vs English experiment** (4 configs). Does the memorization signature look even more lopsided when we look at stage-level performance?
+5. **The 4-cell Qwen 27B grid** (in flight tonight). The cell that motivated this proposal.
+6. **Every other config** (~140 remaining `metrics_summary.json` files). Sweep for any sleeper that beats the locked headline under the new metric.
+
+**Output of the backtest:** a single `results/backtest_stage_balanced_2026_XX_XX.md` table with all 147 configurations ranked by both metrics side-by-side, plus the per-stage breakdown for the top 20. Anything that changes rank by ≥3 positions deserves a sentence of analysis in the paper. Anything that *beats the locked headline under the new metric but lost under the old one* deserves a section.
+
+**Sequence:** backtest FIRST → write the methodology paragraph (informed by what the backtest reveals) → only THEN finalize which weighting variant becomes the paper headline. Implementing stage-balanced macro in `compute_all_metrics()` is the *last* step, not the first — by the time we add it to the live code, the backtest will already have told us what to expect every new run will look like under it.
+
+**Connection to existing critique.** This is the third rung on the same ladder this doc already climbs:
+
+1. ROUGE/BLEU are frequency-weighted over n-grams → reward phrase-level mimicry over teaching equivalence.
+2. Macro state-acc is frequency-weighted over turns → under-counts closure, the pedagogically critical rare stage.
+3. The KELE benchmark, as published, has no per-stage breakdown in its headline at all → invisibility of pedagogical structure becomes the norm.
+
+Adopting stage-balanced macro is the natural co-headline to the four-metric panel.
+
+### Proposal 8: Unified two-axis ranking (lands the methodology in a single number)
+
+**Status:** Implemented 2026-05-23. See `docs/UNIFIED_RANKING.md` for full formula + rationale.
+
+`unified_score = 0.5 × stage_balanced + 0.5 × (judge × 10)` produces a single defensible rank per configuration by averaging the two memorization-resistant metrics this doc argues for: closure-aware pedagogical correctness (Proposal 7) and rubric-based pedagogical quality (Proposal 1). Both axes are necessary; neither is sufficient; equal weight is the no-prior default.
+
+What it changes:
+- **The headline race tightens and shifts.** Cross-teacher 8-cell matrix at n=50 (all judged 2026-05-23): T4 × Gemma 31B wins unified at 68.94, beating T4 × Qwen 27B-think (66.89) despite the latter's stage_bal lead. The judge dimension carries enough signal to overturn the closure-only ranking — exactly the property a unified ranking should have.
+- **The locked headline (BERT + Gemma 31B + 10-shot, n=681) lands at unified 68.65**, only 0.29 below the n=50 winner. Frontier ceiling (BERT + Claude Sonnet/Opus + top3 at n=681) sits at 69.37–70.06 unified — 0.7–1.4 points above locked at proper sample size.
+- **SocratTeachLLM cells crash to the unified bottom.** Surface-form R-1 of 45–56 paired with stage_bal of 19–42 and judge of 6.6–7.8 yields unified 44–60. The metric inversion this doc surfaces gets cleanly punished by the unified ranking, without needing a separate memorization-detector. This is the unified score working as intended.
+
+The unified column now appears in every `backtest_stage_balanced_*.md` artifact via `scripts/backtest_stage_balanced.py`.
+
 ## Recommended benchmark composition for our paper
 
-We propose **a four-metric panel** that triangulates pedagogical capability without single-metric memorization advantages:
+We propose **a four-metric panel** that triangulates pedagogical capability without single-metric memorization advantages, **collapsed into a unified single-number ranking** (Proposal 8) for the paper headline:
 
-| Metric | What it measures | Memorization-resistant? | Implementation |
-|---|---|---|---|
-| **LLM-judge rubric score (0-10)** | Pedagogical correctness | ✅ Yes — rubric checks teaching moves, not phrasing | Proposal 1 |
-| **State accuracy (against BERT-classifier annotation)** | Routing quality, with cleaner ground truth than GPT-4 labels | ⚠️ Partial — depends on BERT classifier quality | Use our 86.55% BERT classifier as the annotator |
-| **Semantic R-1 (cosine sim)** | Whether the teacher said something semantically equivalent to the reference | ⚠️ Partial — better than surface R-1 | Proposal 2 |
-| **Stage-progression efficiency** | Turns-to-closure | ✅ Yes — reference-free | Proposal 3 |
+| Metric | What it measures | Memorization-resistant? | Implementation | Role |
+|---|---|---|---|---|
+| **`unified` (0-100)** | Headline aggregate | ✅ Yes (by construction — averages two resistant axes) | `docs/UNIFIED_RANKING.md` | **Primary paper headline** |
+| **`stage_bal`** | Per-turn pedagogical correctness (closure-aware) | ✅ Yes (per-stage) | Proposal 7 | Feeds unified |
+| **`judge`** | Per-turn pedagogical quality | ✅ Yes (rubric-based) | Proposal 1 | Feeds unified |
+| Per-stage table (a/b/c/d/e) | Pedagogical-stage profile | ✅ Yes | `state_accuracy.per_stage` | Methodology table |
+| `macro` (frequency-weighted) | Test-distribution-matched secondary | ⚠️ Partial — hides closure | already implemented | Secondary number |
+| Semantic R-1 (cosine sim) | Surface similarity, paraphrase-tolerant | ⚠️ Partial | Proposal 2 (deferred) | Future panel addition |
+| Stage-progression efficiency | Turns-to-closure | ✅ Yes — reference-free | Proposal 3 (deferred) | Future panel addition |
 
-Report all four; rank by the LLM-judge score as the primary metric, with the others as triangulation. **Surface-form ROUGE-1/R-2/BLEU-4 should be reported as a memorization indicator, not as a quality metric** — explicitly framed as "high values on these metrics suggest training-data overlap."
+**Rank by `unified` as the headline. Report `stage_bal`, `judge`, `macro`, and per-stage breakdown as supporting evidence. Surface-form ROUGE-1/R-2/BLEU-4 should be reported as a memorization indicator, not as a quality metric** — explicitly framed as "high values on these metrics suggest training-data overlap."
 
 ## Paper framing
 
@@ -169,6 +272,24 @@ In priority order:
 4. **Re-split SocratDataset by chapter** and re-run the locked headline + at least one Claude config on the chapter-held-out split. If SocratTeachLLM (or any model) collapses there, that's smoking-gun evidence for the overfit hypothesis without needing to repair SocratTeachLLM serving infrastructure.
 
 5. **Write the benchmark-critique paragraph(s) into the paper** as the methodological contribution. This is the writing work; the data already exists.
+
+6. **✅ DONE 2026-05-23 — Stage-balanced state accuracy + unified ranking.** The backtest landed in `scripts/backtest_stage_balanced.py` (recomputes all 129 historical `metrics_summary.json` files; emits the master ranked list to `results/_orchestrator_logs/backtest_stage_balanced_*.md`). The unified ranking metric (`unified = 0.5 × stage_balanced + 0.5 × (judge × 10)`) is defined in `docs/UNIFIED_RANKING.md`. Headline survived: `bert × Gemma-31B · fewshot10 · n=681` at unified 68.65, only 0.29 below the n=50 cross-teacher winner (`qwen3.5 × Gemma-31B`). The locked-headline state-balanced re-ordering moved 35 of 116 configs by ≥3 positions; details in the backtest snapshot. Methodology paragraph is in `docs/UNIFIED_RANKING.md`.
+
+7. **TODO — Full-test-set ($n{=}681$) local-vs-frontier comparison at parity.** The local–frontier parity finding (best honest open-weight 68.94 unified vs.\ best frontier 70.06 unified; 1.12-pt gap; documented in `docs/UNIFIED_RANKING.md` and `docs/EXPERIMENT_LOG.md` 2026-05-23) rests on $n{=}50$ post-fix data + the legacy pre-fix `bert` $n{=}681$ headline. The asymmetric sample-size coverage means we cannot yet make an apples-to-apples local-vs-frontier statement at canonical sample size. Run four targeted $n{=}681$ cells:
+   - `bert-fixed × Gemma-31B · fewshot10 · n=681` — clean re-baseline of the locked headline (~8 GPU-h)
+   - `qwen3.5 × Gemma-31B · fewshot10 · n=681` — current cross-teacher winner at full sample (~8 GPU-h)
+   - `qwen3.5 × A3B-35B · fewshot10 · n=681` — second-best local at full sample (~5 GPU-h, A3B is faster)
+   - `qwen3.5 × Qwen-27B · think · fewshot10 · n=681` — closure-strong local at full sample (~14 GPU-h, contingent on the CUDA-launch-timeout mitigation; see `memory/feedback_qwen27b_context_cap.md`)
+
+   Compare against the existing `bert × Claude-Sonnet · top3 · n=681` (unified 70.06) and `bert × Claude-Opus · top3 · n=681` (unified 69.37). Each cell needs both `metrics_summary.json` and `judge_summary.json` to land on the unified leaderboard (judge ~$0.10 per n=681 cell, ~20 min wall clock; total ~$0.40 + ~80 min API). Total budget: ~35 GPU-h + ~$0.40 API. **This produces the full-sample-size local sub-leaderboard the paper needs to confirm parity definitively** (rather than as a screening-tier finding). Currently blocked by GPU stability for sustained think-mode runs (the Qwen-27B cell may need to drop to n=400 if the CUDA-launch-timeout pattern recurs); the other three cells are safe at n=681 under the current 256K Qwen / 180K Gemma context caps. **GPU returns from the in-flight retry chain and a separate-project window before this work can launch.**
+
+9. **✅ DONE 2026-05-23 — SocratTeachLLM × local-consultants 4-cell bilingual probe + benchmark-contamination proof.** All 4 cells ran cleanly on the fixed STL serving stack (vLLM 0.21 on port 8001; 3 orthogonal traps documented in `memory/feedback_consultant_load_gotchas.md`). Headline: `qwen3.5 × STL · ZH · n=50` lands #1 on stage_balanced in the entire 129-config record (63.40), unified 68.21 (#8). BUT — the surface-vs-judge gap (R-1 top-tier, judge 7.30 lower than every top-10 unified cell) plus the train-vs-test memorization probe (`scripts/memorization_probe.py`) prove this is contamination, not pedagogy: 4/288 character-for-character identical test outputs, train and test distributions statistically identical (Δ R-1 = +0.22), Gemma control = zero near-verbatim. Full proof in `docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md`; results in `docs/BILINGUAL_PROBE_RESULTS.md` "STL bilingual arm". The KELE paper's §4.3 90/10-split claim is consistent with our evidence under "different seed, never released" — benchmark is structurally unreproducible. STL belongs in a "Contaminated baselines" appendix table, not the main leaderboard.
+
+8. **TODO — Bilingual probe at canonical scale (Stage 1 or Stage 2).** The retry-chain bilingual probe (`qwen3.5 × Gemma-31B · fewshot10 · EN · n=100 · seed=42`, in flight as of 2026-05-23) is screening-tier. After it lands, decide:
+   - **Stage 1 confirmation** if EN state-acc drop $\leq 10$ pp vs the Chinese baseline: scale to $n{=}400$ random seed=42 for canonical cross-lingual transfer claim (~5 GPU-h + ~$0.10 judge). Tier C.31 Stage 1 per `docs/EXPERIMENT_TIERS.md`; informs paper §`sec:dataset-en` cross-lingual claim.
+   - **Stage 2 retrain** if EN drop $> 10$ pp: trigger bilingual co-training. LoRA fine-tune the qwen3.5-0.8B-Base classifier on the union of SocratDataset (ZH) + SocratDataset-EN (~42K labeled turns), then re-eval at $n{=}400$ on both splits. ~1-2 GPU-h training + ~5 GPU-h eval + ~$0.10 judge. Implementation pointer: `scripts/train_state_classifier_34way.py` is already parameterized for new datasets.
+
+   Decision gate hinges on the screening n=100 result already in flight. Either path lands a paper-quality cross-lingual claim; current $-0.07$ Opus+top-3 judge delta on Chinese→English is suggestive but on a different consultant family. **GPU returns from the in-flight retry chain + separate-project window before this work can launch.**
 
 ## TL;DR for the paper
 

@@ -18,8 +18,12 @@ set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 ROOT="$(pwd)"
 
-OUT_DIR="results/bert-consultant-fewshot10-gemma-full"
-BERT_CKPT="results/state_classifier_v1/final"
+# Env overrides for variant runs (mini, T4 classifier, etc.):
+#   OUT_DIR=results/t4-bert-gemma-n50 BERT_CKPT=results/state-clf-qwen3.5-0.8b-lora/final \
+#     LIMIT=50 bash scripts/eval_bert_gemma_fewshot10_full.sh
+OUT_DIR="${OUT_DIR:-results/bert-consultant-fewshot10-gemma-full}"
+BERT_CKPT="${BERT_CKPT:-results/state_classifier_v1/final}"
+LIMIT="${LIMIT:-}"
 EXPERIMENT="gemma4-31b-local"
 PORT=8080
 LLAMA_URL="http://localhost:${PORT}"
@@ -49,8 +53,8 @@ echo
 if command -v nvidia-smi &>/dev/null; then
   VRAM_FREE=$(nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits 2>/dev/null | head -1)
   echo "GPU VRAM free: ${VRAM_FREE} MiB"
-  if [[ "$VRAM_FREE" =~ ^[0-9]+$ ]] && [[ "$VRAM_FREE" -lt 30500 ]]; then
-    echo "WARN: less than 30.5 GB VRAM free — server may OOM at 220K context." >&2
+  if [[ "$VRAM_FREE" =~ ^[0-9]+$ ]] && [[ "$VRAM_FREE" -lt 26500 ]]; then
+    echo "WARN: less than 26.5 GB VRAM free — server may OOM at 180K context." >&2
   fi
 fi
 
@@ -130,6 +134,20 @@ fi
 KELE_PARALLEL_WORKERS="${KELE_PARALLEL_WORKERS:-1}"
 echo "Parallel workers: $KELE_PARALLEL_WORKERS (server -np must be ≥ this)"
 
+LIMIT_ARGS=()
+if [[ -n "$LIMIT" ]]; then
+  LIMIT_ARGS=(--limit "$LIMIT")
+  echo "Limit: $LIMIT dialogues"
+fi
+if [[ -n "${SAMPLE_SEED:-}" ]]; then
+  LIMIT_ARGS+=(--sample-seed "$SAMPLE_SEED")
+  echo "Sample seed: $SAMPLE_SEED (random subsample, not first-N-by-ID)"
+fi
+if [[ -n "${DATASET_PATH:-}" ]]; then
+  LIMIT_ARGS+=(--dataset-path "$DATASET_PATH")
+  echo "Dataset: $DATASET_PATH"
+fi
+
 PATH="$ROOT/.venv/bin:$PATH" \
 KELE_FEW_SHOT_TEACHER=1 KELE_FEW_SHOT_N=10 \
 KELE_PARALLEL_WORKERS="$KELE_PARALLEL_WORKERS" \
@@ -137,6 +155,7 @@ KELE_PARALLEL_WORKERS="$KELE_PARALLEL_WORKERS" \
     --experiment "$EXPERIMENT" \
     evaluate \
     --bert-consultant "$BERT_CKPT" \
+    "${LIMIT_ARGS[@]}" \
     --output "$OUT_DIR"
 
 EVAL_EXIT=$?

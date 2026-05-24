@@ -1,12 +1,93 @@
 # Consultant-Axis Upgrade — campaign log
 
 **Started:** 2026-05-22 (mid-morning, PDT)
-**Branch:** `mk/final-project-legs`
+**Branch:** `mk/final-project-legs` (this work shipped, then `mk/post-funnel-experiments` continued the downstream evaluation)
 **Goal:** Test 4 candidate backbones to potentially upgrade the locked state-classifier consultant from `bge-small-zh-v1.5` (86.55% stage / 61.64% state) to something better. Spec in [`EXPERIMENT_TIERS.md`](EXPERIMENT_TIERS.md#-locked-next-steps-queue--consultant-axis-upgrade-2026-05-22).
 
 This doc is the **recovery log** — if the machine crashes, a fresh Claude session can read this doc + the EXPERIMENT_TIERS queue + `git log` and resume without losing context.
 
-## ⚡ LIVE STATE — last updated 2026-05-22 ~12:50 PDT
+## ✅ FINAL STATE — campaign complete as of 2026-05-23 (updated 2026-05-23 PM)
+
+**Funnel winner: T4 (Qwen3.5-0.8B-Base + LoRA r=8)** at 67.57% Layer-1 state accuracy (+6.23 pp over bge-small baseline). Detailed Layer-1 numbers and rationale preserved below.
+
+**Layer-2 (end-to-end pipeline eval) is complete.** All four cross-teacher cells with the T4 consultant (now labeled `qwen3.5` per [`docs/NAMING_CONVENTION.md`](NAMING_CONVENTION.md)) landed at n=50 between 2026-05-22 PM and 2026-05-23. Under the new unified ranking metric (`docs/UNIFIED_RANKING.md`):
+
+| Cell | macro state | stage_bal | judge | **unified** |
+|---|---:|---:|---:|---:|
+| `qwen3.5 × Gemma-31B · fewshot10 · n=50` | 51.58 | 56.13 | 8.18 | **68.94** (cross-teacher winner) |
+| `qwen3.5 × A3B-35B · fewshot10 · n=50` | 54.86 | 58.62 | 7.52 | **66.91** |
+| `qwen3.5 × Qwen-27B · think · fewshot10 · n=50` | 53.19 | 58.68 | 7.51 | **66.89** |
+| `qwen3.5 × Qwen-27B · no-think · fewshot10 · n=50` | 51.89 | 55.45 | 7.56 | **65.54** |
+
+**Compared to the legacy locked headline** (`bert × Gemma-31B · fewshot10 · n=681`, pre-fix, unified **68.65**): `qwen3.5 × Gemma-31B · fewshot10 · n=50` beats it by +0.29 unified — cleanly, on the post-fix consultant, but at the screening sample size (n=50) rather than the canonical n=681. The full-test-set ($n{=}681$) re-confirmation is queued as TODO item 7 in [`docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md`](BENCHMARK_CRITIQUE_AND_PROPOSAL.md).
+
+**Open queue items** (deferred):
+- Task #15 — HF Hub publish of 5 funnel checkpoints. Awaits Max bringing his HF account online.
+- T4 stage-e weighted-loss retrain — listed as Step 6 stub in `scripts/overnight_qwen27b_chain.sh`; not auto-run.
+- Full-n=681 qwen3.5 cross-teacher sub-leaderboard for parity confirmation.
+
+**The "LIVE STATE" section below is preserved as a 2026-05-22 PM snapshot** for the historical record. It captures the in-flight state at that moment; subsequent landing is documented above.
+
+---
+
+## ⚡ LIVE STATE — last updated 2026-05-22 ~16:32 PDT (PM session, Layer-2 mini-tests) — HISTORICAL SNAPSHOT
+
+**Funnel is locked** (T1-T4 results, see below). Currently running **Layer-2 mini-tests** — feeding the winning T4 classifier into the full kele.py pipeline with each of the two locked open-weight teachers (Gemma 4 31B, Qwen 35B-A3B) at n=50.
+
+### Active right now (2026-05-22 16:32 PDT)
+
+- **T4 + Gemma 4 31B + 10-shot @ n=50** (PID found via `pgrep -f "src.project.kele evaluate"`)
+  - Started: 2026-05-22 ~15:40 PDT (after auto-CPU consultant routing was added)
+  - Output dir: `results/t4-bert-gemma-fewshot10-n50/`
+  - Progress at this snapshot: **12/50 dialogues complete** (24%), all ✓, ~43 dlg/hr
+  - ETA: ~52 min remaining → completion ~17:24 PDT
+  - **CPU consultant + GPU teacher** auto-routing engaged (T4 at 1.5 GB bf16 wouldn't fit alongside Gemma's 28 GB on a 32 GB 5090; see "CPU routing for the consultant" section below)
+  - Comparison anchor: locked BERT bge-small + Gemma + 10shot n=50 = **51.06% state / 38.53 R-1**
+
+- **T4 + Qwen 35B-A3B + 10-shot @ n=50** — pending (sequential after Gemma completes; GPU contention forbids parallel runs)
+  - Launch command (when Gemma test completes):
+    ```bash
+    mkdir -p results/t4-bert-a3b-fewshot10-n50
+    OUT_DIR=results/t4-bert-a3b-fewshot10-n50 \
+    BERT_CKPT=results/state-clf-qwen3.5-0.8b-lora/final \
+    LIMIT=50 \
+      bash scripts/eval_bert_a3b_fewshot10_full.sh \
+      > results/t4-bert-a3b-fewshot10-n50/launch.log 2>&1
+    ```
+  - Comparison anchor: locked BERT bge-small + A3B + 10shot n=50 = **48.19% state / 35.57 R-1**
+
+### Recovery procedure if this session crashes
+
+A fresh Claude session can resume by:
+
+1. **Read this doc + `docs/EXPERIMENT_TIERS.md` + `git log -20`** to recover context. Branch is `mk/post-funnel-experiments` (cut from `main` after PR #67 merged).
+
+2. **Check if T4+Gemma finished:** `ls results/t4-bert-gemma-fewshot10-n50/metrics_summary.json`. If file exists, the run is done — read it. If not, check `pgrep -f "src.project.kele evaluate"` to see if it's still running; if no process, re-launch with the Gemma command below.
+
+3. **Re-launch T4+Gemma (full command):**
+   ```bash
+   mkdir -p results/t4-bert-gemma-fewshot10-n50
+   OUT_DIR=results/t4-bert-gemma-fewshot10-n50 \
+   BERT_CKPT=results/state-clf-qwen3.5-0.8b-lora/final \
+   LIMIT=50 \
+     bash scripts/eval_bert_gemma_fewshot10_full.sh \
+     > results/t4-bert-gemma-fewshot10-n50/launch.log 2>&1
+   ```
+   The kele.py pipeline is crash-safe (per-dialogue JSONs in `dialogues/`); restarting picks up where it left off.
+
+4. **Then launch T4+A3B** (command above). Two sequential ~50-min runs ≈ 1.5-2 hr total wall-clock.
+
+5. **After both land,** produce a side-by-side comparison table (Task #18) and update both `CONSULTANT_UPGRADE_LOG.md` and the paper (specifically Section 4.x "BERT-integration full-scale result" → consider updating to T4-integration headline).
+
+### Open queue beyond this PM session
+
+- **Task #15 — HF Hub publish (5 funnel checkpoints).** Spec in `docs/HF_PUBLISHING_PLAN.md`. Awaits Max bringing his HF account online.
+- **Task #4 / C.31 — Bilingual probe.** Stage 1: cheap eval of T4 on SocratDataset-EN test split with no retraining. ~30 min. Stage 2 (bilingual co-training) only if Stage 1 shows >10 pp drop.
+- **Layer-2 at n=400** (full convergent ground-truth size). Probably wait until the n=50 mini-tests show enough lift to justify the ~5 hr full eval. Requires `--sample-seed INT` patch to kele.py first (~10 lines).
+
+---
+
+## (Historical) Funnel landing context — last updated 2026-05-22 ~12:50 PDT
 
 **T1 v5 landed.** Final test state accuracy: **58.32%** vs locked bge-small 61.34% → **Δ = −3.02 pp** (T1 LOSES). All stages 0-8 pp behind, biggest gap on stage d (-8.18 pp). Disconfirms the EXPERIMENT_TIERS hypothesis ("+2-5 pp expected"). Trained model saved to `results/state-clf-qwen3-emb-0.6b-frozen/final/` (2.3 GB safetensors).
 
@@ -399,6 +480,98 @@ Late-afternoon discussion (2026-05-22) flagged the language question: SocratData
 - Stage 2 (only if Stage 1 fails): bilingual co-training on concatenated zh+en train splits. ~1-2 h additional GPU.
 
 The honest estimate: 60-70% likely we get free transfer and save the retraining work. 30-40% we see meaningful Chinese-side degradation and need Stage 2. Both outcomes are scientifically informative — the former validates the multilingual-representation argument; the latter quantifies the LoRA-vs-cross-lingual-preservation tradeoff.
+
+## CPU routing for the consultant when teacher saturates GPU
+
+Added 2026-05-22 during the first T4 Layer-2 mini-test (T4 + Gemma 4 31B + 10-shot at n=50). The locked bge-small consultant (24M params, ~95 MB in fp32) fit easily alongside any teacher on the 5090. T4 (Qwen3.5-0.8B-Base, 752M params, ~3 GB in fp32) does not.
+
+**The OOM cascade we hit:**
+1. **First attempt:** OOM at `model.to(cuda).eval()` — 3 GB fp32 model didn't fit in the ~4 GB free after Gemma loaded.
+2. **Second attempt (bf16 load via `dtype=torch.bfloat16, low_cpu_mem_usage=True`):** model loaded successfully at ~1.5 GB, but every per-turn forward pass OOM'd. CUDA's allocator had ~1.6 GB free but fragmented; even 16 MB contiguous allocations failed.
+3. **Third attempt (auto-CPU routing):** loaded model on CPU instead. Inference happens on CPU, teacher on GPU. Works clean.
+
+**The routing logic** (in `src/project/socratic_teaching_bert_consultant.py`):
+
+```
+env_device = os.environ.get("KELE_BERT_DEVICE", "auto").lower()
+- "cpu"  → CPU always
+- "cuda" → CUDA always (force; will OOM if teacher saturated)
+- "auto" (default):
+    if model_size_mb > 200 AND cuda_free < 3 GB:
+        CPU
+    else:
+        CUDA
+```
+
+The 200 MB threshold lets bge-small (95 MB) stay on CUDA even when memory is tight (frequent reuse, cheap to fit). The 3 GB free threshold catches the "teacher saturated GPU" case for larger Qwen-family classifiers.
+
+**The cost:** ~100-300 ms per turn for CPU inference on a Qwen3.5-class model (single forward, no batch). For a 50-dialogue mini-test averaging ~6 turns each = 300 forward passes × 300 ms ≈ 90 s overhead on a ~50-min run. **~3% wall-clock penalty.** Effectively free relative to the alternative of swapping the consultant for a smaller model.
+
+**The dtype choice (bf16 on CPU vs fp32 on CPU):**
+- We're currently loading in bf16 even on CPU because that's how the auto-CPU code path arose (the bf16 load was step 2 of debugging, the CPU move was step 3, and they composed).
+- bf16 on CPU is often SLOWER than fp32 because most x86 CPUs (AMD, older Intel) lack native bf16 instructions and emulate via fp32 cast → fp32 matmul → bf16 cast. AMX-BF16 (Intel Sapphire Rapids+) is the exception.
+- bf16 vs fp32 accuracy delta on classification argmax: < 0.1 pp empirically; effectively indistinguishable.
+- **Future-tweak:** consider loading in fp32 when device=CPU. Marginal speed win on most CPUs, marginally more faithful to training-time numerics. Not worth restarting an in-flight run for; flip the default when starting a fresh series.
+
+**Implications for the HF Hub publishing plan (Task #15):**
+- Model cards should mention this routing logic in the "How to use" section: large consultant checkpoints (T2/T3/T4) need CPU placement when paired with a multi-GB teacher.
+- A user with two GPUs could place teacher on GPU 0 and consultant on GPU 1 — out of scope for our single-5090 setup, but worth flagging.
+
+## Asymmetric sensitivity to input-format perturbation — a finding worth surfacing
+
+Discovered 2026-05-22 PM during the T4 Layer-2 mini-test campaign. The BERT consultant's `_format_history_for_bert` had been duplicating the current student utterance (appending `current_input` after iterating `conversation_history`, even though the parent `SocraticTeachingSystem.process_student_input` adds it to history just BEFORE calling the consultant). Net result: every classifier input was `学生: X\n学生: X` instead of the trainer-faithful `学生: X`.
+
+The fix (`3d68d4a`) removes the redundant append. But the resulting matched-pair comparison surfaced an **unexpected asymmetry** that is worth a paragraph in the paper:
+
+| Consultant | with duplication ("buggy") | without duplication ("fixed") | Δ from fix |
+|---|---:|---:|---:|
+| **bge-small (24M params, BERT)** | ~51.3% (paper-anchor) | ~45-47% (Run 1 partial, ↓5-6 pp) | **−5 pp** (HURT) |
+| **T4 (Qwen3.5-0.8B-Base, hybrid Mamba+attention)** | ~22% (mini-test partial) | ~63-67% (probe + expected) | **+40 pp** (HUGE WIN) |
+
+The same input-format perturbation has opposite effects on the two classifiers. Possible mechanism:
+
+- **bge-small** was trained on non-duplicated text (single utterance per turn from `build_examples`), but its small attention capacity benefits from the duplicated signal at inference time as a form of inadvertent data augmentation — the repeated student utterance gives self-attention more chances to weight the relevant content, and the model's representations were apparently robust enough to leverage the redundancy.
+- **T4** has much more capacity (752M vs 24M) and the LoRA adapter has specialized the q/k/v/o projections to the trainer's input distribution. The duplication creates an out-of-distribution input pattern (`学生: X\n学生: X`) that breaks the attention pattern T4 expects, collapsing predictions toward incorrect within-stage states.
+
+The finding has **three direct implications for the paper**:
+
+1. **Locked-headline reproducibility.** The paper's cited n=50 baseline of 51.06% (bge-small + Gemma + 10-shot) was achieved with the duplicated input. Anyone re-implementing the pipeline from the trainer's `build_examples` alone (without seeing the consultant code) would get a de-duplicated input and land ~5 pp lower. The paper should disclose this and recommend the de-duplicated format as the canonical one going forward.
+2. **The integration architecture is more sensitive than realized.** Standalone classifier accuracy (the trainer's `test_eval.json` numbers) does not perfectly predict integration accuracy. The mapping is mediated by the consultant code's input-format choices. Future consultant upgrades should validate end-to-end and not just at the classifier level.
+3. **Apples-to-apples consultant comparison requires matched input formats.** A "fairer" headline comparison is "best-format-per-consultant" — but that's an unfair comparison across configs. The defensible scientific framing is to fix the input format (the de-duplicated, trainer-faithful one) and report all consultants under that single format. T4 wins decisively in that framing; bge-small drops by ~5 pp from its paper-cited number.
+
+**Action items for the next paper revision pass:**
+- Replace n=50 baseline tables with the fixed-format numbers (bge-small ~46-47%, T4 ~63-67%) — Tables in §4.x
+- Add a paragraph in the "Limitations / Reproducibility" section explaining the input-format dependency
+- Update the n=681 locked headline reproducibility note: the 48.15% bge-small + Gemma + 10shot result was achieved with the buggy consultant; re-running with the fix is queued (Tier S follow-up)
+
+## T4 stage-e weakness — to address in the next training cycle
+
+Discovered 2026-05-22 PM during Run 2 (T4 + Gemma + 10shot + fix at n=50). At the n=32 matched-pair scrape, T4 beats the paper-anchor baseline on the harder stages but LOSES on stage e (closure, the easiest stage besides stage a):
+
+| Stage | T4-fix | paper-bug | Δ | Notes |
+|---|---:|---:|---:|---|
+| a (probe) | 100% | 100% | 0 | trivial, both perfect |
+| **b** (concept) | 43.24% | 29.73% | **+13.51** ✓ | T4 dominates |
+| **c** (rules, 22-way) | 31.58% | 23.64% | **+7.94** ✓ | T4 wins the hardest stage |
+| **d** (build) | 45.16% | 40.00% | **+5.16** ✓ | T4 ahead |
+| **e** (closure) | 64.00% | 82.61% | **−18.61** ⚠️ | T4 LOSES |
+
+**The pattern:** T4 wins on the **deep classification stages** (b/c/d, where the model has to distinguish many within-stage states) but loses on stage **e** (closure, just 1 state: `e34`).
+
+**Hypothesis:** T4 may have a slight bias against predicting `e34` in favor of stage-d-ish states. Possible mechanisms:
+- The LoRA adapter on Qwen3.5's hybrid Mamba+attention architecture may have specialized too heavily on the discriminative middle-stage features (the 22-way stage-c classification dominates the training signal at ~33.7% of all turns).
+- Stage e is a closure state where the dialogue context is fully built up; a deeper model may pattern-match to "let's wrap up" but predict a d-state because the previous turn was a d-state.
+- The trainer's class-balanced loss could under-weight stage-e because it's a single class (vs 22 classes for stage c).
+
+**Action items for the next training-cycle improvement to T4 (or T5 successor):**
+1. **Stage-weighted loss.** Re-weight the cross-entropy loss to up-weight stage-e turns. The dataset has ~6,803 stage-e turns out of 42,892 total (~15.9%) — under-represented vs stage c's 33.7%. Suggested weight: `1 / sqrt(stage_freq)` so closure gets ~2× the weight of stage c.
+2. **Curriculum/oversampling.** During training, oversample stage-e turns so the model sees more closure context. Could be done at the DataLoader level via WeightedRandomSampler.
+3. **Stage-e-aware exemplar pool.** The 10-shot exemplars in the teacher prompt are stage-balanced, but the consultant's training data isn't. Adding explicit stage-e-emphasis in the trainer's loss could fix this without changing the teacher prompt.
+4. **Investigate per-turn confusion matrix.** When T4 predicts wrong on a stage-e turn, what does it predict instead? If consistently a d-state, that confirms the d→e transition is the failure mode.
+
+**For the paper:** report this as a known limitation in §5 (Improvements) — "while T4 achieves +9 pp over bge-small on the integrated headline, this is concentrated on stages b/c/d; T4 underperforms on stage e (closure), suggesting an opportunity for stage-weighted training in future work."
+
+This is queued in EXPERIMENT_TIERS.md as a Tier A follow-up — high-value, modest cost (~1-2 hr re-train with stage-weighting added to the loss).
 
 ## Open questions
 

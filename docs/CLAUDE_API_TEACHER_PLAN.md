@@ -2,7 +2,16 @@
 
 **Author:** Claude Opus 4.7 (1M ctx) for Max
 **Date:** 2026-05-21
-**Status:** Plan-of-record. Predecessor: `docs/PROMPT_ENGINEERING_PLAN.md` (Phase 1 tournament complete, Phase 2 composition pending). This plan opens a parallel front: swap the local Gemma 4 31B teacher for a frontier Claude teacher via the Anthropic API.
+**Status:** Plan-of-record (now mostly retrospective). Predecessor: `docs/PROMPT_ENGINEERING_PLAN.md` (Phase 1 tournament complete, Phase 2 composition pending at the time of writing). This plan opened a parallel front: swap the local Gemma 4 31B teacher for a frontier Claude teacher via the Anthropic API.
+
+> **⚠ Status header (added 2026-05-23, audit pass).** All five missions in this plan have landed:
+>
+> - **Mission 2 (Sonnet n=50)** and **Mission 3 (Opus n=50)** — done; the n=50 frontier triple-arch landed in `results/bert-claude-{opus,sonnet}-*-n50/` and is documented in `README.md` §"Phase 2 — Frontier-teacher comparison" and `docs/EXPERIMENT_LOG.md` 2026-05-21 entry.
+> - **Mission 4 (full n=681 promotion)** — done for both Sonnet + top-3 and Opus + top-3. Results in `results/bert-claude-{sonnet,opus}-top3-n681/`. Per the unified-metric leaderboard (added 2026-05-23, see `docs/UNIFIED_RANKING.md`), `bert × Claude-Sonnet · top3 · n=681` is the current **frontier ceiling** at unified 70.06, and `bert × Claude-Opus · top3 · n=681` is at 69.37.
+> - **Mission 5 (composition × Claude)** — implicitly covered by the top-3 stack runs.
+> - **The local–frontier parity finding (1.12 pt gap on unified)** that this Claude-teacher work helped establish is now documented in paper §`sec:unified-ranking-parity`, `docs/UNIFIED_RANKING.md`, and `memory/local_frontier_parity_2026_05_23.md`.
+>
+> Pricing numbers below were accurate at write time and are preserved as a reference for future API budgeting.
 
 ## TL;DR
 

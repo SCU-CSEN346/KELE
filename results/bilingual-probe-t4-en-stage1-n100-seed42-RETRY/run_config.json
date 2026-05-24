@@ -1,0 +1,16 @@
+{
+  "experiment": "bilingual-probe-t4-en-stage1-n100-seed42-RETRY",
+  "teacher_model": "Gemma 4 31B",
+  "teacher_base_url": "http://localhost:8080/v1",
+  "consultant_model": "Gemma 4 31B",
+  "consultant_base_url": "http://localhost:8080/v1",
+  "thinking_budget": 0,
+  "max_teaching_rounds": 8,
+  "unified": false,
+  "workers": 1,
+  "total_dialogues": 100,
+  "completed": 100,
+  "total_elapsed_seconds": 6791.77,
+  "started_at": "2026-05-23 15:50:35",
+  "finished_at": "2026-05-23 17:43:47"
+}
