@@ -14,6 +14,7 @@ from src.project.tournament import (
     MODEL_BY_ID,
     MODEL_REGISTRY,
     TournamentState,
+    _build_report_markdown,
     _server_has_alias,
     cmd_add,
     cmd_download,
@@ -470,3 +471,54 @@ def test_cmd_download_all_present_prints_message(capsys, tmp_path, monkeypatch):
     cmd_download(Namespace(dry_run=True))
     out = capsys.readouterr().out
     assert "present locally" in out
+
+
+# ── _build_report_markdown ────────────────────────────────────────────────────
+
+
+def _make_metrics(overall: float, n_turns: int, per_stage: dict) -> dict:
+    return {
+        "n_turns": n_turns,
+        "rouge1": 30.0,
+        "rouge2": 12.0,
+        "rougeL": 22.0,
+        "bleu4": 6.0,
+        "state_accuracy": {"overall": overall, "per_stage": per_stage, "total_turns": n_turns},
+    }
+
+
+def test_build_report_markdown_cumulative_math():
+    stage = {"a": 90.0, "b": 40.0, "c": 15.0, "d": 25.0, "e": 60.0}
+    state = TournamentState(
+        round=2,
+        n_per_round=50,
+        models_active=["qwen27b-q4", "gemma4-31b"],
+        models_eliminated=[],
+        scores={
+            "qwen27b-q4": {"round1": 43.0, "round2": 42.0},
+            "gemma4-31b": {"round1": 38.0, "round2": 40.0},
+        },
+        round_complete=[],
+        final_scores={},
+        metrics={
+            "qwen27b-q4": {
+                "round1": _make_metrics(43.0, 300, stage),
+                "round2": _make_metrics(42.0, 300, stage),
+            },
+            "gemma4-31b": {
+                "round1": _make_metrics(38.0, 300, stage),
+                "round2": _make_metrics(40.0, 300, stage),
+            },
+        },
+    )
+    md = _build_report_markdown(state)
+    # cumulative at n=100: qwen=(43*300+42*300)/600=42.50, gemma=(38*300+40*300)/600=39.00
+    assert "42.50" in md
+    assert "39.00" in md
+    # per-round scores present
+    assert "43.00" in md
+    assert "40.00" in md
+    # delta column: qwen round2 delta = 42.50-43.00 = -0.50
+    assert "-0.50" in md
+    # gap at n=100: qwen leads by 3.50
+    assert "+3.50" in md
