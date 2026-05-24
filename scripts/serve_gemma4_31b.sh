@@ -39,6 +39,12 @@ GPU_LAYERS=99
 PARALLEL=6
 HOST="0.0.0.0"
 PORT=8080
+# ROCm0 is ~6% faster than Vulkan0 on TG for gfx1201 (llama-bench 2026-05-24).
+# Override: DEV=Vulkan0 ./scripts/serve_gemma4_31b.sh ...
+DEV="${DEV:-rocm0}"
+# Larger micro-batch fills the GPU compute pipeline better; 2048 recommended for
+# cards with ≥24 GB VRAM (default 512 leaves throughput on the table).
+UBATCH="${UBATCH:-2048}"
 
 EXTRA_ARGS=()
 while [[ $# -gt 0 ]]; do
@@ -51,6 +57,8 @@ while [[ $# -gt 0 ]]; do
     -ngl)           GPU_LAYERS="$2"; shift 2 ;;
     --host)         HOST="$2";       shift 2 ;;
     -p|--port)      PORT="$2";       shift 2 ;;
+    -dev)           DEV="$2";        shift 2 ;;
+    --ubatch-size)  UBATCH="$2";     shift 2 ;;
     *)              EXTRA_ARGS+=("$1"); shift ;;
   esac
 done
@@ -78,6 +86,8 @@ echo "Alias:     ${ALIAS:-<none>}"
 echo "Context:   $CONTEXT  (per-slot: ~$((CONTEXT / PARALLEL)))"
 echo "Slots:     $PARALLEL  (unified KV, continuous batching)"
 echo "KV quant:  ${KV_QUANT}"
+echo "Device:    ${DEV}"
+echo "Ubatch:    ${UBATCH}"
 echo "Endpoint:  http://localhost:${PORT}/v1/chat/completions"
 echo "Test:      curl http://localhost:${PORT}/v1/models"
 echo "---"
@@ -91,6 +101,9 @@ exec "$LLAMA_SERVER" \
   --kv-unified \
   -ctk "$KV_QUANT" \
   -ctv "$KV_QUANT" \
+  -fa 1 \
+  -dev "$DEV" \
+  --ubatch-size "$UBATCH" \
   --host "$HOST" \
   --port "$PORT" \
   "${EXTRA_ARGS[@]}"
