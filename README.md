@@ -46,40 +46,40 @@ We've evaluated **131 model variants** across this project — 8-cell cross-teac
 
 | u# | Cell | n_turns | **unified** | stage_bal | judge | macro | R-1 |
 |---:|---|---:|---:|---:|---:|---:|---:|
-| 🥇 1 | `bert × Gemma-31B · composed · top3 · n=50` | 278 | **70.08** | 58.48 |  8.17 | 50.72 | 41.13 |
-| 🥈 2 | `bert × Claude-Sonnet · top3 · n=681` | 3840 | **70.06** | 58.17 |  8.19 | 49.97 | 41.93 |
-| 🥉 3 | `bert × Claude-Opus · fewshot10 · n=50` | 271 | **69.79** | 58.73 |  8.08 | 49.82 | 42.77 |
-| 4 | `bert × Claude-Opus · top3 · n=681` | 3794 | **69.37** | 58.63 |  8.01 | 49.31 | 41.63 |
-| 5 | `bert × Claude-Sonnet · fewshot10 · n=50` | 281 | **69.16** | 57.18 |  8.11 | 48.75 | 43.02 |
-| 6 | `qwen3.5 × Gemma-31B · fewshot10 · n=50` ← honest cross-teacher winner | 285 | **68.94** | 56.13 |  8.18 | 51.58 | 38.76 |
-| 🏆 7 | `bert × Gemma-31B · fewshot10 · n=681` ← **LOCKED HEADLINE** | 3834 | **68.65** | 55.42 |  8.19 | 48.15 | 36.78 |
-| ⚠️ 8 | `qwen3.5 × SocratTeachLLM · fewshot10 · n=50` | 288 | **68.21** | 63.40 |  7.30 | 58.33 | 48.07 |
-| 9 | `phase3-t4-bert-qwen27b-think-n100-seed42` | 570 | **68.05** | 60.88 |  7.52 | 54.04 | 33.17 |
-| 10 | `bert × Claude-Sonnet · fewshot10 · n=50` | 267 | **67.85** | 57.32 |  7.84 | 47.94 | 39.68 |
-| 11 | `bert-fixed × Gemma-31B · fewshot10 · n=50` | 283 | **67.65** | 52.73 |  8.26 | 45.94 | 38.69 |
-| 12 | `bilingual-probe-t4-en-stage1-n100-seed42-RETRY` ← cross-lingual Stage 1 SUCCESS | 584 | **67.30** | 52.10 |  8.25 | 46.58 | 11.66 |
-| 13 | `qwen3.5 × A3B-35B · fewshot10 · n=50` | 288 | **66.91** | 58.62 |  7.52 | 54.86 | 35.67 |
-| 14 | `qwen3.5 × Qwen-27B · think · fewshot10 · n=50` | 282 | **66.89** | 58.68 |  7.51 | 53.19 | 35.28 |
-| 15 | `bilingual-probe-t4-en-stage1-n61-PARTIAL-CUDA-LAUNCH-TIMEOUT` | 351 | **66.66** | 50.84 |  8.25 | 45.01 | 10.88 |
-| 16 | `phase3-t4-bert-qwen27b-nothink-n200-seed42` | 1172 | **66.55** | 57.45 |  7.56 | 52.13 | 37.11 |
-| 17 | `bert × A3B-35B · composed · top3 · n=50` | 276 | **65.79** | 56.73 |  7.49 | 48.19 | 37.64 |
-| 18 | `bert-fixed × Qwen-27B · think · fewshot10 · n=50` | 271 | **65.65** | 57.15 |  7.41 | 49.08 | 34.91 |
-| 19 | `qwen3.5 × Qwen-27B · no-think · fewshot10 · n=50` | 291 | **65.54** | 55.45 |  7.56 | 51.89 | 37.38 |
-| ⚠️ 20 | `bert × SocratTeachLLM · fixed-bertfewshot10 · n=50` | 278 | **65.09** | 58.34 |  7.18 | 52.52 | 47.44 |
-| 21 | `bert × Claude-Opus · fewshot10 · n=50` | 272 | **64.99** | 55.52 |  7.44 | 47.43 | 32.99 |
-| 22 | `bert × A3B-35B · fewshot10 · n=681` | 3762 | **64.47** | 54.72 |  7.42 | 46.57 | 33.27 |
-| 23 | `bert-fixed × Qwen-27B · no-think · fewshot10 · n=50` | 286 | **64.25** | 52.62 |  7.59 | 46.85 | 37.81 |
-| 24 | `bert-fixed × A3B-35B · fewshot10 · n=50` | 280 | **63.70** | 52.48 |  7.49 | 45.36 | 34.99 |
-| 25 | `bert × Claude-Sonnet · raw · n=50` | 260 | **62.91** | 53.32 |  7.25 | 45.00 | 29.10 |
-| 26 | `bert × Claude-Opus · top3 · EN · n=50` | 270 | **60.38** | 40.69 |  8.01 | 34.44 |  0.47 |
-| ⚠️ 27 | `Claude-Opus × SocratTeachLLM · n=50` | 307 | **59.86** | 41.68 |  7.80 | 38.44 | 47.58 |
-| ⚠️ 28 | `bert × SocratTeachLLM · fixed-bertfewshot10-EN · n=50` | 273 | **58.22** | 48.97 |  6.75 | 43.22 | 48.07 |
-| ⚠️ 29 | `qwen3.5 × SocratTeachLLM · fewshot10 · EN · n=50` | 291 | **57.20** | 48.66 |  6.57 | 43.99 | 46.73 |
-| 30 | `bert × Claude-Opus · raw · n=50` | 239 | **55.63** | 43.27 |  6.80 | 39.75 | 23.28 |
-| ⚠️ 31 | `CLEANPROBE-qwen3.5 × SocratTeachLLM · SYNTH · n=50` ← STL on truly unseen data | 211 | **51.29** | 32.86 |  6.97 | 29.38 | 35.72 |
-| ⚠️ 32 | `Claude-Opus × SocratTeachLLM · EN · n=50` | 304 | **50.73** | 33.79 |  6.77 | 30.26 | 44.22 |
-| ⚠️ 33 | `Claude-Sonnet × SocratTeachLLM · clean · n=50` | 307 | **47.53** | 18.74 |  7.63 | 18.57 | 45.61 |
-| ⚠️ 34 | `Claude-Sonnet × SocratTeachLLM · EN · n=50` | 303 | **44.36** | 22.55 |  6.62 | 22.11 | 55.85 |
+| 🥇 1 | `bert × Gemma-31B · composed · top3 · n=50` | 278 | **70.08** | 58.48 | 8.17 | 50.72 | 41.13 |
+| 🥈 2 | `bert × Claude-Sonnet · top3 · n=681` | 3840 | **70.06** | 58.17 | 8.19 | 49.97 | 41.93 |
+| 🥉 3 | `bert × Claude-Opus · fewshot10 · n=50` | 271 | **69.79** | 58.73 | 8.08 | 49.82 | 42.77 |
+| 4 | `bert × Claude-Opus · top3 · n=681` | 3794 | **69.37** | 58.63 | 8.01 | 49.31 | 41.63 |
+| 5 | `bert × Claude-Sonnet · fewshot10 · n=50` | 281 | **69.16** | 57.18 | 8.11 | 48.75 | 43.02 |
+| 6 | `qwen3.5 × Gemma-31B · fewshot10 · n=50` ← honest cross-teacher winner | 285 | **68.94** | 56.13 | 8.18 | 51.58 | 38.76 |
+| 🏆 7 | `bert × Gemma-31B · fewshot10 · n=681` ← **LOCKED HEADLINE** | 3834 | **68.65** | 55.42 | 8.19 | 48.15 | 36.78 |
+| ⚠️ 8 | `qwen3.5 × SocratTeachLLM · fewshot10 · n=50` | 288 | **68.21** | 63.40 | 7.30 | 58.33 | 48.07 |
+| 9 | `qwen3.5 × Qwen-27B · phase3 · think · n=100 · seed=42` | 570 | **68.05** | 60.88 | 7.52 | 54.04 | 33.17 |
+| 10 | `bert × Claude-Sonnet · fewshot10 · n=50` | 267 | **67.85** | 57.32 | 7.84 | 47.94 | 39.68 |
+| 11 | `bert-fixed × Gemma-31B · fewshot10 · n=50` | 283 | **67.65** | 52.73 | 8.26 | 45.94 | 38.69 |
+| 12 | `qwen3.5 × Gemma-31B · fewshot10 · EN · RETRY · n=100 · seed=42` ← cross-lingual Stage 1 SUCCESS | 584 | **67.30** | 52.10 | 8.25 | 46.58 | 11.66 |
+| 13 | `qwen3.5 × A3B-35B · fewshot10 · n=50` | 288 | **66.91** | 58.62 | 7.52 | 54.86 | 35.67 |
+| 14 | `qwen3.5 × Qwen-27B · think · fewshot10 · n=50` | 282 | **66.89** | 58.68 | 7.51 | 53.19 | 35.28 |
+| 15 | `qwen3.5 × Gemma-31B · fewshot10 · EN · PARTIAL · n=61` | 351 | **66.66** | 50.84 | 8.25 | 45.01 | 10.88 |
+| 16 | `qwen3.5 × Qwen-27B · phase3 · no-think · n=200 · seed=42` | 1172 | **66.55** | 57.45 | 7.56 | 52.13 | 37.11 |
+| 17 | `bert × A3B-35B · composed · top3 · n=50` | 276 | **65.79** | 56.73 | 7.49 | 48.19 | 37.64 |
+| 18 | `bert-fixed × Qwen-27B · think · fewshot10 · n=50` | 271 | **65.65** | 57.15 | 7.41 | 49.08 | 34.91 |
+| 19 | `qwen3.5 × Qwen-27B · no-think · fewshot10 · n=50` | 291 | **65.54** | 55.45 | 7.56 | 51.89 | 37.38 |
+| ⚠️ 20 | `bert-fixed × SocratTeachLLM · fewshot10 · n=50` | 278 | **65.09** | 58.34 | 7.18 | 52.52 | 47.44 |
+| 21 | `bert × Claude-Opus · fewshot10 · n=50` | 272 | **64.99** | 55.52 | 7.44 | 47.43 | 32.99 |
+| 22 | `bert × A3B-35B · fewshot10 · n=681` | 3762 | **64.47** | 54.72 | 7.42 | 46.57 | 33.27 |
+| 23 | `bert-fixed × Qwen-27B · no-think · fewshot10 · n=50` | 286 | **64.25** | 52.62 | 7.59 | 46.85 | 37.81 |
+| 24 | `bert-fixed × A3B-35B · fewshot10 · n=50` | 280 | **63.70** | 52.48 | 7.49 | 45.36 | 34.99 |
+| 25 | `bert × Claude-Sonnet · raw · n=50` | 260 | **62.91** | 53.32 | 7.25 | 45.00 | 29.10 |
+| 26 | `bert × Claude-Opus · top3 · EN · n=50` | 270 | **60.38** | 40.69 | 8.01 | 34.44 | 0.47 |
+| ⚠️ 27 | `Claude-Opus × SocratTeachLLM · n=50` | 307 | **59.86** | 41.68 | 7.80 | 38.44 | 47.58 |
+| ⚠️ 28 | `bert-fixed × SocratTeachLLM · fewshot10 · EN · n=50` | 273 | **58.22** | 48.97 | 6.75 | 43.22 | 48.07 |
+| ⚠️ 29 | `qwen3.5 × SocratTeachLLM · fewshot10 · EN · n=50` | 291 | **57.20** | 48.66 | 6.57 | 43.99 | 46.73 |
+| 30 | `bert × Claude-Opus · raw · n=50` | 239 | **55.63** | 43.27 | 6.80 | 39.75 | 23.28 |
+| ⚠️ 31 | `qwen3.5 × SocratTeachLLM · CLEANPROBE · fewshot10 · SYNTH · n=50 · seed=42` ← STL on truly unseen data | 211 | **51.29** | 32.86 | 6.97 | 29.38 | 35.72 |
+| ⚠️ 32 | `Claude-Opus × SocratTeachLLM · EN · n=50` | 304 | **50.73** | 33.79 | 6.77 | 30.26 | 44.22 |
+| ⚠️ 33 | `Claude-Sonnet × SocratTeachLLM · clean · n=50` | 307 | **47.53** | 18.74 | 7.63 | 18.57 | 45.61 |
+| ⚠️ 34 | `Claude-Sonnet × SocratTeachLLM · EN · n=50` | 303 | **44.36** | 22.55 | 6.62 | 22.11 | 55.85 |
 
 **Key findings visible at a glance:**
 
@@ -96,7 +96,7 @@ We've evaluated **131 model variants** across this project — 8-cell cross-teac
 | sb# | Cell | n_turns | macro | **stage_bal** | judge | R-1 |
 |---:|---|---:|---:|---:|---:|---:|
 | 1 | `qwen3.5 × SocratTeachLLM · fewshot10 · n=50` | 288 | 58.33 | **63.40** | 7.30 | 48.07 |
-| 2 | `phase3-t4-bert-qwen27b-think-n100-seed42` | 570 | 54.04 | **60.88** | 7.52 | 33.17 |
+| 2 | `qwen3.5 × Qwen-27B · phase3 · think · n=100 · seed=42` | 570 | 54.04 | **60.88** | 7.52 | 33.17 |
 | 3 | `bert-consultant-fewshot10-mini` | 135 | 54.07 | **60.66** | — | 33.12 |
 | 4 | `bert-consultant-fewshot10-a4b-mini` | 139 | 53.24 | **60.52** | — | 36.26 |
 | 5 | `tournament-cell-1-length_budget` | 281 | 51.96 | **59.50** | — | 39.91 |
@@ -108,11 +108,11 @@ We've evaluated **131 model variants** across this project — 8-cell cross-teac
 | 11 | `qwen3.5 × A3B-35B · fewshot10 · n=50` | 288 | 54.86 | **58.62** | 7.52 | 35.67 |
 | 12 | `bert × Gemma-31B · composed · top3 · n=50` | 278 | 50.72 | **58.48** | 8.17 | 41.13 |
 | 13 | `bert × Gemma-31B · fewshot10 · n=50` | 284 | 51.06 | **58.47** | — | 38.53 |
-| 14 | `bert × SocratTeachLLM · fixed-bertfewshot10 · n=50` | 278 | 52.52 | **58.34** | 7.18 | 47.44 |
+| 14 | `bert-fixed × SocratTeachLLM · fewshot10 · n=50` | 278 | 52.52 | **58.34** | 7.18 | 47.44 |
 | 15 | `bert × Claude-Sonnet · top3 · n=681` | 3840 | 49.97 | **58.17** | 8.19 | 41.93 |
-| 16 | `MEMPROBE-t4-bert-socratteachllm-fewshot10-TRAIN-n50-seed42` | 297 | 55.22 | **57.81** | — | 48.28 |
+| 16 | `qwen3.5 × SocratTeachLLM · MEMPROBE · fewshot10 · TRAIN · n=50 · seed=42` | 297 | 55.22 | **57.81** | — | 48.28 |
 | 17 | `tournament-cell-9-persona` | 275 | 51.27 | **57.65** | — | 39.60 |
-| 18 | `phase3-t4-bert-qwen27b-nothink-n200-seed42` | 1172 | 52.13 | **57.45** | 7.56 | 37.11 |
+| 18 | `qwen3.5 × Qwen-27B · phase3 · no-think · n=200 · seed=42` | 1172 | 52.13 | **57.45** | 7.56 | 37.11 |
 | 19 | `bert × Claude-Sonnet · fewshot10 · n=50` | 267 | 47.94 | **57.32** | 7.84 | 39.68 |
 | 20 | `bert × Claude-Sonnet · fewshot10 · n=50` | 281 | 48.75 | **57.18** | 8.11 | 43.02 |
 | 21 | `tournament-cell-4-per_state_exemplars` | 285 | 50.88 | **57.18** | — | 39.42 |
@@ -137,17 +137,17 @@ We've evaluated **131 model variants** across this project — 8-cell cross-teac
 | 40 | `bert-fixed × A3B-35B · fewshot10 · n=50` | 280 | 45.36 | **52.48** | 7.49 | 34.99 |
 | 41 | `tournament-cell-6-format_retry` | 282 | 46.45 | **52.36** | — | 39.60 |
 | 42 | `bert × A3B-35B · n=50` | 261 | 44.06 | **52.31** | — | 28.36 |
-| 43 | `bilingual-probe-t4-en-stage1-n100-seed42-RETRY` | 584 | 46.58 | **52.10** | 8.25 | 11.66 |
+| 43 | `qwen3.5 × Gemma-31B · fewshot10 · EN · RETRY · n=100 · seed=42` | 584 | 46.58 | **52.10** | 8.25 | 11.66 |
 | 44 | `tournament-cell-2-lexical_priors` | 262 | 43.89 | **50.97** | — | 39.12 |
-| 45 | `bilingual-probe-t4-en-stage1-n61-PARTIAL-CUDA-LAUNCH-TIMEOUT` | 351 | 45.01 | **50.84** | 8.25 | 10.88 |
-| 46 | `phase3-t4-bert-qwen27b-think-n200-seed42-BROKEN-CUDA-LAUNCH-TIMEOUT` | 1245 | 46.51 | **50.82** | — | 15.07 |
+| 45 | `qwen3.5 × Gemma-31B · fewshot10 · EN · PARTIAL · n=61` | 351 | 45.01 | **50.84** | 8.25 | 10.88 |
+| 46 | `qwen3.5 × Qwen-27B · phase3 · think · BROKEN · n=200 · seed=42` | 1245 | 46.51 | **50.82** | — | 15.07 |
 | 47 | `qwen35b-a3b-local-mini-unified-fewshot10` | 147 | 46.94 | **50.73** | — | 34.41 |
 | 48 | `bert-v2-consultant-fewshot10-n50` | 287 | 43.90 | **50.60** | — | 37.12 |
 | 49 | `qwen27b-local-mini-unified` | 146 | 45.89 | **50.16** | — | 29.36 |
 | 50 | `qwen35b-a3b-local-mini-unified-fewshot7` | 148 | 45.27 | **49.78** | — | 35.69 |
 | 51 | `qwen35b-a3b-local-n50-unified-fewshot10` | 299 | 44.15 | **49.34** | — | 36.16 |
 | 52 | `bert-v2-consultant-fewshot10-mini` | 142 | 44.37 | **49.08** | — | 33.55 |
-| 53 | `bert × SocratTeachLLM · fixed-bertfewshot10-EN · n=50` | 273 | 43.22 | **48.97** | 6.75 | 48.07 |
+| 53 | `bert-fixed × SocratTeachLLM · fewshot10 · EN · n=50` | 273 | 43.22 | **48.97** | 6.75 | 48.07 |
 | 54 | `qwen3.5 × SocratTeachLLM · fewshot10 · EN · n=50` | 291 | 43.99 | **48.66** | 6.57 | 46.73 |
 | 55 | `tournament/round1/qwen27b-q4` | 300 | 43.00 | **48.35** | — | 31.62 |
 | 56 | `tournament/round1/qwen27b` | 302 | 42.72 | **48.21** | — | 30.90 |
@@ -179,7 +179,7 @@ We've evaluated **131 model variants** across this project — 8-cell cross-teac
 | 82 | `tournament/archive/368b6431/round1/qwen27b` | 305 | 31.48 | **35.37** | — | 33.56 |
 | 83 | `Claude-Opus × SocratTeachLLM · EN · n=50` | 304 | 30.26 | **33.79** | 6.77 | 44.22 |
 | 84 | `tournament/archive/497374dd/round1/qwen27b-q4` | 300 | 30.67 | **33.13** | — | 33.25 |
-| 85 | `CLEANPROBE-t4-bert-socratteachllm-fewshot10-SYNTH-n50-seed42` | 211 | 29.38 | **32.86** | 6.97 | 35.72 |
+| 85 | `qwen3.5 × SocratTeachLLM · CLEANPROBE · fewshot10 · SYNTH · n=50 · seed=42` | 211 | 29.38 | **32.86** | 6.97 | 35.72 |
 | 86 | `qwopus35b-a3b-local-mini-unified` | 146 | 30.14 | **32.69** | — | 35.39 |
 | 87 | `tournament/archive/497374dd/round1/qwen27b` | 304 | 28.62 | **32.35** | — | 33.42 |
 | 88 | `baseline` | 4294 | 25.94 | **30.75** | — | 44.61 |
@@ -222,15 +222,14 @@ We've evaluated **131 model variants** across this project — 8-cell cross-teac
 | 125 | `tournament/archive/368b6431/round1/deepseek-r1-14b` | 306 | 10.13 | **11.05** | — | 35.27 |
 | 126 | `tournament/round1/phi4-14b` | 298 | 9.73 | **10.70** | — | 35.64 |
 | 127 | `tournament/archive/d9ac39c5/round1/glm47-23b` | 305 | 9.51 | **10.67** | — | 30.90 |
-| 128 | `tournament/archive/497374dd/round1/deepseek-r1-14b` | 306 | 8.17 | ** 9.24** | — | 35.70 |
-| 129 | `Claude-Opus × SocratTeachLLM · BROKEN · n=50` | 308 | 0.00 | ** 0.00** | — | 13.20 |
-| 130 | `Claude-Sonnet × SocratTeachLLM · n=50` | 308 | 0.00 | ** 0.00** | — | 43.88 |
-| 131 | `Claude-Sonnet × SocratTeachLLM · BROKEN · n=50` | 308 | 0.00 | ** 0.00** | — | 13.20 |
+| 128 | `tournament/archive/497374dd/round1/deepseek-r1-14b` | 306 | 8.17 | **9.24** | — | 35.70 |
+| 129 | `Claude-Opus × SocratTeachLLM · BROKEN · n=50` | 308 | 0.00 | **0.00** | — | 13.20 |
+| 130 | `Claude-Sonnet × SocratTeachLLM · n=50` | 308 | 0.00 | **0.00** | — | 43.88 |
+| 131 | `Claude-Sonnet × SocratTeachLLM · BROKEN · n=50` | 308 | 0.00 | **0.00** | — | 13.20 |
 
 </details>
 
 The full backtest snapshot (with per-stage breakdowns + Δrank movers) is at `results/_orchestrator_logs/backtest_stage_balanced_2026_05_23.md`. The Δrank column there shows that **35 of 131 historical configs change rank by ≥3 positions** under stage-balanced macro vs the published frequency-weighted macro — concrete evidence that the closure-dominance fix is load-bearing for the rankings.
-
 
 ## Headline Results
 

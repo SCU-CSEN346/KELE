@@ -91,9 +91,27 @@ def fmt_pct(v: float | None) -> str:
 #
 # Full spec + vocabulary in docs/NAMING_CONVENTION.md.
 
+# Internal-pipeline prefixes that get stripped before consultant detection.
+# These are accidental dir-naming history (phase tags, probe variants); the
+# real consultant/teacher signal lives in the residue.
+_THROWAWAY_PREFIXES = (
+    "phase3-",
+    "CLEANPROBE-",
+    "MEMPROBE-",
+)
+
+# Special-case mappings for prefixes whose teacher is implicit and not in
+# the dir name. Returns (consultant, teacher, default_variants, residue_after_prefix).
+_HARDCODED_PREFIXES = {
+    # bilingual probe was always qwen3.5 × Gemma-31B + fewshot10
+    "bilingual-probe-t4-en-": ("qwen3.5", "Gemma-31B", ["fewshot10", "EN"]),
+}
+
 _CONSULTANT_MAP = [
-    # Order matters: longest prefix wins
-    ("bge-small-bert-", "bert-fixed"),  # post-fix BERT
+    # Order matters: longest prefix wins. "bert-fixed-" must come before "bert-"
+    # so dirs like `bert-fixed-bert-socratteachllm-…` route to bert-fixed (not bert).
+    ("bge-small-bert-", "bert-fixed"),  # post-fix BERT, original naming
+    ("bert-fixed-bert-", "bert-fixed"),  # post-fix BERT, alt naming used by STL bilingual cells
     ("t4-bert-", "qwen3.5"),  # T4 = qwen3.5 LoRA
     ("claude-opus-consultant-", "Claude-Opus"),  # LLM-as-consultant
     ("claude-sonnet-consultant-", "Claude-Sonnet"),
@@ -135,6 +153,16 @@ _KNOWN_VARIANTS = {
     "mini",
     "smoke",
     "full",
+    # Probe-arm tags (added 2026-05-23): SYNTH = clean-probe synthetic data;
+    # TRAIN = train-side memorization probe; RETRY = post-recovery re-run;
+    # PARTIAL/BROKEN = salvaged from CUDA-launch-timeout crashes.
+    "SYNTH",
+    "TRAIN",
+    "RETRY",
+    "PARTIAL",
+    "BROKEN",
+    "stage1",
+    "stage2",
 }
 
 
@@ -162,6 +190,31 @@ def _extract_n_label(name: str) -> tuple[str, str | None]:
     return name, None
 
 
+def _extract_seed_label(name: str) -> tuple[str, str | None]:
+    """Pull -seedN out of the residue. Returns (residue, seed_label)."""
+    m = re.search(r"-seed(\d+)$", name)
+    if m:
+        return name[: m.start()], f"seed={m.group(1)}"
+    m = re.search(r"-seed(\d+)-", name)
+    if m:
+        return (name[: m.start()] + name[m.end() - 1 :]), f"seed={m.group(1)}"
+    return name, None
+
+
+def _collapse_cuda_timeout_tag(name: str) -> tuple[str, str | None]:
+    """Collapse the verbose 'CUDA-LAUNCH-TIMEOUT' tag from forensics dir names
+    into a single 'BROKEN' / 'PARTIAL' variant. Returns (residue, tag)."""
+    if "BROKEN-CUDA-LAUNCH-TIMEOUT" in name:
+        return name.replace("-BROKEN-CUDA-LAUNCH-TIMEOUT", "").replace(
+            "BROKEN-CUDA-LAUNCH-TIMEOUT", ""
+        ), "BROKEN"
+    if "PARTIAL-CUDA-LAUNCH-TIMEOUT" in name:
+        return name.replace("-PARTIAL-CUDA-LAUNCH-TIMEOUT", "").replace(
+            "PARTIAL-CUDA-LAUNCH-TIMEOUT", ""
+        ), "PARTIAL"
+    return name, None
+
+
 def display_name(config: str) -> str:
     """Parse a config dir name into structured format:
 
@@ -172,6 +225,48 @@ def display_name(config: str) -> str:
     (e.g. tournament-cell-*, wave-*).
     """
     name = config
+
+    # ── 0a. throwaway prefixes (phase tags, probe variants) ──
+    extra_variants: list[str] = []
+    for tp in _THROWAWAY_PREFIXES:
+        if name.startswith(tp):
+            extra_variants.append(tp.rstrip("-"))  # e.g. "CLEANPROBE"
+            name = name[len(tp) :]
+            break
+
+    # ── 0b. hardcoded prefixes (teacher implicit, not in dir name) ──
+    for prefix, (cons, teach, def_variants) in _HARDCODED_PREFIXES.items():
+        if name.startswith(prefix):
+            residue = name[len(prefix) :]
+            # Extract n + seed + crash tag from the residue
+            residue, n_label = _extract_n_label(residue)
+            residue, seed_label = _extract_seed_label(residue)
+            residue, crash_tag = _collapse_cuda_timeout_tag(residue)
+            variants = list(def_variants)
+            if residue:
+                tail = [t for t in residue.split("-") if t]
+                # Drop pipeline-noise tokens already implied by the hardcoded variants
+                tail = [t for t in tail if t.lower() not in {"stage1", "stage2"}]
+                # De-dupe (case-insensitive) while preserving order
+                seen = {v.lower() for v in variants}
+                for t in tail:
+                    if t.lower() not in seen:
+                        variants.append(t)
+                        seen.add(t.lower())
+            if crash_tag and crash_tag.lower() not in {v.lower() for v in variants}:
+                variants.append(crash_tag)
+            out = f"{cons} × {teach}"
+            for v in variants:
+                if v:
+                    out += f" · {v}"
+            if n_label:
+                out += f" · {n_label}"
+            if seed_label:
+                out += f" · {seed_label}"
+            # Prefix the throwaway tag (if any) as a leading variant
+            if extra_variants:
+                out += " · " + " · ".join(extra_variants)
+            return out
 
     # ── 1. consultant prefix ──
     consultant = None
@@ -191,8 +286,10 @@ def display_name(config: str) -> str:
     if name.endswith("-fixed"):
         name = name[: -len("-fixed")]
 
-    # ── 2. dialogue-count marker (extract early so it doesn't confuse the teacher match) ──
+    # ── 2. dialogue-count + seed + crash tag (extract before teacher match) ──
     name, n_label = _extract_n_label(name)
+    name, seed_label = _extract_seed_label(name)
+    name, crash_tag = _collapse_cuda_timeout_tag(name)
 
     # ── 3. teacher ──
     teacher = None
@@ -208,7 +305,15 @@ def display_name(config: str) -> str:
             if m:
                 teacher = label
                 implicit_variant = iv
-                name = (name[: m.start()] + name[m.end() :]).strip("-")
+                # Preserve a single dash if the teacher was sandwiched between
+                # variant tokens (otherwise `fixed-bert-socratteachllm-fewshot10`
+                # collapses to `fixed-bertfewshot10` and the parser misreads it).
+                left = name[: m.start()]
+                right = name[m.end() :]
+                if left and right and not left.endswith("-") and not right.startswith("-"):
+                    name = f"{left}-{right}"
+                else:
+                    name = left + right
                 name = re.sub(r"-+", "-", name).strip("-")
                 break
         if teacher:
@@ -217,16 +322,29 @@ def display_name(config: str) -> str:
         return config  # untouched if we can't find a teacher
 
     # ── 4. variants (residue) ──
+    # De-dupe while preserving order (implicit + extra + parsed can overlap).
     variants: list[str] = []
+    seen: set[str] = set()
+
+    def _add(v: str) -> None:
+        if v and v.lower() not in seen and v.lower() not in {"stage1", "stage2"}:
+            variants.append(v)
+            seen.add(v.lower())
+
+    for v in extra_variants:
+        _add(v)
     if implicit_variant:
-        variants.append(implicit_variant)
+        _add(implicit_variant)
     if name:
         tokens = name.split("-")
         # If every residue token is a known variant, split them apart
         if all(t in _KNOWN_VARIANTS for t in tokens) and len(tokens) > 1:
-            variants.extend(tokens)
+            for t in tokens:
+                _add(t)
         else:
-            variants.append(name)
+            _add(name)
+    if crash_tag:
+        _add(crash_tag)
 
     # ── 5. format ──
     out = f"{consultant} × {teacher}"
@@ -234,6 +352,8 @@ def display_name(config: str) -> str:
         out += f" · {v}"
     if n_label:
         out += f" · {n_label}"
+    if seed_label:
+        out += f" · {seed_label}"
     return out
 
 
