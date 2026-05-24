@@ -2,164 +2,150 @@
 
 **CSEN 346 · Santa Clara University**
 
-Goal: fine-tune a new Socratic teaching model that generalizes beyond SocratTeachLLM's training data.
-Hypothesis: the original KELE model is over-fit to the ~6,800-record SocratDataset; adding two external datasets
-(SocratDataset-EN + SocraTeach_Multi/Single) should produce a model that handles a wider range of topics
-and student personas without losing the structural SocRule precision.
+Goal: fine-tune Qwen3.6-27B into a Socratic teaching model that generalizes beyond SocratTeachLLM's
+training data, using a 3-stage pipeline: general instruction fluency → Socratic SFT →
+preference optimization (DPO).
 
-Pre-requisites: PRs 62 and 64 merged.
+The contamination-control baseline for generalization is established: see
+`results/synthetic-baseline/` (SocratDataset-SYNTHETIC, n=37, unseen data).
+
+---
+
+## 0. Base model
+
+| Field | Value |
+|---|---|
+| HF model ID | `Qwen/Qwen3.6-27B-Instruct` |
+| Base repo | `Qwen/Qwen3.6-27B` |
+| GGUF (inference) | `unsloth/Qwen3.6-27B-GGUF` — Q4_K_M at `~/models/Qwen3.6-27B/` |
+| Training method | **QLoRA** (4-bit NF4 base + bf16 adapters) |
+| Training VRAM | ~22–26 GB peak on R9700 (32 GB) with gradient checkpointing |
+| Inference VRAM | ~16 GB (Q4_K_M GGUF via llama-server) |
+
+### Why Qwen3.6-27B
+
+- **Best generalisation** on SocratDataset-SYNTHETIC (think-mode eval in progress)
+- Tournament results (Qwen 41.65 > Gemma 38.71) and synthetic baseline (Gemma 27.23 > Qwen 23.44 no-think)
+  together suggest think-mode Qwen closes or reverses the gap — final numbers pending
+- 27B parameter count gives meaningfully more capacity than 7B/14B for the dual
+  conditioning task (generate teacher response given evaluation + action)
+- Same model used throughout tournament and synthetic evals → fine-tune delta is directly
+  interpretable against those baselines
 
 ---
 
 ## 1. Datasets
 
+### Stage 1 — General SFT (to be integrated)
+
+| Dataset | HF ID | Size | Role |
+|---|---|---|---|
+| OpenHermes | `teknium/openhermes` | ~1M | Instruction-following breadth |
+| UltraChat 200k | `HuggingFaceH4/ultrachat_200k` | 200K | Multi-turn conversational fluency |
+| SlimOrca | `Open-Orca/SlimOrca` | ~500K | Reasoning + instruction diversity |
+
+These datasets are **not yet integrated** in `src/project/dataset.py` — loaders to be added
+before Stage 1 training begins.
+
+### Stage 2 — Socratic SFT
+
 | Dataset | HF ID | Records | SocRule annotations | Language | Role |
 |---|---|---|---|---|---|
-| SocratDataset (original) | `ulises-c/SocratDataset` | 6,803 dialogues | ✅ `state`, `action`, `evaluation` | Chinese | Fine-tune anchor — original paper's training set |
-| SocratDataset-EN | `ulises-c/SocratDataset-EN` | 6,803 dialogues | ✅ `state`, `action`, `evaluation` | English | Fine-tune anchor — English version of same data |
-| SocraTeach_Multi | `ulises-c/SocraTeach_Multi` | 10,273 problems / ~30K+ dialogues | ❌ | English | Pre-training breadth — math Socratic patterns |
-| SocraTeach_Single | `ulises-c/SocraTeach_Single` | 20,845 exchanges | ❌ | English | Pre-training breadth — student misconception diversity |
+| SocratDataset (original) | `ulises-c/SocratDataset` | 6,803 dialogues | ✅ state, action, evaluation | Chinese | Structural anchor |
+| SocratDataset-EN | `ulises-c/SocratDataset-EN` | 6,803 dialogues | ✅ state, action, evaluation | English | Structural anchor (English) |
+| SocraTeach_Multi | `ulises-c/SocraTeach_Multi` | ~30K+ dialogues | ❌ | English | Socratic breadth — math |
+| SocraTeach_Single | `ulises-c/SocraTeach_Single` | 20,845 exchanges | ❌ | English | Persona diversity |
+| SocraticMATH | `github.com/ECNU-ICALK/SocraticMath` | TBD | ❌ | English | Math Socratic dialogues (to integrate) |
 
-Local copy of SocratDataset (original Chinese): `references/KELE/SocratDataset.json`
+All currently implemented sources: `socrat-zh`, `socrat-en`, `socrateach-multi`, `socrateach-single`
+(see `src/project/dataset.py`).
 
-### 1.1 Dataset roles in detail
+### Stage 3 — DPO
 
-**SocratDataset (original Chinese)** is the dataset the original SocratTeachLLM was trained on.
-Including it alongside the English translation doubles the SocRule-annotated training signal
-(~13,600 total annotated dialogues) and makes the model bilingual. The `state`, `action`, and
-`evaluation` fields carry the full KELE structural signal in both languages.
+Preference pairs constructed from SocratDataset-EN:
 
-**SocratDataset-EN** is the English translation of the above. Including both ensures the model
-learns SocRule-conditioned generation in English, which is needed for evaluation against the
-existing English test pipeline (`src/project/kele.py`, `src/project/metrics.py`).
+| Preferred | Rejected |
+|---|---|
+| Teacher asks guiding question, delays answer | Teacher gives direct answer immediately |
+| Adapts to student confusion (cycles c-stage) | Ignores learner state, moves on |
+| Correct stage transition (follows SocRule) | Wrong stage (e.g. skips to e before d) |
+| Uses recommended action from consultant | Ignores consultant action field |
 
-**SocraTeach_Multi** covers GSM8K + MAWPS math word problems with multi-turn Socratic dialogues.
-The teacher's guiding questions (`system` field per turn) serve as pre-training signal for Socratic
-question generation. No state annotations — cannot be used for SocRule-conditioned fine-tuning.
-Math coverage extends beyond the science-only SocratDataset.
-
-**SocraTeach_Single** provides 3 student personas (`incorrect`, `ask_for_hint`, `ask_for_answer`)
-per problem, teaching the model to adapt to different student approaches. Stored as single-turn
-(prompt/response) with a conversation history prefix. Richer in persona diversity than SocratDataset-EN
-where student behavior is fixed.
+Preference pair generation strategy: use ground-truth teacher turns as **preferred**;
+generate **rejected** completions with thinking disabled and a prompt that encourages
+direct answers. Human review or LLM-judge filter (B.5 rubric) to validate pairs.
 
 ---
 
-## 2. Training approach — LoRA vs QLoRA
+## 2. VRAM budget — QLoRA on Qwen3.6-27B (32 GB R9700)
 
-The choice depends on the base model and R9700 VRAM budget (32 GB).
+| Component | Estimate |
+|---|---|
+| Base model (4-bit NF4) | ~14 GB |
+| LoRA adapters (bf16, r=16) | ~0.3 GB |
+| Activations (batch=1, seq=2048) | ~4–6 GB |
+| Optimizer states (AdamW on adapters only) | ~1–2 GB |
+| **Total peak** | **~20–23 GB** |
 
-| Approach | Base model VRAM | Peak training VRAM | Fits R9700 (32 GB) | Tradeoff |
-|---|---|---|---|---|
-| LoRA on Qwen2.5-7B (bf16) | ~14 GB | ~24–26 GB | ✅ comfortably | Full precision — best quality |
-| LoRA on Qwen2.5-14B (bf16) | ~28 GB | >32 GB | ❌ OOM likely | Needs gradient checkpointing, risky |
-| QLoRA on Qwen2.5-7B (4-bit) | ~5 GB | ~10–12 GB | ✅ large headroom | Slight quality degradation vs LoRA |
-| QLoRA on Qwen2.5-14B (4-bit) | ~9 GB | ~16–18 GB | ✅ comfortably | Better capacity than 7B LoRA |
-| LoRA on GLM4-9B (bf16) | ~19 GB | ~28–30 GB | ⚠️ tight | Paper's original model; Chinese-centric |
+Gradient checkpointing (`TRAIN_GRAD_CKPT=true`) is enabled by default for 27B QLoRA
+to trade compute for memory. At batch=1 + grad_accum=16 the effective batch is 16,
+matching the paper.
 
-### Recommendation
+Previous analysis (Qwen2.5-7B LoRA bf16, ~24 GB peak) is preserved in
+`configs/train-sft-qwen25-7b-lora.env` as a lighter fallback if 27B is unstable.
 
-**LoRA on Qwen2.5-7B** for the first training run. Rationale:
-- SocratDataset-EN is already in English — Qwen2.5-7B outperforms GLM4-9B on English instruction following
-- 7B fits LoRA in bf16 without quantization, avoiding QLoRA's precision loss
-- Fits comfortably in R9700's 32 GB without gradient checkpointing tricks
-- If 7B results are insufficient, upgrade to QLoRA on Qwen2.5-14B for the next run
+---
 
-**QLoRA on Qwen2.5-14B** is the fallback if 7B LoRA underperforms on the structural metrics (PRR, IAR).
-The 14B model has meaningfully more capacity for the dual conditioning task
-(generate teacher response given evaluation + action).
+## 3. Three-stage pipeline
 
-### LoRA configuration (for Qwen2.5-7B)
+### Stage 1 — General instruction SFT
 
-| Setting | Value | Notes |
+**Goal:** conversational fluency and instruction following before Socratic shaping.
+
+**Datasets:** OpenHermes + UltraChat 200k + SlimOrca (loaders TBD)
+
+**Format:** plain chat — system/user/assistant, no SocRule conditioning.
+
+**Config:** `configs/train-sft-stage1-general.env` (to be created)
+
+| Hyperparameter | Value | Notes |
 |---|---|---|
-| `r` (rank) | 32 | Match paper's expressiveness; 16 if VRAM tight |
-| `lora_alpha` | 64 | Standard 2× r |
-| `target_modules` | `q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj` | All linear layers |
-| `lora_dropout` | 0.05 | Light regularization |
-| `bias` | none | |
-| Epochs | 3 | Match paper |
-| Learning rate | 5e-5 | Paper's value; reduce to 2e-5 if loss spikes |
-| Batch size | 4 (per device) + grad accum 4 | Effective batch 16 to match paper |
-| Max sequence length | 2048 | Longest SocratDataset-EN dialogues are ~1,200 tokens |
-| bf16 | true | R9700 supports bfloat16 |
-| Gradient checkpointing | false | Not needed at 7B LoRA; enable if tight |
+| Epochs | 1 | Enough to absorb patterns; avoid catastrophic forgetting of base |
+| LR | 2e-5 | Lower than Stage 2 — subtle shaping, not structural rewrite |
+| Batch | 1 × 16 grad accum | Effective 16 |
+| Max seq len | 2048 | |
+| LoRA rank | 16 | Lighter adapter; structural knowledge comes in Stage 2 |
+| Grad ckpt | true | 27B QLoRA |
 
-### ROCm-specific notes
-
-The R9700 uses AMD ROCm (HF Transformers path, not vLLM). Training works via `accelerate` + HF `Trainer`/TRL's `SFTTrainer`.
-Key compatibility checks before first training run:
-
-- `torch.backends.cuda.enable_mem_efficient_sdp(False)` if FlashAttention errors
-- `peft >= 0.19.1` (already in `pyproject.toml`)
-- `trl >= 1.4.0` (already in `pyproject.toml`)
-- Verify `accelerate config` selects the ROCm device before launching
+Save checkpoint after Stage 1 for ablation comparison.
 
 ---
 
-## 3. Curriculum learning strategy
+### Stage 2 — Socratic SFT
 
-### 3.1 Rationale
+**Goal:** teach SocRule-conditioned generation (the `evaluation` + `action` conditioning signal).
 
-Training directly on SocratDataset-EN alone replicates the original KELE over-fit problem.
-Training on all three datasets mixed uniformly dilutes the structural SocRule signal.
-Curriculum learning addresses both: first build broad Socratic dialogue competence,
-then sharpen the structural conditioning.
+**Sub-phase 2a — Breadth pre-training:**
+Train on `socrateach-multi` + `socrateach-single` (+ SocraticMATH once integrated).
+Plain Socratic dialogue format, no state conditioning. 1–2 epochs.
 
-### 3.2 Two-phase curriculum
+**Sub-phase 2b — Structural fine-tuning:**
+Fine-tune the 2a checkpoint on `socrat-zh` + `socrat-en` with full SocRule conditioning.
+3 epochs, matching the paper.
 
-**Phase 1 — Breadth pre-training (SocraTeach)**
+**Config:** `configs/train-sft-stage2-socratic.env` (to be created)
 
-Train on SocraTeach_Multi + SocraTeach_Single only. These datasets have no SocRule annotations;
-the training objective is plain causal LM on (student_input → teacher_response) pairs. This
-teaches the model Socratic question generation across diverse topics and student personas
-without imposing the strict SocRule structure.
-
-Datasets: `SocraTeach_Multi` + `SocraTeach_Single` (~51K total training records after dedup and split)
-Training format: plain messages — no state/action conditioning
-Epochs: 1–2 (enough to absorb Socratic patterns; more risks forgetting base model capabilities)
-Checkpoint: save after phase 1 for comparison
-
-**Phase 2 — Structural fine-tuning (SocratDataset-EN)**
-
-Fine-tune the phase 1 checkpoint on SocratDataset-EN with full SocRule conditioning.
-The `evaluation` and `action` fields are included in the input prompt so the model learns
-to follow the 34-strategy taxonomy when conditioned on the consultant's output.
-
-Dataset: `SocratDataset-EN` (6,803 records, 90/10 train/test split = same as paper)
-Training format: state-conditioned messages — evaluation + action in system or prefix
-Epochs: 3 (match paper)
-Checkpoint: final model for evaluation
-
-### 3.3 Alternative — mixed training with source weighting
-
-If two-phase curriculum shows no improvement over baseline, try single-phase mixed training:
-
-| Source | Records | Sampling weight |
+| Hyperparameter | Value | Notes |
 |---|---|---|
-| SocratDataset (Chinese) | 6,803 | 3× (oversample annotated data) |
-| SocratDataset-EN | 6,803 | 3× (oversample annotated data) |
-| SocraTeach_Multi | ~30K dialogues | 1× |
-| SocraTeach_Single | ~18K train records | 1× |
+| Epochs (2a) | 1–2 | Breadth |
+| Epochs (2b) | 3 | Match paper |
+| LR | 5e-5 | Paper's value |
+| Batch | 1 × 16 grad accum | |
+| Max seq len | 2048 | Longest SocratDataset-EN dialogues ~1,200 tokens |
+| LoRA rank | 16 | |
+| Grad ckpt | true | |
 
-Use TRL `SFTTrainer` with a custom sampler or `datasets.concatenate_datasets` with explicit
-weighting. The 3× oversample on SocratDataset-EN preserves the structural signal while
-using the SocraTeach data for regularization.
-
----
-
-## 4. Training data format
-
-All datasets are normalized to HF `messages` format, compatible with TRL's `SFTTrainer` and
-`apply_chat_template`. See `src/project/dataset.py` for implementation.
-
-### 4.1 SocratDataset — Chinese and English (state-conditioned)
-
-The consultant's `evaluation` and `action` are prepended to each teacher turn so the model
-learns to condition its response on the state classification.
-
-Chinese records use a Chinese system prompt; English records use an English system prompt.
-Both use the same state/action prefix format so the model learns the conditioning signal in both languages.
+#### Training data format (state-conditioned)
 
 ```
 system:    "You are a Socratic teacher...\nProblem: {question}\nOptions: {options}\nHint: {hint}"
@@ -167,102 +153,116 @@ user:      "{student_turn_1}"
 assistant: "[State: {state_1}] [Action: {action_1}]\n{teacher_turn_1}"
 user:      "{student_turn_2}"
 assistant: "[State: {state_2}] [Action: {action_2}]\n{teacher_turn_2}"
-...
 ```
 
-At inference time the consultant agent predicts the state/action; at training time ground-truth
-values are used. This matches the KELE two-agent setup: the fine-tuned teacher model is always
-called with consultant output prepended to the user turn or as a system prefix.
+At inference the consultant predicts state/action; at training, ground-truth values are used.
 
-### 4.2 SocraTeach_Multi (plain Socratic)
+#### Alternative — weighted mixed training
 
-Each dialogue within a problem is one training sequence. The teacher's step-guiding question
-is the assistant turn; the student's (confused/incorrect) response is the user turn.
+If two-phase shows no improvement over baseline:
 
-```
-system:    "You are a Socratic teacher. Guide the student through this problem using questions.\nProblem: {question}"
-assistant: "{teacher_question_turn_1}"
-user:      "{student_response_turn_1}"
-assistant: "{teacher_question_turn_2}"
-user:      "{student_response_turn_2}"
-...
-```
-
-Note: SocraTeach_Multi teacher turns lead (teacher asks → student responds), which differs from
-SocratDataset-EN (student speaks first). This reflects different Socratic dialogue styles
-and is intentionally preserved — the model should handle both entry patterns.
-
-### 4.3 SocraTeach_Single (persona-aware)
-
-Each record is one (prompt, response) exchange with conversation history. The `student_type`
-field encodes the student persona (`incorrect`, `ask_for_hint`, `ask_for_answer`).
-
-```
-system:    "You are a Socratic teacher. Student type: {student_type}.\nContext: {history_system_message}"
-user:      "{turn_from_history[0]}"
-assistant: "{turn_from_history[1]}"
-...
-user:      "{prompt}"           (current student input)
-assistant: "{response}"         (target teacher response)
-```
+| Source | Weight |
+|---|---|
+| socrat-zh | 3× |
+| socrat-en | 3× |
+| socrateach-multi | 1× |
+| socrateach-single | 1× |
 
 ---
 
-## 5. Evaluation plan
+### Stage 3 — DPO preference optimization
 
-### 5.1 Metrics
+**Goal:** teach the model *when* to hint, explain, challenge, or reveal — not just *how* to ask questions.
 
-Use the same metrics as the KELE paper (implemented in `src/project/metrics.py`):
+**Datasets:** preference pairs derived from SocratDataset-EN (see Section 1, Stage 3).
 
-| Metric | Source | Notes |
+**Script:** `scripts/train_dpo.py` (to be written — mirrors `scripts/train_sft.py` structure,
+uses TRL `DPOTrainer`).
+
+**Config:** `configs/train-dpo-qwen36-27b.env` (to be created)
+
+| Hyperparameter | Value | Notes |
 |---|---|---|
-| ROUGE-1, ROUGE-2 | `src/project/metrics.py` | Character-level for EN dataset |
-| BLEU-4 | `src/project/metrics.py` | |
-| State accuracy | `src/project/metrics.py` | Only on SocratDataset-EN test set |
-| PRR / NDAR | Manual or GPT-4o judge | Binary per turn |
-| SPR / IAR | Manual or GPT-4o judge | Binary per dialogue |
+| Beta | 0.1 | KL penalty weight; standard DPO starting point |
+| Epochs | 1–2 | DPO converges fast; more risks mode collapse |
+| LR | 1e-5 | Lower than SFT |
+| Max seq len | 2048 | |
+| Reference model | Stage 2b checkpoint | Frozen |
 
-SocraTeach datasets cannot be used for evaluation against KELE metrics because they lack
-SocRule state/action annotations. Evaluation must run on the SocratDataset-EN test split only.
+The insight from the ChatGPT notes applies: models that endlessly ask questions become
+frustrating. DPO teaches the model that "dumping the answer immediately" and
+"refusing to help" are *both* rejected — the preferred behavior is adaptive scaffolding
+guided by the SocRule stage.
 
-### 5.2 Baselines to beat
+---
+
+## 4. Evaluation plan
+
+### 4.1 Baselines to beat
 
 From `docs/DATASET_EXPANSION_PLAN.md` Table 1:
 
-| Model | ROUGE-1 | PRR | IAR |
-|---|---|---|---|
-| SocratTeachLLM (paper) | 57.4 | 75.13 | 89.03 |
-| Qwen2.5-7B (zero-shot) | 40.95 | 59.02 | 76.45 |
-| GPT-4o (zero-shot) | 38.25 | 72.13 | 87.74 |
+| Model | ROUGE-1 | PRR | IAR | state_acc (synthetic) |
+|---|---|---|---|---|
+| SocratTeachLLM (paper) | 57.4 | 75.13 | 89.03 | — |
+| Qwen2.5-14B zero-shot | 43.79 | 65.21 | 80.81 | — |
+| Qwen3.6-27B Q4 no-think | — | — | — | 23.44% |
+| Qwen3.6-27B Q4 think-4096 | — | — | — | pending |
+| Gemma 4 31B Q5 | — | — | — | 27.23% |
 
-Primary target: exceed Qwen2.5-7B zero-shot (40.95 ROUGE-1) after phase 2 fine-tuning.
-Stretch target: approach SocratTeachLLM (57.4) — this is the same task but in English.
+Primary target: **exceed Qwen2.5-14B zero-shot** (43.79 ROUGE-1) after Stage 2b.
+Contamination control: **synthetic Δ ≥ test Δ** → genuine generalisation, not memorisation.
+Stretch target: approach SocratTeachLLM (57.4 ROUGE-1).
 
-### 5.3 Ablation runs
+### 4.2 Evaluation datasets
 
-| Run | Dataset | Notes |
+| Dataset | When | What it measures |
 |---|---|---|
-| A | SocratDataset-EN only | English-only baseline; measures curriculum benefit |
-| B | SocratDataset (ZH + EN) | Bilingual annotated baseline; measures Chinese data benefit |
-| C | SocraTeach pre-train → SocratDataset (ZH + EN) fine-tune | Full curriculum |
-| D | All four datasets mixed (weighted) | Alternative to curriculum |
+| SocratDataset-EN test (n=681) | After each stage | In-distribution performance |
+| SocratDataset-SYNTHETIC (n=37) | After each stage | Generalisation (contamination control) |
 
-Run A and B must complete before C or D to establish the annotated-data baselines.
+### 4.3 Ablation runs
+
+| Run | Stages | Notes |
+|---|---|---|
+| A | Stage 2b only (socrat-en) | English-only baseline |
+| B | Stage 2b (socrat-zh + socrat-en) | Bilingual annotated baseline |
+| C | Stage 2a → 2b | Full Socratic curriculum |
+| D | Stage 1 → 2a → 2b | Full 3-stage pipeline |
+| E | Stage 1 → 2a → 2b → Stage 3 | With DPO |
+
+Run A before B, B before C, C before D.
 
 ---
 
-## 6. Sequence and status
+## 5. Sequence and status
 
 | Step | Task | Status |
 |---|---|---|
-| 1 | Upload SocraTeach_Multi + SocraTeach_Single to HuggingFace | ✅ Complete |
-| 2 | Implement unified data loader (`src/project/dataset.py`) | ✅ Complete |
-| 3 | Update `kele.py::load_dataset` for HF source | ✅ Complete |
-| 4 | Merge PR 62 (parallel eval) + PR 64 (tournament results) | Pre-req |
-| 5 | Run ablation A — SocratDataset-EN only fine-tune | Planned |
-| 6 | Run ablation B — curriculum (SocraTeach → SocratDataset-EN) | Planned |
-| 7 | Evaluate all runs; compare to Table 1 baselines | Planned |
-| 8 | Publish winning model checkpoint to HuggingFace | Stretch |
+| 1 | Establish synthetic baseline (contamination control) | ✅ Complete — `results/synthetic-baseline/` |
+| 2 | Think-mode Qwen3.6-27B synthetic baseline | 🔄 In progress (4096 budget, ~6h run) |
+| 3 | Add Stage 1 dataset loaders (OpenHermes, UltraChat, SlimOrca) | Planned |
+| 4 | Integrate SocraticMATH into dataset.py | Planned |
+| 5 | Create `configs/train-sft-stage1-general.env` | Planned |
+| 6 | Run ablation A — socrat-en only fine-tune (Qwen3.6-27B QLoRA) | Planned |
+| 7 | Run ablation B — socrat-zh + socrat-en | Planned |
+| 8 | Run Stage 2a (socrateach breadth pre-train) | Planned |
+| 9 | Run Stage 2b (structural fine-tune from 2a checkpoint) | Planned |
+| 10 | Build `scripts/train_dpo.py` + preference pair generator | Planned |
+| 11 | Run Stage 3 DPO on Stage 2b checkpoint | Planned |
+| 12 | Evaluate all runs on SocratDataset-EN test + synthetic | Planned |
+| 13 | Publish winning checkpoint to HuggingFace | Stretch |
+
+---
+
+## 6. Config files
+
+| File | Purpose | Status |
+|---|---|---|
+| `configs/train-sft-qwen36-27b-qlora.env` | QLoRA on Qwen3.6-27B, Stages 2a/2b | ✅ Created |
+| `configs/train-sft-qwen25-7b-lora.env` | LoRA on Qwen2.5-7B (lighter fallback) | ✅ Exists |
+| `configs/train-sft-stage1-general.env` | Stage 1 general SFT | Planned |
+| `configs/train-dpo-qwen36-27b.env` | Stage 3 DPO | Planned |
 
 ---
 
@@ -270,5 +270,7 @@ Run A and B must complete before C or D to establish the annotated-data baseline
 
 - Peng et al., "KELE: A Multi-Agent Framework for Structured Socratic Teaching with Large Language Models," EMNLP 2025 Findings
 - Liu et al., "SocraticLM: Exploring Socratic Personalized Teaching with Large Language Models," NeurIPS 2024 (Spotlight)
-- HF TRL `SFTTrainer` docs: https://huggingface.co/docs/trl/sft_trainer
-- PEFT LoRA docs: https://huggingface.co/docs/peft/conceptual_guides/lora
+- Rafailov et al., "Direct Preference Optimization: Your Language Model is Secretly a Reward Model," NeurIPS 2023
+- HF TRL `SFTTrainer`: https://huggingface.co/docs/trl/sft_trainer
+- HF TRL `DPOTrainer`: https://huggingface.co/docs/trl/dpo_trainer
+- PEFT LoRA: https://huggingface.co/docs/peft/conceptual_guides/lora
