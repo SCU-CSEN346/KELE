@@ -15,9 +15,12 @@ Usage:
 
 Default filters smoke runs at n_turns < 50.
 """
+
 from __future__ import annotations
+
 import argparse
 import json
+import re
 from pathlib import Path
 
 STAGES = ("a", "b", "c", "d", "e")
@@ -40,7 +43,9 @@ def pedagogical(per_stage: dict[str, float]) -> float | None:
     return sum(v * w for v, w in vals)
 
 
-def freq_inverse(per_stage: dict[str, float], per_stage_counts: dict[str, int] | None) -> float | None:
+def freq_inverse(
+    per_stage: dict[str, float], per_stage_counts: dict[str, int] | None
+) -> float | None:
     """Option C: weights ∝ 1/freq, normalized."""
     if per_stage_counts is None:
         return stage_balanced(per_stage)
@@ -79,8 +84,6 @@ def fmt_pct(v: float | None) -> str:
     return f"{v:5.2f}" if v is not None else "  —  "
 
 
-import re
-
 # ─── Naming convention ────────────────────────────────────────────────────
 # Display format produced by display_name():
 #
@@ -90,37 +93,48 @@ import re
 
 _CONSULTANT_MAP = [
     # Order matters: longest prefix wins
-    ("bge-small-bert-",           "bert-fixed"),     # post-fix BERT
-    ("t4-bert-",                  "qwen3.5"),        # T4 = qwen3.5 LoRA
-    ("claude-opus-consultant-",   "Claude-Opus"),    # LLM-as-consultant
+    ("bge-small-bert-", "bert-fixed"),  # post-fix BERT
+    ("t4-bert-", "qwen3.5"),  # T4 = qwen3.5 LoRA
+    ("claude-opus-consultant-", "Claude-Opus"),  # LLM-as-consultant
     ("claude-sonnet-consultant-", "Claude-Sonnet"),
-    ("bert-",                     "bert"),           # legacy pre-fix BERT
-    ("state-clf-qwen3-emb-0.6b-", "qwen3-classifier"),     # Layer-1 only
-    ("state-clf-qwen3.5-0.8b-",   "qwen3.5-classifier"),   # Layer-1 only
+    ("bert-", "bert"),  # legacy pre-fix BERT
+    ("state-clf-qwen3-emb-0.6b-", "qwen3-classifier"),  # Layer-1 only
+    ("state-clf-qwen3.5-0.8b-", "qwen3.5-classifier"),  # Layer-1 only
 ]
 
 _TEACHER_MAP = [
     # (token-in-dir, display-name, implicit-variant-if-any)
     # Order matters: more-specific tokens (e.g. "qwen27b-nothink") before less.
-    ("qwen27b-nothink", "Qwen-27B",        "no-think"),
-    ("qwen27b",         "Qwen-27B",        "think"),       # implicit think mode
-    ("gemma",           "Gemma-31B",       None),
-    ("a3b",             "A3B-35B",         None),
-    ("claude-opus",     "Claude-Opus",     None),
-    ("claude-sonnet",   "Claude-Sonnet",   None),
-    ("socratteachllm",  "SocratTeachLLM",  None),
+    ("qwen27b-nothink", "Qwen-27B", "no-think"),
+    ("qwen27b", "Qwen-27B", "think"),  # implicit think mode
+    ("gemma", "Gemma-31B", None),
+    ("a3b", "A3B-35B", None),
+    ("claude-opus", "Claude-Opus", None),
+    ("claude-sonnet", "Claude-Sonnet", None),
+    ("socratteachllm", "SocratTeachLLM", None),
 ]
 
 # Variants the parser will split apart on `-` boundaries if all residue
 # tokens are recognized. If the residue contains any unknown token, the
 # whole residue is kept as a single variant string (e.g. "composed-top3").
 _KNOWN_VARIANTS = {
-    "think", "nothink", "no-think",
-    "top3", "composed", "composed-top3",
-    "raw", "clean", "fixed",
-    "EN", "ZH",
-    "fewshot10", "fewshot7", "fewshot",
-    "mini", "smoke", "full",
+    "think",
+    "nothink",
+    "no-think",
+    "top3",
+    "composed",
+    "composed-top3",
+    "raw",
+    "clean",
+    "fixed",
+    "EN",
+    "ZH",
+    "fewshot10",
+    "fewshot7",
+    "fewshot",
+    "mini",
+    "smoke",
+    "full",
 }
 
 
@@ -164,14 +178,14 @@ def display_name(config: str) -> str:
     for prefix, label in _CONSULTANT_MAP:
         if name.startswith(prefix):
             consultant = label
-            name = name[len(prefix):]
+            name = name[len(prefix) :]
             break
     if consultant is None:
         return config  # untouched (tournament, smoke, wave, ad-hoc dirs)
 
     # Strip "consultant-" infix (it's a noise word in legacy bert-* dirs)
     if name.startswith("consultant-"):
-        name = name[len("consultant-"):]
+        name = name[len("consultant-") :]
 
     # Strip trailing "-fixed" (now implied by consultant label)
     if name.endswith("-fixed"):
@@ -184,13 +198,17 @@ def display_name(config: str) -> str:
     teacher = None
     implicit_variant = None
     for token, label, iv in _TEACHER_MAP:
-        for pat in (rf"-{re.escape(token)}-", rf"-{re.escape(token)}$",
-                    rf"^{re.escape(token)}-", rf"^{re.escape(token)}$"):
+        for pat in (
+            rf"-{re.escape(token)}-",
+            rf"-{re.escape(token)}$",
+            rf"^{re.escape(token)}-",
+            rf"^{re.escape(token)}$",
+        ):
             m = re.search(pat, name)
             if m:
                 teacher = label
                 implicit_variant = iv
-                name = (name[: m.start()] + name[m.end():]).strip("-")
+                name = (name[: m.start()] + name[m.end() :]).strip("-")
                 name = re.sub(r"-+", "-", name).strip("-")
                 break
         if teacher:
@@ -272,20 +290,22 @@ def main() -> int:
             unified = 0.5 * sb + 0.5 * (judge_score * 10.0)
             if ped is not None:
                 unified_ped = 0.5 * ped + 0.5 * (judge_score * 10.0)
-        rows.append({
-            "config": mfile.parent.relative_to(args.results_root).as_posix(),
-            "n": n_turns,
-            "macro": macro,
-            "stage_bal": sb,
-            "pedagogical": ped,
-            "freq_inv": finv,
-            "judge": judge_score,
-            "unified": unified,
-            "unified_ped": unified_ped,
-            "rouge1": m.get("rouge1"),
-            "per_stage": per_stage,
-            "counts": counts,
-        })
+        rows.append(
+            {
+                "config": mfile.parent.relative_to(args.results_root).as_posix(),
+                "n": n_turns,
+                "macro": macro,
+                "stage_bal": sb,
+                "pedagogical": ped,
+                "freq_inv": finv,
+                "judge": judge_score,
+                "unified": unified,
+                "unified_ped": unified_ped,
+                "rouge1": m.get("rouge1"),
+                "per_stage": per_stage,
+                "counts": counts,
+            }
+        )
 
     rows_with_sb = [r for r in rows if r["stage_bal"] is not None]
     rows_with_sb.sort(key=lambda r: -r["stage_bal"])
@@ -296,32 +316,60 @@ def main() -> int:
 
     if args.out is None:
         from datetime import datetime
-        args.out = Path("results/_orchestrator_logs") / f"backtest_stage_balanced_{datetime.now():%Y_%m_%d}.md"
+
+        args.out = (
+            Path("results/_orchestrator_logs")
+            / f"backtest_stage_balanced_{datetime.now():%Y_%m_%d}.md"
+        )
     args.out.parent.mkdir(parents=True, exist_ok=True)
 
     lines = []
-    lines.append(f"# Stage-balanced backtest — {args.out.stem.split('_')[-3]}_{args.out.stem.split('_')[-2]}_{args.out.stem.split('_')[-1]}")
+    lines.append(
+        f"# Stage-balanced backtest — {args.out.stem.split('_')[-3]}_{args.out.stem.split('_')[-2]}_{args.out.stem.split('_')[-1]}"
+    )
     lines.append("")
-    lines.append(f"Recomputed from {len(rows)} configs (filtered to n_turns ≥ {args.min_turns}; {skipped} smaller files skipped).")
+    lines.append(
+        f"Recomputed from {len(rows)} configs (filtered to n_turns ≥ {args.min_turns}; {skipped} smaller files skipped)."
+    )
     lines.append("")
     lines.append("## Metrics")
     lines.append("")
-    lines.append("- **macro** — frequency-weighted state acc (`Σ correct / Σ turns`). The published headline.")
-    lines.append("- **stage_bal** — Option A: `(1/5) × Σ p_s`. ML-standard macro-F1 move; recommended new headline.")
-    lines.append("- **pedagogical** — Option B: weights `a=.10 b=.20 c=.25 d=.20 e=.25` giving closure parity with questioning.")
-    lines.append("- **freq_inv** — Option C: weights ∝ 1/(per-stage turn count); falls back to stage_bal when counts unavailable.")
-    lines.append("- **judge** — LLM-judge `overall_avg` from `judge_summary.json` (Claude Sonnet 4.6 rubric, 0-10 scale); `—` if not judged.")
-    lines.append("- **unified** — `0.5 × stage_bal + 0.5 × (judge × 10)`. The recommended single-number ranking for the paper headline. See `docs/UNIFIED_RANKING.md` for full rationale.")
-    lines.append("- **unified_ped** — same as `unified` but using `pedagogical` instead of `stage_bal`. Pedagogically-informed alternative.")
-    lines.append("- **Δrank** — `macro_rank − stage_bal_rank` (positive = moved UP under stage-balanced; negative = moved DOWN).")
+    lines.append(
+        "- **macro** — frequency-weighted state acc (`Σ correct / Σ turns`). The published headline."
+    )
+    lines.append(
+        "- **stage_bal** — Option A: `(1/5) × Σ p_s`. ML-standard macro-F1 move; recommended new headline."
+    )
+    lines.append(
+        "- **pedagogical** — Option B: weights `a=.10 b=.20 c=.25 d=.20 e=.25` giving closure parity with questioning."
+    )
+    lines.append(
+        "- **freq_inv** — Option C: weights ∝ 1/(per-stage turn count); falls back to stage_bal when counts unavailable."
+    )
+    lines.append(
+        "- **judge** — LLM-judge `overall_avg` from `judge_summary.json` (Claude Sonnet 4.6 rubric, 0-10 scale); `—` if not judged."
+    )
+    lines.append(
+        "- **unified** — `0.5 × stage_bal + 0.5 × (judge × 10)`. The recommended single-number ranking for the paper headline. See `docs/UNIFIED_RANKING.md` for full rationale."
+    )
+    lines.append(
+        "- **unified_ped** — same as `unified` but using `pedagogical` instead of `stage_bal`. Pedagogically-informed alternative."
+    )
+    lines.append(
+        "- **Δrank** — `macro_rank − stage_bal_rank` (positive = moved UP under stage-balanced; negative = moved DOWN)."
+    )
     lines.append("")
     n_judged = sum(1 for r in rows_with_sb if r["judge"] is not None)
     n_unified = len(rows_with_unified)
     lines.append("## Master ranked list (by unified score = 0.5 × stage_bal + 0.5 × (judge × 10))")
     lines.append("")
-    lines.append(f"Only cells with both stage_bal AND judge get a unified score ({n_unified}/{len(rows_with_sb)} configs).")
+    lines.append(
+        f"Only cells with both stage_bal AND judge get a unified score ({n_unified}/{len(rows_with_sb)} configs)."
+    )
     lines.append("")
-    lines.append("| u# | config | n | **unified** | unified_ped | stage_bal | judge | macro | R-1 |")
+    lines.append(
+        "| u# | config | n | **unified** | unified_ped | stage_bal | judge | macro | R-1 |"
+    )
     lines.append("|---:|---|---:|---:|---:|---:|---:|---:|---:|")
     for i, r in enumerate(rows_with_unified, 1):
         lines.append(
@@ -331,9 +379,13 @@ def main() -> int:
             f"{fmt_pct(r['macro'])} | {fmt_pct(r['rouge1'])} |"
         )
     lines.append("")
-    lines.append(f"## Stage-balanced leaderboard (all configs; sorted by stage_bal; Δrank vs macro; {n_judged}/{len(rows_with_sb)} have judge scores)")
+    lines.append(
+        f"## Stage-balanced leaderboard (all configs; sorted by stage_bal; Δrank vs macro; {n_judged}/{len(rows_with_sb)} have judge scores)"
+    )
     lines.append("")
-    lines.append("| sb# | macro# | Δ | config | n | macro | stage_bal | pedagogical | freq_inv | judge | R-1 |")
+    lines.append(
+        "| sb# | macro# | Δ | config | n | macro | stage_bal | pedagogical | freq_inv | judge | R-1 |"
+    )
     lines.append("|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|")
     for i, r in enumerate(rows_with_sb, 1):
         mrank = macro_rank.get(r["config"], 0)
@@ -347,12 +399,16 @@ def main() -> int:
             f"{judge_str} | {fmt_pct(r['rouge1'])} |"
         )
 
-    big_movers_up = [(i + 1, macro_rank[r["config"]] - (i + 1), r)
-                     for i, r in enumerate(rows_with_sb)
-                     if (macro_rank[r["config"]] - (i + 1)) >= 3]
-    big_movers_dn = [(i + 1, macro_rank[r["config"]] - (i + 1), r)
-                     for i, r in enumerate(rows_with_sb)
-                     if (macro_rank[r["config"]] - (i + 1)) <= -3]
+    big_movers_up = [
+        (i + 1, macro_rank[r["config"]] - (i + 1), r)
+        for i, r in enumerate(rows_with_sb)
+        if (macro_rank[r["config"]] - (i + 1)) >= 3
+    ]
+    big_movers_dn = [
+        (i + 1, macro_rank[r["config"]] - (i + 1), r)
+        for i, r in enumerate(rows_with_sb)
+        if (macro_rank[r["config"]] - (i + 1)) <= -3
+    ]
 
     if big_movers_up:
         lines.append("")

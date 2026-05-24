@@ -79,7 +79,9 @@ class SocraticTeachingSystemBertConsultant(SocraticTeachingSystem):
         # cleanly. BERT-class models silently ignore the kwarg, so passing
         # it unconditionally is safe across all consultant backbones.
         self.bert_model = AutoModelForSequenceClassification.from_pretrained(
-            ckpt_path, low_cpu_mem_usage=True, attn_implementation="eager",
+            ckpt_path,
+            low_cpu_mem_usage=True,
+            attn_implementation="eager",
         )
         # Device selection: default to CPU when KELE_BERT_DEVICE=cpu (or 'auto'
         # when the teacher already occupies most VRAM). Otherwise CUDA.
@@ -103,8 +105,10 @@ class SocraticTeachingSystemBertConsultant(SocraticTeachingSystem):
                 cuda_busy = free_bytes < 3 * 1024**3
             if backbone_params_mb > 200 and cuda_busy:
                 self.bert_device = "cpu"
-                print(f"  [bert-consultant] {backbone_params_mb:.0f} MB model + busy CUDA "
-                      f"({free_bytes / 1024**3:.1f} GB free) -> CPU inference")
+                print(
+                    f"  [bert-consultant] {backbone_params_mb:.0f} MB model + busy CUDA "
+                    f"({free_bytes / 1024**3:.1f} GB free) -> CPU inference"
+                )
             else:
                 self.bert_device = "cuda" if torch.cuda.is_available() else "cpu"
         # Force bf16 AFTER device transfer (see comment above) — this is the

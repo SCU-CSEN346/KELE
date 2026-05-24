@@ -97,7 +97,9 @@ PROMPT_TEMPLATE = """你将生成 {batch_size} 个全新的中国小学科学课
 """
 
 
-def generate_batch(client: anthropic.Anthropic, model: str, batch_size: int, start_id: int) -> list[dict]:
+def generate_batch(
+    client: anthropic.Anthropic, model: str, batch_size: int, start_id: int
+) -> list[dict]:
     """Ask Claude for one batch of synthetic dialogues."""
     prompt = PROMPT_TEMPLATE.format(batch_size=batch_size, start_id=start_id)
     resp = client.messages.create(
@@ -117,7 +119,9 @@ def generate_batch(client: anthropic.Anthropic, model: str, batch_size: int, sta
         # Fallback: try to recover individual dialogue objects via brace matching.
         # The model occasionally puts unescaped single quotes or special chars
         # in Chinese strings that break strict JSON parsing.
-        print(f"  WARN: strict parse failed ({e}); trying object-by-object recovery", file=sys.stderr)
+        print(
+            f"  WARN: strict parse failed ({e}); trying object-by-object recovery", file=sys.stderr
+        )
         items = []
         depth = 0
         start = None
@@ -140,7 +144,7 @@ def generate_batch(client: anthropic.Anthropic, model: str, batch_size: int, sta
             return []
         print(f"  recovered {len(items)} of likely 5 objects", file=sys.stderr)
     if not isinstance(items, list):
-        print(f"  WARN: batch did not return a list", file=sys.stderr)
+        print("  WARN: batch did not return a list", file=sys.stderr)
         return []
     return items
 
@@ -162,10 +166,17 @@ def validate_item(item: dict) -> bool:
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--n-dialogues", type=int, default=50)
-    p.add_argument("--batch-size", type=int, default=5, help="Dialogues per Claude call (5 fits in 16K output)")
+    p.add_argument(
+        "--batch-size", type=int, default=5, help="Dialogues per Claude call (5 fits in 16K output)"
+    )
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--model", default="claude-sonnet-4-6")
-    p.add_argument("--start-id", type=int, default=100001, help="ID for first dialogue (avoid collision with SocratDataset)")
+    p.add_argument(
+        "--start-id",
+        type=int,
+        default=100001,
+        help="ID for first dialogue (avoid collision with SocratDataset)",
+    )
     args = p.parse_args()
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -180,7 +191,10 @@ def main() -> None:
     t0 = time.time()
     for b in range(n_batches):
         want = min(args.batch_size, args.n_dialogues - len(items))
-        print(f"Batch {b + 1}/{n_batches}: requesting {want} dialogues starting at id={next_id}", file=sys.stderr)
+        print(
+            f"Batch {b + 1}/{n_batches}: requesting {want} dialogues starting at id={next_id}",
+            file=sys.stderr,
+        )
         batch = generate_batch(client, args.model, want, next_id)
         valid = [x for x in batch if validate_item(x)]
         print(f"  got {len(batch)} ({len(valid)} valid)", file=sys.stderr)

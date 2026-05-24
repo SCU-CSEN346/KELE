@@ -12,7 +12,9 @@ typically loses ~1-2 pts, so +2 at n=50 ≈ break-even at n=681).
 Writes results/_orchestrator_logs/promote_decision.json + prints a single
 sourceable env-var block to stdout for the orchestrator to consume.
 """
+
 from __future__ import annotations
+
 import json
 import sys
 from pathlib import Path
@@ -65,18 +67,20 @@ def main() -> int:
             continue
         m = json.loads(mfile.read_text())
         c = composite(m)
-        summary.append({
-            "cell": cell,
-            "status": "OK",
-            "script": script,
-            "consultant": consultant,
-            "teacher_mode": mode,
-            "bert_ckpt": ckpt,
-            "state_accuracy": m["state_accuracy"]["overall"],
-            "rouge1": m["rouge1"],
-            "composite": round(c, 2),
-            "delta_vs_locked": round(c - LOCKED_COMPOSITE, 2),
-        })
+        summary.append(
+            {
+                "cell": cell,
+                "status": "OK",
+                "script": script,
+                "consultant": consultant,
+                "teacher_mode": mode,
+                "bert_ckpt": ckpt,
+                "state_accuracy": m["state_accuracy"]["overall"],
+                "rouge1": m["rouge1"],
+                "composite": round(c, 2),
+                "delta_vs_locked": round(c - LOCKED_COMPOSITE, 2),
+            }
+        )
 
     ok = [s for s in summary if s["status"] == "OK"]
     if not ok:
@@ -113,7 +117,10 @@ def main() -> int:
             f"composite={s['composite']:5.2f}  Δ={s['delta_vs_locked']:+5.2f}",
             file=sys.stderr,
         )
-    print(f"  Decision: {'PROMOTE to n=681' if promote else 'DEFER to Layer-2 n=400'}", file=sys.stderr)
+    print(
+        f"  Decision: {'PROMOTE to n=681' if promote else 'DEFER to Layer-2 n=400'}",
+        file=sys.stderr,
+    )
     print(f"  Written: {out_file}", file=sys.stderr)
     print(file=sys.stderr)
 
