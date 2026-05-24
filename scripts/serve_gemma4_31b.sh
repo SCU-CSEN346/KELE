@@ -42,9 +42,12 @@ PORT=8080
 # ROCm0 is ~6% faster than Vulkan0 on TG for gfx1201 (llama-bench 2026-05-24).
 # Override: DEV=Vulkan0 ./scripts/serve_gemma4_31b.sh ...
 DEV="${DEV:-rocm0}"
-# Larger micro-batch fills the GPU compute pipeline better; 2048 recommended for
-# cards with ≥24 GB VRAM (default 512 leaves throughput on the table).
-UBATCH="${UBATCH:-2048}"
+# Larger micro-batch fills the GPU compute pipeline better. 4096 is the max
+# useful value on 32 GB VRAM with Gemma Q5 (~22 GB model, ~10 GB headroom).
+# Requires matching -b 4096; both are set here. Default 512 leaves significant
+# PP throughput on the table, especially for fine-tuning workloads.
+UBATCH="${UBATCH:-4096}"
+BATCH="${BATCH:-4096}"
 
 EXTRA_ARGS=()
 while [[ $# -gt 0 ]]; do
@@ -59,6 +62,7 @@ while [[ $# -gt 0 ]]; do
     -p|--port)      PORT="$2";       shift 2 ;;
     -dev)           DEV="$2";        shift 2 ;;
     --ubatch-size)  UBATCH="$2";     shift 2 ;;
+    -b|--batch-size) BATCH="$2";     shift 2 ;;
     *)              EXTRA_ARGS+=("$1"); shift ;;
   esac
 done
@@ -87,7 +91,7 @@ echo "Context:   $CONTEXT  (per-slot: ~$((CONTEXT / PARALLEL)))"
 echo "Slots:     $PARALLEL  (unified KV, continuous batching)"
 echo "KV quant:  ${KV_QUANT}"
 echo "Device:    ${DEV}"
-echo "Ubatch:    ${UBATCH}"
+echo "Batch:     ${BATCH} / Ubatch: ${UBATCH}"
 echo "Endpoint:  http://localhost:${PORT}/v1/chat/completions"
 echo "Test:      curl http://localhost:${PORT}/v1/models"
 echo "---"
@@ -103,6 +107,7 @@ exec "$LLAMA_SERVER" \
   -ctv "$KV_QUANT" \
   -fa 1 \
   -dev "$DEV" \
+  -b "$BATCH" \
   --ubatch-size "$UBATCH" \
   --host "$HOST" \
   --port "$PORT" \
