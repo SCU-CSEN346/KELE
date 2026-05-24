@@ -1,7 +1,7 @@
 # Bilingual probe — cross-lingual transfer of the qwen3.5 LoRA classifier (2026-05-23)
 
 **Status:** Complete. Stage 1 SUCCESS at full n=100 random sample on Gemma 31B.
-**Extension landed 2026-05-23 PM:** 4-cell STL bilingual probe (TODO #16) —
+**Extension landed 2026-05-23 PM:** 4-cell STL bilingual probe (DONE — see "STL bilingual arm" §below) —
 `{bert-fixed, qwen3.5} × SocratTeachLLM × {ZH, EN}`. Confirms the cross-lingual
 stage-b collapse pattern replicates on a different teacher, **AND** surfaces a
 judge-direction reversal that is paper-grade (STL goes DOWN on EN judge while
@@ -85,14 +85,14 @@ This deserves a sentence in the paper's Limitations: **the LLM-judge metric is n
 
 ### What worked
 - **`--sample-seed 42`** (commit 19f4781) gave a clean random n=100 sample instead of first-N-by-sorted-ID.
-- **`KELE_BERT_DEVICE=cuda`** forces the qwen3.5 consultant onto GPU, avoiding the CPU-fallback dtype bug (TODO #17).
+- **`KELE_BERT_DEVICE=cuda`** forces the qwen3.5 consultant onto GPU, avoiding the CPU-fallback dtype bug (separate CPU-fallback dtype path; the multi-thread bf16 race in the GPU path was fixed in commit `28c2fbb` 2026-05-23 PM).
 - **`KELE_PARALLEL_WORKERS=1`** — default. Worked fine.
 - **Gemma 31B at 180K context** (commit `e7bdf2f` reduced from 220K) left enough VRAM (~6 GB headroom) for the co-resident qwen3.5 consultant load. The original 220K caused boot-time CUDA OOM.
 
 ### What broke (and how we recovered)
 - **First attempt (2026-05-23 ~01:00 PDT, during the overnight chain):** Gemma 220K context caused CUDA OOM when the qwen3.5 consultant tried to load. Fixed by lowering Gemma to 180K (commit `e7bdf2f`).
 - **Second attempt (2026-05-23 ~15:00 PDT):** Ran ~61 dialogues cleanly, then hit `CUDA error: the launch timed out and was terminated` (cudaErrorLaunchTimeout). Server crashed; subsequent 39 dialogues got the fallback string `我需要思考一下如何回答你的问题...`. Killed the eval, quarantined the contaminated dialogues to `dialogues-CONTAMINATED-CUDA-LAUNCH-TIMEOUT/`, salvaged the 61 clean dialogues, generated partial-n=61 metrics. This was the SECOND cudaErrorLaunchTimeout of the day (the first was on Qwen 27B at 256K during a Phase 3 attempt) — confirms the CUDA timeout is **not Qwen-27B-specific**; it's a general llama.cpp sustained-load issue on this hardware. Documented in `memory/feedback_qwen27b_context_cap.md`.
-- **Third attempt (2026-05-23 ~15:50 PDT):** Tried `KELE_PARALLEL_WORKERS=4` for speed → spawned 4× qwen3.5 consultant loads → VRAM pressure → auto-routing fell back to CPU → CPU code path hit a bfloat16/float32 dtype mismatch (TODO #17). Killed, restarted with `KELE_PARALLEL_WORKERS=1` and `KELE_BERT_DEVICE=cuda`. Worked cleanly through all 100 dialogues.
+- **Third attempt (2026-05-23 ~15:50 PDT):** Tried `KELE_PARALLEL_WORKERS=4` for speed → spawned 4× qwen3.5 consultant loads → VRAM pressure → auto-routing fell back to CPU → CPU code path hit a bfloat16/float32 dtype mismatch (separate CPU-fallback dtype path; the multi-thread bf16 race in the GPU path was fixed in commit `28c2fbb` 2026-05-23 PM). Killed, restarted with `KELE_PARALLEL_WORKERS=1` and `KELE_BERT_DEVICE=cuda`. Worked cleanly through all 100 dialogues.
 
 ### Lessons captured
 1. **Parallel workers don't compose with auto-CPU-fallback** when the consultant is large enough to matter. Either KELE_PARALLEL_WORKERS=1 + auto routing, OR force-GPU + workers ≥ 1 (but VRAM budget for the consultant load × workers).
@@ -105,13 +105,13 @@ This deserves a sentence in the paper's Limitations: **the LLM-judge metric is n
 
 The partial n=61 cell (`-PARTIAL-CUDA-LAUNCH-TIMEOUT/`) sits at unified **66.66** — essentially identical despite running on a different sample (the first 61 clean dialogues vs the full 100). Strong agreement supports the cross-lingual transfer claim independent of which sample subset we look at.
 
-## What's next (TODO #15 → "canonical scale")
+## What's next — bilingual probe at canonical scale (still pending)
 
-Stage 1 success at n=100 motivates promoting to **n=400 (canonical sample size per `CONVERGENCE_ANALYSIS.md`)** to get a paper-publishable cross-lingual claim with ≤ 2 pp resolution on all 4 primary metrics. Estimated cost: ~5 GPU-h + ~$0.10 LLM-judge. Tracked as task #15 and in `docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md` §Concrete next steps item 8.
+Stage 1 success at n=100 motivates promoting to **n=400 (canonical sample size per `CONVERGENCE_ANALYSIS.md`)** to get a paper-publishable cross-lingual claim with ≤ 2 pp resolution on all 4 primary metrics. Estimated cost: ~5 GPU-h + ~$0.10 LLM-judge. Still on the live task list and in `docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md` §Concrete next steps item 8.
 
 No Stage 2 (bilingual co-training retrain) needed since Stage 1 passed. The retrain path stays documented in `EXPERIMENT_TIERS.md` Tier C.31 for future revival if a more aggressive cross-lingual claim is wanted.
 
-## STL bilingual arm — 4 cells (added 2026-05-23 PM, TODO #16)
+## STL bilingual arm — 4 cells (added 2026-05-23 PM; landed, judged, in leaderboard)
 
 **Cells run:**
 - `bert-fixed × SocratTeachLLM · fewshot10 · n=50` (ZH + EN)
@@ -228,7 +228,7 @@ to be fixed before the eval would run:
    to PATH in the serve script. Also bumped `GPU_MEMORY_UTILIZATION` from 0.60
    to 0.70 (lower fails with "no available memory for cache blocks").
 2. **`configs/socratteachllm-local.env` pointed at port 8080** (legacy llama.cpp
-   path, still blocked on TODO #18 — chatglm GGUF converter pulls BPE merges
+   path, still blocked on the chatglm GGUF converter — it pulls BPE merges
    and STL ships tiktoken only). Repointed to port 8001 (vLLM).
 3. **Multi-thread bf16 race on the BERT consultant.** Loading with
    `dtype=torch.bfloat16, low_cpu_mem_usage=True` from N concurrent

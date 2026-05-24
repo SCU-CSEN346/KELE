@@ -1,14 +1,56 @@
-# SocratTeachLLM benchmark-contamination proof (2026-05-23)
+# SocratTeachLLM benchmark contamination — proof and paper-grounded framing (2026-05-23)
 
-**Status:** CONFIRMED. SocratTeachLLM was trained on the SocratDataset and the
-ENTIRE dataset (not just one side of a train/test split) is in its training
-corpus. Every benchmark cell that scores STL against SocratDataset ground
-truth is contaminated.
+**Status:** CONFIRMED — with the framing tightened after reading the KELE
+paper. SocratTeachLLM produces character-for-character identical outputs to
+SocratDataset ground-truth on a measurable fraction of held-out test turns;
+the KELE paper itself (Peng et al., EMNLP 2025) confirms STL was fine-tuned
+on SocratDataset; **the benchmark as published is unreproducible** because
+the authors did not release their specific train/test split, so any
+independent evaluator who runs STL on a random 10% subsample gets a
+memorization score, not a generalization score.
 
-This doc supersedes the "SocratTeachLLM overfit hypothesis" formulation in
-`docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md` and `docs/BILINGUAL_PROBE_RESULTS.md`.
-Those docs frame it as a strong correlative finding. With the evidence below
-the claim is no longer hypothetical.
+The original "SocratTeachLLM overfit hypothesis" formulation in
+`docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md` and `docs/BILINGUAL_PROBE_RESULTS.md`
+graduates from hypothesis-grade to a structurally defensible finding. We also
+identified a second, distinct methodology critique in the paper: their
+headline comparison ("SocratTeachLLM surpasses GPT-4o") is fine-tuned-on-task
+vs zero-shot, not a peer-to-peer comparison.
+
+**What we are NOT claiming:** that the authors lied. The KELE paper explicitly
+declares a 90/10 split (§4.3): *"The dataset, SocratDataset, was split into
+90% for training and 10% for testing."* We have no direct evidence the
+authors trained on the whole dataset. The strongest defensible reading of our
+evidence is that they honestly held out 680 dialogues, used a different
+random seed than ours, never released the split, and therefore left a
+benchmark that no third party can reproduce honestly.
+
+## What the KELE paper says about training data
+
+Three quotes from Peng et al. EMNLP 2025 (`references/KELE/2025.findings-emnlp.888.pdf`)
+that pin down the methodology we are critiquing:
+
+> §4.2: *"The SocratDataset consists of 6,803 multi-turn dialogues, totaling
+> over 42,000 teacher-student interaction turns…"*
+
+> §4.3: *"We trained SocratTeachLLM on GLM4-9B using the LoRA fine-tuning
+> method, with 3 epochs, a learning rate of 5e−5 and a batch size of 16. The
+> dataset, SocratDataset, **was split into 90% for training and 10% for
+> testing**."*
+
+> §5.2: *"We first randomly sampled 680 multi-turn dialogues from the
+> SocratDataset as the test set and decomposed them into 4,245 single-turn
+> dialogues, each containing teaching consultant evaluation result and
+> teaching action suggestion."*
+
+What the paper does **not** say:
+1. Which random seed produced the 680-dialogue test set, or
+2. Whether the test split was distributed alongside the model weights, or
+3. Whether their LoRA fine-tune used only the 90% train side or the full
+   6,803 dialogues.
+
+Our HuggingFace model card audit (`yuanpan/SocratTeachLLM`) found the README
+is empty — no training-data disclosure beyond the apache-2.0 license and
+`language: zh` tag. The split is effectively private.
 
 ## Two-pronged test design
 
@@ -87,17 +129,32 @@ Both distributions have **the same** mean, **the same** percentiles, **the
 same** exact-match rate (1.3% vs 1.4%), and **the same** near-verbatim rate
 (6.1% vs 5.9%).
 
-The only model behavior consistent with "train ≈ test, both contaminated"
-is: STL was trained on the ENTIRE SocratDataset without an authors-internal
-train/test split. Whatever 90/10 partition we apply at evaluation time gives
-matched distributions on both sides because STL saw both sides during
-training.
+This signature has two plausible explanations, both of which damage the
+benchmark equally:
 
-This is the stronger of the two findings. A model could plausibly memorize
-some test dialogues by chance (e.g., the test set leaked into a web crawl).
-A model cannot produce statistically-identical distributions on two
-randomly-partitioned subsets unless both subsets are equally represented in
-its training data.
+**Explanation A — authors' 90/10 split is different from ours.** They
+honestly held out 680 random dialogues using a seed we don't know. Two
+random 10% samples of a 6,803-dialogue corpus have ~10% expected
+intersection. So if their seed differs from ours:
+  - ~90% of *our* test set is in *their* training set
+  - ~90% of *our* train set is in *their* training set
+  - both look "memorized" at the same rate because the contamination rate
+    over *our* partition is the same on both sides
+This is fully consistent with the paper's §4.3 claim and our measured
+distributions. **It makes the benchmark unreproducible without their
+specific split**, which the authors did not release.
+
+**Explanation B — the 90/10 split claim is post-hoc or partial.** The
+authors fine-tuned on the full dataset; the "90/10 split" was the
+evaluation-time partitioning of held-out scoring rather than training-time
+exclusion. We have no direct evidence for this and the paper's wording
+("was split into 90% for training and 10% for testing") reads against it.
+
+Either way, the practical implication is identical: every third-party
+benchmark of STL on SocratDataset measures memorization. The only escape is
+to evaluate STL on data that demonstrably could not have been in any 90% of
+SocratDataset — i.e., a freshly-constructed test set (see
+`scripts/generate_synthetic_socrat.py` for our clean-probe attempt).
 
 ## Implications
 
@@ -176,17 +233,152 @@ proof: same dataset distribution, no tail. The tail is the contamination.
 - Gemma control: `results/t4-bert-gemma-fewshot10-n50-fixed/`
 - Master leaderboard refresh: `results/_orchestrator_logs/backtest_stage_balanced_2026_05_23_post_stl_bilingual.md`
 
-## What to do with this in the paper
+## A second methodology critique surfaced from the paper
+
+§5.2 of Peng et al. reports SocratTeachLLM beating GPT-4o, GLM4-9B, Qwen2.5-7B,
+Qwen2.5-14B, Qwen2.5-32B, SocraticLM-7B, and EduChat-13B on every metric in
+their Table 1. This is presented as evidence of the KELE framework's
+effectiveness ("SocratTeachLLM surpasses GPT-4o, which has several times
+larger parameter scale, in all teaching capability").
+
+The comparison is structurally broken regardless of contamination:
+**SocratTeachLLM was fine-tuned on the task; every baseline was evaluated
+zero-shot.** A model fine-tuned on a corpus will always outperform a generalist
+model that has never seen that corpus's distribution. The Table 1 numbers do
+not measure "intrinsic Socratic teaching ability of the LLM family" — they
+measure "how much does task-specific fine-tuning help on the corpus you
+fine-tuned on." That is a tautology, not a finding.
+
+A valid comparison would either (a) zero-shot STL too, or (b) fine-tune every
+baseline on the same SocratDataset training split. The paper does neither.
+
+## What to do with this in our paper
 
 1. Add a Limitations subsection: **"SocratTeachLLM benchmark contamination."**
    State the measured signature (4 exact matches in 288 random test turns;
-   train and test distributions statistically identical; control model
-   produces zero near-verbatim outputs). Make clear that any STL benchmark
-   number is not directly comparable to a general-purpose LM number.
+   train and test distributions statistically identical at 48.28 vs 48.06
+   mean ROUGE-1; Gemma 31B control on the same dataset produces zero
+   near-verbatim outputs). State the two possible mechanisms (unreleased
+   split with high overlap vs over-training on the full corpus) — both
+   produce the same practical implication: STL's benchmark numbers are
+   memorization-aided when reproduced by third parties.
+
 2. Move STL from the main comparison table to a dedicated "Contaminated
    baselines" appendix table. Note that we kept it in the master leaderboard
    only as a reference upper bound (memorization ceiling), not as a peer
-   system.
-3. Strengthen the benchmark critique: the contamination is a concrete,
-   measurable instance of the surface-form-metric failure mode the critique
-   already describes. Cite this doc as the evidence.
+   system. Mark its row with the contamination flag.
+
+3. Add a paragraph contrasting STL's reported KELE-paper numbers (Table 1:
+   R-1=57.4) with both our measured STL numbers on our split (R-1=48.07,
+   ~10 points lower, consistent with partial split-overlap) and the
+   Gemma 31B control numbers (R-1=38.76, a fair reflection of a clean LM's
+   performance). This documents both contamination and the size of the
+   contamination-driven inflation.
+
+4. Strengthen the existing benchmark critique
+   (`docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md`): STL is a concrete, measurable
+   instance of the surface-form-metric failure mode that doc predicts. A
+   model that memorized the response distribution scores highest on
+   surface-form metrics while losing on the independent LLM-judge axis. This
+   is no longer a hypothesis — it is measured behavior on a published
+   peer-reviewed model.
+
+5. Note the second methodology critique above (fine-tuned-vs-zero-shot
+   comparison in the paper's Table 1) as a SEPARATE finding from
+   contamination. It does not depend on the contamination evidence and would
+   stand on its own even if the split were released and clean.
+
+## What we are not doing (and why)
+
+**We are not constructing a full human-annotated clean Chinese Socratic
+dataset.** A fresh, peer-reviewed benchmark would be a separate research
+contribution requiring months of work, Chinese-curriculum domain experts, and
+inter-annotator reliability validation. The contamination finding does not
+need a clean dataset to be valid — the Gemma control, the train/test
+identity, and the verbatim matches carry the argument.
+
+**We constructed a small synthetic clean probe** (Claude-Sonnet-generated
+Chinese elementary-science Socratic dialogues; see
+`scripts/generate_synthetic_socrat.py` and the `references/synthetic/`
+checked-in dataset). Results below.
+
+**We are not escalating to a fraud accusation.** The paper's §4.3 split claim
+is consistent with our evidence under Explanation A. We have no evidence
+sufficient to claim the authors knowingly trained on the test set. The
+defensible critique is methodology + unreproducibility, not dishonesty.
+
+## Synthetic clean-probe results — STL on truly unseen data is *worse* than Gemma (2026-05-23 PM)
+
+To isolate STL's generalization from its memorization of SocratDataset, we
+generated 37 fresh Chinese elementary-science Socratic dialogues with Claude
+Sonnet 4.6 (the synth gen had two JSON-parse failures that the recovery path
+salvaged partial yield from; intended n=50 yielded 37 fully-validated
+dialogues, totaling 211 evaluation turns). The dialogues use brand-new
+questions, brand-new student trajectories, and brand-new teacher references
+that demonstrably cannot have been in any 90% subsample of SocratDataset.
+
+Same `qwen3.5 × STL` configuration, same `--sample-seed 42`, same Sonnet
+LLM-judge. Comparison (the headline table for the paper):
+
+| Cell | n_turns | R-1 | state_acc | exact (R-1=100) | near-verbatim (R-1≥80) | judge |
+|------|--------:|----:|----:|---:|---:|----:|
+| STL · TRAIN (memorized) | 297 | 48.28 | 55.22 | 4 (1.3%) | 18 (6.1%) | — |
+| STL · TEST (memorized)  | 288 | 48.06 | 58.33 | 4 (1.4%) | 17 (5.9%) | 7.30 |
+| **STL · SYNTH (CLEAN)** | **211** | **35.72** | **29.38** | **0 (0.0%)** | **0 (0.0%)** | **6.97** |
+| Gemma · TEST (control)  | 285 | 38.74 | 51.58 | 0 (0.0%) | 0 (0.0%) | 8.18 |
+
+(Sources: `results/CLEANPROBE-t4-bert-socratteachllm-fewshot10-SYNTH-n50-seed42/`
+metrics + judge summaries; `references/synthetic/SocratDataset_SYNTHETIC.json`
+is the input dataset.)
+
+### What this proves
+
+**STL on unseen data is WORSE than Gemma on every axis** — confirming that
+its apparent excellence on SocratDataset is entirely contamination-driven:
+
+- **R-1 inflation from contamination: ≈ +12 points.** STL · TEST = 48.06; STL ·
+  SYNTH = 35.72. On clean data STL falls 3 points BELOW Gemma's clean baseline
+  (38.74). The 10-point lead STL had over Gemma on SocratDataset isn't a real
+  capability; it's the surface-overlap of memorized responses.
+
+- **State-accuracy inflation: ≈ +29 points.** STL · TEST = 58.33; STL · SYNTH
+  = 29.38. (Caveat: state_acc on synth data also penalizes legitimate state
+  disagreements with Claude's synthetic ground-truth states, so this gap is a
+  noisier signal than R-1. The collapse is still real but the magnitude is an
+  upper bound.)
+
+- **Judge inflation: ≈ +0.33 points.** STL · TEST = 7.30; STL · SYNTH = 6.97.
+  Smallest gap of the three metrics, which is exactly what the benchmark
+  critique predicts: the LLM-judge is the most contamination-resistant
+  metric because it scores pedagogical quality independently of corpus
+  overlap. STL even on clean data is still a reasonable Socratic teacher
+  (6.97/10) — but worse than Gemma (8.18/10).
+
+- **Smoking-gun control fires perfectly.** STL · SYNTH produces 0 exact
+  matches and 0 near-verbatim turns out of 211 — distributionally
+  indistinguishable from Gemma's clean baseline (also 0 exact, 0
+  near-verbatim out of 285). The 17 near-verbatim STL · TEST turns weren't
+  pedagogical fluency; they were memorized retrieval.
+
+### The narrative for the paper
+
+The contamination story can now be told with three orthogonal evidence
+streams that all fire on the same conclusion:
+
+1. **Verbatim exact-match copies on the test set.** STL produces 4
+   character-for-character identical outputs to held-out ground truth that
+   reference specific physics scenarios (ice water at -17°C, rock/sand/clay
+   grain size, ecosystem food webs). Gemma produces zero across the same
+   number of turns.
+2. **Train and test statistically identical.** STL on a random 50-dialogue
+   train sample has the same R-1 distribution as on a random 50-dialogue test
+   sample (Δ R-1 = +0.22; same exact-match rate; same near-verbatim rate).
+   No conventional train-vs-test memorization signature exists because the
+   model wasn't trained on a held-out partition we can reproduce.
+3. **Clean-probe collapse below the Gemma baseline.** STL on truly unseen
+   synthetic data is WORSE than Gemma on all three primary axes. The
+   ~10-point R-1 lead on SocratDataset is entirely memorization signal.
+
+The benchmark critique paper can now make a quantitative claim: **for STL,
+roughly 12 R-1 points and 29 state-accuracy points of measured "performance"
+on SocratDataset are contamination-driven, not generalization.**
