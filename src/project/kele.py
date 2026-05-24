@@ -660,6 +660,7 @@ def main() -> None:
             experiment=args.experiment,
             unified=args.unified,
             bert_consultant=args.bert_consultant,
+            split="all" if args.dataset_path else "test",
         )
     else:
         parser.print_help()
