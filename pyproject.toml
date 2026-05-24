@@ -6,11 +6,11 @@ authors = [{ name = "Ulises Chavarria", email = "ulises.engineer@gmail.com" }]
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "openai (>=2.36.0,<3.0.0)",
-    "transformers>=4.47.0",
+    "openai>=2.37.0,<3.0.0",
+    "transformers>=5.9.0",
     "accelerate>=1.2.0",
     "bitsandbytes>=0.45.0",
-    "huggingface-hub>=1.14.0",
+    "huggingface-hub>=1.16.1",
     "rouge-score>=0.1.2",
     "sacrebleu>=2.4.0",
     "tqdm>=4.67.0",
@@ -19,11 +19,13 @@ dependencies = [
     "scikit-learn>=1.6.0",
     "scipy>=1.15.0",
     "fastapi>=0.115.0",
-    "uvicorn>=0.34.0",
+    "uvicorn>=0.47.0",
     "pydantic>=2.13.4",
-    "google-genai>=2.0.1",
+    "google-genai>=2.6.0",
     "peft>=0.19.1",
     "trl>=1.4.0",
+    "tiktoken>=0.7.0",
+    "pyspellchecker>=0.9.0",
 ]
 
 [project.scripts]
@@ -64,7 +66,7 @@ dev = [
     "pytest>=8.0.0",
     "pytest-cov>=6.0.0",
     "pyright>=1.1.0",
-    "ruff>=0.9.0",
+    "ruff>=0.15.14",
     "codespell>=2.3.0",
     "matplotlib>=3.10.9",
 ]
@@ -72,7 +74,10 @@ dev = [
 [tool.codespell]
 # Skip generated/external files and non-English content.
 # codespell uses fnmatch, so directory skips need a wildcard prefix.
-skip = "uv.lock,*references*,*deliverables*,*results*,.venv,*data*"
+# Binary image formats (PDF/PNG/JPG) match false positives against compressed
+# byte sequences inside the file streams; runtime logs are noise. Skip them
+# outright — none are human-edited source content.
+skip = "uv.lock,*references*,*deliverables*,*results*,.venv,*data*,*logs*,*.pdf,*.png,*.jpg,*.jpeg,*.gif"
 # Terms that are not typos:
 #   rouge   — ROUGE (NLP metric: Recall-Oriented Understudy for Gisting Evaluation)
 #   nothink — Qwen model inference mode flag (think / nothink)

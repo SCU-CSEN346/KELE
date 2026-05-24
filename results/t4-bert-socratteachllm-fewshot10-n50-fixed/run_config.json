@@ -1,0 +1,16 @@
+{
+  "experiment": "t4-bert-socratteachllm-fewshot10-n50-fixed",
+  "teacher_model": "SocratTeachLLM",
+  "teacher_base_url": "http://localhost:8001/v1",
+  "consultant_model": "SocratTeachLLM",
+  "consultant_base_url": "http://localhost:8001/v1",
+  "thinking_budget": 0,
+  "max_teaching_rounds": 8,
+  "unified": false,
+  "workers": 1,
+  "total_dialogues": 50,
+  "completed": 50,
+  "total_elapsed_seconds": 112.39,
+  "started_at": "2026-05-23 18:58:47",
+  "finished_at": "2026-05-23 19:00:39"
+}

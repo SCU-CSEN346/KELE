@@ -1,0 +1,16 @@
+{
+  "experiment": "bert-consultant-fewshot10-claude-sonnet-n5",
+  "teacher_model": "claude-sonnet-4-6",
+  "teacher_base_url": "https://api.anthropic.com/v1/",
+  "consultant_model": "claude-sonnet-4-6",
+  "consultant_base_url": "https://api.anthropic.com/v1/",
+  "thinking_budget": 0,
+  "max_teaching_rounds": 8,
+  "unified": false,
+  "workers": 4,
+  "total_dialogues": 5,
+  "completed": 5,
+  "total_elapsed_seconds": 27.47,
+  "started_at": "2026-05-21 19:37:28",
+  "finished_at": "2026-05-21 19:37:56"
+}

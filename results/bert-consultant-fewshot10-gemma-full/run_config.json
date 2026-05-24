@@ -1,0 +1,15 @@
+{
+  "experiment": "bert-consultant-fewshot10-gemma-full",
+  "teacher_model": "Gemma 4 31B",
+  "teacher_base_url": "http://localhost:8080/v1",
+  "consultant_model": "Gemma 4 31B",
+  "consultant_base_url": "http://localhost:8080/v1",
+  "thinking_budget": 0,
+  "max_teaching_rounds": 8,
+  "unified": false,
+  "total_dialogues": 681,
+  "completed": 681,
+  "total_elapsed_seconds": 46400.53,
+  "started_at": "2026-05-17 22:43:31",
+  "finished_at": "2026-05-18 11:36:52"
+}

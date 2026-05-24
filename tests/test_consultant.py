@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import time
 
 import pytest
@@ -40,6 +41,9 @@ def robust_call(func, retries=3, delay=5):
             pytest.fail(f"API Error: {e}")
 
 
+_NO_THINKING = {"chat_template_kwargs": {"enable_thinking": False}}
+
+
 def test_consultant_basic(client):
     """Test standard text response."""
 
@@ -47,6 +51,7 @@ def test_consultant_basic(client):
         r = client.chat.completions.create(
             model=CONSULTANT_MODEL,
             messages=[{"role": "user", "content": "Say 'ready'"}],
+            extra_body=_NO_THINKING,
         )
         assert "ready" in r.choices[0].message.content.lower()
 
@@ -61,8 +66,11 @@ def test_consultant_json_output(client):
             model=CONSULTANT_MODEL,
             messages=[{"role": "user", "content": 'JSON: {"status": "ok"}'}],
             response_format={"type": "json_object"},
+            extra_body=_NO_THINKING,
         )
-        data = json.loads(r.choices[0].message.content)
+        content = re.sub(r"^```(?:json)?\s*", "", (r.choices[0].message.content or "").strip())
+        content = re.sub(r"\s*```$", "", content)
+        data = json.loads(content)
         assert data["status"] == "ok"
 
     robust_call(call)

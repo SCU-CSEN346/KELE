@@ -2,6 +2,8 @@
 
 **CSEN 346 · Santa Clara University · 2026-04-14**
 
+> **Status (2026-05-22).** Items **#1 (RAG-style teacher exemplars), #2 (learned-classifier consultant), and #4 (Consultant-Teacher Fusion)** are realized as part of the locked headline (BERT + Gemma 4 31B + 10-shot exemplars; see [`../README.md`](../README.md)). Items **#3, #5, #6, #7, #8, #9, #10** remain unrealized future-work candidates. This doc is kept as the original 2026-04-14 catalog and the design rationale for the shipped items — it is **not** a current TODO list.
+
 Ten domain-specific improvements over the KELE baseline (`SocratTeachLLM` teacher + GPT-4o consultant). All ten are composable — the final product does not need to use all ten, but each is independently defensible as a research contribution and each attacks a concrete failure mode we *measured* in the 2026-04-14 baseline run.
 
 ---

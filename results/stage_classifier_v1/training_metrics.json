@@ -1,0 +1,13 @@
+{
+  "eval_loss": 0.29580065608024597,
+  "eval_acc": 0.8698807672369103,
+  "eval_stage_a_acc": 1.0,
+  "eval_stage_b_acc": 0.9235294117647059,
+  "eval_stage_c_acc": 0.7958579881656804,
+  "eval_stage_d_acc": 0.7576687116564417,
+  "eval_stage_e_acc": 0.9733333333333334,
+  "eval_runtime": 0.8734,
+  "eval_samples_per_second": 2208.645,
+  "eval_steps_per_second": 35.494,
+  "epoch": 3.0
+}

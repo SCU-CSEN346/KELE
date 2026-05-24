@@ -4,6 +4,184 @@ Engineering decisions, what we've tried, and what's next. Each entry is dated an
 
 ---
 
+## 2026-05-23 — Qwen 27B grid + LLM-judge cross-teacher matrix + unified ranking + closure-dominance finding 🎯
+
+**Ran:** Four-cell Qwen 27B grid (2 consultants × 2 reasoning modes) at n=50 fixed format, plus LLM-judge re-evaluation across all eight current cross-teacher cells (Gemma 31B / A3B 35B / Qwen 27B × bge-small / T4, with Qwen at both think and no-think). Total ~6h wall clock for the grid (think-mode bottlenecked) + ~$0.80 in Claude Sonnet 4.6 rubric judging. Introduced `docs/UNIFIED_RANKING.md` and a `unified` column on the backtest leaderboard.
+
+### 8-cell cross-teacher leaderboard (all at fewshot10, n=50, post-fix) — by **unified score**
+
+`unified = 0.5 × stage_balanced + 0.5 × (judge × 10)` (see `docs/UNIFIED_RANKING.md`).
+Cell labels follow `docs/NAMING_CONVENTION.md`.
+
+| u# | Cell | macro | sb | judge | **unified** | stage e |
+|:-:|---|---:|---:|---:|---:|---:|
+| 🥇 | **`qwen3.5 × Gemma-31B · fewshot10 · n=50`** | 51.58 | 56.13 | **8.18** | **68.94** | 66.7 |
+| 🥈 | **`bert-fixed × Gemma-31B · fewshot10 · n=50`** | 45.94 | 52.73 | **8.26** | **67.65** | 72.7 |
+| 🥉 | `qwen3.5 × A3B-35B · fewshot10 · n=50` | 54.86 | 58.62 | 7.52 | **66.91** | 66.7 |
+| 4 | `qwen3.5 × Qwen-27B · think · fewshot10 · n=50` | 53.19 | **58.68** | 7.51 | **66.89** | 78.8 |
+| 5 | `bert-fixed × Qwen-27B · think · fewshot10 · n=50` | 49.08 | 57.15 | 7.41 | **65.65** | **84.6** |
+| 6 | `qwen3.5 × Qwen-27B · no-think · fewshot10 · n=50` | 51.89 | 55.45 | 7.56 | **65.54** | 58.3 |
+| 7 | `bert-fixed × Qwen-27B · no-think · fewshot10 · n=50` | 46.85 | 52.62 | 7.59 | **64.25** | 70.6 |
+| 8 | `bert-fixed × A3B-35B · fewshot10 · n=50` | 45.36 | 52.48 | 7.49 | **63.70** | 75.0 |
+
+### Six headline findings
+
+1. **Gemma 31B wins unified — overturning the n=50 Qwen-headline hypothesis.** T4 × Gemma at 68.94 unified beats T4 × Qwen-think (66.89) by 2.05 unified points. The driver is judge score: Gemma 8.18–8.26 vs Qwen 7.41–7.59. The ~0.7-point judge gap (×10 = 7 unified-pp) outweighs Qwen's stage_bal advantage on closure. **The locked headline (BERT + Gemma 31B + 10-shot at n=681) lands at unified 68.65 — only 0.29 below the new winning n=50 cell, still firmly in headline contention even under the new metric.**
+
+2. **T4 universally beats bge** — on every teacher pair, both metrics. T4 lift ranges +4 to +9.5 pp macro depending on teacher. Qwen 27B think mode is the *only* teacher where the T4 upgrade matters less than the bge baseline (+1.5 pp sb), because Qwen-think already lifts closure quality on its own. **But on unified, T4 × Gemma beats bge × Gemma by only 1.29 pp** — Gemma's judge dominance is consultant-agnostic.
+
+3. **The macro-vs-stage_bal metric inversion flips A3B and Qwen 27B think.** A3B wins macro by +1.7 pp (54.86 vs 53.19) but Qwen-think narrowly wins stage_bal (+0.06 pp). The gap is within n=50 noise, but the closure profile (+12 pp stage e) is real signal. **Unified resolves the tie:** A3B 66.91 vs Qwen-think 66.89 — effectively identical, with Qwen-think narrowly behind on quality.
+
+4. **Think-vs-no-think is a paper-grade trade-off, now quantified.** On T4 + Qwen 27B: think wins macro (+1.30), stage_bal (+3.23), stage e (+20.5), unified (+1.35); no-think wins R-1 (+2.10), judge (+0.05), question_form axis (+0.18). Choosing thinking buys closure correctness at the cost of question clarity. Unified picks think — but it's a close call.
+
+5. **Stage e (closure) is teacher-dominated, not consultant-dominated.** Top 4 stage e: bge×Qwen-think (84.6), T4×Qwen-think (78.8), bge×A3B (75.0), bge×Gemma (72.7). Three of the top four use the *weaker* (bge) consultant. T4 actively *hurts* closure on every Qwen variant (think −6, no-think −12). T4's stage-c lift comes at the cost of slight stage-e dampening. Worth a paragraph on consultant–teacher interaction in §4 of the paper.
+
+6. **The judge dimension is doing real work in the unified score.** Without it, Qwen 27B-think would top the cross-teacher matrix on stage_bal alone. With it, Gemma climbs to #1-2 because the judge sees Gemma as systematically higher-quality teaching. The unified metric is not a smoothing artifact — the two axes genuinely disagree about which teacher is best, and the unified resolves that disagreement in favor of the model whose quality compensates for its slightly weaker stage routing.
+
+### Methodology updates that landed today
+
+- **stage-balanced backtest of all 147 historical configs** completed (Proposal 7 §Backtesting). 35 of 116 (filtered to n_turns≥50) re-rank by ≥3 positions under the new metric. Locked headline drops from #22 → #23 (still mid-pack); Phase 1 tournament cells (length_budget, cot_scaffold, negative_exemplars) cluster at the new top 6. See `results/_orchestrator_logs/backtest_stage_balanced_latest.md`.
+- **LLM-judge column** now populated for all 4 Qwen 27B cells (Sonnet 4.6 rubric); Gemma + A3B cells judged today to fill the matrix.
+- **Qwen 27B context cap** locked at native 256K (262144) after two GPU failure modes: NVRM Xid 8 watchdog lockup at 416K (2026-05-22), then CUDA launch timeout at 256K under sustained think-mode load at n=200 (2026-05-23, prompt cache filled to 95%).
+- **Gemma 31B context cap** lowered from 220K → 180K (184320) to leave room for a co-resident BERT consultant load.
+
+### What this leaves open (the "headline candidate" question)
+
+n=50 cannot definitively pick a paper headline (±6 pp variance per `CONVERGENCE_ANALYSIS.md`). The top 4 unified cells cluster within 2.05 points (qwen3.5 × Gemma 68.94 → qwen3.5 × Qwen-think 66.89), which is within n=50 noise. Three retries are running now to validate Qwen-think at random-sample (no-think n=200 + think n=100 + EN bilingual n=100) and stress-test the CUDA-timeout envelope.
+
+### Methodology caveat — n=50 first-N systematically under-samples Qwen 27B variants
+
+The cross-teacher matrix above uses **first-50-by-sorted-ID** for the n=50 cells (the legacy `--limit 50` behavior, before `--sample-seed` plumbing landed; see commit `e7bdf2f` for the patch). The retry-chain runs at random-sample seed=42 reveal a consistent positive bias in the *random* numbers vs the *first-N* numbers, **specifically for the Qwen 27B variants**:
+
+| Cell | n=50 first-N | n≥100 random seed=42 | Δ stage_bal |
+|---|---:|---:|---:|
+| `qwen3.5 × Qwen-27B · no-think · fewshot10` | sb 55.45 (n=50) | sb 57.45 (n=200) | **+2.00** |
+| `qwen3.5 × Qwen-27B · think · fewshot10` | sb 58.68 (n=50) | sb ~60.55 (n=100 partial @ 52/100) | **+1.87** so far |
+
+Same direction, same magnitude (~+2 pp stage_bal) under both reasoning modes. Stage e on no-think jumped most: 58.3 → 69.78 (+11.5 pp). Stage b on think jumped 45.8 → 56.4 (+10.6 pp).
+
+**Implication for the local–frontier parity finding above.** The reported "Gemma 31B wins by ~2 unified pts over Qwen 27B" gap (qwen3.5 × Gemma 68.94 vs qwen3.5 × Qwen-27B-think 66.89) was computed with the n=50 first-N method for both cells. Under random sampling, the Qwen 27B cell appears to lift ~2 unified pts (judge-axis assumed stable across n), which would close the gap to **roughly 0 — i.e., Gemma and Qwen 27B are statistically tied under proper random sampling at the screening tier.**
+
+We do NOT know whether the same first-N-vs-random bias exists for the Gemma and A3B cells. The other six cross-teacher cells haven't been re-run at random sample yet. Caveat: if the bias is Qwen-specific, the Gemma-wins claim weakens. If it's uniform across teachers, the Gemma-wins ordering survives but the absolute numbers all shift up ~2 pts. **The full-n=681 sub-leaderboard TODO (item 7 in `docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md`) resolves this — at n=681 the first-N-vs-random distinction collapses because the sample IS the whole test split.**
+
+### Local–frontier parity finding (the unified-metric revelation)
+
+Across the 25-config judged master list, the best frontier teacher (`bert × Claude-Sonnet · top3 · n=681` at unified **70.06**) beats the best honest open-weight teacher (`qwen3.5 × Gemma-31B · fewshot10 · n=50` at unified **68.94**) by only **1.12 unified points** on a [0, 100] scale. At full sample size ($n{=}681$), the legacy locked headline (`bert × Gemma-31B · fewshot10 · n=681` at 68.65) sits **1.41 points** below the best frontier — and ~1 of those points is the pre-fix `bert` measurement artifact (asymmetric input-format duplication). The honest open-weight headline is essentially within n=50 noise of the frontier ceiling. **Three reasons this parity is genuine and paper-grade:**
+
+1. The unified metric excludes surface-form metrics, eliminating SocratTeachLLM-style mimicry from the ranking and the corresponding frontier-model R-1 advantage.
+2. Gemma's judge scores (8.17–8.26) are slightly higher than Claude Opus's (8.01–8.08) within matched prompt regimes — the judge isn't biased toward Claude.
+3. Prompt engineering compounds: the Phase 1 `length_budget + cot_scaffold + negative_exemplars` stack lifts Gemma from ~65 unified to ~70, roughly the same magnitude as the entire local-vs-frontier gap.
+
+**Pre-fix `bert` artifact, quantified.** Direct same-teacher comparison: `bert × Gemma-31B · fewshot10 · n=681` 68.65 (pre-fix, locked) vs.\ `bert-fixed × Gemma-31B · fewshot10 · n=50` 67.65 (post-fix) — the ~1-pt gap is the duplicated-input measurement artifact. Effect is asymmetric across consultant architectures: BERT-class gains ~1–2 pp from the bug, qwen3.5 LoRA loses ~2–3 pp. All forward post-fix work uses `bert-fixed` or `qwen3.5`; legacy `bert` cells in the leaderboard are flagged with the artifact for paper-grade comparisons.
+
+### TODO — full-test-set ($n{=}681$) local sub-leaderboard
+
+The parity claim is verified at $n{=}50$ (post-fix cells) + $n{=}681$ (legacy pre-fix locked headline). The apples-to-apples confirmation at canonical sample size requires four targeted $n{=}681$ runs:
+
+| Cell | Why | Wall clock |
+|---|---|---|
+| `bert-fixed × Gemma-31B · fewshot10 · n=681` | Clean re-baseline of the locked headline (removes the pre-fix artifact) | ~8 h |
+| `qwen3.5 × Gemma-31B · fewshot10 · n=681` | Current cross-teacher winner at full sample | ~8 h |
+| `qwen3.5 × A3B-35B · fewshot10 · n=681` | Second-best local; A3B is the fastest teacher | ~5 h |
+| `qwen3.5 × Qwen-27B · think · fewshot10 · n=681` | Closure-strong local; **blocked on CUDA-launch-timeout mitigation** per `memory/feedback_qwen27b_context_cap.md`. If unresolved, drop to n=400. | ~14 h (or ~9 h at n=400) |
+
+Plus LLM-judge on each (~$0.10 + ~20 min API per cell). Total: ~35 GPU-h + ~$0.40 API. Tracked as item 7 in `docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md` §Concrete next steps. **Output: a full-sample-size local sub-leaderboard that lets the paper claim local–frontier parity at canonical sample size, not just at the screening tier.** GPU returns from the in-flight retry chain + a separate-project window before this work can launch.
+
+### TODO — bilingual probe at canonical scale
+
+The retry-chain bilingual probe (`qwen3.5 × Gemma-31B · fewshot10 · EN · n=100 · seed=42`, in flight as of 2026-05-23) is screening-tier. After it lands, decision gate:
+
+- **Stage 1 confirmation** (if EN drop ≤ 10 pp vs ZH): scale to `n=400 seed=42` for canonical cross-lingual transfer claim. ~5 GPU-h + ~$0.10 judge. Informs paper §`sec:dataset-en`.
+- **Stage 2 retrain** (if EN drop > 10 pp): bilingual co-training. LoRA fine-tune the qwen3.5-0.8B-Base classifier on the union of SocratDataset (ZH) + SocratDataset-EN (~42K labeled turns), then re-eval at n=400 on both splits. ~1-2 GPU-h training + ~5 GPU-h eval + ~$0.10 judge.
+
+Tracked as item 8 in `docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md` §Concrete next steps. GPU returns from the in-flight retry chain + separate-project window before this work can launch.
+
+### Consultant glossary
+
+The project has cycled through multiple state-classifier consultants. Display labels in the leaderboards below:
+
+| Label | Model | Source | Notes |
+|---|---|---|---|
+| `bert` | BAAI bge-small-zh / state_classifier_v1 (model_type=bert) | locked baseline | Legacy downstream runs (pre-2026-05-22 input-format fix). |
+| `bert-fixed` | same as `bert` | post-fix runs | After commit 3d68d4a fixed the input-format duplication bug (2026-05-22). Dirs use `bge-small-bert-*-fixed`. |
+| `qwen3` | Qwen3-Embedding-0.6B | T1 (frozen), T2 (LoRA) from consultant-upgrade funnel | Layer-1 only — no downstream eval cells. |
+| `qwen3.5` | Qwen3.5-0.8B-Base | T3 (frozen), T4 (LoRA) from consultant-upgrade funnel | T4 (LoRA) is the funnel winner; all downstream cells use T4. Dirs use `t4-bert-*`. |
+
+`scripts/backtest_stage_balanced.py` rewrites raw dir names to these labels for every leaderboard it writes; on-disk dir names are unchanged.
+
+### Master ranked list — top 10 of 25 judged configs by unified
+
+Cell labels follow `docs/NAMING_CONVENTION.md`: `<consultant> × <teacher> · variant... · n=N`.
+
+| u# | Config | n_turns | **unified** | sb | judge | macro | R-1 |
+|:-:|---|---:|---:|---:|---:|---:|---:|
+| 🥇 | `bert × Gemma-31B · composed · top3 · n=50` | 278 | **70.08** | 58.48 | 8.17 | 50.72 | 41.13 |
+| 🥈 | `bert × Claude-Sonnet · top3 · n=681` | 3840 | **70.06** | 58.17 | 8.19 | 49.97 | 41.93 |
+| 🥉 | `bert × Claude-Opus · fewshot10 · n=50` | 271 | **69.79** | 58.73 | 8.08 | 49.82 | 42.77 |
+| 4 | `bert × Claude-Opus · top3 · n=681` | 3794 | **69.37** | 58.63 | 8.01 | 49.31 | 41.63 |
+| 5 | `bert × Claude-Sonnet · fewshot10 · n=50` | 281 | **69.16** | 57.18 | 8.11 | 48.75 | 43.02 |
+| 6 | **`qwen3.5 × Gemma-31B · fewshot10 · n=50`** ← cross-teacher winner (post-fix) | 285 | **68.94** | 56.13 | 8.18 | 51.58 | 38.76 |
+| 7 | `bert × Gemma-31B · fewshot10 · n=681` ← **LOCKED HEADLINE** | 3834 | **68.65** | 55.42 | 8.19 | 48.15 | 36.78 |
+| 8 | `bert × Claude-Sonnet · fewshot10 · n=50` | 267 | **67.85** | 57.32 | 7.84 | 47.94 | 39.68 |
+| 9 | `bert-fixed × Gemma-31B · fewshot10 · n=50` | 283 | **67.65** | 52.73 | 8.26 | 45.94 | 38.69 |
+| 10 | `qwen3.5 × A3B-35B · fewshot10 · n=50` | 288 | **66.91** | 58.62 | 7.52 | 54.86 | 35.67 |
+
+Note: ranks 1-5, 7, 8 are pre-fix `bert` (legacy); ranks 6, 10 are post-fix `qwen3.5`; rank 9 is post-fix `bert-fixed`. The pre-fix BERT runs benefit from the input-format duplication that was later patched out — so their lead over the post-fix runs is partially a measurement artifact rather than a pure capability gap. See `docs/CONSULTANT_UPGRADE_LOG.md` §"Asymmetric consultant sensitivity" for the detailed analysis.
+
+**The locked headline survives at #7 unified** — a meaningful but not-decisive vindication. Five n=50 configs technically score higher, but four are open-weight cells where n=50 vs n=681 dispersion (±6 pp on state acc) easily covers the gap. **The first config that meaningfully beats the locked headline at full sample size is `bert-claude-sonnet-top3-n681`** at unified 70.06 — confirming the "Claude top3 frontier ceiling" finding at the proper sample size, with a 1.41-point unified lead over the locked open-weight result.
+
+For the full ranked list (all 25 judged configs of 122 total): `results/_orchestrator_logs/backtest_stage_balanced_latest.md`.
+
+---
+
+## 2026-05-19 PM — Phase 1 prompt-utilization tournament COMPLETE ✅
+
+**Ran:** 10 single-utilization cells × n=50 = 500 dialogues against the locked BERT + Gemma 4 31B + 10-shot baseline. Three sub-runs across the day (a session crash mid-cell-10 forced a clean restart of cells 10/7/8). Total wall clock ~6h 09m.
+
+### Final leaderboard (composite = state + 0.5 × ROUGE-1)
+
+| Rank | Cell | Utilization | State | R-1 | R-2 | B-4 | Composite | Δ vs base |
+|---:|---:|---|---:|---:|---:|---:|---:|---:|
+| — | 0 | baseline (BERT+Gemma+10-shot) | 51.06 | 38.53 | 16.93 | 9.68 | 70.33 | — |
+| 1 | **1** | **length_budget** | **51.96** | **39.91** | 17.93 | 12.37 | **71.91** | **+1.58** |
+| 2 | **9** | persona | 51.27 | 39.60 | 17.89 | 12.38 | 71.07 | +0.74 |
+| 3 | 5 | negative_exemplars | 50.71 | 39.82 | 18.05 | 10.88 | 70.62 | +0.29 |
+| 4 | 4 | per_state_exemplars | 50.88 | 39.42 | 17.78 | 10.90 | 70.59 | +0.26 |
+| 5 | 7 | cot_scaffold | 50.89 | 38.98 | 17.13 | 9.55 | 70.38 | +0.05 |
+| 6 | 3 | style_matched_exemplars | 46.72 | **42.17** | **20.10** | 12.04 | 67.81 | −2.52 |
+| 7 | 10 | compressed_history | 47.50 | 38.79 | 17.07 | 9.82 | 66.89 | −3.44 |
+| 8 | 8 | nbest_rerank | 47.33 | 38.27 | 16.48 | 10.02 | 66.47 | −3.86 |
+| 9 | 6 | format_retry | 46.45 | 39.60 | 17.82 | 10.55 | 66.25 | −4.08 |
+| 10 | 2 | lexical_priors | 43.89 | 39.12 | 17.74 | 9.88 | 63.45 | −6.88 |
+
+### Headlines
+
+1. **Length-budget (#1) is the cleanest result.** +0.9 state, +1.38 R-1, +1.58 composite. Confirms the §2 hypothesis: open-weight teachers overshoot stage-typical character lengths by 1.5–3×, and forcing per-stage budgets simultaneously lifts surface mimicry and stage routing.
+2. **The expensive multi-call cells underperformed.** {#6 format-retry, #7 CoT, #8 N-best} is the mutex group; only #7 cleared baseline (by noise). #8 was the worst multi-call result at 3× inference cost. Verdict: hidden-reasoning and self-critique do not lift this composition layer.
+3. **Style-matched exemplars (#3) bought R-1 (42.17, only cell over 40) with 4.3 pts of state acc.** Surface-form optimization is anti-correlated with stage routing.
+4. **Per-state routing (#4) did not deliver the Phase 0.5-predicted lift.** Dense Gemma teacher appears to already absorb the BERT state-name signal through the prompt itself; explicit retrieval is redundant.
+5. **Lexical-prior priming (#2) is actively harmful** (−6.88 composite). Listing preferred opener 4-grams biases the teacher away from correct state-conditional content.
+
+### Phase 2 plan (next)
+
+- **Composed-A:** `KELE_STAGE_LENGTH_BUDGET=1 KELE_TEACHER_PERSONA=1 KELE_NEGATIVE_EXEMPLARS=1` on top of the BERT+Gemma+10-shot baseline. Pure prompt-string changes, no extra inference. Run at n=50.
+- **Composed-B:** Composed-A + `KELE_TEACHER_COT=1` (the only above-baseline member of the mutex group). 2× inference cost.
+- Pick the higher composite at n=50; if composite ≥ 72.5, promote to Phase 3 at n=681 as the new headline candidate.
+
+### Crash recovery note
+
+Cell 10 (compressed_history) crashed mid-run during the second sub-run (~13:16 PDT). No data corruption to completed cells — the wrapper's per-cell `metrics_summary.json` resume gate behaved correctly. Cell 10's partial 8/50 dialogues were wiped before the recovery run to avoid mixing; the recovery sub-run completed 10 → 7 → 8 cleanly in 182m.
+
+### Artifact pointers
+
+- Per-cell results: `results/tournament-cell-{1..10}-*/`
+- Leaderboard aggregator: `scripts/aggregate_tournament_leaderboard.py`
+- Tournament wrapper: `scripts/eval_prompt_tournament.sh`
+- Run logs: `logs/tournament_2026-05-19T{16-21-39,18-26-00,23-17-13}.log`
+- Plan: `docs/PROMPT_ENGINEERING_PLAN.md` §3 (utilization definitions) and Phase 1 section
+
+---
+
 ## 2026-04-14 — Baseline run #2 COMPLETE (GPT-4o consultant) ✅
 
 **Ran:** 10:14 → 14:48 (4h 34min, 274 min). 681/681 dialogues, 4294 turns, **zero errored dialogues**. 108 rate-limit retries handled gracefully by backoff.

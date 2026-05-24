@@ -1,0 +1,69 @@
+{
+  "locked_composite": 66.54,
+  "promote_threshold": 68.54,
+  "winner": {
+    "cell": "t4-bert-qwen27b-fewshot10-n50-fixed",
+    "status": "OK",
+    "script": "eval_bert_qwen27b_fewshot10_full.sh",
+    "consultant": "t4",
+    "teacher_mode": "think",
+    "bert_ckpt": "results/state-clf-qwen3.5-0.8b-lora/final",
+    "state_accuracy": 53.19,
+    "rouge1": 35.28,
+    "composite": 70.83,
+    "delta_vs_locked": 4.29
+  },
+  "promote": true,
+  "cells_evaluated": 4,
+  "cells_missing": 0,
+  "all": [
+    {
+      "cell": "bge-small-bert-qwen27b-fewshot10-n50-fixed",
+      "status": "OK",
+      "script": "eval_bert_qwen27b_fewshot10_full.sh",
+      "consultant": "bge-small",
+      "teacher_mode": "think",
+      "bert_ckpt": "results/state_classifier_v1/final",
+      "state_accuracy": 49.08,
+      "rouge1": 34.91,
+      "composite": 66.53,
+      "delta_vs_locked": -0.0
+    },
+    {
+      "cell": "t4-bert-qwen27b-fewshot10-n50-fixed",
+      "status": "OK",
+      "script": "eval_bert_qwen27b_fewshot10_full.sh",
+      "consultant": "t4",
+      "teacher_mode": "think",
+      "bert_ckpt": "results/state-clf-qwen3.5-0.8b-lora/final",
+      "state_accuracy": 53.19,
+      "rouge1": 35.28,
+      "composite": 70.83,
+      "delta_vs_locked": 4.29
+    },
+    {
+      "cell": "bge-small-bert-qwen27b-nothink-fewshot10-n50-fixed",
+      "status": "OK",
+      "script": "eval_bert_qwen27b_nothink_fewshot10_full.sh",
+      "consultant": "bge-small",
+      "teacher_mode": "nothink",
+      "bert_ckpt": "results/state_classifier_v1/final",
+      "state_accuracy": 46.85,
+      "rouge1": 37.81,
+      "composite": 65.75,
+      "delta_vs_locked": -0.78
+    },
+    {
+      "cell": "t4-bert-qwen27b-nothink-fewshot10-n50-fixed",
+      "status": "OK",
+      "script": "eval_bert_qwen27b_nothink_fewshot10_full.sh",
+      "consultant": "t4",
+      "teacher_mode": "nothink",
+      "bert_ckpt": "results/state-clf-qwen3.5-0.8b-lora/final",
+      "state_accuracy": 51.89,
+      "rouge1": 37.38,
+      "composite": 70.58,
+      "delta_vs_locked": 4.04
+    }
+  ]
+}

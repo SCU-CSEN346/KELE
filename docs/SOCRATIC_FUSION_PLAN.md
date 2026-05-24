@@ -2,14 +2,14 @@
 
 **CSEN 346 · Santa Clara University · 2026-05-04**
 
-**Status:** Plan only. Implementation parked behind explicit user greenlight.
+> **Status (2026-05-22).** Implemented as `src/project/socratic_teaching_unified.py` and validated through the A3B/Gemma fusion campaigns. **Superseded for the locked headline** by the BERT-consultant integration (`src/project/socratic_teaching_bert_consultant.py`), which removes the JSON-schema dependency that drove the 21% schema-fallback collapse of standalone-Gemma at full scale. Retained as the **design record** for the shipped fusion architecture; not a current plan.
 
 Goal: collapse the existing two-call per-turn architecture (consultant → teacher)
 into a **single LLM call** that emits state classification, evaluation reasoning,
 and teacher response together, structured-output-enforced.
 
 This is the formal specification of `IMPROVEMENT_PLAN.md` #4 (Consultant-Teacher
-Fusion) and `QWEN27B_LOCAL_PLAN.md` Phase 3, now that we have empirical evidence
+Fusion) and `archive/QWEN27B_LOCAL_PLAN.md` Phase 3, now that we have empirical evidence
 the per-turn wall clock is dominated by *count of LLM calls* and *teacher
 generation*, not by the consultant alone.
 

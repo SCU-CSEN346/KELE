@@ -1,0 +1,16 @@
+{
+  "experiment": "phase3-t4-bert-qwen27b-nothink-n200-seed42",
+  "teacher_model": "Qwen 27B Q5",
+  "teacher_base_url": "http://localhost:8080/v1",
+  "consultant_model": "Qwen 27B Q5",
+  "consultant_base_url": "http://localhost:8080/v1",
+  "thinking_budget": 0,
+  "max_teaching_rounds": 8,
+  "unified": false,
+  "workers": 1,
+  "total_dialogues": 200,
+  "completed": 200,
+  "total_elapsed_seconds": 879.1,
+  "started_at": "2026-05-23 09:20:13",
+  "finished_at": "2026-05-23 09:34:52"
+}
