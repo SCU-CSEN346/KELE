@@ -553,6 +553,137 @@ def cmd_status(_args: argparse.Namespace) -> None:
     print_leaderboard(state)
 
 
+def _build_report_markdown(state: TournamentState) -> str:
+    all_round_keys = sorted(
+        {rk for m in state.metrics.values() for rk in m},
+        key=lambda k: int(k[5:]),
+    )
+    if not all_round_keys:
+        return "No metrics data yet."
+
+    active_mids = [m for m in state.models_active if state.metrics.get(m)]
+
+    def mname(mid: str) -> str:
+        spec = MODEL_BY_ID.get(mid)
+        return spec.name if spec else mid
+
+    def wavg(points: list[tuple[int, float]]) -> float:
+        total = sum(n for n, _ in points)
+        return sum(n * v for n, v in points) / total
+
+    def _cum(mid: str, up_to_idx: int) -> float | None:
+        points = []
+        for rk in all_round_keys[: up_to_idx + 1]:
+            m = state.metrics.get(mid, {}).get(rk)
+            if m:
+                points.append((m.get("n_turns", 0), m["state_accuracy"]["overall"]))
+        return wavg(points) if points else None
+
+    lines: list[str] = []
+
+    # ── Cumulative table ──────────────────────────────────────────────────────
+    lines.append("### Cumulative State Accuracy (turn-weighted)\n")
+    if len(active_mids) == 2:
+        m0, m1 = active_mids
+        n0, n1 = mname(m0), mname(m1)
+        lines.append(f"| n | {n0} | Δ | {n1} | Δ | Gap |")
+        lines.append("|--:|---:|---:|---:|---:|:---|")
+        prev: dict[str, float | None] = {m0: None, m1: None}
+        for i, rk in enumerate(all_round_keys):
+            n_diag = (i + 1) * state.n_per_round
+            v0, v1 = _cum(m0, i), _cum(m1, i)
+            p0, p1 = prev[m0], prev[m1]
+            d0 = f"{v0 - p0:+.2f}" if p0 is not None and v0 is not None else "—"
+            d1 = f"{v1 - p1:+.2f}" if p1 is not None and v1 is not None else "—"
+            if v0 is not None and v1 is not None:
+                diff = v0 - v1
+                gap = (
+                    f"{n0.split()[0]} +{diff:.2f}" if diff >= 0 else f"{n1.split()[0]} +{-diff:.2f}"
+                )
+            else:
+                gap = "—"
+            bold = i == len(all_round_keys) - 1
+
+            def _fmt(v: float | None, b: bool = bold) -> str:
+                if v is None:
+                    return "—"
+                return f"**{v:.2f}**" if b else f"{v:.2f}"
+
+            lines.append(f"| {n_diag} | {_fmt(v0)} | {d0} | {_fmt(v1)} | {d1} | {gap} |")
+            prev[m0], prev[m1] = v0, v1
+    else:
+        header = "| n | " + " | ".join(mname(m) for m in active_mids) + " |"
+        lines.append(header)
+        lines.append("|--:|" + "---:|" * len(active_mids))
+        for i, rk in enumerate(all_round_keys):
+            n_diag = (i + 1) * state.n_per_round
+            vals = [str(n_diag)] + [
+                f"{_cum(m, i):.2f}" if _cum(m, i) is not None else "—" for m in active_mids
+            ]
+            lines.append("| " + " | ".join(vals) + " |")
+
+    # ── Per-round table ───────────────────────────────────────────────────────
+    lines.append("\n### Per-Round Scores\n")
+    if len(active_mids) == 2:
+        m0, m1 = active_mids
+        n0, n1 = mname(m0), mname(m1)
+        lines.append(f"| Round | n | {n0} | {n1} | Round leader |")
+        lines.append("|------:|--:|---:|---:|:---|")
+        for i, rk in enumerate(all_round_keys):
+            n_diag = (i + 1) * state.n_per_round
+            mm0 = state.metrics.get(m0, {}).get(rk)
+            mm1 = state.metrics.get(m1, {}).get(rk)
+            v0 = mm0["state_accuracy"]["overall"] if mm0 else None
+            v1 = mm1["state_accuracy"]["overall"] if mm1 else None
+            if v0 is not None and v1 is not None:
+                diff = v0 - v1
+                leader = (
+                    f"{n0.split()[0]} +{diff:.2f}" if diff >= 0 else f"{n1.split()[0]} +{-diff:.2f}"
+                )
+            else:
+                leader = "—"
+            lines.append(
+                f"| {int(rk[5:])} | {n_diag} | "
+                f"{'—' if v0 is None else f'{v0:.2f}'} | "
+                f"{'—' if v1 is None else f'{v1:.2f}'} | {leader} |"
+            )
+
+    # ── Per-stage for latest round ────────────────────────────────────────────
+    latest_rk = all_round_keys[-1]
+    lines.append(f"\n### Per-Stage Breakdown (Round {int(latest_rk[5:])})\n")
+    stage_header = "| Stage | " + " | ".join(mname(m) for m in active_mids) + " |"
+    lines.append(stage_header)
+    lines.append("|:---|" + "---:|" * len(active_mids))
+    stage_labels = {
+        "a": "a (opening)",
+        "b": "b (probing)",
+        "c": "c (explanation)",
+        "d": "d (consolidation)",
+        "e": "e (closing)",
+    }
+    for s, label in stage_labels.items():
+        vals = []
+        for m in active_mids:
+            mm = state.metrics.get(m, {}).get(latest_rk)
+            v = mm["state_accuracy"]["per_stage"].get(s) if mm else None
+            vals.append(f"{v:.1f}%" if v is not None else "—")
+        lines.append(f"| {label} | " + " | ".join(vals) + " |")
+
+    return "\n".join(lines)
+
+
+def cmd_report(args: argparse.Namespace) -> None:
+    state = load_state()
+    md = _build_report_markdown(state)
+    if args.pr:
+        subprocess.run(
+            ["gh", "pr", "comment", str(args.pr), "--body", md],
+            check=True,
+        )
+    else:
+        print(md)
+
+
 def _round_dialogues_incomplete(state: TournamentState) -> bool:
     """True if the current round exists but any active model has fewer than n_per_round dialogues.
 
@@ -1008,6 +1139,10 @@ def main() -> None:
     # status
     sub.add_parser("status", help="Print current leaderboard")
 
+    # report
+    p = sub.add_parser("report", help="Generate cumulative + per-round score report")
+    p.add_argument("--pr", type=int, default=None, metavar="N", help="Post as a comment on PR #N")
+
     # eliminate
     p = sub.add_parser("eliminate", help="Drop the N worst-scoring models")
     p.add_argument("n", type=int, nargs="?", default=1, help="How many to eliminate (default: 1)")
@@ -1053,6 +1188,7 @@ def main() -> None:
     dispatch = {
         "run": cmd_run,
         "status": cmd_status,
+        "report": cmd_report,
         "add": cmd_add,
         "eliminate": cmd_eliminate,
         "finalize": cmd_finalize,
