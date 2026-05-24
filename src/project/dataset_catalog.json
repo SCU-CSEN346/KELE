@@ -1,0 +1,114 @@
+{
+  "description": "Catalog of datasets used in the CSEN-346 project for Socratic teaching LLM fine-tuning.",
+  "stages": [
+    {
+      "stage": 1,
+      "name": "General Instruction SFT",
+      "goal": "Conversational fluency and instruction following",
+      "datasets": [
+        {
+          "id": "openhermes",
+          "repo": "teknium/openhermes",
+          "description": "High-quality instruction-following dataset",
+          "language": "en",
+          "socratic": false,
+          "math": false
+        },
+        {
+          "id": "ultrachat_200k",
+          "repo": "HuggingFaceH4/ultrachat_200k",
+          "description": "Diverse multi-turn chat interactions",
+          "language": "en",
+          "socratic": false,
+          "math": false
+        },
+        {
+          "id": "slimorca",
+          "repo": "Open-Orca/SlimOrca",
+          "description": "Orca-style reasoning traces",
+          "language": "en",
+          "socratic": false,
+          "math": false
+        }
+      ]
+    },
+    {
+      "stage": 2,
+      "name": "Socratic SFT",
+      "goal": "Teach questioning behavior, delay direct answers, scaffold learning",
+      "datasets": [
+        {
+          "id": "socrat-zh",
+          "repo": "ulises-c/SocratDataset",
+          "description": "Original Chinese KELE dataset — 6,803 elementary science Socratic dialogues (SocRule framework)",
+          "language": "zh",
+          "socratic": true,
+          "math": false
+        },
+        {
+          "id": "socrat-en",
+          "repo": "ulises-c/SocratDataset-EN",
+          "description": "English translation of SocratDataset — 6,803 records",
+          "language": "en",
+          "socratic": true,
+          "math": false
+        },
+        {
+          "id": "socrat-synthetic",
+          "repo": "ulises-c/SocratDataset-SYNTHETIC",
+          "description": "Synthetic Chinese elementary science Socratic dialogues for generalization testing",
+          "language": "zh",
+          "socratic": true,
+          "math": false
+        },
+        {
+          "id": "socrateach-multi",
+          "repo": "ulises-c/SocraTeach_Multi",
+          "description": "Multi-turn Socratic math tutoring across 6 student personas (SocraticLM NeurIPS 2024, from GSM8K/MAWPS)",
+          "language": "en",
+          "socratic": true,
+          "math": true
+        },
+        {
+          "id": "socrateach-single",
+          "repo": "ulises-c/SocraTeach_Single",
+          "description": "Single-turn Socratic math tutoring responses (SocraticLM NeurIPS 2024)",
+          "language": "en",
+          "socratic": true,
+          "math": true
+        },
+        {
+          "id": "socraticmath",
+          "repo": "ulises-c/SocraticMATH",
+          "description": "Chinese primary-school Socratic math tutoring — 6,846 conversations, 513 knowledge points (CIKM '24)",
+          "language": "zh",
+          "socratic": true,
+          "math": true
+        },
+        {
+          "id": "socraticmath-sol",
+          "repo": "ulises-c/SocraticMATH-sol",
+          "description": "SocraticMATH with solutions prepended in first assistant turn",
+          "language": "zh",
+          "socratic": true,
+          "math": true
+        }
+      ]
+    },
+    {
+      "stage": 3,
+      "name": "Preference Optimization (DPO / RLAIF)",
+      "goal": "Teach when to hint, explain, challenge, or reveal — avoid endless questioning",
+      "notes": [
+        "Preferred: asks guiding questions, adapts to student confusion, encourages reasoning",
+        "Rejected: dumps final answer immediately, over-explains, ignores learner state"
+      ],
+      "datasets": []
+    }
+  ],
+  "insights": [
+    "A lot of 'Socratic tutors' fail because they endlessly ask questions, refuse to help, and become frustrating.",
+    "The best tutoring models learn when to hint, when to explain, when to challenge, and when to reveal the answer.",
+    "The KELE/SocRule work is valuable because it explicitly models these transitions across 5 stages and 34 states."
+  ]
+}
