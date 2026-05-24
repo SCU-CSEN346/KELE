@@ -81,7 +81,16 @@ echo "Log: $LOG_FILE"
 echo "Test: curl http://localhost:$PORT/v1/models"
 echo "---"
 
-exec uv run vllm serve "$MODEL_PATH" \
+# Use project venv vllm directly (uv-discovery breaks under nohup; chain commit 6c3591a).
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+VLLM_BIN="${VLLM_BIN:-$REPO_ROOT/.venv/bin/vllm}"
+if [[ ! -x "$VLLM_BIN" ]]; then
+    echo "ERROR: vllm binary not found at $VLLM_BIN" >&2
+    echo "Run 'uv sync' in the repo to install vllm, or set VLLM_BIN=/path/to/vllm" >&2
+    exit 1
+fi
+
+exec "$VLLM_BIN" serve "$MODEL_PATH" \
     --served-model-name "$MODEL_NAME" \
     --host "$HOST" \
     --port "$PORT" \
