@@ -1,6 +1,11 @@
 # Bilingual probe — cross-lingual transfer of the qwen3.5 LoRA classifier (2026-05-23)
 
-**Status:** Complete. Stage 1 SUCCESS at full n=100 random sample.
+**Status:** Complete. Stage 1 SUCCESS at full n=100 random sample on Gemma 31B.
+**Extension landed 2026-05-23 PM:** 4-cell STL bilingual probe (TODO #16) —
+`{bert-fixed, qwen3.5} × SocratTeachLLM × {ZH, EN}`. Confirms the cross-lingual
+stage-b collapse pattern replicates on a different teacher, **AND** surfaces a
+judge-direction reversal that is paper-grade (STL goes DOWN on EN judge while
+Gemma went UP — see §"STL bilingual arm" below).
 
 This doc captures what we ran, why, the results, the patterns the results revealed, and what's next.
 
@@ -106,8 +111,135 @@ Stage 1 success at n=100 motivates promoting to **n=400 (canonical sample size p
 
 No Stage 2 (bilingual co-training retrain) needed since Stage 1 passed. The retrain path stays documented in `EXPERIMENT_TIERS.md` Tier C.31 for future revival if a more aggressive cross-lingual claim is wanted.
 
+## STL bilingual arm — 4 cells (added 2026-05-23 PM, TODO #16)
+
+**Cells run:**
+- `bert-fixed × SocratTeachLLM · fewshot10 · n=50` (ZH + EN)
+- `qwen3.5 × SocratTeachLLM · fewshot10 · n=50` (ZH + EN)
+
+All four use `--sample-seed 42` random subsample, KELE_BERT_DEVICE=cuda,
+vLLM-served STL on port 8001 at GPU_MEMORY_UTILIZATION=0.70. Eval script
+is `scripts/eval_bert_socratteachllm_fewshot10_full.sh`. The four serving
+fixes that unblocked these cells are in commit `28c2fbb` (port, vLLM
+mem-util, multi-thread bf16 race, Qwen3.5 SDPA crash).
+
+### Results
+
+| Cell | n_turns | macro | **stage_bal** | judge | **unified** | R-1 |
+|------|--------:|------:|---:|---:|---:|---:|
+| `bert × STL · ZH` | 278 | 52.52 | 58.34 | 7.18 | **65.09** | 47.44 |
+| `bert × STL · EN` | 273 | 43.22 | 48.97 | 6.75 | **58.22** | 48.07 |
+| **`qwen3.5 × STL · ZH`** | 288 | **58.33** | **63.40** | 7.30 | **68.21** | 48.07 |
+| `qwen3.5 × STL · EN` | 291 | 43.99 | 48.66 | 6.57 | **57.20** | 46.73 |
+
+### Master leaderboard position
+
+After this round, the **master ranked list** (`scripts/backtest_stage_balanced.py`,
+snapshot at `results/_orchestrator_logs/backtest_stage_balanced_2026_05_23_post_stl_bilingual.md`):
+
+- **`qwen3.5 × STL · ZH` ranks #1 on stage_balanced alone (63.40)** — every
+  other config in the entire 129-config corpus has lower stage_bal.
+- It ranks #8 on unified (68.21), behind the top frontier-Claude cells (70+) and
+  the cross-teacher matrix winner `qwen3.5 × Gemma-31B` (#6, 68.94).
+- It is **0.44 unified points BELOW the locked headline at n=681**
+  (`bert × Gemma-31B · fewshot10 · n=681` = 68.65) — i.e. within Monte-Carlo
+  noise of the paper headline, on a Chinese-only fine-tuned 9B teacher at n=50.
+
+### The SocratTeachLLM overfit hypothesis: confirmed
+
+The qwen3.5 × STL ZH cell hits **stage_bal #1 in the entire experimental record**
+while scoring **judge 7.30 — lower than every cell in the top 10 unified ranking**.
+This is the empirically-grounded version of the benchmark critique
+(`docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md`): STL produces responses that align
+near-perfectly with the SocRule state distribution the benchmark scores against,
+but an independent Claude Sonnet judge penalizes them on Socratic validity and
+advancement axes. Both metrics are measuring "Socratic teaching quality"; they
+disagree on which model is best. **A surface-form benchmark and a content-judging
+LLM look at the same STL output and reach opposite conclusions.**
+
+### Judge-direction reversal vs the Gemma probe — paper-grade
+
+In the original (Gemma 31B) bilingual probe at the top of this doc, the LLM-judge
+score INCREASED from ZH to EN (+0.12, 8.18 → 8.30). We attributed this to Sonnet
+4.6's English bias. **On STL, judge DECREASES on EN for both consultants:**
+
+| Probe | ΔJudge (EN − ZH) |
+|---|---:|
+| qwen3.5 × Gemma-31B (original probe) | +0.12 |
+| bert-fixed × SocratTeachLLM | **−0.43** |
+| qwen3.5 × SocratTeachLLM | **−0.73** |
+
+The sign reversal is the load-bearing finding. The same judge, evaluating the
+same kinds of dialogues with the same rubric, scores Gemma's EN higher than its
+ZH and STL's EN lower than its ZH. **The cross-lingual judge-gap sign depends on
+the teacher's training-language balance**, not on the judge's bias alone. STL was
+fine-tuned on Chinese only; its English generation is a genuine model deficit
+that the judge correctly penalizes. Gemma's pretraining is English-dominant; its
+English output is genuinely strong (and the small judge bonus there reflects
+both judge bias AND real quality).
+
+This means the prior probe's "judge is not language-symmetric — caution"
+Limitations sentence needs to be sharpened to: **"the LLM-judge metric is
+direction-sensitive in a way that mirrors the teacher's training-language
+balance — cross-lingual judge deltas are only interpretable when the teacher's
+language coverage is known."**
+
+### Stage b collapse: confirmed on STL too
+
+The bimodal stage pattern from the Gemma probe (stages b/c collapse, d/e
+sometimes improve) replicates on STL:
+
+| Consultant | Stage b ZH | Stage b EN | Δ |
+|---|---:|---:|---:|
+| bert-fixed × STL | 32.08 | 16.98 | **−15.10** |
+| qwen3.5 × STL | 66.04 | 7.55 | **−58.49** |
+| qwen3.5 × Gemma-31B (prior probe) | 42.4 | 10.4 | −32.0 |
+
+qwen3.5's stage-b collapse on STL (−58.49 pp) is **the worst we've measured**.
+The Chinese-only fine-tune amplifies the consultant's Chinese-specific lexical
+anchoring pattern: the consultant gets stage b RIGHT 66% of the time in Chinese
+(its best stage by far) and 7.55% in English (catastrophic). The combined
+"consultant trained Chinese + teacher trained Chinese" makes the cross-lingual
+gap on the lexical-anchoring stage extreme.
+
+### Operational notes — what we hit and fixed (2026-05-23 PM)
+
+Bringing up these 4 cells exposed **four orthogonal failure modes** that all had
+to be fixed before the eval would run:
+
+1. **STL vLLM serving wouldn't boot** under nohup — vLLM 0.21+ runtime-compiles
+   CUDA kernels via ninja which wasn't in PATH. Fixed by prepending `.venv/bin`
+   to PATH in the serve script. Also bumped `GPU_MEMORY_UTILIZATION` from 0.60
+   to 0.70 (lower fails with "no available memory for cache blocks").
+2. **`configs/socratteachllm-local.env` pointed at port 8080** (legacy llama.cpp
+   path, still blocked on TODO #18 — chatglm GGUF converter pulls BPE merges
+   and STL ships tiktoken only). Repointed to port 8001 (vLLM).
+3. **Multi-thread bf16 race on the BERT consultant.** Loading with
+   `dtype=torch.bfloat16, low_cpu_mem_usage=True` from N concurrent
+   ThreadPoolExecutor workers leaks fp32 sub-buffers into nominally-bf16
+   modules. 3 of 4 worker threads failed with `mat1/mat2 must have the same
+   dtype, got BFloat16 and Float` (verified with a standalone 4-thread probe).
+   Fix: drop the load-time dtype hint and force-cast after `.to(device)`.
+4. **Qwen3.5 default SDPA crash** in transformers 5.8.1 — `cannot reshape
+   tensor of 0 elements into shape [1, 0, -1, 128]` in modeling_qwen3_5.py:450.
+   Fix: pass `attn_implementation="eager"` (BERT silently ignores it).
+
+Also discovered (not fixed in code, just operationally): the
+`.to(device).to(dtype=bfloat16)` post-cast peaks at ~1.5× model size during
+load. Running two qwen3.5 consultant cells (1.5 GB each) in parallel OOMs on a
+32 GB 5090 with STL also resident (24 GB). Sequenced cells 3 and 4 instead.
+
+All four fixes are in commit `28c2fbb`. Memory entry:
+`memory/feedback_consultant_load_gotchas.md`.
+
 ## Files
 
+- STL Bilingual cell 1: `results/bert-fixed-bert-socratteachllm-fewshot10-n50-fixed/`
+- STL Bilingual cell 2: `results/bert-fixed-bert-socratteachllm-fewshot10-EN-n50-fixed/`
+- STL Bilingual cell 3: `results/t4-bert-socratteachllm-fewshot10-n50-fixed/`
+- STL Bilingual cell 4: `results/t4-bert-socratteachllm-fewshot10-EN-n50-fixed/`
+- Backtest snapshot post-STL: `results/_orchestrator_logs/backtest_stage_balanced_2026_05_23_post_stl_bilingual.md`
+- Gemma probe (original):
 - Results: `results/bilingual-probe-t4-en-stage1-n100-seed42-RETRY/`
 - Partial (n=61, salvaged from the CUDA-timeout crash): `results/bilingual-probe-t4-en-stage1-n61-PARTIAL-CUDA-LAUNCH-TIMEOUT/`
 - Failed bilingual dialogues (15, for forensics): `results/bilingual-probe-t4-en-stage1-n61-PARTIAL-CUDA-LAUNCH-TIMEOUT/dialogues-CONTAMINATED-CUDA-LAUNCH-TIMEOUT/`
