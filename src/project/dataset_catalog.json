@@ -1,5 +1,6 @@
 {
   "description": "Catalog of datasets used in the CSEN-346 project for Socratic teaching LLM fine-tuning.",
+  "collection": "https://huggingface.co/collections/ulises-c/socratic-teaching-datasets",
   "stages": [
     {
       "stage": 1,
