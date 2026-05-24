@@ -40,9 +40,9 @@ The contamination-control baseline for generalization is established: see
 
 | Dataset | HF ID | Size | Role |
 |---|---|---|---|
-| OpenHermes | `teknium/openhermes` | ~1M | Instruction-following breadth |
+| OpenHermes-2.5 | `teknium/OpenHermes-2.5` | ~1M | Instruction-following breadth (supersedes openhermes) |
 | UltraChat 200k | `HuggingFaceH4/ultrachat_200k` | 200K | Multi-turn conversational fluency |
-| SlimOrca | `Open-Orca/SlimOrca` | ~500K | Reasoning + instruction diversity |
+| SlimOrca-Dedup | `Open-Orca/slimorca-deduped-cleaned-corrected` | ~182K | Deduplicated reasoning + instruction diversity (cleaner than SlimOrca) |
 
 These datasets are **not yet integrated** in `src/project/dataset.py` — loaders to be added
 before Stage 1 training begins.

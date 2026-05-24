@@ -8,9 +8,9 @@
       "goal": "Conversational fluency and instruction following",
       "datasets": [
         {
-          "id": "openhermes",
-          "repo": "teknium/openhermes",
-          "description": "High-quality instruction-following dataset",
+          "id": "openhermes-2.5",
+          "repo": "teknium/OpenHermes-2.5",
+          "description": "High-quality instruction-following dataset (1M entries, supersedes openhermes)",
           "language": "en",
           "socratic": false,
           "math": false
@@ -24,9 +24,9 @@
           "math": false
         },
         {
-          "id": "slimorca",
-          "repo": "Open-Orca/SlimOrca",
-          "description": "Orca-style reasoning traces",
+          "id": "slimorca-dedup",
+          "repo": "Open-Orca/slimorca-deduped-cleaned-corrected",
+          "description": "Deduplicated Orca-style reasoning traces (182k, cleaner than SlimOrca)",
           "language": "en",
           "socratic": false,
           "math": false
