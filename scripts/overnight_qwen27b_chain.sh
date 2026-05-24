@@ -20,6 +20,9 @@
 
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
+# ROOT/BGE_CKPT preserved for documentation + reuse by sourced sub-scripts even
+# though shellcheck doesn't see the cross-script reference.
+# shellcheck disable=SC2034
 ROOT="$(pwd)"
 
 GRID_CELLS=(
@@ -30,6 +33,7 @@ GRID_CELLS=(
 )
 GRID_PID_FILE="/tmp/qwen27b_grid_orch.pid"
 T4_CKPT="results/state-clf-qwen3.5-0.8b-lora/final"
+# shellcheck disable=SC2034
 BGE_CKPT="results/state_classifier_v1/final"
 SAMPLE_SEED=42
 JUDGE_MODEL="claude-sonnet-4-6"

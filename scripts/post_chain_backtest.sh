@@ -42,6 +42,7 @@ while true; do
   fi
   # Secondary signal: chain wrote its 'done' marker (last line of overnight_qwen27b_chain.sh)
   # Tail the latest chain log for the final marker
+  # shellcheck disable=SC2012  # `ls -t` is the cleanest way to get the most-recent file by mtime; find -printf | sort is verbose for no gain here
   LATEST_CHAIN_LOG="$(ls -t results/_orchestrator_logs/overnight_chain_*.log 2>/dev/null | head -1)"
   if [[ -n "$LATEST_CHAIN_LOG" ]] && grep -q "Overnight chain done" "$LATEST_CHAIN_LOG" 2>/dev/null; then
     log "Detected 'Overnight chain done' in $LATEST_CHAIN_LOG."
