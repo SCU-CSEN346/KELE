@@ -623,6 +623,13 @@ def main() -> None:
         default=None,
         help="Path to a trained 34-state BERT classifier checkpoint dir.",
     )
+    test_parser.add_argument(
+        "--input",
+        type=Path,
+        default=None,
+        dest="dataset_path",
+        help="Path to a SocratDataset-format JSON file. Defaults to the standard dataset.",
+    )
 
     args = parser.parse_args()
 
@@ -648,6 +655,7 @@ def main() -> None:
     elif args.command == "test":
         run_batch_evaluation(
             args.output,
+            dataset_path=args.dataset_path,
             limit=args.n,
             experiment=args.experiment,
             unified=args.unified,
