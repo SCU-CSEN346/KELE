@@ -2,8 +2,13 @@
 # End-to-end orchestrator for the BERT × SocratTeachLLM cells in the master
 # 4-cell bilingual probe (TODO #16 / docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md
 # item 9). Mirrors scripts/eval_bert_gemma_fewshot10_full.sh exactly, with
-# the teacher pointed at the local llama.cpp-served SocratTeachLLM instead
-# of Gemma 4 31B.
+# the teacher pointed at the local vLLM-served SocratTeachLLM (port 8001)
+# instead of Gemma 4 31B.
+#
+# The llama.cpp serving path (port 8080, scripts/serve_socratteachllm_llamacpp.sh)
+# is currently blocked on TODO #18: the chatglm.py converter pulls BPE merges
+# unconditionally and SocratTeachLLM only ships tiktoken (no merges.txt). vLLM
+# trust-remote-code path works directly. Switch SERVE_SCRIPT once that lands.
 #
 # This eval orchestrates four expected variants via env overrides:
 #
@@ -41,9 +46,15 @@ OUT_DIR="${OUT_DIR:-results/bert-socratteachllm-fewshot10-n50}"
 BERT_CKPT="${BERT_CKPT:-results/state_classifier_v1/final}"
 LIMIT="${LIMIT:-}"
 EXPERIMENT="socratteachllm-local"
-PORT=8080
+# Port 8001 = vLLM default (per scripts/serve_socratteachllm.sh).
+# llama.cpp path on port 8080 is blocked on TODO #18 (missing BPE merges
+# in chatglm GGUF conversion); using vLLM until that's fixed.
+PORT="${PORT:-8001}"
 LLAMA_URL="http://localhost:${PORT}"
 EXPECTED_ALIAS="SocratTeachLLM"
+# Which serve script to boot if no server running. Defaults to vLLM
+# (working path); set SERVE_SCRIPT to the llama.cpp variant once TODO #18 lands.
+SERVE_SCRIPT="${SERVE_SCRIPT:-scripts/serve_socratteachllm.sh}"
 
 # ── Pre-flight ────────────────────────────────────────────────────────────────
 if [[ ! -d "$BERT_CKPT" ]]; then

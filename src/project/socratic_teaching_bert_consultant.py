@@ -62,10 +62,24 @@ class SocraticTeachingSystemBertConsultant(SocraticTeachingSystem):
                 f"Train via `uv run python scripts/train_state_classifier_34way.py`."
             )
         self.bert_tokenizer = AutoTokenizer.from_pretrained(ckpt_path)
-        # Load the consultant in bf16 — matches teacher's native dtype, halves
-        # memory footprint vs fp32. Inference-only, so no AdamW underflow risk.
+        # Load fp32 first, post-cast to bf16 after device transfer. The naive
+        # `from_pretrained(..., dtype=torch.bfloat16, low_cpu_mem_usage=True)`
+        # call has a thread race on transformers 5.x + torch 2.11: the meta-
+        # tensor materialization path leaks fp32 sub-buffers into nominally-
+        # bf16 modules, and concurrent loads in different threads land with
+        # partially fp32 weights despite reporting bf16 in named_parameters().
+        # Inference then explodes with `mat1/mat2 must have the same dtype,
+        # got BFloat16 and Float`. Discovered 2026-05-23 while bringing up
+        # the 4-cell STL bilingual probe at KELE_PARALLEL_WORKERS=4 (3 of 4
+        # worker threads failed identically; the v3 load-then-cast pattern
+        # tested 4/4 OK).
+        # attn_implementation=eager — transformers 5.8.1's default SDPA path
+        # for Qwen3.5 MLA crashes with "cannot reshape tensor of 0 elements"
+        # on first forward (modeling_qwen3_5.py:450). Eager attention works
+        # cleanly. BERT-class models silently ignore the kwarg, so passing
+        # it unconditionally is safe across all consultant backbones.
         self.bert_model = AutoModelForSequenceClassification.from_pretrained(
-            ckpt_path, dtype=torch.bfloat16, low_cpu_mem_usage=True,
+            ckpt_path, low_cpu_mem_usage=True, attn_implementation="eager",
         )
         # Device selection: default to CPU when KELE_BERT_DEVICE=cpu (or 'auto'
         # when the teacher already occupies most VRAM). Otherwise CUDA.
@@ -93,7 +107,9 @@ class SocraticTeachingSystemBertConsultant(SocraticTeachingSystem):
                       f"({free_bytes / 1024**3:.1f} GB free) -> CPU inference")
             else:
                 self.bert_device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.bert_model.to(self.bert_device).eval()
+        # Force bf16 AFTER device transfer (see comment above) — this is the
+        # cast that actually sticks under multi-thread loads.
+        self.bert_model.to(self.bert_device).to(dtype=torch.bfloat16).eval()
         self.bert_max_length = 512
         # Ensure pad_token_id is set on the model config (Qwen3* classifiers
         # need this for last-non-pad-token pooling; tokenizer ships with one

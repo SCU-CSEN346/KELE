@@ -90,6 +90,12 @@ if [[ ! -x "$VLLM_BIN" ]]; then
     exit 1
 fi
 
+# vLLM 0.21+ spawns subprocesses that runtime-compile CUDA kernels via ninja.
+# nohup'd shells don't inherit the venv's bin on PATH, so the subprocesses
+# fail with `FileNotFoundError: 'ninja'` even though ninja IS in the venv.
+# Prepend it explicitly so EngineCore can find it.
+export PATH="$REPO_ROOT/.venv/bin:$PATH"
+
 exec "$VLLM_BIN" serve "$MODEL_PATH" \
     --served-model-name "$MODEL_NAME" \
     --host "$HOST" \
