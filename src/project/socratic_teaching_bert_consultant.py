@@ -113,7 +113,7 @@ class SocraticTeachingSystemBertConsultant(SocraticTeachingSystem):
                 self.bert_device = "cuda" if torch.cuda.is_available() else "cpu"
         # Force bf16 AFTER device transfer (see comment above) — this is the
         # cast that actually sticks under multi-thread loads.
-        self.bert_model.to(self.bert_device).to(dtype=torch.bfloat16).eval()
+        self.bert_model.to(self.bert_device).to(dtype=torch.bfloat16).eval()  # pyright: ignore[reportPrivateImportUsage]
         self.bert_max_length = 512
         # Ensure pad_token_id is set on the model config (Qwen3* classifiers
         # need this for last-non-pad-token pooling; tokenizer ships with one
