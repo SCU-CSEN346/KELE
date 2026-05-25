@@ -144,6 +144,67 @@ slots to fill non-GPU wall clock.
 
 ---
 
+## RDNA4 / gfx1201 — FLA Triton deadlock workaround
+
+The Qwen3.6-27B base is `Qwen3_5ForConditionalGeneration` — the linear-attention
+layers (`Qwen3NextGatedDeltaNet`) call `flash-linear-attention` Triton kernels
+which deadlock at step 0 on gfx1201 / Triton 3.6.0. Root cause: Triton 3.6.0's
+AMD software pipelining pass (`tritonamdgpu-pipeline`) has a use-after-free when
+`num_stages >= 2` on RDNA4. Same bug class as the sageattention crash on the
+same stack — upstream fix there is to force `num_stages=1` when
+`torch.version.hip` is set (kijai/ComfyUI-WanVideoWrapper#2007).
+
+**Patch script:** `scripts/patch_fla_rocm.sh` (also `make patch-fla-rocm`).
+Sed-rewrites `num_stages=[2-9]` → `num_stages=1` in the installed FLA wheel,
+clears `~/.triton/cache` and FLA's `__pycache__`. Idempotent. Has `--dry-run`
+and `--restore` modes (the latter rolls back from `.bak` files).
+
+**Re-run after every** `uv sync` / `make install-rocm` / `make install` —
+those reinstall a fresh FLA wheel and undo the patch. This is symmetric with
+the existing `_install-torch-rocm` story.
+
+**Validation sequence on the R9700:**
+
+```bash
+# 1. Confirm the patch finds the FLA install and shows a non-zero ref count.
+make patch-fla-rocm-dry-run
+# Expect: "num_stages>=2 references found: <N>"  where N is positive.
+
+# 2. Apply the patch.
+make patch-fla-rocm
+
+# 3. Bump TRAIN_MAX_SEQ_LEN in configs/train-sft-stage2-socratic.env from 512
+#    back to 768 (or higher — FLA is ~5-10x more memory-efficient than the
+#    PyTorch fallback per the HF Qwen3.5 docs and the gated-deltanet analysis).
+
+# 4. Relaunch training with the existing env-var set from PR #79:
+nohup env TORCH_USE_HIPBLASLT=0 PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
+  uv run --no-sync python scripts/train_sft.py \
+  --config configs/train-sft-stage2-socratic.env \
+  > outputs/sft-stage2-socratic/train.log 2>&1 &
+
+# 5. Watch for the FLA JIT compile pass to *clear* (rather than hang) and the
+#    first training step to log a non-NaN loss. Expect compile to take a few
+#    minutes — Triton recompiles all FLA kernels with num_stages=1.
+tail -f outputs/sft-stage2-socratic/train.log
+```
+
+**If the patch does not unblock training** — fall back, in order:
+
+1. Pin `triton==3.5.1` (pre-pipelining-bug; reported known-good with
+   ROCm 7.2 + torch 2.9.1 by RDNA4 community).
+2. Also cap `num_warps=4` in FLA (`find $FLA/ops -name '*.py' -exec sed -i -E 's/num_warps=([5-9]|[1-9][0-9]+)/num_warps=4/g' {} +` — Gemini's
+   shotgun, addresses RDNA4 wave-scheduling assumptions distinct from the
+   pipelining bug).
+3. Stay on torch fallback at `TRAIN_MAX_SEQ_LEN=512` and squeeze VRAM
+   (`LORA_RANK=8`, attention-only target modules, CPU optimizer offload) to
+   try to reach 768 — only if (1) and (2) both fail.
+
+Do NOT spoof `HSA_OVERRIDE_GFX_VERSION` or use nightly ROCm — multiple gfx1201
+reports attribute hangs and driver crashes to those overrides.
+
+---
+
 ## Pitfalls — what previous sessions learned
 
 1. **Inference vs training VRAM:** Qwen Q4_K_M inference is ~16 GB; QLoRA
@@ -225,6 +286,7 @@ slots to fill non-GPU wall clock.
 | `docs/AMD_R9700_LLAMACPP_VULKAN.md` | Inference stack on the R9700 |
 | `configs/train-sft-stage2-socratic.env` | Default training config |
 | `scripts/train_sft.py` | Training entry point (TRL SFTTrainer) |
+| `scripts/patch_fla_rocm.sh` | RDNA4 FLA Triton workaround (see §"RDNA4 / gfx1201") |
 | `scripts/llm_judge_eval.py` | 4-axis judge on existing baselines |
 | `scripts/generate_synthetic_socrat.py` | n=75 generation |
 | `scripts/build_dpo_pairs.py` | DPO Source 3 functional; 1/2 inert |

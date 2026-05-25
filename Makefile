@@ -14,6 +14,7 @@
         serve-socratteachllm serve-teacher-online \
         setup-l40s start-local-tl-server \
         test-gpu-stack test-vllm \
+        patch-fla-rocm patch-fla-rocm-restore patch-fla-rocm-dry-run \
         tournament tournament-think tournament-warmup tournament-warmup-think tournament-status tournament-eliminate \
         tournament-finalize tournament-archive tournament-restore tournament-reset \
         tournament-download tournament-help
@@ -28,6 +29,11 @@ help:
 	@echo "  GPU stack tests:"
 	@echo "  test-gpu-stack        Full ML stack: ROCm, torch, bitsandbytes 8/4-bit, transformers, PEFT, TRL, flash-attn"
 	@echo "  test-vllm             vLLM ROCm engine probe (no model weights)"
+	@echo ""
+	@echo "  RDNA4 / gfx1201 training workarounds:"
+	@echo "  patch-fla-rocm        Patch flash-linear-attention num_stages>=2 → 1 (Triton 3.6.0 RDNA4 fix)"
+	@echo "  patch-fla-rocm-dry-run  Count refs without modifying"
+	@echo "  patch-fla-rocm-restore  Roll back from .bak files"
 	@echo ""
 	@echo "  Scripts (scripts/):"
 	@echo "  post-eval-shutdown    Run scripts/post_eval_shutdown.sh"
@@ -182,6 +188,19 @@ _install-torch-cuda:
 	  --index-url https://download.pytorch.org/whl/cu126 \
 	  torch torchvision torchaudio
 	@echo "✓ torch+cu126 installed"
+
+# ── RDNA4 / gfx1201 FLA Triton workaround ────────────────────────────────────
+# Forces num_stages=1 in flash-linear-attention Triton autotune configs to
+# sidestep the Triton 3.6.0 software-pipelining use-after-free on gfx1201.
+# Re-run after every `uv sync` or `make install-rocm`. See PR #79 thread.
+patch-fla-rocm:
+	bash scripts/patch_fla_rocm.sh
+
+patch-fla-rocm-dry-run:
+	bash scripts/patch_fla_rocm.sh --dry-run
+
+patch-fla-rocm-restore:
+	bash scripts/patch_fla_rocm.sh --restore
 
 # ── Developer setup ──────────────────────────────────────────────────────────
 
