@@ -141,7 +141,7 @@ run:
 pre-commit:
 	uvx ruff format .
 	uvx ruff check --fix .
-	uv run pytest -rs
+	uv run --no-sync pytest -rs
 
 # ── Torch install ────────────────────────────────────────────────────────────
 # torch is not declared in pyproject.toml because uv cannot resolve the
