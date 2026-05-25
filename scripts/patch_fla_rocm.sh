@@ -113,4 +113,5 @@ find "${fla_path}/ops" -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null |
 
 printf '✓ FLA ROCm patch applied (changed %d → %d).\n' "$before" "$after"
 printf '  to revert:  bash scripts/patch_fla_rocm.sh --restore\n'
+# shellcheck disable=SC2016  # backticks are intentional markdown-style command markers, not command substitution
 printf '  re-run after any `uv sync` or `make install-rocm`.\n'
