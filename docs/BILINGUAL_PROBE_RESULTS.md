@@ -1,6 +1,7 @@
-# Bilingual probe — cross-lingual transfer of the qwen3.5 LoRA classifier (2026-05-23)
+# Bilingual probe — cross-lingual transfer of the qwen3.5 LoRA classifier (2026-05-23 / promoted to canonical scale 2026-05-24)
 
-**Status:** Complete. Stage 1 SUCCESS at full n=100 random sample on Gemma 31B.
+**Status:** Complete at canonical sample size (n=400 random, seed=42, EN, Gemma 31B). **Stage 1 SUCCESS holds at canonical scale** with macro drop 9.24 pp (under the 10-pp gate). The screening-tier n=100 result was at the optimistic end of the convergence band; at canonical n=400 the cross-lingual cost is ~4 pp larger on macro and ~2 unified pts larger than n=100 suggested, but the verdict is unchanged. See "Canonical-scale confirmation (n=400)" § below.
+
 **Extension landed 2026-05-23 PM:** 4-cell STL bilingual probe (DONE — see "STL bilingual arm" §below) —
 `{bert-fixed, qwen3.5} × SocratTeachLLM × {ZH, EN}`. Confirms the cross-lingual
 stage-b collapse pattern replicates on a different teacher, **AND** surfaces a
@@ -73,6 +74,8 @@ The bimodal pattern is independently quantified — not a smoothed "average perf
 
 ## The judge score boost is real and worth flagging
 
+> **2026-05-24 retraction:** The +0.12 EN judge boost measured at n=100 does NOT survive promotion to canonical n=400 (where it lands at −0.07 — essentially zero). The analysis below was written from the n=100 measurement and is preserved for historical context, but the **quantitative claim of an English judge bonus on Gemma is sampling noise**, not a generalizable effect. See "Canonical-scale confirmation (n=400)" § above for the corrected numbers. The qualitative claim that the judge is not language-symmetric still holds (the STL arm shows a sharp EN judge drop in the opposite direction), but its evidence comes from the STL arm and the broader cross-teacher matrix, not from Gemma's n=100 +0.12.
+
 LLM-judge overall is **higher** on English (8.30) than Chinese (8.18). This is counterintuitive — we'd expect cross-lingual transfer to lose judge points, not gain. Three plausible reasons:
 
 1. **Judge model bias.** Claude Sonnet 4.6 was trained on more English data than Chinese; it judges English Socratic teaching more confidently (and possibly more leniently) than Chinese.
@@ -105,11 +108,53 @@ This deserves a sentence in the paper's Limitations: **the LLM-judge metric is n
 
 The partial n=61 cell (`-PARTIAL-CUDA-LAUNCH-TIMEOUT/`) sits at unified **66.66** — essentially identical despite running on a different sample (the first 61 clean dialogues vs the full 100). Strong agreement supports the cross-lingual transfer claim independent of which sample subset we look at.
 
-## What's next — bilingual probe at canonical scale (still pending)
+## Canonical-scale confirmation (n=400) — landed 2026-05-24
 
-Stage 1 success at n=100 motivates promoting to **n=400 (canonical sample size per `CONVERGENCE_ANALYSIS.md`)** to get a paper-publishable cross-lingual claim with ≤ 2 pp resolution on all 4 primary metrics. Estimated cost: ~5 GPU-h + ~$0.10 LLM-judge. Still on the live task list and in `docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md` §Concrete next steps item 8.
+**Cell:** `qwen3.5 × Gemma-31B · fewshot10 · EN · canonical · n=400 · seed=42`
+- Output: `results/bilingual-probe-t4-en-canonical-n400-seed42/`
+- Walltime: 7h47m (28011 s, single 5090, KELE_BERT_DEVICE=cpu — see operational §below)
+- Judge cost: $8.81 Sonnet 4.6 across 2324 turns (n_dialogues=400)
 
-No Stage 2 (bilingual co-training retrain) needed since Stage 1 passed. The retrain path stays documented in `EXPERIMENT_TIERS.md` Tier C.31 for future revival if a more aggressive cross-lingual claim is wanted.
+### Canonical-scale results table
+
+| Metric | EN n=400 canonical | EN n=100 (screening) | ZH baseline (n=50) | Δ canonical vs ZH |
+|---|---:|---:|---:|---:|
+| n_turns scored | 2324 | 584 | 285 | — |
+| **macro state acc** | **42.34** | 46.58 | 51.58 | **−9.24** (still under 10-pp gate) |
+| **stage_bal** | **49.12** | 52.10 | 56.13 | **−7.01** |
+| pedagogical (closure-parity) | 44.21 | 47.65 | 51.13 | −6.92 |
+| LLM-judge overall (Sonnet 4.6) | **8.11** | 8.30 | 8.18 | **−0.07** |
+| **unified** | **65.11** | 67.30 | 68.94 | **−3.83** |
+| R-1 | 10.45 | 11.66 | 38.76 | — (token convention differs across ZH/EN) |
+| stage a (entry) | 97.0 | 97.0 | 100.0 | −3.0 |
+| **stage b (anchoring)** | **9.73** | 10.4 | 42.4 | **−32.67** (catastrophic — pattern confirmed) |
+| stage c (questioning) | 23.13 | 30.1 | 33.3 | −10.17 (worse than n=100) |
+| **stage d (extension)** | **43.04** | 48.0 | 38.3 | **+4.74** (still positive, smaller than n=100) |
+| **stage e (closure)** | **72.69** | 75.0 | 66.7 | **+6.00** (still positive, smaller than n=100) |
+
+### Verdict: Stage 1 SUCCESS — confirmed at canonical scale
+
+Macro drop of **9.24 pp** is under the 10-pp Stage 1 failure threshold, so the cross-lingual transfer claim still stands at canonical sample size. **Stage 2 (bilingual co-training retrain) is NOT triggered.** Margin is much tighter than n=100 suggested (9.24 vs 5.00 pp drop), but the gate decision is the same.
+
+### What the canonical scale revealed that n=100 didn't
+
+1. **The "judge bonus on English" was sampling noise.** At n=100 we measured EN judge 8.30 vs ZH 8.18 (+0.12) and built a Limitations sentence around "the LLM-judge is not language-symmetric." At n=400 the bonus disappears: EN judge 8.11 vs ZH 8.18 (**−0.07**, essentially zero). The judge-direction reversal vs STL (where EN drops sharply) survives — but the original Gemma EN judge boost was a 100-dialogue sampling artifact, not a measurable signal. The Limitations sentence still holds *qualitatively* (judge is not symmetric) but the original quantitative claim of an English-bias bonus does not generalize.
+
+2. **The bimodal stage pattern survives but its magnitudes shrink.** Stage-d/e cross-lingual gains at n=100 were +9.7/+8.3 pp — at canonical n=400 they're +4.74/+6.00 pp. Both still positive (multilingual base-model representations of pedagogical structure do transfer), but the n=100 measurements over-stated the magnitude. The stage-b collapse confirms at full magnitude (−32.67 at n=400 vs −32.0 at n=100). The qualitative finding ("lexical-anchoring stages collapse, structural-reasoning stages partly improve") is paper-grade. The exact numbers should always cite n=400.
+
+3. **Stage c drops further than n=100 showed.** n=100 measured Δc = −3.2; n=400 shows Δc = −10.17. Stage c partially behaves like a lexical-anchoring stage at canonical scale — more like a member of the b/c collapse cluster than n=100 suggested. This is consistent with the Pires-style cross-lingual transfer literature: stage-c routing depends on Chinese-specific question-form lexical cues that don't transfer to English.
+
+4. **Cross-lingual unified cost is ~4 pp**, not ~2.5 pp. n=100 → n=400 ETA was 2 unified pts noise (5.00 macro → 9.24 macro). The canonical-scale cross-lingual gap (Δunified −3.83) is the number that belongs in the paper. The n=100 number (−2.39 unified) is consistent with screening-tier ±2 pp resolution but biased optimistic by sampling.
+
+### Operational note — qwen3.5 consultant on CPU
+
+Run launched with `KELE_BERT_DEVICE=cpu` because the GPU path's post-cast trap (gotcha #3 — `.to(device).to(dtype=bfloat16)` peaks at ~1.5× model size) collided with Gemma 31B at 180K context (27 GB resident, ~3 GB free). The n=100 EN run squeaked through on GPU; the n=400 first-attempt OOM'd at dialogue 0 with the identical config (fragmentation lottery). Moving the qwen3.5 LoRA to CPU added ~0.5–1 s/turn classifier latency — invisible against Gemma decode time, and zero VRAM contention. Default rule recorded in `memory/feedback_consultant_load_gotchas.md`: under heavy teachers, qwen3.5-LoRA consultant defaults to CPU.
+
+## Original Stage 1 (n=100) plan — kept for historical context
+
+Stage 1 success at n=100 motivated promoting to **n=400 (canonical sample size per `CONVERGENCE_ANALYSIS.md`)** to get a paper-publishable cross-lingual claim with ≤ 2 pp resolution on all 4 primary metrics. **Landed 2026-05-24** (see § above). Original cost estimate was ~5 GPU-h + ~$0.10 LLM-judge; actuals were **~7.8 GPU-h + ~$8.81** (judge cost was sharply higher than the estimate — log it for future planning).
+
+No Stage 2 (bilingual co-training retrain) needed since Stage 1 passed at both screening and canonical scale. The retrain path stays documented in `EXPERIMENT_TIERS.md` Tier C.31 for future revival if a more aggressive cross-lingual claim is wanted.
 
 ## STL bilingual arm — 4 cells (added 2026-05-23 PM; landed, judged, in leaderboard)
 

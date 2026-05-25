@@ -92,11 +92,12 @@ The think-vs-no-think tension we flagged is now quantified: T4 × Qwen 27B-think
 
 For interpretation reference:
 
-- **Locked headline (BERT + Gemma 31B + 10-shot, n=681):** stage_bal 55.42, no judge yet — would need to be judged to land on the unified scale. Estimated at ~62-64 unified based on current judged-cell distribution.
-- **Frontier ceiling (BERT + Claude Opus + top3, n=681):** stage_bal 58.63, judge 8.01 — unified ≈ **69.46**.
+- **Locked headline (BERT + Gemma 31B + 10-shot, n=681):** stage_bal 55.42, judge 8.19 — unified **68.65** (#7 master, 🏆). Judged after this doc was first written; replaces the prior ~62-64 estimate.
+- **Frontier ceiling (BERT + Claude Sonnet + top3, n=681):** stage_bal 58.17, judge 8.19 — unified **70.06** (#2 master, 🥈). The Opus n=681 cell is at unified 69.37 (#4).
+- **First canonical-scale local parity cell (BERT + Qwen 35B-A3B + 10-shot, n=681):** stage_bal 60.02, judge 7.56 — unified **67.81** (#11 master, TODO #14 cell #3, landed 2026-05-25). Locks the canonical-scale parity gap at 2.25 unified pts behind frontier (1.41 pts via the legacy locked-headline anchor).
 - **SocratTeachLLM at its peak surface form (R-1 = 55.85 on EN translation):** stage_bal 22.55, judge would be low (closure is broken at 16-25%) — unified would be in the 30s. This is exactly the desired property: the worst-pedagogy / best-surface model gets ranked at the bottom.
 
-A unified score above **65** is, as of 2026-05-23, a serious paper headline candidate. Above **70** would shift the locked headline. Below **55** is a memorization-dominated configuration that the rubric correctly punishes.
+A unified score above **65** is a serious paper headline candidate. Above **70** would shift the locked headline. Below **55** is a memorization-dominated configuration that the rubric correctly punishes.
 
 ## Implementation
 

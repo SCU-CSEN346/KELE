@@ -4,6 +4,85 @@ Engineering decisions, what we've tried, and what's next. Each entry is dated an
 
 ---
 
+## 2026-05-25 — n=681 parity sub-leaderboard cell #3 landed (qwen3.5 × A3B-35B think)
+
+**Ran:** `qwen3.5 × A3B-35B · think · fewshot10 · n=681 · seed=42` overnight on the single 5090. Walltime 9h41m (34878 s), 3968 turns scored, judge cost $16.53 (Sonnet 4.6, 10 workers, 19 min API). Output at `results/t4-bert-a3b-fewshot10-n681/`. qwen3.5 consultant on CPU (`KELE_BERT_DEVICE=cpu`) per the rule established by the bilingual canonical n=400.
+
+### Headline numbers (n=681 vs n=50 baseline)
+
+| Metric | n=681 canonical | n=50 baseline | Δ |
+|---|---:|---:|---:|
+| macro state acc | 53.40 | 54.86 | **−1.46** |
+| stage_bal | **60.02** | 58.62 | **+1.40** |
+| judge (Sonnet 4.6) | 7.56 | 7.52 | +0.04 |
+| **unified** | **67.81** | 66.91 | **+0.90** |
+| stage a (questioning) | 100.00 | 100.00 | 0.00 |
+| stage b (anchoring) | 43.89 | 50.85 | −6.96 |
+| stage c (induction) | 32.38 | 39.58 | −7.20 |
+| stage d (extension) | 43.54 | 36.00 | +7.54 |
+| stage e (closure) | **80.27** | 66.67 | **+13.60** |
+
+### Three findings
+
+1. **Per-stage profile shifts substantially at canonical scale.** Closure jumped +13.60 pp, b/c each dropped ~7 pp. The n=50 sample was misleadingly low on closure — A3B's true closure strength only surfaces with full-scale measurement. Stage-balanced rises (+1.40) even as macro falls (−1.46) because the closure gain outweighs the b/c losses under equal-weight macro.
+2. **Stage_bal beats macro at canonical scale on this cell.** Demonstrates the metric-switch motivation in real-time: macro hides A3B's closure dominance under frequency-weighting. Unified climbs +0.90 pts thanks to stage_bal recovery plus a small judge bump.
+3. **TODO #14 cell #3 done; parity-gap update.** Master leaderboard now seats this cell at **#11 unified (67.81)**. Locked headline (`bert × Gemma-31B · fewshot10 · n=681`, #7 at 68.65) is unmoved. Frontier ceiling (`bert × Claude-Sonnet · top3 · n=681`, #2 at 70.06) is unmoved. New parity-gap candidate for qwen3.5 × A3B at canonical scale: **2.25 unified pts behind frontier** — wider than the screening-tier 1.12-pt gap because the n=50 → n=681 promotion costs ~1 pt on stage_bal as the closure profile re-balances. Honest open-weight winner at canonical scale remains the legacy `bert × Gemma-31B · fewshot10 · n=681` until cells #1, #2, #4a of TODO #14 land.
+
+### One operational lesson (saved to memory)
+
+`kele.py:81` defaults `hf_repo` to a list that concatenates `SocratDataset-EN` + `SocratDataset` (~1362 dialogues). First launch attempt used the default and was about to do 1362 dialogues (~18 h, double the budget); killed at dialogue 0 within 3 min via the first progress.log line. Parked as `results/t4-bert-a3b-fewshot10-n681-ABORTED-DUAL-REPO-DEFAULT/`. Captured in `memory/feedback_dataset_path_required_n681.md`. **Going forward**: always pass `DATASET_PATH=references/KELE/SocratDataset.json` for canonical Chinese-only n=681; the launcher scripts forward this to `--dataset-path`.
+
+### Cost actuals vs estimates
+
+- Walltime: estimated 8.8 GPU-h (from n=50 throughput) → actual 9.7 GPU-h. ~10% over budget. Root cause: ~1-in-15 to 1-in-20 outlier rate of ~10-minute think-mode dialogues at canonical scale; n=50 sample under-sampled the outlier frequency.
+- Judge cost: estimated $15 → actual $16.53 (~10% over). Calibrated against the n=400 bilingual ($8.81 / 400 dialogues = $0.022/dialogue; n=681 extrapolation $15 matched within 10%).
+
+### What's still on the wall
+
+- **TODO #14 (remaining):** 3 of 4 cells. `bert-fixed × Gemma-31B · n=681` (~12 h, ~$15), `qwen3.5 × Gemma-31B · n=681` (~13 h, ~$15), `qwen3.5 × Qwen-27B · no-think · n=681` (~1 h, ~$15). Cheapest-first ordering: 27B-no-think → bert-fixed × Gemma → qwen3.5 × Gemma.
+- **TODO #24:** paper STL contamination Limitations § + appendix table (writing only).
+- **Paper hygiene cleanup** from canonical retraction (drop the "Sonnet judges English more leniently" sentence if it landed in draft).
+
+---
+
+## 2026-05-24 — Bilingual probe promoted to canonical scale (n=400) — Stage 1 SUCCESS confirmed 🎯
+
+**Ran:** `qwen3.5 × Gemma-31B · fewshot10 · EN · canonical · n=400 · seed=42` overnight on the single 5090. Walltime 7h47m (28011 s), 2324 turns scored, judge cost $8.81 (Sonnet 4.6, 10 workers). Output at `results/bilingual-probe-t4-en-canonical-n400-seed42/`.
+
+### Headline numbers (canonical vs screening vs ZH baseline)
+
+| Metric | EN n=400 canonical | EN n=100 (screening) | ZH baseline (n=50) | Δ canonical vs ZH |
+|---|---:|---:|---:|---:|
+| macro state acc | **42.34** | 46.58 | 51.58 | **−9.24** (under 10-pp Stage 1 gate) |
+| stage_bal | **49.12** | 52.10 | 56.13 | **−7.01** |
+| judge (Sonnet 4.6) | **8.11** | 8.30 | 8.18 | **−0.07** |
+| **unified** | **65.11** | 67.30 | 68.94 | **−3.83** |
+| stage b (anchoring) | 9.73 | 10.4 | 42.4 | −32.67 |
+| stage d (extension) | 43.04 | 48.0 | 38.3 | +4.74 |
+| stage e (closure) | 72.69 | 75.0 | 66.7 | +6.00 |
+
+### Three findings (canonical scale corrects two n=100 over-claims, confirms one)
+
+1. **The "EN judge bonus" at n=100 was sampling noise** — disappears at canonical scale (+0.12 → −0.07). The Limitations sentence around "Sonnet judges English more leniently" was built on this n=100 measurement; it does not survive promotion. The qualitative claim of judge non-symmetry still holds from the STL bilingual arm (which shows a sharp EN judge drop), but it should not be evidenced by the Gemma probe.
+2. **The bimodal stage pattern survives but magnitudes shrink.** Stage-d/e cross-lingual gains halve (+9.7/+8.3 → +4.74/+6.00). Both still positive — multilingual base-model structural representations do transfer — but the n=100 numbers over-stated the effect. Stage-b collapse confirms at full magnitude (−32.67 pp). The qualitative pattern is paper-grade; the magnitudes should always cite n=400.
+3. **Stage c partially joins the b/c collapse cluster** at canonical scale (Δ −3.2 at n=100 → Δ −10.17 at n=400). Consistent with lexical-anchoring vs structural-reasoning split — stage c routing is more Chinese-specific than n=100 suggested.
+
+### Operational change — qwen3.5 consultant on CPU is now the default rule
+
+The n=400 first attempt OOM'd at dialogue 0 with the same config that made the n=100 retry run squeak through on GPU. Root cause: post-cast trap (gotcha #3) leaves <3 GB free with Gemma 31B at 180K context resident, and the consultant's fp32→bf16 cast needs ~4.5 GB peak. Re-launched with `KELE_BERT_DEVICE=cpu` (qwen3.5 LoRA on CPU adds ~0.5–1 s/turn classifier latency — invisible against Gemma decode time, zero VRAM contention). Recorded in `memory/feedback_consultant_load_gotchas.md` as the new default for qwen3.5-LoRA under heavy teachers.
+
+### Position in the master ranked list (132 configs)
+
+The canonical-n=400 EN cell lands at **unified #20** with score 65.11. The mid-pack position is consistent — cross-lingual transfer costs ~4 unified pts vs the ZH baseline (#6, 68.94). The locked headline (`bert × Gemma-31B · fewshot10 · n=681`, #7 at 68.65) is unmoved by this run.
+
+### What's still on the wall
+
+- **TODO #14 — full n=681 local sub-leaderboard** (4 cells, ~35 GPU-h + $0.40 API). Now the only forward GPU experiment in the queue. Carries the CUDA-launch-timeout risk on the Qwen 27B think cell; mitigation still not in place.
+- **TODO #24 — paper STL contamination Limitations § and appendix table.** Writing-only.
+- The two over-claims this canonical run identified should be edited out of `deliverables/overleaf/latex/acl_latex.tex` if they made it in: the "Sonnet English judge bonus" Limitations sentence, and any cross-lingual stage-d/e gain magnitudes that cite the n=100 numbers.
+
+---
+
 ## 2026-05-23 — Qwen 27B grid + LLM-judge cross-teacher matrix + unified ranking + closure-dominance finding 🎯
 
 **Ran:** Four-cell Qwen 27B grid (2 consultants × 2 reasoning modes) at n=50 fixed format, plus LLM-judge re-evaluation across all eight current cross-teacher cells (Gemma 31B / A3B 35B / Qwen 27B × bge-small / T4, with Qwen at both think and no-think). Total ~6h wall clock for the grid (think-mode bottlenecked) + ~$0.80 in Claude Sonnet 4.6 rubric judging. Introduced `docs/UNIFIED_RANKING.md` and a `unified` column on the backtest leaderboard.
