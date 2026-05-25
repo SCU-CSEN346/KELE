@@ -4,6 +4,46 @@ Engineering decisions, what we've tried, and what's next. Each entry is dated an
 
 ---
 
+## 2026-05-25 — n=681 parity sub-leaderboard cell #4a landed (qwen3.5 × Qwen-27B no-think)
+
+**Ran:** `qwen3.5 × Qwen-27B · no-think · fewshot10 · n=681 · seed=42` after lunch on the single 5090. Walltime 64 min eval + 18.4 min judge = 82 min wall, 4010 turns scored, judge cost $16.22 (Sonnet 4.6, 10 workers). Output at `results/t4-bert-qwen27b-nothink-fewshot10-n681/`. qwen3.5 consultant on CPU (`KELE_BERT_DEVICE=cpu`) per established rule. Sequential workers (KELE_PARALLEL_WORKERS=1) — short cell, didn't need parallelism.
+
+### Headline numbers (n=681 vs n=50 baseline)
+
+| Metric | n=681 canonical | n=50 baseline | Δ |
+|---|---:|---:|---:|
+| macro state acc | 53.04 | 51.89 | +1.15 |
+| stage_bal | **58.16** | 55.45 | +2.71 |
+| judge (Sonnet 4.6) | 7.53 | 7.56 | −0.03 |
+| **unified** | **66.71** | 65.54 | **+1.17** |
+
+Per-stage state acc at n=681: a=100.0 · b=45.07 · c=35.50 · d=39.16 · e=71.06.
+Per-stage judge at n=681: a=8.45 · b=7.75 · c=7.57 · d=7.03 · e=6.39.
+
+### Why this cell matters
+
+1. **Schema-fallback hypothesis confirmed at canonical scale.** Zero fallbacks across 4010 turns — Qwen-27B's strict-JSON adherence is rock solid at full sample size. (Compare: Gemma 31B standalone fusion at n=681 hit 21% schema fallback.)
+2. **n=50 → n=681 promotion is benign for this cell.** Unified +1.17 from the screening tier — closure dominance at canonical scale slightly *helps* this Qwen-27B no-think cell rather than hurting it (vs A3B which lost ~1 pt on stage_bal at canonical scale).
+3. **TODO #14 cell #4a done; parity-gap envelope.** Master leaderboard now seats this cell at **#16 unified (66.71)**. Locked headline (`bert × Gemma-31B · fewshot10 · n=681`, #7 at 68.65) is unmoved. Frontier ceiling (`bert × Claude-Sonnet · top3 · n=681`, #2 at 70.06) is unmoved. New parity-gap candidate for Qwen-27B no-think at canonical scale: **3.35 unified pts behind frontier** — widest gap of the three canonical-scale honest cells we've measured so far. Envelope across the three n=681 honest cells: 1.41 (legacy locked) → 2.25 (A3B) → 3.35 (Qwen-27B no-think).
+
+### Cost actuals vs estimates
+
+- Walltime: estimated 1 GPU-h → actual 1.07 h (~7% over). Within calibration.
+- Judge cost: estimated $15 → actual $16.22 (~8% over). Matches the $0.022/dialogue rate from prior cells.
+
+### Operational gotchas captured
+
+- `scripts/serve_qwen27b.sh` defaults `DEV=rocm0` (legacy AMD). Must pass `DEV=CUDA0`.
+- `scripts/serve_qwen27b.sh` defaults `UBATCH=4096 BATCH=4096`. Current llama.cpp needs ~6.7 GB compute buffer at that size + 19 GB model + 4.5 GB KV → OOM on 32 GB. Must pass `UBATCH=2048 BATCH=2048` (compute buffer drops to ~3.3 GB).
+- Both gotchas captured in `memory/feedback_serve_qwen27b_gotchas.md`.
+
+### Forward path
+
+- **TODO #14 (remaining):** 2 of 4 cells. `bert-fixed × Gemma-31B · n=681` (~12 h, ~$15), `qwen3.5 × Gemma-31B · n=681` (~13 h, ~$15). Both should use `KELE_PARALLEL_WORKERS=4` to halve walltime.
+- Cheapest-first ordering exhausted on the Qwen side. Remaining cells are the matched-consultant Gemma 31B variants — these directly tighten the local-frontier parity claim since current honest cross-teacher winner is `qwen3.5 × Gemma-31B` at n=50 (#6).
+
+---
+
 ## 2026-05-25 — n=681 parity sub-leaderboard cell #3 landed (qwen3.5 × A3B-35B think)
 
 **Ran:** `qwen3.5 × A3B-35B · think · fewshot10 · n=681 · seed=42` overnight on the single 5090. Walltime 9h41m (34878 s), 3968 turns scored, judge cost $16.53 (Sonnet 4.6, 10 workers, 19 min API). Output at `results/t4-bert-a3b-fewshot10-n681/`. qwen3.5 consultant on CPU (`KELE_BERT_DEVICE=cpu`) per the rule established by the bilingual canonical n=400.
