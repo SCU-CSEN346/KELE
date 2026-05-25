@@ -31,7 +31,7 @@ GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BOLD='\033[1m'; NC='\
 pass()  { echo -e "  ${GREEN}PASS${NC}  $*"; }
 fail()  { echo -e "  ${RED}FAIL${NC}  $*"; }
 warn()  { echo -e "  ${YELLOW}WARN${NC}  $*"; }
-step()  { echo -e "\n${BOLD}[$1/9] $2${NC}"; }
+step()  { echo -e "\n${BOLD}[$1/13] $2${NC}"; }
 
 FAILURES=0
 
@@ -395,21 +395,165 @@ else
     while IFS= read -r line; do pass "$line"; done <<< "$SDPA_OUT"
 fi
 
+# ── llama-server discovery (shared by steps 10–13) ───────────────────────────
+_LLAMA_SERVER="${LLAMA_SERVER:-}"
+if [[ -z "$_LLAMA_SERVER" ]]; then
+    if [[ -x "$HOME/Github/llama.cpp/build/bin/llama-server" ]]; then
+        _LLAMA_SERVER="$HOME/Github/llama.cpp/build/bin/llama-server"
+    elif [[ -x "$HOME/Documents/models/llama.cpp/build/bin/llama-server" ]]; then
+        _LLAMA_SERVER="$HOME/Documents/models/llama.cpp/build/bin/llama-server"
+    fi
+fi
+_LLAMA_MISSING=1
+_CMAKE_CACHE=""
+if [[ -n "$_LLAMA_SERVER" && -x "$_LLAMA_SERVER" ]]; then
+    _LLAMA_MISSING=0
+    _LLAMA_BUILD="$(dirname "$(dirname "$_LLAMA_SERVER")")"
+    [[ -f "$_LLAMA_BUILD/CMakeCache.txt" ]] && _CMAKE_CACHE="$_LLAMA_BUILD/CMakeCache.txt"
+fi
+
+# ── 10. llama-server binary — GPU build verification ─────────────────────────
+step 10 "llama-server — binary + ROCm build flags"
+if [[ "$_LLAMA_MISSING" -eq 1 ]]; then
+    warn "llama-server not found — skipping steps 10–13"
+    warn "  Expected: ~/Github/llama.cpp/build/bin/llama-server"
+    warn "  Build:    cmake -B build -DGGML_HIP=ON -DAMDGPU_TARGETS=gfx1201 && cmake --build build -j\$(nproc)"
+else
+    LLAMA_VER=$("$_LLAMA_SERVER" --version 2>&1 | grep -E "^version:|ROCm|gfx|VRAM")
+    while IFS= read -r line; do pass "$line"; done <<< "$LLAMA_VER"
+
+    if [[ -n "$_CMAKE_CACHE" ]]; then
+        _AMDGPU=$(grep "^AMDGPU_TARGETS"    "$_CMAKE_CACHE" | cut -d= -f2 || echo "?")
+        _HIP=$(   grep "^GGML_HIP:"         "$_CMAKE_CACHE" | cut -d= -f2 || echo "?")
+        _GRAPHS=$(grep "^GGML_HIP_GRAPHS:"  "$_CMAKE_CACHE" | cut -d= -f2 || echo "?")
+        _MFMA=$(  grep "^GGML_HIP_MMQ_MFMA:" "$_CMAKE_CACHE" | cut -d= -f2 || echo "?")
+        pass "AMDGPU_TARGETS=$_AMDGPU  GGML_HIP=$_HIP  HIP_GRAPHS=$_GRAPHS  MMQ_MFMA=$_MFMA"
+        if [[ "$_HIP" != "ON" ]]; then
+            fail "GGML_HIP is not ON — rebuild with -DGGML_HIP=ON"
+            FAILURES=$((FAILURES + 1))
+        fi
+        if [[ "$_AMDGPU" != *"gfx1201"* ]]; then
+            warn "AMDGPU_TARGETS does not include gfx1201 — may be using generic fallback"
+        fi
+    else
+        warn "CMakeCache.txt not found at $_LLAMA_BUILD — cannot verify build flags"
+    fi
+fi
+
+# ── 11. Flash attention — compiled + runtime status ───────────────────────────
+step 11 "llama-server — flash attention (compiled-in + serve-script check)"
+if [[ "$_LLAMA_MISSING" -eq 1 ]]; then
+    warn "skipped (llama-server not found)"
+else
+    if [[ -n "$_CMAKE_CACHE" ]]; then
+        _FA=$(grep "^GGML_CUDA_FA:" "$_CMAKE_CACHE" | cut -d= -f2 || echo "")
+        if [[ "$_FA" == "ON" ]]; then
+            pass "GGML_CUDA_FA=ON — flash attention compiled in"
+        elif [[ "$_FA" == "OFF" ]]; then
+            fail "GGML_CUDA_FA=OFF — flash attention not compiled; rebuild with -DGGML_CUDA_FA=ON"
+            FAILURES=$((FAILURES + 1))
+        else
+            warn "GGML_CUDA_FA not found in CMakeCache — assumed compiled in"
+        fi
+    fi
+
+    # Check whether serve scripts set -fa explicitly or rely on auto.
+    _FA_SCRIPTS=$(grep -rl "\-fa\b\|--flash-attn" scripts/serve_*.sh 2>/dev/null | tr '\n' ' ' || true)
+    if [[ -n "$_FA_SCRIPTS" ]]; then
+        pass "Explicit -fa flag found in: $_FA_SCRIPTS"
+    else
+        warn "No serve script sets -fa explicitly — using default (auto)"
+        warn "  'auto' activates FA for gfx1201. To confirm at runtime, start the server"
+        warn "  with a model and check logs for:  llm_load_print_meta: flash attn = 1"
+    fi
+fi
+
+# ── 12. Vulkan backend ────────────────────────────────────────────────────────
+step 12 "llama-server — Vulkan backend (RDNA4 ~20% TG speedup)"
+if [[ "$_LLAMA_MISSING" -eq 1 ]]; then
+    warn "skipped (llama-server not found)"
+else
+    if [[ -n "$_CMAKE_CACHE" ]]; then
+        _VULKAN=$(grep "^GGML_VULKAN:" "$_CMAKE_CACHE" | cut -d= -f2 || echo "")
+        if [[ "$_VULKAN" == "ON" ]]; then
+            pass "GGML_VULKAN=ON — Vulkan backend compiled in"
+        else
+            warn "GGML_VULKAN is OFF (or absent) — Vulkan not compiled in"
+            warn "  Benchmarks show Vulkan is ~20% faster than ROCm HIP for TG on gfx1201"
+            warn "  See ~/Github/llama.cpp/.claude/handoff.md for the full rebuild command"
+        fi
+    fi
+
+    # Check Vulkan ICD availability at the OS level.
+    if command -v vulkaninfo &>/dev/null; then
+        _VKGPU=$(vulkaninfo 2>/dev/null | grep -E "GPU id|deviceName" | sort -u | head -4 || true)
+        if [[ -n "$_VKGPU" ]]; then
+            while IFS= read -r line; do pass "vulkaninfo: $line"; done <<< "$_VKGPU"
+        else
+            warn "vulkaninfo found but no GPU listed — check Vulkan ICD configuration"
+        fi
+    else
+        warn "vulkaninfo not installed — cannot verify Vulkan ICD"
+        warn "  Install: sudo pacman -S vulkan-tools  (or equivalent)"
+    fi
+fi
+
+# ── 13. Serve script efficiency settings ─────────────────────────────────────
+step 13 "llama-server — serve script efficiency (ubatch, KV quant, parallel slots)"
+if [[ "$_LLAMA_MISSING" -eq 1 ]]; then
+    warn "skipped (llama-server not found)"
+else
+    for _SCRIPT in scripts/serve_gemma4_31b.sh scripts/serve_qwen27b.sh; do
+        [[ -f "$_SCRIPT" ]] || continue
+        echo -e "  ${BOLD}$_SCRIPT${NC}"
+
+        # ubatch-size
+        _UBATCH=$(grep -E -- '-ub\b|--ubatch-size' "$_SCRIPT" | grep -v '^\s*#' | head -1 || true)
+        if [[ -z "$_UBATCH" ]]; then
+            warn "  --ubatch-size not set (default 512) — recommend 2048 for 32 GB VRAM"
+        else
+            pass "  ubatch: $_UBATCH"
+        fi
+
+        # KV cache quant
+        _KV=$(grep 'KV_QUANT\s*=' "$_SCRIPT" | grep -v '^\s*#' | head -1 || true)
+        [[ -n "$_KV" ]] && pass "  KV quant: $_KV"
+
+        # Parallel slots
+        _NP=$(grep 'PARALLEL\s*=' "$_SCRIPT" | grep -v '^\s*#' | head -1 || true)
+        [[ -n "$_NP" ]] && pass "  Parallel slots: $_NP"
+
+        # Flash attn in this specific script
+        _FA_HERE=$(grep -E -- '-fa\b|--flash-attn' "$_SCRIPT" | grep -v '^\s*#' | head -1 || true)
+        if [[ -z "$_FA_HERE" ]]; then
+            warn "  -fa not set (inherits auto from base script — OK, see step 11)"
+        else
+            pass "  flash-attn: $_FA_HERE"
+        fi
+    done
+fi
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${BOLD}━━━ Result ━━━${NC}"
 if [[ "$FAILURES" -eq 0 ]]; then
     echo -e "${GREEN}${BOLD}All steps passed.${NC}"
     echo ""
-    echo "  Inference stack (llama.cpp):  steps 1–2 confirm GPU is usable."
+    echo "  GPU visibility:               steps 1–2 confirm GPU is usable."
     echo "  QLoRA fine-tuning:            steps 3–6 all passing = QLoRA is supported."
     echo "  LoRA fine-tuning:             step 7 passing = PEFT/LoRA is ready."
     echo "  SFT trainer:                  step 8 passing = TRL SFTTrainer is ready."
-    echo "  Efficient attention:          step 9 passing = PyTorch SDPA + flash-attn (if installed)"
+    echo "  Efficient attention (torch):  step 9 = PyTorch SDPA + flash-attn (if installed)"
     echo "    flash_attn install note: PyPI wheel fails on gfx1201 (CK-tile ISA bug)."
     echo "    Use ROCm fork with Triton backend:"
     echo "      git clone --recurse-submodules https://github.com/ROCm/flash-attention /tmp/fa"
     echo "      FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE uv pip install /tmp/fa --no-build-isolation"
+    echo ""
+    echo "  llama-server build:           step 10 = ROCm/HIP flags verified."
+    echo "  Flash attention (llama.cpp):  step 11 = FA compiled in; check runtime logs for 'flash attn = 1'."
+    echo "  Vulkan backend:               step 12 = Vulkan compiled in (~20% faster TG on gfx1201)."
+    echo "                                         If WARN: see ~/Github/llama.cpp/.claude/handoff.md"
+    echo "  Serve script settings:        step 13 = ubatch/KV quant/slots reviewed."
     echo ""
     echo "  To check vLLM separately:  bash scripts/test_vllm_rocm.sh"
 else
