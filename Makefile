@@ -180,8 +180,9 @@ install-cuda:
 _install-torch-rocm:
 	uv pip install --force-reinstall \
 	  --index-url https://download.pytorch.org/whl/rocm7.2 \
-	  torch torchvision torchaudio
-	@echo "✓ torch+rocm7.2 installed"
+	  "torch==2.11.0" "torchaudio==2.11.0"
+	uv pip uninstall torchvision 2>/dev/null || true
+	@echo "✓ torch+rocm7.2 installed (torchvision excluded — ABI mismatch on gfx1201)"
 
 _install-torch-cuda:
 	uv pip install --force-reinstall \
