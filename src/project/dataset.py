@@ -271,6 +271,51 @@ def load_socrat_synthetic(
 
 
 # ---------------------------------------------------------------------------
+# SocratDataset-SYNTHETIC-EN — English contamination-control eval set
+# ---------------------------------------------------------------------------
+
+
+def _socrat_synthetic_en_to_messages(record: dict) -> dict:
+    q = record["question"]
+    system_parts = [_SOCRAT_EN_SYSTEM, f"Problem: {q}"]
+    messages = [{"role": "system", "content": "\n".join(system_parts)}]
+    states: list[str] = []
+
+    for turn in record.get("dialogue", []):
+        messages.append({"role": "user", "content": turn["student"]})
+        messages.append({"role": "assistant", "content": turn["teacher"]})
+        state = _strip_quotes(turn.get("state", ""))
+        if state:
+            states.append(state)
+
+    return {
+        "id": str(record["id"]),
+        "source": "socrat-synthetic-en",
+        "messages": messages,
+        "ground_truth_states": states if states else None,
+    }
+
+
+def load_socrat_synthetic_en(
+    split: str = "train",
+    seed: int = 42,
+    hf_repo: str = "ulises-c/SocratDataset-SYNTHETIC-EN",
+) -> list[dict]:
+    """Load SocratDataset-SYNTHETIC-EN from HuggingFace.
+
+    75 English elementary-science Socratic dialogues (ids 200001-200075).
+    Eval-only by design — do not include in TRAIN_SOURCES.
+    """
+    from datasets import load_dataset as hf_load
+
+    raw = [dict(r) for r in hf_load(hf_repo, split="train")]
+    converted = [_socrat_synthetic_en_to_messages(r) for r in raw]
+    if split == "all":
+        return converted
+    return _split(converted, split, seed)
+
+
+# ---------------------------------------------------------------------------
 # SocraTeach_Multi
 # ---------------------------------------------------------------------------
 
@@ -690,6 +735,7 @@ _SOURCE_LOADERS = {
     "socrat-zh": load_socrat_zh,
     "socrat-en": load_socrat_en,
     "socrat-synthetic": load_socrat_synthetic,
+    "socrat-synthetic-en": load_socrat_synthetic_en,
     "socrateach-multi": load_socrateach_multi,
     "socrateach-single": load_socrateach_single,
     "socraticmath": load_socraticmath,

@@ -1,0 +1,2682 @@
+[
+  {
+    "id": 200001,
+    "question": "Which phenomenon shows that light travels in straight lines? (shadows forming behind objects, rainbows appearing after rain, reflections in a mirror)",
+    "answer": "shadows forming behind objects",
+    "dialogue": [
+      {
+        "student": "Why does a pinhole camera make an upside-down image?",
+        "teacher": "Does light bend when it travels through the air?",
+        "state": "a1"
+      },
+      {
+        "student": "I don't think so — it goes straight.",
+        "teacher": "If light goes straight through a tiny hole, where does light from the top of an object end up?",
+        "state": "b2"
+      },
+      {
+        "student": "It would go downward to the other side, because it can't bend.",
+        "teacher": "And light from the bottom of the object?",
+        "state": "c8"
+      },
+      {
+        "student": "It goes upward! So the image is flipped because light travels straight.",
+        "teacher": "What is the name of this property of light?",
+        "state": "d30"
+      },
+      {
+        "student": "Light travels in straight lines!",
+        "teacher": "Exactly. Light travels in straight lines, so rays from top and bottom swap sides passing through the pinhole, creating an inverted image.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200002,
+    "question": "Why can't astronauts hear each other speak in outer space without radios? (space is a vacuum with no medium for sound, sound travels too slowly in space, their helmets block sound)",
+    "answer": "space is a vacuum with no medium for sound",
+    "dialogue": [
+      {
+        "student": "How does sound get from one place to another?",
+        "teacher": "When a drum is struck, what do you feel if you touch it?",
+        "state": "a1"
+      },
+      {
+        "student": "It vibrates! The drum shakes.",
+        "teacher": "Those vibrations have to travel through something to reach your ears. What carries them in a room?",
+        "state": "b3"
+      },
+      {
+        "student": "Air! The air carries the vibrations.",
+        "teacher": "If you removed all the air from a jar and set off a buzzer inside, could you hear it?",
+        "state": "c9"
+      },
+      {
+        "student": "No — nothing to carry the vibrations.",
+        "teacher": "What does that tell you about what sound needs to travel?",
+        "state": "d30"
+      },
+      {
+        "student": "Sound needs a medium — a solid, liquid, or gas. Outer space has none, so sound can't travel.",
+        "teacher": "Correct. Sound requires a medium; the vacuum of space has none, so astronauts must use radios that transmit electromagnetic waves instead.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200003,
+    "question": "A steel ship floats but a small steel coin sinks. What best explains this? (the ship's hollow shape makes its average density less than water, steel is lighter than water, the ship is pushed up by air inside it)",
+    "answer": "the ship's hollow shape makes its average density less than water",
+    "dialogue": [
+      {
+        "student": "Why does a huge metal ship float when a little coin sinks?",
+        "teacher": "Which is heavier — a pound of steel or a pound of water?",
+        "state": "a1"
+      },
+      {
+        "student": "They're both a pound, so the same.",
+        "teacher": "Good. Now think about a cubic foot of steel versus a cubic foot of water — which is heavier?",
+        "state": "b4"
+      },
+      {
+        "student": "Steel — it's way denser.",
+        "teacher": "So why doesn't the ship sink? What is different about its shape compared to the coin?",
+        "state": "c10"
+      },
+      {
+        "student": "The ship is hollow — it has a lot of air inside.",
+        "teacher": "That hollow shape means the ship displaces a lot of water. How does that change the ship's average density compared to water?",
+        "state": "c17"
+      },
+      {
+        "student": "The average density of ship plus air is less than water, so it floats!",
+        "teacher": "Can you state the rule for sinking and floating?",
+        "state": "d31"
+      },
+      {
+        "student": "If average density is less than water, it floats; greater than water, it sinks.",
+        "teacher": "Perfect. Buoyancy depends on average density across the whole object — that is why a hollow steel ship floats while a solid coin sinks.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200004,
+    "question": "Why is copper wire used inside electrical cables while plastic covers the outside? (copper conducts electricity; plastic insulates and prevents shock, copper is cheaper, plastic makes the wire stronger)",
+    "answer": "copper conducts electricity; plastic insulates and prevents shock",
+    "dialogue": [
+      {
+        "student": "Why do wires have that rubber coating on the outside?",
+        "teacher": "Can electricity flow through all materials equally well?",
+        "state": "a1"
+      },
+      {
+        "student": "No — some things conduct better than others.",
+        "teacher": "Name something electricity flows through easily and something it doesn't.",
+        "state": "b5"
+      },
+      {
+        "student": "Metal conducts easily. Rubber and plastic don't.",
+        "teacher": "If you grabbed a bare copper wire connected to a battery, what might happen?",
+        "state": "c11"
+      },
+      {
+        "student": "You'd get a shock — electricity would flow through you.",
+        "teacher": "So what is the plastic coating doing?",
+        "state": "d30"
+      },
+      {
+        "student": "It blocks the electricity from reaching you — it's an insulator.",
+        "teacher": "Exactly. Conductors like copper carry current; insulators like plastic prevent current from flowing where it shouldn't, keeping us safe.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200005,
+    "question": "Why does the handle of a metal spoon get hot when left in a bowl of hot soup? (heat conducts through the metal from the hot end to the cooler handle, hot soup rises up and heats the handle, the metal reflects heat back)",
+    "answer": "heat conducts through the metal from the hot end to the cooler handle",
+    "dialogue": [
+      {
+        "student": "Why does the spoon handle get hot even though it's not in the soup?",
+        "teacher": "How do you think heat could travel from the soup end to the handle?",
+        "state": "a1"
+      },
+      {
+        "student": "Maybe it travels through the metal?",
+        "teacher": "Does a wooden spoon handle get hot the same way?",
+        "state": "b2"
+      },
+      {
+        "student": "No, wood feels cooler. So the material matters.",
+        "teacher": "What is different about how metal and wood transfer heat?",
+        "state": "c8"
+      },
+      {
+        "student": "Metal transfers heat really well and wood doesn't.",
+        "teacher": "This transfer of heat through a material is called what?",
+        "state": "d30"
+      },
+      {
+        "student": "Conduction! Heat conduction through the metal.",
+        "teacher": "Right. Heat conduction moves thermal energy from a hotter region to a cooler one through direct contact; metals are excellent conductors, wood is a poor one.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200006,
+    "question": "When you look in a flat mirror, your image appears to be (the same distance behind the mirror as you are in front, closer than you actually are, smaller than your real size)",
+    "answer": "the same distance behind the mirror as you are in front",
+    "dialogue": [
+      {
+        "student": "Why does my reflection look like it's inside the wall behind the mirror?",
+        "teacher": "Does light from you pass through the mirror, or does it bounce back?",
+        "state": "a1"
+      },
+      {
+        "student": "It bounces back — reflects.",
+        "teacher": "When light bounces off a smooth flat surface, the angle it leaves equals the angle it arrived. What does that tell you about where your reflected rays seem to come from?",
+        "state": "b3"
+      },
+      {
+        "student": "They seem to come from a point behind the mirror, like there's another me back there.",
+        "teacher": "If you step closer to the mirror, does your reflection look closer or farther away?",
+        "state": "c9"
+      },
+      {
+        "student": "Closer! It moves the same amount I do.",
+        "teacher": "So how far behind the mirror does your image appear to be?",
+        "state": "d30"
+      },
+      {
+        "student": "The same distance behind the mirror as I am in front of it.",
+        "teacher": "Exactly. A flat mirror forms a virtual image as far behind the surface as the object is in front — the law of reflection at work.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200007,
+    "question": "What happens when you bring the north pole of one magnet near the north pole of another magnet? (they repel each other, they attract each other, nothing happens)",
+    "answer": "they repel each other",
+    "dialogue": [
+      {
+        "student": "Why do magnets sometimes push away from each other?",
+        "teacher": "Have you ever tried holding two magnets together in different orientations?",
+        "state": "a1"
+      },
+      {
+        "student": "Yes! Sometimes they snap together and sometimes they push apart.",
+        "teacher": "What determined which way they behaved?",
+        "state": "b3"
+      },
+      {
+        "student": "Which ends I pointed toward each other.",
+        "teacher": "When the opposite ends attracted, what do we call those two ends?",
+        "state": "c9"
+      },
+      {
+        "student": "North and south poles. Opposite poles attract.",
+        "teacher": "And two north poles near each other?",
+        "state": "c15"
+      },
+      {
+        "student": "They repel! Same poles push apart.",
+        "teacher": "State the complete rule for magnetic poles.",
+        "state": "d30"
+      },
+      {
+        "student": "Opposite poles attract; like poles repel.",
+        "teacher": "Perfect. This is the fundamental rule of magnetism — opposite poles attract, like poles repel.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200008,
+    "question": "A bulb in a circuit goes out when a switch is opened. What type of circuit does the open switch create? (an open circuit that breaks current flow, a short circuit, a parallel circuit)",
+    "answer": "an open circuit that breaks current flow",
+    "dialogue": [
+      {
+        "student": "Why does flipping a switch turn off the light?",
+        "teacher": "What does electricity need to flow from a battery through a bulb and back?",
+        "state": "a1"
+      },
+      {
+        "student": "A complete path — a loop.",
+        "teacher": "When you open a switch, what happens to that path?",
+        "state": "b2"
+      },
+      {
+        "student": "There's a gap — the path is broken.",
+        "teacher": "Can current cross a gap in the wire?",
+        "state": "c8"
+      },
+      {
+        "student": "No, so the current stops and the bulb goes off.",
+        "teacher": "We call that a closed circuit when the path is complete and an open circuit when it is broken. Which is which?",
+        "state": "d30"
+      },
+      {
+        "student": "Closed circuit — current flows, bulb lights. Open circuit — path broken, no current, bulb is off.",
+        "teacher": "Exactly. A switch simply makes or breaks the conducting path, controlling whether current can flow.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200009,
+    "question": "A crowbar is a lever. When you push down on the long end to lift a rock at the short end, you are using a (effort force on a longer arm than the load, effort force equal to the load, effort force on a shorter arm than the load)",
+    "answer": "effort force on a longer arm than the load",
+    "dialogue": [
+      {
+        "student": "Why is it easier to lift a heavy rock with a long crowbar than with a short one?",
+        "teacher": "Where is the fulcrum — the pivot point — on a crowbar?",
+        "state": "a1"
+      },
+      {
+        "student": "Near the rock end, not the middle.",
+        "teacher": "When you push at the far end, how does the distance from fulcrum to your hand compare to the distance from fulcrum to the rock?",
+        "state": "b2"
+      },
+      {
+        "student": "My end is much farther from the fulcrum.",
+        "teacher": "A longer effort arm means less force needed to balance the same load. Why does a longer bar help even more?",
+        "state": "c8"
+      },
+      {
+        "student": "A longer bar makes my effort arm even longer compared to the load arm, so I need even less force.",
+        "teacher": "What is the trade-off? When you push down a large distance, how far does the rock move?",
+        "state": "c15"
+      },
+      {
+        "student": "The rock only moves a little. You trade distance for force.",
+        "teacher": "State the rule for a lever that saves effort force.",
+        "state": "d31"
+      },
+      {
+        "student": "Effort force is less when the effort arm is longer than the load arm — but you must push through a greater distance.",
+        "teacher": "Well said. Levers trade distance for force; a longer effort arm reduces the force needed but requires a larger movement at your end.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200010,
+    "question": "A stretched rubber band stores what type of energy? (elastic potential energy, kinetic energy, thermal energy)",
+    "answer": "elastic potential energy",
+    "dialogue": [
+      {
+        "student": "Why can a rubber band fling a paper ball across the room?",
+        "teacher": "What did you do to the rubber band before you released it?",
+        "state": "a1"
+      },
+      {
+        "student": "I stretched it — changed its shape.",
+        "teacher": "While it was stretched, was it moving?",
+        "state": "b3"
+      },
+      {
+        "student": "No, it was held still.",
+        "teacher": "Yet it had the ability to do work the moment you released it. What kind of energy does a stretched elastic object store?",
+        "state": "c9"
+      },
+      {
+        "student": "Some kind of stored energy? Potential energy?",
+        "teacher": "Specifically, because the object is elastically deformed, it is called elastic potential energy. What happens to that energy when you let go?",
+        "state": "c16"
+      },
+      {
+        "student": "It converts to kinetic energy — the band and the ball move.",
+        "teacher": "State the energy transformation from stretch to flight.",
+        "state": "d31"
+      },
+      {
+        "student": "Elastic potential energy converts to kinetic energy when the band is released.",
+        "teacher": "Correct. Stretching stores elastic potential energy; releasing converts it to kinetic energy of the projectile.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200011,
+    "question": "An incandescent light bulb converts most of its electrical energy into (heat and some light, only light, only heat)",
+    "answer": "heat and some light",
+    "dialogue": [
+      {
+        "student": "If a light bulb is supposed to make light, why does it get so hot?",
+        "teacher": "Touch a lamp that has been on a while — carefully. What do you notice?",
+        "state": "a1"
+      },
+      {
+        "student": "It's really hot!",
+        "teacher": "That heat is energy from electricity that did not become visible light. How efficient do you think the bulb is at making light?",
+        "state": "b4"
+      },
+      {
+        "student": "Not very efficient if most energy becomes heat.",
+        "teacher": "Compare that to an LED bulb — it barely gets warm. What does that tell you about where the electricity goes in each type?",
+        "state": "c10"
+      },
+      {
+        "student": "In an LED most electricity becomes light. In an incandescent bulb most becomes heat — that is wasted energy.",
+        "teacher": "What term describes how much useful energy output you get per unit of energy input?",
+        "state": "d31"
+      },
+      {
+        "student": "Efficiency! An LED has higher efficiency than an incandescent bulb.",
+        "teacher": "Exactly. Incandescent bulbs convert most electrical energy to heat and only a small fraction to light; LEDs are far more efficient.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200012,
+    "question": "Which situation shows friction being useful rather than harmful? (shoe soles gripping the floor so you can walk, a car engine wearing down over years, a sled slowing on flat ice)",
+    "answer": "shoe soles gripping the floor so you can walk",
+    "dialogue": [
+      {
+        "student": "Is friction always bad?",
+        "teacher": "Try to imagine walking on a perfectly frictionless surface — what would happen?",
+        "state": "a1"
+      },
+      {
+        "student": "I'd slip and fall — I couldn't push off the ground.",
+        "teacher": "So in that case, is friction helping or hurting you?",
+        "state": "b2"
+      },
+      {
+        "student": "Helping! I need it to walk.",
+        "teacher": "Now think about a car engine with metal parts rubbing together. Is friction helping or hurting there?",
+        "state": "c8"
+      },
+      {
+        "student": "Hurting — it causes wear and wastes energy as heat.",
+        "teacher": "So friction can be both beneficial and harmful. Can you give one more example of each?",
+        "state": "c14"
+      },
+      {
+        "student": "Helpful: brakes stopping a bike. Harmful: friction slowing a ball rolling on the ground.",
+        "teacher": "Summarize the two sides of friction.",
+        "state": "d32"
+      },
+      {
+        "student": "Friction is useful when we need grip or stopping force; it is harmful when it causes wear, energy loss, or unwanted slowing.",
+        "teacher": "Well reasoned. Friction is a force we sometimes maximize — rougher soles, brake pads — and sometimes minimize — lubricants, smooth bearings.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200013,
+    "question": "A straw appears bent when placed in a glass of water. This is because (light changes speed and bends at the water-air boundary, the water distorts the straw, our eyes are tricked by the color)",
+    "answer": "light changes speed and bends at the water-air boundary",
+    "dialogue": [
+      {
+        "student": "Why does my straw look broken in the water even though it isn't?",
+        "teacher": "Does light travel at the same speed in air as in water?",
+        "state": "a1"
+      },
+      {
+        "student": "I'm not sure — maybe slower in water?",
+        "teacher": "Light does slow down in water. When it crosses from water to air at an angle, what might happen to its direction?",
+        "state": "b5"
+      },
+      {
+        "student": "It might change direction — bend?",
+        "teacher": "That bending of light at a boundary between materials is called refraction. When light from the underwater part of the straw exits into air and bends, where does your eye think the straw is?",
+        "state": "c11"
+      },
+      {
+        "student": "Your eye traces the ray straight back, so it looks like the straw is in a different position — shifted.",
+        "teacher": "Is the straw actually broken or moved?",
+        "state": "c18"
+      },
+      {
+        "student": "No! The straw is fine — our eye is fooled by the bent light rays.",
+        "teacher": "Name the phenomenon.",
+        "state": "d30"
+      },
+      {
+        "student": "Refraction — light bends when it passes from one medium to another at an angle.",
+        "teacher": "Correct. Refraction occurs because light changes speed at material boundaries; the apparent shift of the straw is a classic demonstration.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200014,
+    "question": "What keeps the Moon in orbit around the Earth instead of flying off into space? (gravity pulling the Moon toward Earth, the Moon's own engines, the vacuum of space holding it in place)",
+    "answer": "gravity pulling the Moon toward Earth",
+    "dialogue": [
+      {
+        "student": "Why doesn't the Moon just fly away from Earth?",
+        "teacher": "If you swing a ball on a string in a circle and cut the string, what happens?",
+        "state": "a1"
+      },
+      {
+        "student": "It flies off in a straight line.",
+        "teacher": "So something must be pulling the Moon toward Earth to keep it in a curve. What force acts between any two objects with mass?",
+        "state": "b4"
+      },
+      {
+        "student": "Gravity!",
+        "teacher": "The Moon is moving fast enough that as it falls toward Earth, Earth curves away underneath — so it keeps orbiting. What would happen if gravity suddenly switched off?",
+        "state": "c10"
+      },
+      {
+        "student": "The Moon would fly off in a straight line, like the ball when the string was cut.",
+        "teacher": "And if the Moon slowed down a lot?",
+        "state": "c17"
+      },
+      {
+        "student": "Gravity would pull it inward and it would spiral down and crash into Earth.",
+        "teacher": "State what keeps an orbiting object in a stable orbit.",
+        "state": "d31"
+      },
+      {
+        "student": "Gravity provides the inward pull; the orbital speed balances it so the object keeps falling around — not into — the planet.",
+        "teacher": "Excellent. Orbits are a continuous freefall where forward speed balances gravitational pull, keeping the Moon in its path.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200015,
+    "question": "You rub a balloon on your hair and the balloon sticks to the wall. What caused this? (static electricity — the balloon gained negative charge and attracted the wall, magnetism in the balloon, the balloon became sticky from heat)",
+    "answer": "static electricity — the balloon gained negative charge and attracted the wall",
+    "dialogue": [
+      {
+        "student": "Why does the balloon stick to the wall after I rub it on my hair?",
+        "teacher": "When you rub the balloon on your hair, what do you think might be transferring between them?",
+        "state": "a1"
+      },
+      {
+        "student": "Some kind of energy? Or maybe tiny particles?",
+        "teacher": "Electrons are negatively charged particles that can be rubbed off one surface onto another. After rubbing, does the balloon have more electrons or fewer than before?",
+        "state": "b3"
+      },
+      {
+        "student": "More — it picked up electrons from my hair.",
+        "teacher": "So the balloon is now negatively charged. The wall is neutral. What happens between a charged object and a neutral one nearby?",
+        "state": "c9"
+      },
+      {
+        "student": "Opposite charges attract — the negative balloon pulls positive parts of the wall toward it.",
+        "teacher": "What is the general name for this buildup of charge on a surface?",
+        "state": "d30"
+      },
+      {
+        "student": "Static electricity!",
+        "teacher": "Correct. Rubbing transfers electrons, creating static charge; opposite charges attract, making the balloon cling to the wall.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200016,
+    "question": "What does a plant produce during photosynthesis? (glucose and oxygen, carbon dioxide and water, nitrogen and protein)",
+    "answer": "glucose and oxygen",
+    "dialogue": [
+      {
+        "student": "How do plants make their own food?",
+        "teacher": "What do you think a plant needs to make food?",
+        "state": "a1"
+      },
+      {
+        "student": "Sunlight and water?",
+        "teacher": "A plant also takes in a gas from the air. Which gas do plants absorb through tiny pores in their leaves?",
+        "state": "b3"
+      },
+      {
+        "student": "Carbon dioxide!",
+        "teacher": "Using light energy, water, and carbon dioxide, the plant builds sugar for energy. What gas is released as a by-product?",
+        "state": "c9"
+      },
+      {
+        "student": "Oxygen! That's what we breathe.",
+        "teacher": "State the inputs and outputs of photosynthesis.",
+        "state": "d30"
+      },
+      {
+        "student": "Inputs: sunlight, water, CO₂. Outputs: glucose (food) and oxygen.",
+        "teacher": "Perfect. Photosynthesis converts light energy into chemical energy stored in glucose, releasing oxygen as a by-product.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200017,
+    "question": "In the food chain grass → grasshopper → frog → snake, what would most directly happen if all the frogs disappeared? (grasshoppers would increase and snakes would decrease, grass would disappear immediately, snakes would increase)",
+    "answer": "grasshoppers would increase and snakes would decrease",
+    "dialogue": [
+      {
+        "student": "What would happen to the other animals if frogs went extinct?",
+        "teacher": "What do frogs eat in this chain?",
+        "state": "a1"
+      },
+      {
+        "student": "Grasshoppers.",
+        "teacher": "If frogs disappear, who controls the grasshopper population?",
+        "state": "b3"
+      },
+      {
+        "student": "Nobody — grasshoppers would multiply a lot.",
+        "teacher": "What do snakes eat in this chain?",
+        "state": "c9"
+      },
+      {
+        "student": "Frogs. If frogs are gone, snakes lose their food source and would decline.",
+        "teacher": "How would exploding grasshopper numbers affect the grass?",
+        "state": "c15"
+      },
+      {
+        "student": "Grasshoppers would eat much more grass — grass could be damaged too.",
+        "teacher": "Summarize the chain effect of removing frogs.",
+        "state": "d32"
+      },
+      {
+        "student": "Frogs gone → grasshoppers boom → grass damaged; snakes lose food → snakes decline. One removal disrupts the whole chain.",
+        "teacher": "Well done. Removing one organism from a food chain creates a cascade: prey population explodes, predator population collapses.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200018,
+    "question": "Which characteristic is found in ALL insects? (three pairs of legs and a three-part body, four pairs of legs, wings on every individual)",
+    "answer": "three pairs of legs and a three-part body",
+    "dialogue": [
+      {
+        "student": "How do I know if something is an insect or just a bug?",
+        "teacher": "Count the legs on a spider. How many?",
+        "state": "a1"
+      },
+      {
+        "student": "Eight legs.",
+        "teacher": "Count an ant's legs.",
+        "state": "b5"
+      },
+      {
+        "student": "Six legs — three pairs.",
+        "teacher": "Now look at an ant from the side. How many distinct body regions does it have?",
+        "state": "c11"
+      },
+      {
+        "student": "Three — head, thorax, abdomen.",
+        "teacher": "All insects share those two features. Does every insect have wings?",
+        "state": "c19"
+      },
+      {
+        "student": "No — ants often don't. So wings aren't required.",
+        "teacher": "State the two features that define all insects.",
+        "state": "d30"
+      },
+      {
+        "student": "Six legs in three pairs, and a body divided into head, thorax, and abdomen.",
+        "teacher": "Correct. Six legs and three body sections are the universal insect features; wings are common but not universal.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200019,
+    "question": "Why do bears hibernate in winter? (to survive food scarcity and cold by lowering metabolism, because they are afraid of snow, to grow larger while sleeping)",
+    "answer": "to survive food scarcity and cold by lowering metabolism",
+    "dialogue": [
+      {
+        "student": "Why do bears sleep all winter instead of just finding food like other animals?",
+        "teacher": "What two big challenges does winter create for a large animal like a bear?",
+        "state": "a1"
+      },
+      {
+        "student": "Food is really scarce, and it's very cold.",
+        "teacher": "Staying warm burns a lot of calories. If there's little food available, what problem does an active bear face?",
+        "state": "b6"
+      },
+      {
+        "student": "It can't eat enough to replace the energy it burns — it would starve.",
+        "teacher": "During hibernation, a bear's heart rate and body temperature drop dramatically. How does that help?",
+        "state": "c12"
+      },
+      {
+        "student": "Lower heart rate and temperature means the bear burns far less energy, so stored fat lasts through winter.",
+        "teacher": "What would happen if a bear tried to stay active through a typical winter?",
+        "state": "c20"
+      },
+      {
+        "student": "It would use up its fat reserves and starve before spring.",
+        "teacher": "Summarize hibernation as a survival strategy.",
+        "state": "d33"
+      },
+      {
+        "student": "Hibernation lowers metabolism so the bear survives on stored fat during months when food is unavailable.",
+        "teacher": "Exactly. Hibernation is an adaptation that reduces energy use to match the reduced food supply of winter.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200020,
+    "question": "Which three conditions are necessary for a seed to germinate? (water, warmth, and oxygen, sunlight, soil, and fertilizer, only sunlight and water)",
+    "answer": "water, warmth, and oxygen",
+    "dialogue": [
+      {
+        "student": "I planted seeds but they didn't sprout. What could be wrong?",
+        "teacher": "Where did you plant them and how did you care for them?",
+        "state": "a1"
+      },
+      {
+        "student": "I put them in soil and left them outside in winter without watering.",
+        "teacher": "Two problems there — can you identify them?",
+        "state": "b2"
+      },
+      {
+        "student": "No water, and it was too cold.",
+        "teacher": "Seeds also need a third thing from their environment to fuel the sprouting process. What gas does almost every living cell need?",
+        "state": "c8"
+      },
+      {
+        "student": "Oxygen!",
+        "teacher": "So list the three essentials for germination.",
+        "state": "d31"
+      },
+      {
+        "student": "Water, warmth — suitable temperature — and oxygen.",
+        "teacher": "Right. Note that sunlight is NOT required for germination; seeds sprout underground in the dark. Light matters after the seedling emerges.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200021,
+    "question": "A cactus survives in the desert mainly because (its thick stem stores water and its spines reduce water loss, it rains frequently in deserts, it absorbs water from the air through its spines)",
+    "answer": "its thick stem stores water and its spines reduce water loss",
+    "dialogue": [
+      {
+        "student": "How can a cactus survive for months without rain?",
+        "teacher": "What is the biggest challenge a plant faces in the desert?",
+        "state": "a1"
+      },
+      {
+        "student": "Not enough water.",
+        "teacher": "Normal leaves have a large surface area. What happens to water from a large leaf surface in hot, dry air?",
+        "state": "b5"
+      },
+      {
+        "student": "It evaporates quickly — the plant loses a lot of water.",
+        "teacher": "A cactus has spines instead of broad leaves. How does that help?",
+        "state": "c11"
+      },
+      {
+        "student": "Spines have tiny surface area, so much less water evaporates.",
+        "teacher": "Where does the cactus store the water it does collect when it rains?",
+        "state": "c19"
+      },
+      {
+        "student": "In its thick, fleshy stem — I can see it's swollen.",
+        "teacher": "State both adaptations.",
+        "state": "d32"
+      },
+      {
+        "student": "Spines instead of leaves reduce evaporation; a thick stem stores water for long dry periods.",
+        "teacher": "Exactly. These two structural adaptations together let a cactus survive extreme drought.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200022,
+    "question": "What is the main job of the heart? (pump blood continuously through the body, filter waste from the blood, store oxygen for the body)",
+    "answer": "pump blood continuously through the body",
+    "dialogue": [
+      {
+        "student": "Why does my heart keep beating even when I'm asleep?",
+        "teacher": "What would happen to your body if blood stopped moving for a few minutes?",
+        "state": "a1"
+      },
+      {
+        "student": "Cells would stop getting oxygen and nutrients — they'd die.",
+        "teacher": "So the heart has to keep working non-stop. What does each heartbeat actually do?",
+        "state": "b4"
+      },
+      {
+        "student": "It squeezes and pushes blood out.",
+        "teacher": "The heart has two sides — right and left. The right pumps blood to the lungs; the left pumps it to the body. Why does blood need to visit the lungs?",
+        "state": "c10"
+      },
+      {
+        "student": "To pick up oxygen and drop off carbon dioxide.",
+        "teacher": "Describe one complete circuit of the blood.",
+        "state": "d31"
+      },
+      {
+        "student": "Right side pumps blood to lungs → picks up O₂ → returns to left side → left side pumps it to the whole body → returns to right side.",
+        "teacher": "Perfect. The heart is a double pump maintaining continuous circulation so every cell receives oxygen and nutrients.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200023,
+    "question": "Where is most nutrient absorption from food carried out in the human body? (the small intestine, the stomach, the large intestine)",
+    "answer": "the small intestine",
+    "dialogue": [
+      {
+        "student": "After we swallow food, where does it actually get absorbed into our blood?",
+        "teacher": "Trace the path of food from mouth to stomach in order.",
+        "state": "a1"
+      },
+      {
+        "student": "Mouth → esophagus → stomach.",
+        "teacher": "Food leaves the stomach as a liquid mixture. Where does it go next?",
+        "state": "b2"
+      },
+      {
+        "student": "The small intestine.",
+        "teacher": "The small intestine is very long and has tiny finger-like projections inside. Why would a long tube covered in projections be good for absorption?",
+        "state": "c8"
+      },
+      {
+        "student": "It creates a huge surface area so nutrients can pass through into the blood.",
+        "teacher": "After the small intestine, what does the large intestine mainly do?",
+        "state": "c14"
+      },
+      {
+        "student": "It absorbs water from the leftover material and forms solid waste.",
+        "teacher": "State where most nutrient absorption happens and why.",
+        "state": "d30"
+      },
+      {
+        "student": "The small intestine — its great length and inner projections create enormous surface area for absorbing nutrients into the bloodstream.",
+        "teacher": "Correct. The small intestine is the primary site of nutrient absorption due to its large effective surface area.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200024,
+    "question": "Where in the lungs does the exchange of oxygen and carbon dioxide take place? (in the alveoli — tiny air sacs surrounded by capillaries, in the trachea, in the bronchi)",
+    "answer": "in the alveoli — tiny air sacs surrounded by capillaries",
+    "dialogue": [
+      {
+        "student": "How does the oxygen we breathe get into our blood?",
+        "teacher": "Air travels down the trachea and splits into smaller and smaller tubes in the lungs. What do you think is at the very end of those tubes?",
+        "state": "a1"
+      },
+      {
+        "student": "Tiny pockets of air?",
+        "teacher": "Those are called alveoli. They are wrapped tightly in tiny blood vessels. Why would thin walls and close contact with blood vessels matter?",
+        "state": "b5"
+      },
+      {
+        "student": "So oxygen can pass through the thin walls into the blood easily.",
+        "teacher": "There are about 600 million alveoli in human lungs. Why so many?",
+        "state": "c11"
+      },
+      {
+        "student": "Huge surface area — more area means more oxygen can transfer at once.",
+        "teacher": "While oxygen moves into the blood, what moves out of the blood into the alveoli to be exhaled?",
+        "state": "c19"
+      },
+      {
+        "student": "Carbon dioxide — a waste gas from cells.",
+        "teacher": "Describe the gas exchange in one sentence.",
+        "state": "d32"
+      },
+      {
+        "student": "In the alveoli, oxygen diffuses from inhaled air into the blood, and carbon dioxide diffuses from the blood into the air to be exhaled.",
+        "teacher": "Excellent. The alveoli's enormous surface area and thin walls make them ideal for rapid gas exchange.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200025,
+    "question": "When you bend your arm at the elbow, what happens to the bicep and tricep muscles? (bicep contracts and tricep relaxes, both muscles contract at the same time, bicep relaxes and tricep contracts)",
+    "answer": "bicep contracts and tricep relaxes",
+    "dialogue": [
+      {
+        "student": "How do muscles actually move my arm?",
+        "teacher": "Feel the front of your upper arm while you slowly bend your elbow. What do you notice?",
+        "state": "a1"
+      },
+      {
+        "student": "It gets hard — the muscle is tightening.",
+        "teacher": "That is the bicep contracting. Now straighten your arm and feel the back of your upper arm.",
+        "state": "b4"
+      },
+      {
+        "student": "The back gets hard now when I straighten it.",
+        "teacher": "The back muscle is the tricep. Can both muscles be contracted and hard at the same time?",
+        "state": "c10"
+      },
+      {
+        "student": "I don't think so — when one is hard the other seems relaxed.",
+        "teacher": "Muscles can only pull, not push. The bicep and tricep work as an antagonistic pair. What does that mean?",
+        "state": "c17"
+      },
+      {
+        "student": "They work opposite each other — when one contracts and pulls, the other must relax and stretch.",
+        "teacher": "State what happens in each muscle during elbow bending and straightening.",
+        "state": "d30"
+      },
+      {
+        "student": "Bending: bicep contracts, tricep relaxes. Straightening: tricep contracts, bicep relaxes.",
+        "teacher": "Perfect. Antagonistic muscle pairs allow joints to move in both directions; muscles can only pull, never push.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200026,
+    "question": "What structure in the ear first vibrates when sound waves arrive? (the eardrum, the ear canal, the cochlea)",
+    "answer": "the eardrum",
+    "dialogue": [
+      {
+        "student": "How do I actually hear sound?",
+        "teacher": "Sound is a pressure wave traveling through air. What does it need to hit inside your ear to start the hearing process?",
+        "state": "a1"
+      },
+      {
+        "student": "Something that can vibrate?",
+        "teacher": "The eardrum is a thin membrane at the end of the ear canal. When sound waves reach it, what does it do?",
+        "state": "b3"
+      },
+      {
+        "student": "It vibrates in time with the sound.",
+        "teacher": "Those vibrations are then passed to three tiny bones — the hammer, anvil, and stirrup. What do you think those bones do?",
+        "state": "c9"
+      },
+      {
+        "student": "They carry the vibration deeper into the ear and maybe amplify it?",
+        "teacher": "Exactly. The vibration then reaches the cochlea — a fluid-filled spiral. How does fluid vibration eventually become a signal your brain understands?",
+        "state": "c15"
+      },
+      {
+        "student": "Tiny hair cells in the cochlea detect the fluid movement and send electrical signals along the auditory nerve to the brain.",
+        "teacher": "Trace the path of sound from air to brain.",
+        "state": "d31"
+      },
+      {
+        "student": "Sound wave → ear canal → eardrum vibrates → three bones amplify → cochlea fluid moves → hair cells fire → auditory nerve → brain perceives sound.",
+        "teacher": "Complete and accurate. The eardrum is the crucial first step that converts pressure waves into mechanical vibration.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200027,
+    "question": "Which feature is found in ALL mammals but not in reptiles? (warm-bloodedness and feeding young with milk, scales, laying eggs)",
+    "answer": "warm-bloodedness and feeding young with milk",
+    "dialogue": [
+      {
+        "student": "Is a dolphin a fish or a mammal? It lives in the water.",
+        "teacher": "Does a dolphin breathe through gills or lungs?",
+        "state": "a1"
+      },
+      {
+        "student": "Lungs — I've seen them come up for air.",
+        "teacher": "Dolphins also give birth to live young and nurse them. What do mammals feed their young that reptiles do not?",
+        "state": "b5"
+      },
+      {
+        "student": "Milk — mammals have mammary glands.",
+        "teacher": "A reptile like a lizard can't regulate its own body temperature. What does it have to do on a cold morning?",
+        "state": "c11"
+      },
+      {
+        "student": "Sit in the sun to warm up. Reptiles are cold-blooded.",
+        "teacher": "Mammals maintain a constant internal temperature. What is that called?",
+        "state": "c19"
+      },
+      {
+        "student": "Warm-blooded — endothermic.",
+        "teacher": "Name the two defining mammal traits.",
+        "state": "d30"
+      },
+      {
+        "student": "Warm-blooded (endothermic) and nursing young with milk produced by the mother.",
+        "teacher": "Correct. All mammals share these two traits regardless of habitat — even aquatic mammals like dolphins and whales.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200028,
+    "question": "A butterfly goes through four stages in its life cycle. What is the correct order? (egg → larva (caterpillar) → pupa (chrysalis) → adult, egg → adult → larva → pupa, larva → egg → adult → pupa)",
+    "answer": "egg → larva (caterpillar) → pupa (chrysalis) → adult",
+    "dialogue": [
+      {
+        "student": "How does a caterpillar become a butterfly?",
+        "teacher": "When you see a caterpillar, what stage of the butterfly's life are you looking at?",
+        "state": "a1"
+      },
+      {
+        "student": "One of the early stages — it hasn't changed yet.",
+        "teacher": "The caterpillar hatched from something. What?",
+        "state": "b2"
+      },
+      {
+        "student": "An egg!",
+        "teacher": "After eating and growing, the caterpillar forms a chrysalis. What is happening inside?",
+        "state": "c8"
+      },
+      {
+        "student": "It's reorganizing — its body is breaking down and rebuilding into a butterfly.",
+        "teacher": "What do we call this dramatic transformation where body form completely changes?",
+        "state": "c14"
+      },
+      {
+        "student": "Metamorphosis!",
+        "teacher": "State all four life-cycle stages in order.",
+        "state": "d30"
+      },
+      {
+        "student": "Egg → larva (caterpillar) → pupa (chrysalis) → adult butterfly.",
+        "teacher": "Correct. Complete metamorphosis involves four distinct stages, each with a different body form and function.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200029,
+    "question": "A stick insect looks exactly like a twig. This is an example of (camouflage as an adaptation for survival, mimicry of a predator, aggressive coloring to warn enemies)",
+    "answer": "camouflage as an adaptation for survival",
+    "dialogue": [
+      {
+        "student": "Why do some animals look so much like their surroundings?",
+        "teacher": "If you were a bird hunting insects, and one insect looked exactly like a twig, would you spot it easily?",
+        "state": "a1"
+      },
+      {
+        "student": "No — I'd probably miss it entirely.",
+        "teacher": "So what advantage does looking like a twig give the stick insect?",
+        "state": "b3"
+      },
+      {
+        "student": "It avoids being eaten.",
+        "teacher": "This blending into the background is an inherited trait. Why would it be inherited?",
+        "state": "c9"
+      },
+      {
+        "student": "Because insects that blended in survived to have offspring, passing on the trait. Those that didn't blend in were eaten.",
+        "teacher": "What is the general name for this type of protective blending?",
+        "state": "d30"
+      },
+      {
+        "student": "Camouflage!",
+        "teacher": "Correct. Camouflage is an adaptation shaped by natural selection — individuals that blend in survive and reproduce more successfully.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200030,
+    "question": "In a food web, an organism that gets its energy by eating only plants is called a (primary consumer or herbivore, secondary consumer, producer)",
+    "answer": "primary consumer or herbivore",
+    "dialogue": [
+      {
+        "student": "What is the difference between a food chain and a food web?",
+        "teacher": "A food chain is one path — grass to rabbit to fox. In a real ecosystem, does a fox eat only rabbits?",
+        "state": "a1"
+      },
+      {
+        "student": "No — a fox eats mice, birds, and other things too.",
+        "teacher": "A food web shows all those connections. Within a food web, what do we call organisms that make their own food using sunlight?",
+        "state": "b4"
+      },
+      {
+        "student": "Producers — plants.",
+        "teacher": "An animal that eats only producers is a primary consumer. One that eats primary consumers is a secondary consumer. What is another word for plant-eater?",
+        "state": "c10"
+      },
+      {
+        "student": "Herbivore!",
+        "teacher": "And a meat-eater?",
+        "state": "c17"
+      },
+      {
+        "student": "Carnivore. One that eats both is an omnivore.",
+        "teacher": "Place a rabbit in the food web correctly.",
+        "state": "d31"
+      },
+      {
+        "student": "Rabbit eats plants (producers), so it is a primary consumer — an herbivore.",
+        "teacher": "Well placed. Understanding trophic levels — producers, primary consumers, secondary consumers — lets us trace energy through any food web.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200031,
+    "question": "What provides the energy that drives the water cycle? (the Sun's heat energy and Earth's gravity, wind alone, ocean currents)",
+    "answer": "the Sun's heat energy and Earth's gravity",
+    "dialogue": [
+      {
+        "student": "Does Earth ever run out of water?",
+        "teacher": "Where does rain come from?",
+        "state": "a1"
+      },
+      {
+        "student": "From clouds.",
+        "teacher": "Where did the water in those clouds come from?",
+        "state": "b3"
+      },
+      {
+        "student": "It evaporated from the ocean and lakes.",
+        "teacher": "What energy source makes water evaporate?",
+        "state": "c9"
+      },
+      {
+        "student": "The Sun — it heats the water.",
+        "teacher": "After water evaporates and rises, forms clouds, and falls as rain, what pulls the rain back down and back toward the ocean?",
+        "state": "c14"
+      },
+      {
+        "student": "Gravity — it pulls water downhill into rivers and back to the sea.",
+        "teacher": "Name both forces driving the cycle.",
+        "state": "d30"
+      },
+      {
+        "student": "The Sun's heat drives evaporation; gravity drives precipitation and runoff back to the ocean.",
+        "teacher": "Correct. The water cycle is powered by solar energy and gravity, continuously recycling Earth's water supply.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200032,
+    "question": "Granite is formed when magma cools slowly deep underground. What type of rock is granite? (igneous rock, sedimentary rock, metamorphic rock)",
+    "answer": "igneous rock",
+    "dialogue": [
+      {
+        "student": "How are rocks formed? Are they all the same?",
+        "teacher": "Have you ever seen pictures of lava hardening into rock? What was that liquid before it cooled?",
+        "state": "a1"
+      },
+      {
+        "student": "Magma — molten rock.",
+        "teacher": "Rock formed from cooled magma is called igneous rock. What might be different between rock that cooled quickly at the surface versus slowly underground?",
+        "state": "b4"
+      },
+      {
+        "student": "Slow cooling might make bigger crystals?",
+        "teacher": "Exactly — granite cooled slowly and has large visible crystals. Now, think about layers of sand and mud at the bottom of a lake over millions of years. What might those layers become?",
+        "state": "c10"
+      },
+      {
+        "student": "They'd be pressed together and become rock — sedimentary rock.",
+        "teacher": "And if any rock gets buried deep and subjected to intense heat and pressure without melting, it changes into a third type. What is it called?",
+        "state": "c18"
+      },
+      {
+        "student": "Metamorphic rock!",
+        "teacher": "Name the three rock types and how each forms.",
+        "state": "d32"
+      },
+      {
+        "student": "Igneous — cooled magma; sedimentary — compressed sediment layers; metamorphic — existing rock transformed by heat and pressure.",
+        "teacher": "Excellent. The rock cycle continuously moves material between these three types over geological time.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200033,
+    "question": "Earth experiences seasons because (Earth's axis is tilted as it orbits the Sun, Earth moves closer to the Sun in summer, the Sun produces more heat in summer)",
+    "answer": "Earth's axis is tilted as it orbits the Sun",
+    "dialogue": [
+      {
+        "student": "Why is it hot in summer and cold in winter?",
+        "teacher": "Do you think Earth is closer to the Sun in summer?",
+        "state": "a1"
+      },
+      {
+        "student": "Maybe? That would make sense.",
+        "teacher": "Actually, Earth is slightly closer to the Sun in January — Northern Hemisphere winter. So distance alone doesn't explain seasons. What else could cause the difference?",
+        "state": "b5"
+      },
+      {
+        "student": "The angle of sunlight?",
+        "teacher": "Earth's axis is tilted 23.5 degrees. When the Northern Hemisphere tilts toward the Sun, sunlight hits at a more direct angle. Does direct or angled sunlight spread over more area?",
+        "state": "c13"
+      },
+      {
+        "student": "Angled sunlight spreads over more area, so each square meter gets less energy — less heating.",
+        "teacher": "In summer the Northern Hemisphere tilts toward the Sun, so sunlight is more direct AND days are longer. Both effects do what?",
+        "state": "c21"
+      },
+      {
+        "student": "They cause more heating — warmer temperatures.",
+        "teacher": "Summarize why seasons occur.",
+        "state": "d31"
+      },
+      {
+        "student": "Earth's tilted axis means each hemisphere alternately leans toward and away from the Sun, changing the angle and duration of sunlight — that causes seasons.",
+        "teacher": "Exactly. Axial tilt, not distance, causes seasons; the two hemispheres experience opposite seasons simultaneously.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200034,
+    "question": "Wind is caused by (unequal heating of Earth's surface creating pressure differences, Earth's rotation alone, the Moon's gravity pulling air)",
+    "answer": "unequal heating of Earth's surface creating pressure differences",
+    "dialogue": [
+      {
+        "student": "What actually makes wind? Where does it come from?",
+        "teacher": "When air is heated, does it become more or less dense?",
+        "state": "a1"
+      },
+      {
+        "student": "Less dense — hot air rises.",
+        "teacher": "When warm air rises, what happens to the air pressure at ground level in that area?",
+        "state": "b2"
+      },
+      {
+        "student": "Pressure drops because air has moved away.",
+        "teacher": "Cool, denser air has higher pressure. Air flows from high pressure to low pressure. What do we experience as that flow?",
+        "state": "c8"
+      },
+      {
+        "student": "Wind! Air moving from high to low pressure is wind.",
+        "teacher": "So the root cause is uneven surface heating. What heats Earth's surface unevenly?",
+        "state": "d30"
+      },
+      {
+        "student": "The Sun — land heats faster than water, and different latitudes get different amounts of sunlight.",
+        "teacher": "Summarize the wind formation process.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200035,
+    "question": "Which of the following is NOT a component of healthy soil? (pure sand only, mineral particles, humus from decomposed organisms, water and air)",
+    "answer": "pure sand only",
+    "dialogue": [
+      {
+        "student": "What is soil actually made of?",
+        "teacher": "If you dug up some garden soil and spread it out, what different things might you see?",
+        "state": "a1"
+      },
+      {
+        "student": "Dirt particles, maybe bits of leaves or roots, small rocks, worms.",
+        "teacher": "The dark material from decomposed organisms is called humus. Why do you think gardeners add compost to soil?",
+        "state": "b6"
+      },
+      {
+        "student": "To add nutrients and humus so plants grow better.",
+        "teacher": "Soil also contains water in the spaces between particles. What else might be in those spaces?",
+        "state": "c12"
+      },
+      {
+        "student": "Air! Roots need oxygen.",
+        "teacher": "So list the four main components of healthy soil.",
+        "state": "d31"
+      },
+      {
+        "student": "Mineral particles, humus (organic matter), water, and air.",
+        "teacher": "Correct. Pure sand lacks humus and holds no water or nutrients — that is why plants struggle in pure sand but thrive in rich soil.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200036,
+    "question": "A river carries sediment and deposits it at its mouth. Over time this builds a (delta, canyon, plateau)",
+    "answer": "delta",
+    "dialogue": [
+      {
+        "student": "Why does flowing water change the shape of the land?",
+        "teacher": "When a fast river picks up sand and rocks, what do you think happens when the river slows down?",
+        "state": "a1"
+      },
+      {
+        "student": "The sediment drops out — gets deposited.",
+        "teacher": "Rivers slow dramatically where they meet the sea. What might build up there over thousands of years?",
+        "state": "b3"
+      },
+      {
+        "student": "Layers of sediment — a new piece of land?",
+        "teacher": "That fan-shaped deposit at a river's mouth is called a delta. Meanwhile, upstream, fast water carves into rock. What is created by that carving?",
+        "state": "c9"
+      },
+      {
+        "student": "A valley or canyon — the Grand Canyon was carved by the Colorado River!",
+        "teacher": "So flowing water both erodes — wears away — and deposits. Where is erosion strongest and where is deposition strongest in a river system?",
+        "state": "c16"
+      },
+      {
+        "student": "Erosion is strongest where water moves fast — in the upper reaches and curves. Deposition happens where water slows — at the mouth.",
+        "teacher": "Name the two processes and where each dominates.",
+        "state": "d31"
+      },
+      {
+        "student": "Erosion (wearing away rock) dominates in fast-moving upper rivers; deposition (dropping sediment) dominates where rivers slow, forming deltas.",
+        "teacher": "Correct. Erosion and deposition are complementary processes that continuously reshape Earth's surface.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200037,
+    "question": "Rocks at the surface slowly break apart over time due to (weathering by water, ice, and temperature changes, radioactive decay, gravity pulling rocks apart)",
+    "answer": "weathering by water, ice, and temperature changes",
+    "dialogue": [
+      {
+        "student": "If rocks are so hard, why do old statues get worn and rough over time?",
+        "teacher": "What forces from the environment do you think act on exposed rock every day?",
+        "state": "a1"
+      },
+      {
+        "student": "Rain, wind, temperature changes?",
+        "teacher": "Water seeps into cracks in rock. In winter it freezes. What happens to water when it freezes?",
+        "state": "b3"
+      },
+      {
+        "student": "It expands! So ice in the crack would push the rock apart.",
+        "teacher": "That is called ice wedging. What happens to rocks that heat up in the sun all day and cool sharply at night, day after day?",
+        "state": "c9"
+      },
+      {
+        "student": "They expand and contract repeatedly — that stresses the rock and it cracks.",
+        "teacher": "Rainwater is slightly acidic and slowly dissolves some minerals in rock. All of these processes are examples of what?",
+        "state": "c16"
+      },
+      {
+        "student": "Weathering — the breaking down of rock at the surface.",
+        "teacher": "Distinguish physical weathering from chemical weathering.",
+        "state": "d32"
+      },
+      {
+        "student": "Physical weathering breaks rock into smaller pieces without changing composition — like ice wedging. Chemical weathering changes the minerals — like acid dissolving limestone.",
+        "teacher": "Exactly. Weathering is the first step that turns bedrock into soil over geological time.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200038,
+    "question": "Clouds form when (water vapor in rising air cools and condenses onto tiny particles, the Sun heats water vapor directly into liquid, wind pushes water droplets together)",
+    "answer": "water vapor in rising air cools and condenses onto tiny particles",
+    "dialogue": [
+      {
+        "student": "Where do clouds come from?",
+        "teacher": "When does water vapor condense into liquid droplets in everyday life?",
+        "state": "a1"
+      },
+      {
+        "student": "On a cold glass — condensation happens when warm moist air meets a cold surface.",
+        "teacher": "Air rises in the atmosphere and gets cooler with altitude. What do you think happens to water vapor in that rising, cooling air?",
+        "state": "b2"
+      },
+      {
+        "student": "It condenses into tiny water droplets.",
+        "teacher": "Those droplets need something to form around — tiny dust or pollen particles in the air. What do millions of tiny droplets clinging to particles form?",
+        "state": "c8"
+      },
+      {
+        "student": "A cloud!",
+        "teacher": "What determines whether you get rain or snow from that cloud?",
+        "state": "c14"
+      },
+      {
+        "student": "Temperature — if it's cold enough the droplets freeze; if warm they stay liquid and fall as rain.",
+        "teacher": "Summarize cloud formation.",
+        "state": "d30"
+      },
+      {
+        "student": "Warm moist air rises, cools, water vapor condenses onto dust particles, forming clouds of tiny droplets or ice crystals.",
+        "teacher": "Correct. Clouds are the visible result of condensation at altitude; precipitation forms when droplets grow heavy enough to fall.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200039,
+    "question": "What causes ocean tides to rise and fall? (the Moon's gravitational pull on Earth's oceans, the Sun heating the ocean surface, Earth's rotation spinning water outward)",
+    "answer": "the Moon's gravitational pull on Earth's oceans",
+    "dialogue": [
+      {
+        "student": "Why does the ocean rise and fall twice a day?",
+        "teacher": "What is the Moon doing to Earth at all times?",
+        "state": "a1"
+      },
+      {
+        "student": "Pulling on it with gravity?",
+        "teacher": "Gravity decreases with distance. The ocean water on the side of Earth nearest the Moon is pulled more strongly than Earth's solid center. What would that cause?",
+        "state": "b3"
+      },
+      {
+        "student": "The ocean bulges toward the Moon.",
+        "teacher": "The ocean on the far side of Earth is pulled less than the center — so it also bulges outward in the opposite direction. How many high-tide bulges does Earth have?",
+        "state": "c9"
+      },
+      {
+        "student": "Two — one facing the Moon, one on the opposite side.",
+        "teacher": "As Earth rotates under those two bulges, how many times does a coastal town experience high tide per day?",
+        "state": "c15"
+      },
+      {
+        "student": "Twice — it passes through both bulges in one rotation.",
+        "teacher": "What causes tides?",
+        "state": "d30"
+      },
+      {
+        "student": "The Moon's gravity creates two bulges of water on Earth; daily rotation carries coastlines through those bulges, producing two high tides and two low tides every 24 hours.",
+        "teacher": "Exactly. Tidal bulges are maintained by the Moon's gravitational differential across Earth's diameter.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200040,
+    "question": "What causes earthquakes? (tectonic plates suddenly slipping past or into each other, volcanoes erupting underground, heavy rain soaking into the ground)",
+    "answer": "tectonic plates suddenly slipping past or into each other",
+    "dialogue": [
+      {
+        "student": "What actually makes the ground shake during an earthquake?",
+        "teacher": "Have you heard that Earth's outer shell is broken into large moving sections? What are they called?",
+        "state": "a1"
+      },
+      {
+        "student": "Tectonic plates.",
+        "teacher": "Plates move slowly — centimeters per year. At their edges they grind against each other and build up stress. What do you think happens when that stress gets too large?",
+        "state": "b4"
+      },
+      {
+        "student": "The plates slip suddenly and release the energy.",
+        "teacher": "That sudden release sends out vibrations in all directions. What do we call those vibrations?",
+        "state": "c10"
+      },
+      {
+        "student": "Seismic waves — they're what we feel as shaking.",
+        "teacher": "The point underground where the slip happens is the focus. The point directly above on the surface is the epicenter. Where is shaking strongest?",
+        "state": "c17"
+      },
+      {
+        "student": "At the epicenter — closest to where the energy released.",
+        "teacher": "Summarize what causes an earthquake.",
+        "state": "d31"
+      },
+      {
+        "student": "Stress builds up where tectonic plates meet; when it exceeds the friction holding them, the plates slip suddenly, releasing seismic energy that radiates outward as ground shaking.",
+        "teacher": "Well explained. Fault lines — boundaries between plates — are where most earthquakes originate.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200041,
+    "question": "Magma reaching Earth's surface is called (lava, granite, sediment)",
+    "answer": "lava",
+    "dialogue": [
+      {
+        "student": "How does a volcano form?",
+        "teacher": "What is the molten rock underground called?",
+        "state": "a1"
+      },
+      {
+        "student": "Magma.",
+        "teacher": "Magma is less dense than solid rock, so it rises. When it finds a weak point or crack and reaches the surface, what does it become?",
+        "state": "b3"
+      },
+      {
+        "student": "Lava!",
+        "teacher": "Over many eruptions, lava cools and hardens into rock layers. What shape would those layers build over time?",
+        "state": "c9"
+      },
+      {
+        "student": "A mountain — a volcanic mountain.",
+        "teacher": "Some volcanoes explode violently; others ooze lava gently. What determines how explosive an eruption is?",
+        "state": "c15"
+      },
+      {
+        "student": "The gas content and thickness of the magma — thick, gas-rich magma traps pressure and explodes; thin, low-gas magma flows quietly.",
+        "teacher": "State the difference between magma and lava.",
+        "state": "d30"
+      },
+      {
+        "student": "Magma is molten rock underground; lava is the same material once it reaches Earth's surface.",
+        "teacher": "Correct. The name changes at the surface — the material and its chemistry are the same.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200042,
+    "question": "How does a fossil form from a dead organism? (the organism is buried in sediment, minerals replace its remains over time, it turns to stone by heat alone, it is preserved in air)",
+    "answer": "the organism is buried in sediment, minerals replace its remains over time",
+    "dialogue": [
+      {
+        "student": "How do scientists find bones of animals that lived millions of years ago?",
+        "teacher": "What normally happens to an animal's body after it dies?",
+        "state": "a1"
+      },
+      {
+        "student": "It decomposes — bacteria break it down.",
+        "teacher": "Under what conditions might that decomposition be prevented or slowed quickly enough to preserve something?",
+        "state": "b4"
+      },
+      {
+        "student": "Being buried quickly — like in mud or sand at the bottom of a lake.",
+        "teacher": "Over millions of years, sediment hardens into rock. Meanwhile, water carrying dissolved minerals seeps through the buried bones. What gradually replaces the original bone material?",
+        "state": "c10"
+      },
+      {
+        "student": "Minerals replace the organic material, turning it into stone — a fossil.",
+        "teacher": "Why do fossils form most commonly in sedimentary rock rather than igneous or metamorphic?",
+        "state": "c17"
+      },
+      {
+        "student": "Because sedimentary rock forms from layers of sediment that can trap and bury organisms gently, without the heat that would destroy them.",
+        "teacher": "Describe fossil formation step by step.",
+        "state": "d31"
+      },
+      {
+        "student": "Organism dies → buried in sediment → sediment hardens into rock → minerals replace organic material → fossil preserved until erosion exposes it.",
+        "teacher": "Perfect. Fossilization requires rapid burial, the right mineral conditions, and millions of years — a relatively rare series of events.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200043,
+    "question": "Which process best describes how mountains form along convergent plate boundaries? (two plates collide and crust crumples upward, wind deposits sediment into mountains, volcanic lava builds mountains overnight)",
+    "answer": "two plates collide and crust crumples upward",
+    "dialogue": [
+      {
+        "student": "How did the Himalayas get so incredibly tall?",
+        "teacher": "What is happening at the boundary between the Indian and Eurasian tectonic plates?",
+        "state": "a1"
+      },
+      {
+        "student": "They're colliding — moving toward each other.",
+        "teacher": "When two plates of similar density push into each other, neither sinks easily. What must happen to the crust?",
+        "state": "b5"
+      },
+      {
+        "student": "It gets squeezed and pushed up — like a rug wrinkling when you push it.",
+        "teacher": "This slow but enormous collision has been going on for about 50 million years. Why are the Himalayas still growing slightly each year?",
+        "state": "c11"
+      },
+      {
+        "student": "Because the plates are still colliding — still pushing the crust upward.",
+        "teacher": "Erosion by glaciers, rivers, and wind constantly wears mountains down. Why does a mountain range maintain its height if erosion attacks it?",
+        "state": "c19"
+      },
+      {
+        "student": "Because the collision is still lifting the rock faster than erosion can wear it away.",
+        "teacher": "Summarize how fold mountains form.",
+        "state": "d32"
+      },
+      {
+        "student": "Two plates converge; continental crust cannot subduct so it crumples and folds upward, building a mountain range over millions of years.",
+        "teacher": "Exactly. Fold mountains are the product of plate convergence; the Himalayas are a modern example still actively growing.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200044,
+    "question": "What happens to surface water when it flows from land into the ocean and the temperature decreases? (it becomes denser and can sink, forming deep ocean currents, it immediately evaporates, it turns to ice)",
+    "answer": "it becomes denser and can sink, forming deep ocean currents",
+    "dialogue": [
+      {
+        "student": "Why does the ocean have currents even deep down where there's no wind?",
+        "teacher": "What two properties of ocean water affect its density?",
+        "state": "a1"
+      },
+      {
+        "student": "Temperature and saltiness?",
+        "teacher": "Cold water is denser than warm water. Salty water is denser than fresh water. Near the poles, surface water is cold and salty. What happens to it?",
+        "state": "b3"
+      },
+      {
+        "student": "It sinks — it's denser than the water below.",
+        "teacher": "That cold, dense water spreads slowly along the ocean floor. Warmer surface water flows in to replace it. What does this create?",
+        "state": "c9"
+      },
+      {
+        "student": "A giant circulation — a conveyor belt of water moving around the globe.",
+        "teacher": "These are called thermohaline currents. What does 'thermo' refer to and what does 'haline' refer to?",
+        "state": "c16"
+      },
+      {
+        "student": "'Thermo' means heat and 'haline' means salt — so the currents are driven by temperature and salinity.",
+        "teacher": "Explain how thermohaline circulation starts.",
+        "state": "d31"
+      },
+      {
+        "student": "Cold salty surface water near the poles becomes dense, sinks, flows along the deep ocean floor, and is replaced by warm surface water flowing in from lower latitudes.",
+        "teacher": "Correct. Thermohaline circulation moves heat and nutrients around the ocean, profoundly influencing world climate.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200045,
+    "question": "Which layer of the atmosphere contains the ozone layer that protects life from ultraviolet radiation? (the stratosphere, the troposphere, the mesosphere)",
+    "answer": "the stratosphere",
+    "dialogue": [
+      {
+        "student": "What is the ozone layer and why do people say we need to protect it?",
+        "teacher": "What do you know about ultraviolet light from the Sun?",
+        "state": "a1"
+      },
+      {
+        "student": "It causes sunburn and can cause skin cancer.",
+        "teacher": "Ozone is a molecule that absorbs most UV radiation before it reaches Earth's surface. If there were no ozone, what would happen?",
+        "state": "b3"
+      },
+      {
+        "student": "Far more UV would hit the surface — much more skin cancer, damage to plants and animals.",
+        "teacher": "The ozone layer is roughly 15–35 km above Earth's surface, above the weather zone. What atmospheric layer is found at that altitude?",
+        "state": "c9"
+      },
+      {
+        "student": "The stratosphere.",
+        "teacher": "Certain human-made chemicals — CFCs — were shown to destroy ozone molecules. Why was this alarming?",
+        "state": "c15"
+      },
+      {
+        "student": "A thinner ozone layer means more UV reaching Earth — threatening all surface life.",
+        "teacher": "State what the ozone layer does and where it is.",
+        "state": "d30"
+      },
+      {
+        "student": "The ozone layer in the stratosphere absorbs most incoming ultraviolet radiation, protecting life on Earth's surface.",
+        "teacher": "Correct. The 1987 Montreal Protocol restricted CFC use, and the ozone layer is slowly recovering as a result.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200046,
+    "question": "During a new moon phase, why can't we see the Moon from Earth? (the lit side of the Moon faces away from Earth, the Moon is hidden behind the Sun, the Moon disappears into space)",
+    "answer": "the lit side of the Moon faces away from Earth",
+    "dialogue": [
+      {
+        "student": "Why is there no moon visible on some nights?",
+        "teacher": "Does the Moon produce its own light?",
+        "state": "a1"
+      },
+      {
+        "student": "No — it reflects sunlight.",
+        "teacher": "The Sun always lights exactly half the Moon. During a new moon, the Moon is between Earth and the Sun. Which side of the Moon is lit?",
+        "state": "b3"
+      },
+      {
+        "student": "The side facing away from us — toward the Sun.",
+        "teacher": "So which side faces Earth?",
+        "state": "c9"
+      },
+      {
+        "student": "The dark side — we see no reflected light.",
+        "teacher": "About two weeks later the Moon is on the far side of Earth from the Sun. Which side now faces us?",
+        "state": "c14"
+      },
+      {
+        "student": "The fully lit side — that's a full moon!",
+        "teacher": "Explain why the Moon's appearance changes over the month.",
+        "state": "d30"
+      },
+      {
+        "student": "As the Moon orbits Earth, we see different amounts of its lit half, creating the phases from new moon to full moon and back.",
+        "teacher": "Correct. Moon phases result from our changing viewing angle of the Moon's sunlit half as it orbits Earth each month.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200047,
+    "question": "Day and night occur because (Earth rotates on its axis every 24 hours, Earth orbits the Sun, the Moon blocks sunlight at night)",
+    "answer": "Earth rotates on its axis every 24 hours",
+    "dialogue": [
+      {
+        "student": "Why does the Sun rise in the east and set in the west every day?",
+        "teacher": "Is it more likely that the entire Sun moves around Earth daily, or that Earth itself rotates?",
+        "state": "a1"
+      },
+      {
+        "student": "Earth rotates — it would be strange for the whole Sun to move.",
+        "teacher": "Earth rotates from west to east. If you stand facing north, which direction does the Sun appear to move as a result?",
+        "state": "b4"
+      },
+      {
+        "student": "From left to right — from east to west.",
+        "teacher": "Earth's rotation takes about 24 hours. How does that relate to the length of a day?",
+        "state": "c9"
+      },
+      {
+        "student": "One rotation equals one day — 24 hours.",
+        "teacher": "While one side of Earth faces the Sun in daylight, what is the other side experiencing?",
+        "state": "c14"
+      },
+      {
+        "student": "Night — it's turned away from the Sun.",
+        "teacher": "State the cause of day and night.",
+        "state": "d30"
+      },
+      {
+        "student": "Earth's rotation on its axis every 24 hours causes the cycle of day and night as different sides alternately face and turn away from the Sun.",
+        "teacher": "Correct. Earth's rotation, not the Sun's movement, produces day and night.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200048,
+    "question": "Starting closest to the Sun, what are the first four planets in order? (Mercury, Venus, Earth, Mars, Mercury, Earth, Venus, Mars, Venus, Earth, Mars, Jupiter)",
+    "answer": "Mercury, Venus, Earth, Mars",
+    "dialogue": [
+      {
+        "student": "How many planets are in the solar system and how far away are they?",
+        "teacher": "How many planets do you know by name?",
+        "state": "a1"
+      },
+      {
+        "student": "Eight — Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune.",
+        "teacher": "Many people use a mnemonic to remember the order. Which planet is closest to the Sun?",
+        "state": "b5"
+      },
+      {
+        "student": "Mercury — it's the smallest and closest.",
+        "teacher": "Next comes Venus, then Earth, then Mars. All four are rocky planets. What comes after Mars?",
+        "state": "c11"
+      },
+      {
+        "student": "Jupiter — the first gas giant.",
+        "teacher": "The mnemonic 'My Very Educated Mother Just Served Us Nachos' maps to the eight planets. Test it — what does each word's first letter give you?",
+        "state": "c19"
+      },
+      {
+        "student": "M-Mercury, V-Venus, E-Earth, M-Mars, J-Jupiter, S-Saturn, U-Uranus, N-Neptune!",
+        "teacher": "State the four inner rocky planets in order from the Sun.",
+        "state": "d30"
+      },
+      {
+        "student": "Mercury, Venus, Earth, Mars — the four terrestrial planets closest to the Sun.",
+        "teacher": "Perfect. The inner four are rocky terrestrial planets; the outer four are giant planets with deep gas or ice layers.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200049,
+    "question": "How long does it take Earth to complete one full orbit around the Sun? (approximately 365.25 days — one year, 24 hours — one day, 29.5 days — one lunar month)",
+    "answer": "approximately 365.25 days — one year",
+    "dialogue": [
+      {
+        "student": "What is the difference between a day and a year?",
+        "teacher": "A day is caused by Earth rotating on its own axis. What motion causes a year?",
+        "state": "a1"
+      },
+      {
+        "student": "Earth orbiting around the Sun.",
+        "teacher": "Earth's orbital path is an ellipse. How long does one complete orbit take?",
+        "state": "b2"
+      },
+      {
+        "student": "365 days — one year.",
+        "teacher": "Actually 365.25 days. We round to 365 for most years, but that 0.25 accumulates. What do we do every four years to fix that?",
+        "state": "c8"
+      },
+      {
+        "student": "We add an extra day — a leap year with 366 days.",
+        "teacher": "February gets the extra day. Why is keeping calendar and orbital year aligned important?",
+        "state": "c14"
+      },
+      {
+        "student": "If we didn't, seasons would gradually drift through the calendar — summer would eventually fall in what we call December.",
+        "teacher": "State the two motions and their time periods.",
+        "state": "d30"
+      },
+      {
+        "student": "Rotation on its axis = 1 day (~24 hours). Orbit around the Sun = 1 year (~365.25 days).",
+        "teacher": "Correct. These two independent motions define our two most fundamental time units — the day and the year.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200050,
+    "question": "How is a star different from a planet? (stars generate their own light by nuclear fusion; planets only reflect light from a star, stars are smaller than planets, planets are hotter than stars)",
+    "answer": "stars generate their own light by nuclear fusion; planets only reflect light from a star",
+    "dialogue": [
+      {
+        "student": "How can I tell a star from a planet in the night sky?",
+        "teacher": "When you look at the night sky, do all bright objects twinkle?",
+        "state": "a1"
+      },
+      {
+        "student": "No — some are steady. Planets seem steadier than stars.",
+        "teacher": "More importantly: the Sun is a star and it blinds you to look at. Does the Moon blind you?",
+        "state": "b3"
+      },
+      {
+        "student": "No — the Moon just reflects sunlight.",
+        "teacher": "Planets, like the Moon, reflect light from the Sun. Stars produce their own light. What process inside a star generates that enormous energy?",
+        "state": "c9"
+      },
+      {
+        "student": "Nuclear fusion — hydrogen atoms fuse into helium and release huge amounts of energy.",
+        "teacher": "Could a planet do that?",
+        "state": "c15"
+      },
+      {
+        "student": "No — planets aren't massive enough to trigger fusion. They just reflect light.",
+        "teacher": "State the fundamental difference between stars and planets.",
+        "state": "d30"
+      },
+      {
+        "student": "Stars generate their own light and heat through nuclear fusion. Planets are much smaller and only reflect the light of their star.",
+        "teacher": "Exactly. This energy source — nuclear fusion — is what defines a star; our Sun is simply the nearest one.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200051,
+    "question": "What allows astronauts in the International Space Station to float even though Earth's gravity still reaches them? (they are in continuous freefall while moving fast enough to orbit, they are too far away for gravity, there is no gravity in space)",
+    "answer": "they are in continuous freefall while moving fast enough to orbit",
+    "dialogue": [
+      {
+        "student": "Why do astronauts float on the space station if gravity still exists up there?",
+        "teacher": "If you drop a ball and jump off a cliff at the same moment — assuming no air — do you and the ball fall at the same rate?",
+        "state": "a1"
+      },
+      {
+        "student": "Yes — both fall at the same speed.",
+        "teacher": "In that scenario, would the ball seem to float relative to you?",
+        "state": "b4"
+      },
+      {
+        "student": "Yes! We're both falling together so the ball looks weightless next to me.",
+        "teacher": "The space station is falling toward Earth continuously, but it's also moving sideways so fast that Earth curves away underneath. What happens as a result?",
+        "state": "c10"
+      },
+      {
+        "student": "It keeps falling but never hits Earth — it orbits. And everything inside falls at the same rate, so it all floats.",
+        "teacher": "This state is sometimes called weightlessness but is more accurately called microgravity. Is gravity actually zero on the station?",
+        "state": "c17"
+      },
+      {
+        "student": "No — gravity is about 90% as strong there as on the surface. It just feels weightless because everything falls together.",
+        "teacher": "Explain orbital weightlessness.",
+        "state": "d31"
+      },
+      {
+        "student": "Astronauts float because the station and everything in it are in continuous freefall together; the sideways orbital speed prevents them from hitting Earth.",
+        "teacher": "Precisely. Weightlessness in orbit is the sensation of freefall, not the absence of gravity.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200052,
+    "question": "What is a solar eclipse? (the Moon passes between Earth and the Sun, blocking sunlight, Earth passes between the Moon and Sun, the Sun suddenly dims on its own)",
+    "answer": "the Moon passes between Earth and the Sun, blocking sunlight",
+    "dialogue": [
+      {
+        "student": "How can the Moon block the Sun when the Sun is so much bigger?",
+        "teacher": "The Moon is much smaller than the Sun but also much closer to Earth. Can a small nearby object block a large distant one?",
+        "state": "a1"
+      },
+      {
+        "student": "Yes — like holding my thumb up and covering a distant mountain.",
+        "teacher": "During a solar eclipse, the Moon, Earth, and Sun are aligned in a particular order. Which is in the middle?",
+        "state": "b3"
+      },
+      {
+        "student": "The Moon is in the middle — between Earth and the Sun.",
+        "teacher": "The Moon's shadow falls on a small part of Earth's surface. What does a person standing in the darkest part of that shadow experience?",
+        "state": "c9"
+      },
+      {
+        "student": "A total solar eclipse — the Sun is completely blocked.",
+        "teacher": "What about a person in the lighter outer shadow?",
+        "state": "c15"
+      },
+      {
+        "student": "A partial eclipse — only part of the Sun is blocked.",
+        "teacher": "Distinguish a solar eclipse from a lunar eclipse.",
+        "state": "d30"
+      },
+      {
+        "student": "Solar eclipse: Moon between Earth and Sun — Moon's shadow falls on Earth. Lunar eclipse: Earth between Moon and Sun — Earth's shadow falls on the Moon.",
+        "teacher": "Correct. The order of alignment determines which type of eclipse occurs.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200053,
+    "question": "Why does the sky appear blue during the day? (Earth's atmosphere scatters blue light from sunlight more than other colors, the sky reflects the color of the ocean, the Sun emits only blue light during the day)",
+    "answer": "Earth's atmosphere scatters blue light from sunlight more than other colors",
+    "dialogue": [
+      {
+        "student": "Why is the sky blue instead of some other color?",
+        "teacher": "White sunlight contains all colors of the rainbow. When sunlight enters Earth's atmosphere, does every color behave the same way?",
+        "state": "a1"
+      },
+      {
+        "student": "I guess not — otherwise the sky would just look white?",
+        "teacher": "Gas molecules in the atmosphere scatter shorter wavelengths of light more strongly. Which visible color has the shortest wavelength?",
+        "state": "b3"
+      },
+      {
+        "student": "Violet and blue are at the short end… but the sky is blue, not violet.",
+        "teacher": "Our eyes are less sensitive to violet and some violet is absorbed high in the atmosphere. The net result is that blue reaches our eyes most strongly from all directions. What about sunset?",
+        "state": "c9"
+      },
+      {
+        "student": "At sunset the light travels through much more atmosphere. Blue scatters away, so the remaining reds and oranges reach us.",
+        "teacher": "What is the process of light being redirected in many directions by small particles called?",
+        "state": "d30"
+      },
+      {
+        "student": "Scattering — Rayleigh scattering for light by gas molecules.",
+        "teacher": "Correct. Blue sky and red sunsets are both explained by the preferential scattering of short-wavelength light by the atmosphere.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200054,
+    "question": "What is the Milky Way? (the galaxy containing our solar system — a vast collection of hundreds of billions of stars, the name for our solar system, the path the Sun takes across the sky)",
+    "answer": "the galaxy containing our solar system — a vast collection of hundreds of billions of stars",
+    "dialogue": [
+      {
+        "student": "What is the hazy band of light across the night sky called the Milky Way?",
+        "teacher": "Our Sun is a star. Is it the only star, or one of many?",
+        "state": "a1"
+      },
+      {
+        "student": "One of many — there are billions of stars.",
+        "teacher": "Our Sun belongs to a huge system of hundreds of billions of stars held together by gravity. What is such a system called?",
+        "state": "b5"
+      },
+      {
+        "student": "A galaxy!",
+        "teacher": "Our galaxy is called the Milky Way. When we look at that hazy band in the night sky, what are we actually seeing?",
+        "state": "c11"
+      },
+      {
+        "student": "We're seeing the disk of our galaxy edge-on — billions of distant stars blending together into a glow.",
+        "teacher": "The Milky Way is a spiral galaxy. Where in it does our solar system sit?",
+        "state": "c19"
+      },
+      {
+        "student": "About two-thirds of the way out from the center — in one of the spiral arms.",
+        "teacher": "Describe what the Milky Way is.",
+        "state": "d30"
+      },
+      {
+        "student": "The Milky Way is our home galaxy — a spiral collection of roughly 200–400 billion stars, including our Sun, spanning about 100,000 light-years.",
+        "teacher": "Well described. The hazy band visible at night is the densely starred disk of our own galaxy seen from inside.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200055,
+    "question": "Why does the Moon always show the same face to Earth? (the Moon rotates once per orbit, so the same side always faces Earth, the Moon doesn't rotate at all, the far side is permanently dark)",
+    "answer": "the Moon rotates once per orbit, so the same side always faces Earth",
+    "dialogue": [
+      {
+        "student": "I've heard there's a dark side of the Moon we never see — is that true?",
+        "teacher": "Has the same side of the Moon always faced Earth throughout human history?",
+        "state": "a1"
+      },
+      {
+        "student": "Yes — I've never seen the far side from Earth.",
+        "teacher": "If the Moon did NOT rotate at all as it orbited Earth, would we always see the same side?",
+        "state": "b4"
+      },
+      {
+        "student": "No — different parts of the Moon would face Earth at different points in its orbit.",
+        "teacher": "So the Moon must be rotating. How fast must it rotate to keep the same face toward Earth?",
+        "state": "c10"
+      },
+      {
+        "student": "Once per orbit — if it rotates once while orbiting once, the same side always points at Earth.",
+        "teacher": "This is called synchronous rotation. It is caused by Earth's gravity acting on the Moon over billions of years. Is the far side permanently dark?",
+        "state": "c17"
+      },
+      {
+        "student": "No! The far side gets sunlight for two weeks every month — it just never faces Earth.",
+        "teacher": "Explain synchronous rotation.",
+        "state": "d31"
+      },
+      {
+        "student": "The Moon's rotation period equals its orbital period, so the same hemisphere permanently faces Earth. The far side gets sunlight but is never visible from Earth.",
+        "teacher": "Correct. Synchronous rotation is common for moons — it results from tidal locking over long timescales.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200056,
+    "question": "A comet's tail always points (away from the Sun, regardless of the comet's direction of travel, behind the comet like a jet trail, toward the Sun)",
+    "answer": "away from the Sun, regardless of the comet's direction of travel",
+    "dialogue": [
+      {
+        "student": "Why do comets have tails that seem to point behind them?",
+        "teacher": "Does a comet's tail always trail behind it as it moves?",
+        "state": "a1"
+      },
+      {
+        "student": "I assumed so — like smoke behind a moving car.",
+        "teacher": "Actually, when a comet moves away from the Sun, its tail points forward. What does that suggest about what creates the tail?",
+        "state": "b3"
+      },
+      {
+        "student": "Something from the Sun is pushing material off the comet?",
+        "teacher": "The Sun blows out a constant stream of charged particles called the solar wind. What would the solar wind do to loose gas and dust from the comet?",
+        "state": "c9"
+      },
+      {
+        "student": "Push it away from the Sun — so the tail always points away from the Sun.",
+        "teacher": "So the tail direction has nothing to do with the comet's travel direction but everything to do with what?",
+        "state": "d30"
+      },
+      {
+        "student": "The direction from the Sun — the solar wind blows the tail away from the Sun at all times.",
+        "teacher": "Correct. Comets actually have two tails: an ion tail pushed directly away from the Sun by solar wind, and a dust tail slightly curved.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200057,
+    "question": "What is a light-year? (the distance light travels in one year — about 9.5 trillion kilometers, the time light takes to reach the Moon, the brightness of a star)",
+    "answer": "the distance light travels in one year — about 9.5 trillion kilometers",
+    "dialogue": [
+      {
+        "student": "I heard a star is four light-years away. Does that mean it takes four years to get there?",
+        "teacher": "A light-year sounds like a time, but what unit do astronomers need when measuring the universe?",
+        "state": "a1"
+      },
+      {
+        "student": "Distance — stars are incredibly far away.",
+        "teacher": "Light travels about 300,000 km per second. In one year, how far does it travel?",
+        "state": "b5"
+      },
+      {
+        "student": "That's… trillions of kilometers.",
+        "teacher": "About 9.5 trillion kilometers is one light-year. The nearest star, Proxima Centauri, is 4.2 light-years away. How long does its light take to reach us?",
+        "state": "c11"
+      },
+      {
+        "student": "4.2 years — we're seeing it as it was 4.2 years ago.",
+        "teacher": "When you look at a galaxy millions of light-years away, how old is the light you're seeing?",
+        "state": "c19"
+      },
+      {
+        "student": "Millions of years old — we're looking back in time.",
+        "teacher": "Define light-year precisely.",
+        "state": "d30"
+      },
+      {
+        "student": "A light-year is a unit of distance — the distance light travels in one year, about 9.5 trillion kilometers.",
+        "teacher": "Correct. The light-year is essential for measuring cosmic distances; it also implies we see distant objects as they were in the past.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200058,
+    "question": "Which planet in our solar system has the most prominent ring system? (Saturn, Jupiter, Mars)",
+    "answer": "Saturn",
+    "dialogue": [
+      {
+        "student": "What are Saturn's rings actually made of?",
+        "teacher": "Have you seen pictures of Saturn? What do the rings look like in detail?",
+        "state": "a1"
+      },
+      {
+        "student": "They look solid from far away but I think they're made of separate pieces.",
+        "teacher": "Correct — they're made of countless chunks of ice and rock ranging from tiny grains to house-sized boulders. Why do they orbit Saturn rather than fall onto it?",
+        "state": "b4"
+      },
+      {
+        "student": "Because they're moving fast enough to orbit — like tiny moons.",
+        "teacher": "Where did all that material come from?",
+        "state": "c10"
+      },
+      {
+        "student": "Maybe a moon that was broken apart by Saturn's gravity, or leftover material from the solar system's formation.",
+        "teacher": "The rings are enormous in width — spanning 280,000 km — but only about 10 meters thick. What does such a thin, flat disk suggest about how it formed?",
+        "state": "c17"
+      },
+      {
+        "student": "The particles all orbit in the same plane, perhaps originating from a single event or shaped by gravitational forces into a flat disk.",
+        "teacher": "Other gas giants have rings too. Why is Saturn's most famous?",
+        "state": "d31"
+      },
+      {
+        "student": "Saturn's rings are far more massive and reflective — mostly bright water ice — making them easily visible even through a small telescope.",
+        "teacher": "Well reasoned. Saturn's rings are the most prominent because of their size, brightness, and the reflectivity of their icy composition.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200059,
+    "question": "What is the primary reason scientists believe dark matter exists? (it exerts gravitational effects on visible matter that cannot be explained by visible mass alone, it has been directly photographed by telescopes, it is a type of black hole)",
+    "answer": "it exerts gravitational effects on visible matter that cannot be explained by visible mass alone",
+    "dialogue": [
+      {
+        "student": "What is dark matter and how do scientists know it's real if they can't see it?",
+        "teacher": "How do scientists normally detect something they cannot directly see?",
+        "state": "a1"
+      },
+      {
+        "student": "By its effects on things they can see?",
+        "teacher": "Galaxies spin — stars orbit the galactic center. Based on the visible mass, outer stars should orbit slowly. They actually orbit just as fast as inner stars. What does that imply?",
+        "state": "b5"
+      },
+      {
+        "student": "There must be extra mass they can't see — pulling the outer stars faster.",
+        "teacher": "Galaxy clusters also bend the light of distant objects behind them — an effect called gravitational lensing. The bending is too strong for the visible mass alone. What does that confirm?",
+        "state": "c13"
+      },
+      {
+        "student": "More mass than we can see is causing extra gravity. That unseen mass is dark matter.",
+        "teacher": "Why do scientists call it 'dark'?",
+        "state": "c21"
+      },
+      {
+        "student": "It doesn't emit, absorb, or reflect light — it's invisible to all our telescopes.",
+        "teacher": "Summarize the evidence for dark matter.",
+        "state": "d31"
+      },
+      {
+        "student": "Galaxies rotate too fast for their visible mass; light bends too strongly around clusters. Both imply large amounts of unseen mass — dark matter.",
+        "teacher": "Correct. Dark matter is inferred entirely from gravitational evidence; its nature remains one of physics' biggest open questions.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200060,
+    "question": "Why do we not hear from all the stars we can see with radio telescopes, given the universe has so many solar-like stars? (signals take enormous time to travel; any civilization must exist simultaneously and close enough, there are no other stars, radio waves cannot travel in space)",
+    "answer": "signals take enormous time to travel; any civilization must exist simultaneously and close enough",
+    "dialogue": [
+      {
+        "student": "With so many stars, why haven't we detected signals from other civilizations yet?",
+        "teacher": "If a civilization 1,000 light-years away sent a radio signal right now, when would we receive it?",
+        "state": "a1"
+      },
+      {
+        "student": "In 1,000 years.",
+        "teacher": "Our radio broadcasts have only reached about 100 light-years from Earth. How many stars does that sphere contain?",
+        "state": "b4"
+      },
+      {
+        "student": "Thousands — a tiny fraction of the galaxy.",
+        "teacher": "Even if a civilization exists 10,000 light-years away and sent a signal 5,000 years ago aimed at Earth, what would we need to do to receive it?",
+        "state": "c10"
+      },
+      {
+        "student": "We'd need to be listening with the right equipment at exactly the right moment.",
+        "teacher": "This tension between the apparent likelihood of life and the lack of detected signals is called the Fermi Paradox. What are two possible explanations?",
+        "state": "c17"
+      },
+      {
+        "student": "One: intelligent life is rarer than we think. Two: distances and timing make contact incredibly unlikely even if civilizations exist.",
+        "teacher": "Summarize the main challenge of searching for extraterrestrial signals.",
+        "state": "d31"
+      },
+      {
+        "student": "The universe is vast; signals take light-years to travel; civilizations must arise, transmit, and be detectable all within a narrow window — making detection statistically very difficult.",
+        "teacher": "Well stated. The Fermi Paradox remains unresolved; the silence of the universe may reflect distance, timing, or the rarity of communicating civilizations.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200061,
+    "question": "Salt dissolves in water to form a solution. Which statement about the salt in the solution is correct? (the salt is still present but broken into tiny ions evenly spread through the water, the salt has disappeared permanently, the salt turned into water)",
+    "answer": "the salt is still present but broken into tiny ions evenly spread through the water",
+    "dialogue": [
+      {
+        "student": "When salt dissolves in water and disappears, where does it go?",
+        "teacher": "Taste the salt water — does it still taste salty?",
+        "state": "a1"
+      },
+      {
+        "student": "Yes, very salty! So the salt is still there.",
+        "teacher": "Salt crystals are made of sodium and chloride particles bonded together. Water molecules pull them apart one by one. What are those separated particles called?",
+        "state": "b3"
+      },
+      {
+        "student": "Ions!",
+        "teacher": "Those ions spread evenly through the water. Is the mixture the same composition everywhere?",
+        "state": "c9"
+      },
+      {
+        "student": "Yes — it tastes equally salty at the top and bottom.",
+        "teacher": "A mixture that is the same composition throughout is called homogeneous. What do we call such a liquid mixture?",
+        "state": "d30"
+      },
+      {
+        "student": "A solution! Salt water is a solution.",
+        "teacher": "Correct. In a solution the solute — salt — is evenly dispersed as ions or molecules; it is not gone, merely invisible because the particles are too small to see.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200062,
+    "question": "Which of the following will stop a candle from burning? (covering it with a jar to remove oxygen, blowing cold air across the flame without touching it, placing it on a metal surface)",
+    "answer": "covering it with a jar to remove oxygen",
+    "dialogue": [
+      {
+        "student": "What does a candle need to keep burning?",
+        "teacher": "You have probably seen someone blow out a candle. What does blowing do to the flame?",
+        "state": "a1"
+      },
+      {
+        "student": "Cools it down and pushes the fuel vapor away.",
+        "teacher": "Combustion requires three things — often called the fire triangle. Fuel is one. What are the other two?",
+        "state": "b4"
+      },
+      {
+        "student": "Oxygen and heat — a high enough temperature.",
+        "teacher": "If you cover a burning candle with a jar, what happens to the oxygen inside?",
+        "state": "c10"
+      },
+      {
+        "student": "The flame uses it up and can't get more — it goes out.",
+        "teacher": "You have just removed one side of the fire triangle. Fire extinguishers use CO₂ to displace oxygen. What other side could you remove to stop a fire?",
+        "state": "c17"
+      },
+      {
+        "student": "Remove heat — cool the fuel below its ignition point. Or remove the fuel itself.",
+        "teacher": "State the three elements of the fire triangle.",
+        "state": "d32"
+      },
+      {
+        "student": "Fuel, oxygen, and heat — remove any one of them and combustion stops.",
+        "teacher": "Perfect. Fire extinguisher design is based on removing one side of this triangle — most commonly oxygen or heat.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200063,
+    "question": "Iron rusting is a chemical change because (a new substance, iron oxide, is formed and the change cannot easily be reversed, iron just changes color, the iron melts)",
+    "answer": "a new substance, iron oxide, is formed and the change cannot easily be reversed",
+    "dialogue": [
+      {
+        "student": "What is the difference between a physical change and a chemical change?",
+        "teacher": "When you tear a piece of paper, is it still paper?",
+        "state": "a1"
+      },
+      {
+        "student": "Yes — just smaller pieces.",
+        "teacher": "When wood burns, is the ash still wood?",
+        "state": "b2"
+      },
+      {
+        "student": "No — it's completely different stuff.",
+        "teacher": "Burning produces new substances. Iron rusting forms iron oxide. Can you turn rust back into iron by cooling it or reshaping it?",
+        "state": "c8"
+      },
+      {
+        "student": "No — you'd need a chemical process to remove the oxygen from the iron oxide.",
+        "teacher": "Physical changes are reversible and don't form new substances. Chemical changes form new substances with different properties. Which is rusting?",
+        "state": "d30"
+      },
+      {
+        "student": "Chemical change — iron oxide is a new substance with different properties from iron, and it cannot be easily reversed.",
+        "teacher": "Correct. Signs of a chemical change include new substance formation, color change, gas production, energy release or absorption, and irreversibility.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200064,
+    "question": "Water is heated from 20 °C to 110 °C in a sealed container. What states of matter does it pass through in order? (liquid then gas (steam), solid then liquid, solid then liquid then gas)",
+    "answer": "liquid then gas (steam)",
+    "dialogue": [
+      {
+        "student": "What are the three states of matter and how do they change into each other?",
+        "teacher": "Describe what happens to the particles in water as it gets very cold.",
+        "state": "a1"
+      },
+      {
+        "student": "They slow down, pack together, and it freezes into ice — a solid.",
+        "teacher": "As ice warms to 0 °C and beyond, it melts to liquid water. The particles now move more freely. At 100 °C what happens?",
+        "state": "b2"
+      },
+      {
+        "student": "Water boils and turns to steam — a gas. Particles move very fast and spread apart.",
+        "teacher": "If you start with liquid water at 20 °C and heat it, what states does it pass through?",
+        "state": "c8"
+      },
+      {
+        "student": "Just liquid to gas — it skips solid because it starts above the melting point.",
+        "teacher": "What name do we give the change from liquid to gas when it happens at the surface below boiling point?",
+        "state": "c14"
+      },
+      {
+        "student": "Evaporation — different from boiling, which happens throughout the liquid.",
+        "teacher": "Name all three states and the transitions between them.",
+        "state": "d31"
+      },
+      {
+        "student": "Solid ↔ liquid (melting/freezing), liquid ↔ gas (evaporation-condensation or boiling-condensing). All transitions involve changing particle energy and spacing.",
+        "teacher": "Correct. State changes are physical changes — the substance remains the same; only the arrangement and energy of particles change.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200065,
+    "question": "Sand and salt are mixed together. Which method best separates them? (dissolve in water, filter out the sand, then evaporate the water to recover salt, melt the mixture, use a magnet)",
+    "answer": "dissolve in water, filter out the sand, then evaporate the water to recover salt",
+    "dialogue": [
+      {
+        "student": "If I mix sand and salt together, how could I separate them?",
+        "teacher": "Does salt dissolve in water?",
+        "state": "a1"
+      },
+      {
+        "student": "Yes — salt dissolves, sand doesn't.",
+        "teacher": "If you add water to the mixture and stir, what will you have?",
+        "state": "b3"
+      },
+      {
+        "student": "Salt dissolved in water and sand still as particles.",
+        "teacher": "Now pour it through filter paper. What stays on the paper and what passes through?",
+        "state": "c9"
+      },
+      {
+        "student": "Sand stays on the paper. Salt water passes through.",
+        "teacher": "You now have separated the sand. How do you get the salt back from the salt water?",
+        "state": "c16"
+      },
+      {
+        "student": "Evaporate the water — heat it until the water boils away and dry salt crystals are left.",
+        "teacher": "Name this two-step separation technique.",
+        "state": "d31"
+      },
+      {
+        "student": "Dissolve in water plus filtration to separate the insoluble part; then evaporation to recover the soluble solid.",
+        "teacher": "Correct. Mixing the properties of solubility and filtration allows clean separation of many sand-and-salt type mixtures.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200066,
+    "question": "What must be present for iron to rust? (both oxygen and water, only water, only heat)",
+    "answer": "both oxygen and water",
+    "dialogue": [
+      {
+        "student": "Why do iron objects rust outdoors but not in a sealed, dry package?",
+        "teacher": "What is rust chemically?",
+        "state": "a1"
+      },
+      {
+        "student": "Iron oxide — iron reacted with something.",
+        "teacher": "To find out what iron reacts with, consider two experiments: iron in dry oxygen — no rust; iron in boiled, sealed water with no dissolved air — no rust. What do both experiments lack?",
+        "state": "b2"
+      },
+      {
+        "student": "The first has no water; the second has no oxygen. Both lack one of the two.",
+        "teacher": "So what do you conclude is needed for rusting?",
+        "state": "c8"
+      },
+      {
+        "student": "Both oxygen AND water together — neither one alone is enough.",
+        "teacher": "Salt water rusts iron much faster than fresh water. What does that suggest about the role of ions?",
+        "state": "c14"
+      },
+      {
+        "student": "Dissolved ions speed up the electrochemical reaction — salt water is a better conductor.",
+        "teacher": "State the requirements for iron corrosion.",
+        "state": "d30"
+      },
+      {
+        "student": "Iron rusts when both oxygen and water are present; dissolved salts accelerate the process.",
+        "teacher": "Correct. That is why painting, galvanizing, or oiling iron excludes water or oxygen and prevents rusting.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200067,
+    "question": "When wet clothes dry on a line, the water undergoes which process? (evaporation — liquid water changes to water vapor, condensation, freezing)",
+    "answer": "evaporation — liquid water changes to water vapor",
+    "dialogue": [
+      {
+        "student": "Where does the water in wet clothes go when they dry?",
+        "teacher": "After the clothes are dry, can you see the water anywhere?",
+        "state": "a1"
+      },
+      {
+        "student": "No — it seems to disappear.",
+        "teacher": "Does it actually disappear, or does it change form?",
+        "state": "b3"
+      },
+      {
+        "student": "It changes into water vapor — a gas — and goes into the air.",
+        "teacher": "This change from liquid to gas at the surface, below boiling point, is called evaporation. What conditions speed it up?",
+        "state": "c9"
+      },
+      {
+        "student": "Heat, low humidity, and wind — all help water molecules escape into the air faster.",
+        "teacher": "Now, on a cold morning, water droplets form on the outside of a cold drink can. What process is that?",
+        "state": "c16"
+      },
+      {
+        "student": "Condensation — the reverse of evaporation. Water vapor cools and returns to liquid.",
+        "teacher": "State both processes and their direction of change.",
+        "state": "d31"
+      },
+      {
+        "student": "Evaporation: liquid → gas (absorbs energy). Condensation: gas → liquid (releases energy). They are reverse processes.",
+        "teacher": "Correct. Evaporation and condensation are central to the water cycle and everyday phenomena like drying clothes or morning dew.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200068,
+    "question": "Pure water boils at 100 °C at sea level. What would happen to the boiling point if you dissolved a large amount of salt in the water? (the boiling point would increase, it would decrease, it would stay the same)",
+    "answer": "the boiling point would increase",
+    "dialogue": [
+      {
+        "student": "Does adding salt to water actually make it boil faster, like people say for cooking pasta?",
+        "teacher": "Let's separate two questions: does salt raise the boiling point, and does a higher boiling point mean faster boiling?",
+        "state": "a1"
+      },
+      {
+        "student": "I'm not sure — I assumed adding salt made it boil faster.",
+        "teacher": "When you dissolve any solute in water, the solute particles interfere with water molecules escaping into vapor. Does that make it easier or harder for water to boil?",
+        "state": "b4"
+      },
+      {
+        "student": "Harder — so it would need more heat, meaning a higher boiling point.",
+        "teacher": "That is correct — this is called boiling-point elevation. But if the boiling point is higher, does the water heat up faster or slower compared to pure water on the same burner?",
+        "state": "c10"
+      },
+      {
+        "student": "Slower — it needs to reach a higher temperature.",
+        "teacher": "So does salted water for pasta boil faster?",
+        "state": "c17"
+      },
+      {
+        "student": "Actually no! It takes longer to reach boiling. The myth is wrong. The salt is there for flavor, not speed.",
+        "teacher": "State what dissolved solutes do to a liquid's boiling point.",
+        "state": "d31"
+      },
+      {
+        "student": "Dissolving a solute raises the boiling point of the solvent — boiling-point elevation. The more solute, the higher the boiling point.",
+        "teacher": "Correct. Boiling-point elevation and freezing-point depression are colligative properties that depend on solute concentration.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200069,
+    "question": "You pour oil, water, and corn syrup into a tall container. They form three distinct layers. What determines their order? (density — denser liquids sink below less dense ones, color, viscosity alone)",
+    "answer": "density — denser liquids sink below less dense ones",
+    "dialogue": [
+      {
+        "student": "Why do oil and water never mix even when you shake them hard?",
+        "teacher": "After shaking, which layer ends up on top?",
+        "state": "a1"
+      },
+      {
+        "student": "Oil — it floats on water.",
+        "teacher": "Corn syrup sinks below water. List the three liquids from bottom to top.",
+        "state": "b3"
+      },
+      {
+        "student": "Corn syrup, then water, then oil.",
+        "teacher": "What single property determines where each liquid settles?",
+        "state": "c9"
+      },
+      {
+        "student": "Density — denser liquids sink; less dense ones float.",
+        "teacher": "Oil and water don't mix even when shaken because of molecular polarity — water is polar, oil is non-polar. What is the rule chemists use?",
+        "state": "c15"
+      },
+      {
+        "student": "Like dissolves like — polar dissolves polar, non-polar dissolves non-polar. Oil and water are opposites, so they don't mix.",
+        "teacher": "State both concepts we used today.",
+        "state": "d30"
+      },
+      {
+        "student": "Density determines layer order — denser below, less dense above. Polarity determines miscibility — like dissolves like explains why oil and water separate.",
+        "teacher": "Excellent. These two independent principles — density and polarity — explain the layering and immiscibility of liquids.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200070,
+    "question": "A small paper clip can float on still water even though steel is denser than water. This is due to (surface tension creating a skin-like surface on the water, the paper clip containing air pockets, the water being frozen slightly at the surface)",
+    "answer": "surface tension creating a skin-like surface on the water",
+    "dialogue": [
+      {
+        "student": "How can a metal paper clip float on water when we said dense things sink?",
+        "teacher": "Look closely at a floating paper clip — does it dimple the water surface downward?",
+        "state": "a1"
+      },
+      {
+        "student": "Yes! The water surface bends down around it like a stretched film.",
+        "teacher": "Water molecules at the surface are attracted only sideways and downward — not from above — so they pull together tightly. What does this create?",
+        "state": "b2"
+      },
+      {
+        "student": "A kind of skin on the surface — surface tension.",
+        "teacher": "The paper clip is resting on that skin, not floating in the water. What would happen if you added a drop of dish soap?",
+        "state": "c8"
+      },
+      {
+        "student": "Dish soap breaks surface tension — the paper clip would sink instantly.",
+        "teacher": "What allows insects like water striders to walk on water?",
+        "state": "c14"
+      },
+      {
+        "student": "Surface tension — their wide feet spread their weight over a large area of the water film.",
+        "teacher": "Define surface tension.",
+        "state": "d30"
+      },
+      {
+        "student": "Surface tension is the tendency of liquid surfaces to resist disruption due to cohesive forces between molecules pulling inward and sideways at the surface.",
+        "teacher": "Well defined. Surface tension is reduced by surfactants like soap, which is why washing dishes in soapy water helps remove greasy films.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200071,
+    "question": "As you climb a mountain, air pressure (decreases because there is less air above you, increases because you are closer to the air, stays the same everywhere)",
+    "answer": "decreases because there is less air above you",
+    "dialogue": [
+      {
+        "student": "Why do my ears pop when I ride an elevator to a high floor?",
+        "teacher": "What is air pressure caused by?",
+        "state": "a1"
+      },
+      {
+        "student": "The weight of all the air above pressing down?",
+        "teacher": "At sea level there is an entire atmosphere of air above you. As you go higher, is there more or less air above you?",
+        "state": "b2"
+      },
+      {
+        "student": "Less — some of the atmosphere is now below you.",
+        "teacher": "So how does pressure change as you go up?",
+        "state": "c8"
+      },
+      {
+        "student": "Pressure decreases — less weight of air above.",
+        "teacher": "Your ears pop because the pressure inside your inner ear equalizes with the changed outside pressure. Why is low pressure a problem for climbers on Mount Everest?",
+        "state": "c14"
+      },
+      {
+        "student": "Less pressure means fewer air molecules per breath — less oxygen — so it's hard to breathe.",
+        "teacher": "State how altitude affects air pressure and oxygen availability.",
+        "state": "d30"
+      },
+      {
+        "student": "Air pressure decreases with altitude because there's less air above; lower pressure means fewer oxygen molecules per breath, requiring supplemental oxygen at extreme heights.",
+        "teacher": "Correct. This is why aircraft cabins are pressurized and high-altitude climbers carry oxygen tanks.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200072,
+    "question": "Which human activity most directly adds carbon dioxide to the atmosphere? (burning fossil fuels, drinking carbonated drinks, boiling water)",
+    "answer": "burning fossil fuels",
+    "dialogue": [
+      {
+        "student": "Where does the extra CO₂ causing climate change come from?",
+        "teacher": "What happens chemically when you burn gasoline in a car engine?",
+        "state": "a1"
+      },
+      {
+        "student": "The fuel burns with oxygen and produces CO₂ and water vapor.",
+        "teacher": "Fossil fuels — coal, oil, natural gas — are ancient plant and animal carbon stored underground for millions of years. When burned rapidly, what does that do to atmospheric CO₂?",
+        "state": "b3"
+      },
+      {
+        "student": "It releases all that stored carbon quickly, raising CO₂ levels.",
+        "teacher": "Plants absorb CO₂ during photosynthesis. If we also cut down forests, how does that double the problem?",
+        "state": "c9"
+      },
+      {
+        "student": "Fewer trees means less CO₂ removal from the atmosphere, so levels rise even faster.",
+        "teacher": "CO₂ traps heat from Earth's surface and prevents it escaping to space. What is this effect called?",
+        "state": "c15"
+      },
+      {
+        "student": "The greenhouse effect — too much CO₂ enhances it and warms the planet.",
+        "teacher": "State the chain from fossil fuel burning to climate warming.",
+        "state": "d31"
+      },
+      {
+        "student": "Burning fossil fuels releases ancient stored carbon as CO₂ → CO₂ accumulates in the atmosphere → enhanced greenhouse effect → global temperatures rise.",
+        "teacher": "Correct. Reducing fossil fuel combustion and protecting forests are the two main levers for slowing CO₂ accumulation.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200073,
+    "question": "Which energy source is considered renewable? (solar power, coal, natural gas)",
+    "answer": "solar power",
+    "dialogue": [
+      {
+        "student": "What makes an energy source renewable?",
+        "teacher": "Coal takes hundreds of millions of years to form. If we use it up, can Earth make more on a human timescale?",
+        "state": "a1"
+      },
+      {
+        "student": "No — once it's gone it's gone.",
+        "teacher": "Sunlight arrives continuously from the Sun. Does using solar energy today reduce how much solar energy is available tomorrow?",
+        "state": "b2"
+      },
+      {
+        "student": "No — the Sun keeps shining regardless.",
+        "teacher": "That is the distinction. Renewable energy replenishes naturally on human timescales; non-renewable runs out. Name two more renewable sources.",
+        "state": "c8"
+      },
+      {
+        "student": "Wind and hydroelectric power — they're driven by sun and weather, which don't run out.",
+        "teacher": "What is the main practical challenge with solar and wind energy?",
+        "state": "c14"
+      },
+      {
+        "student": "They are intermittent — the Sun doesn't always shine and wind doesn't always blow, so we need storage or backup.",
+        "teacher": "Define renewable versus non-renewable energy.",
+        "state": "d31"
+      },
+      {
+        "student": "Renewable: replenishes naturally on human timescales — solar, wind, hydro, geothermal. Non-renewable: takes millions of years to form and is depleted by use — coal, oil, natural gas.",
+        "teacher": "Correct. The shift to renewable energy is driven by both finite fossil fuel supply and the climate impact of burning them.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200074,
+    "question": "Red litmus paper turns blue in a solution. What does this tell you about the solution? (it is a base or alkaline, it is an acid, it is neutral like pure water)",
+    "answer": "it is a base or alkaline",
+    "dialogue": [
+      {
+        "student": "What is the difference between an acid and a base?",
+        "teacher": "Have you tasted lemon juice or vinegar? Describe the taste.",
+        "state": "a1"
+      },
+      {
+        "student": "Sour — sharp and tangy.",
+        "teacher": "Those are acids. Baking soda solution tastes different — slightly bitter and slippery. These two groups react differently to indicators. Litmus paper turns red in acid. What color would you expect in a base?",
+        "state": "b3"
+      },
+      {
+        "student": "Blue — the opposite of red.",
+        "teacher": "The pH scale runs from 0 to 14. Where are acids, bases, and neutral substances?",
+        "state": "c9"
+      },
+      {
+        "student": "Acids are below 7, neutral is 7, bases are above 7.",
+        "teacher": "What happens when you mix an equal amount of acid and base together?",
+        "state": "c16"
+      },
+      {
+        "student": "They neutralize each other and the pH moves toward 7 — a neutral salt solution is formed.",
+        "teacher": "State how litmus paper distinguishes acids from bases.",
+        "state": "d31"
+      },
+      {
+        "student": "Litmus turns red in acids (pH below 7) and blue in bases (pH above 7). A solution turning blue litmus red indicates an acid; red litmus turning blue indicates a base.",
+        "teacher": "Correct. Neutralization — acid plus base produces water and a salt — is a fundamental reaction in chemistry and biology.",
+        "state": "e34"
+      }
+    ]
+  },
+  {
+    "id": 200075,
+    "question": "Why is composting food scraps beneficial for soil? (decomposers break organic matter into nutrients that enrich the soil, compost adds plastic to the soil, heat from composting sterilizes soil)",
+    "answer": "decomposers break organic matter into nutrients that enrich the soil",
+    "dialogue": [
+      {
+        "student": "How does a pile of old leaves and vegetable scraps turn into something good for gardens?",
+        "teacher": "What organisms live in a compost pile and what do they eat?",
+        "state": "a1"
+      },
+      {
+        "student": "Bacteria, fungi, and worms — they eat the decaying material.",
+        "teacher": "As they break down organic matter, they release chemical nutrients locked inside. What elements important for plant growth do you think those nutrients contain?",
+        "state": "b4"
+      },
+      {
+        "student": "Nitrogen, phosphorus, potassium — things in fertilizer.",
+        "teacher": "Store-bought fertilizer puts those nutrients in chemically. Compost does the same but also adds something else — broken-down organic material. What does that do to soil structure?",
+        "state": "c10"
+      },
+      {
+        "student": "It makes soil crumbly and able to hold water better — improves the texture.",
+        "teacher": "So compost provides two benefits. Name them.",
+        "state": "d31"
+      },
+      {
+        "student": "One: adds plant nutrients released by decomposers. Two: improves soil structure — better water retention and aeration.",
+        "teacher": "Exactly. Composting closes the nutrient cycle: organic matter from plants is broken down by decomposers and returned to soil, feeding the next generation of plants.",
+        "state": "e34"
+      }
+    ]
+  }
+]
