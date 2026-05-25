@@ -230,6 +230,7 @@ def build_sft_config(output_dir: str | None = None) -> SFTConfig:
         max_length=max_seq_len,
         bf16=use_bf16,
         gradient_checkpointing=grad_ckpt,
+        gradient_checkpointing_kwargs={"use_reentrant": False} if grad_ckpt else None,
         logging_steps=logging_steps,
         save_steps=save_steps,
         eval_steps=eval_steps,
