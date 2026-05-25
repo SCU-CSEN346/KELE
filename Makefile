@@ -138,16 +138,16 @@ pre-commit:
 	uv run pytest -rs
 
 # ── Torch install ────────────────────────────────────────────────────────────
-# torch is not declared in pyproject.toml because Poetry cannot resolve the
-# +rocm6.3 / +cu126 local-version identifiers alongside PyPI's CPU wheel.
-# These targets install torch after `poetry install --no-root`.
+# torch is not declared in pyproject.toml because uv cannot resolve the
+# +rocm7.2 / +cu126 local-version identifiers alongside PyPI's CPU wheel.
+# These targets install torch after `uv sync`.
 
 # Auto-detect: prefer ROCm if rocm-smi is present, fall back to CUDA.
 install:
 	@echo "→ Installing base dependencies …"
-	poetry install --no-root
+	uv sync
 	@if command -v rocm-smi >/dev/null 2>&1 && rocm-smi >/dev/null 2>&1; then \
-	  echo "→ AMD/ROCm GPU detected — installing torch+rocm6.3"; \
+	  echo "→ AMD/ROCm GPU detected — installing torch+rocm7.2"; \
 	  $(MAKE) _install-torch-rocm; \
 	elif command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; then \
 	  echo "→ NVIDIA GPU detected — installing torch+cu126"; \
@@ -163,29 +163,25 @@ install:
 	fi
 
 install-rocm:
-	poetry install --no-root
+	uv sync
 	$(MAKE) _install-torch-rocm
 
 install-cuda:
-	poetry install --no-root
+	uv sync
 	$(MAKE) _install-torch-cuda
 
 # Internal targets — call via install-rocm / install-cuda / install
 _install-torch-rocm:
-	poetry run pip install --force-reinstall --no-deps \
-	  --index-url https://download.pytorch.org/whl/rocm6.3 \
-	  "torch==2.9.1+rocm6.3"
-	@echo "✓ torch 2.9.1+rocm6.3 installed"
-	poetry run pip install -e . --no-deps
-	@echo "✓ project entry points installed"
+	uv pip install --force-reinstall \
+	  --index-url https://download.pytorch.org/whl/rocm7.2 \
+	  torch torchvision torchaudio
+	@echo "✓ torch+rocm7.2 installed"
 
 _install-torch-cuda:
-	poetry run pip install --force-reinstall --no-deps \
+	uv pip install --force-reinstall \
 	  --index-url https://download.pytorch.org/whl/cu126 \
-	  "torch>=2.9.0"
+	  torch torchvision torchaudio
 	@echo "✓ torch+cu126 installed"
-	poetry run pip install -e . --no-deps
-	@echo "✓ project entry points installed"
 
 # ── Developer setup ──────────────────────────────────────────────────────────
 

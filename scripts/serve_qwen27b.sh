@@ -39,6 +39,15 @@ GPU_LAYERS=99
 PARALLEL=6
 HOST="0.0.0.0"
 PORT=8080
+# ROCm0 is ~6% faster than Vulkan0 on TG for gfx1201 (llama-bench 2026-05-24).
+# Override: DEV=Vulkan0 ./scripts/serve_qwen27b.sh ...
+DEV="${DEV:-rocm0}"
+# Larger micro-batch fills the GPU compute pipeline better. 4096 is the max
+# useful value on 32 GB VRAM with Qwen Q4 (~16 GB model, ~16 GB headroom).
+# Requires matching -b 4096; both are set here. Default 512 leaves significant
+# PP throughput on the table, especially for fine-tuning workloads.
+UBATCH="${UBATCH:-4096}"
+BATCH="${BATCH:-4096}"
 
 EXTRA_ARGS=()
 while [[ $# -gt 0 ]]; do
@@ -51,6 +60,9 @@ while [[ $# -gt 0 ]]; do
     -ngl)           GPU_LAYERS="$2"; shift 2 ;;
     --host)         HOST="$2";       shift 2 ;;
     -p|--port)      PORT="$2";       shift 2 ;;
+    -dev)           DEV="$2";        shift 2 ;;
+    --ubatch-size)  UBATCH="$2";     shift 2 ;;
+    -b|--batch-size) BATCH="$2";     shift 2 ;;
     *)              EXTRA_ARGS+=("$1"); shift ;;
   esac
 done
@@ -78,6 +90,8 @@ echo "Alias:     ${ALIAS:-<none>}"
 echo "Context:   $CONTEXT  (per-slot: ~$((CONTEXT / PARALLEL)))"
 echo "Slots:     $PARALLEL  (unified KV, continuous batching)"
 echo "KV quant:  ${KV_QUANT}"
+echo "Device:    ${DEV}"
+echo "Batch:     ${BATCH} / Ubatch: ${UBATCH}"
 echo "Endpoint:  http://localhost:${PORT}/v1/chat/completions"
 echo "Test:      curl http://localhost:${PORT}/v1/models"
 echo "---"
@@ -91,6 +105,10 @@ exec "$LLAMA_SERVER" \
   --kv-unified \
   -ctk "$KV_QUANT" \
   -ctv "$KV_QUANT" \
+  -fa 1 \
+  -dev "$DEV" \
+  -b "$BATCH" \
+  --ubatch-size "$UBATCH" \
   --host "$HOST" \
   --port "$PORT" \
   "${EXTRA_ARGS[@]}"
