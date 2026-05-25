@@ -244,16 +244,26 @@ def load_socrat_synthetic(
     split: str = "train",
     seed: int = 42,
     hf_repo: str = "ulises-c/SocratDataset-SYNTHETIC",
+    config: str = "default",
 ) -> list[dict]:
     """Load SocratDataset-SYNTHETIC from HuggingFace.
 
     Eval-only by design (do not include in TRAIN_SOURCES). The synthetic split
     is the contamination-control reference for SocratTeachLLM and is held out
     of every training config. See docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md.
+
+    config="default"        → 37 records (ids 100001-100037), original baseline
+    config="n75_extension"  → 38 records (ids 100038-100075), Stage 2b eval floor
+    config="n75_all"        → all 75 records combined
     """
     from datasets import load_dataset as hf_load
 
-    raw = [dict(r) for r in hf_load(hf_repo, split="train")]
+    if config == "n75_all":
+        raw_default = [dict(r) for r in hf_load(hf_repo, "default", split="train")]
+        raw_ext = [dict(r) for r in hf_load(hf_repo, "n75_extension", split="train")]
+        raw = raw_default + raw_ext
+    else:
+        raw = [dict(r) for r in hf_load(hf_repo, config, split="train")]
     converted = [_socrat_synthetic_to_messages(r) for r in raw]
     if split == "all":
         return converted
