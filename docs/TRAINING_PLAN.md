@@ -125,29 +125,51 @@ teacher output. Training as-is means the fine-tuned model will (a) emit literal
 `[State: c12] [Action: …]` strings into user-facing responses, and (b) never
 learn to condition on the consultant's text.
 
-**Resolution.** Move state/action from the assistant target into the user input,
-mirroring inference. Two equally acceptable patterns:
+**Resolution.** Move state/action from the assistant target into the user
+input, mirroring inference. Three variants exist along two independent axes:
+the **label prefix** (short custom vs long inference-verbatim) and the
+**evaluation body** (compressed `学生处于 X 状态` vs the full inference
+narrative). See `socratic_teaching_bert_consultant.py:204-209` and
+`socratic_teaching_system.py:445-453` for the inference-side ground truth.
 
-**Pattern A — Concise (recommended for first pass).** Append the state ID and
-action to the student utterance in each user turn; the assistant target is the
-clean teacher response:
+|  | A — Short labels | B — Long labels, compressed body (**locked**) | C — Full inference mirror |
+|---|---|---|---|
+| Eval label | `顾问评估:` | `苏格拉底教学顾问评估结果:` | `苏格拉底教学顾问评估结果:` |
+| Action label | `顾问操作:` | `苏格拉底教学顾问建议的操作:` | `苏格拉底教学顾问建议的操作:` |
+| Body content | `学生处于 {state} 状态` | `学生处于 {state} 状态` | full narrative w/ stage name, action description, teaching directive (no confidence numbers — none at train time) |
+| Tokens/turn | ~30 | ~38 | ~80 |
+| Label match to inference | mismatched | exact | exact |
+| Body match to inference | compressed | compressed | near-exact |
+
+**Decision: Option B (long labels, compressed body).** The format-fix's
+premise is "what the model sees at training should match inference." Option A
+re-introduces a (smaller) version of the same train/inference mismatch the
+fix is supposed to eliminate — gratuitously, since the ~25% token-cost delta
+between A and B is negligible on a few-hour Stage 2 run. Option C is
+strictly more faithful but requires importing stage-name and
+action-description tables into `dataset.py`, more code surface for marginal
+gain. If Stage 2b eval shows the model under-conditions on the consultant
+signal, escalate to C in a follow-up rather than reverting to A.
+
+Implementation in both `socrat-zh` and `socrat-en` loaders:
 
 ```python
 user_content = turn["student"]
 if state and action:
-    user_content += f"\n\n顾问评估: 学生处于 {state} 状态\n顾问操作: {action}"
+    user_content += (
+        f"\n\n苏格拉底教学顾问评估结果: 学生处于 {state} 状态\n"
+        f"苏格拉底教学顾问建议的操作: {action}"
+    )
 messages.append({"role": "user", "content": user_content})
 messages.append({"role": "assistant", "content": turn["teacher"]})
 ```
 
-**Pattern B — Verbatim inference mirror.** Reconstruct the full Chinese
-narrative from `socratic_teaching_bert_consultant.py:204-209` at training time
-(dropping the classifier-confidence numbers since training has none). More
-faithful but larger token cost.
-
-Pick Pattern A for the first Stage 2 run. Verify with
+Chinese markers are used in both loaders — `socrat-en` included — because
+the BERT consultant emits Chinese markers regardless of dialogue language at
+inference. Token-level alignment to inference beats system-prompt-language
+consistency. Verify after the change with
 `uv run python scripts/train_sft.py --config … --dry-run` printing a sample
-record before launching.
+record before launching training.
 
 ---
 

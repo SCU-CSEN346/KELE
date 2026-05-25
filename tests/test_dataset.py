@@ -48,6 +48,37 @@ def _socrat_record(id_: int) -> dict:
     }
 
 
+def _socrat_synthetic_record(id_: int) -> dict:
+    """Minimal SocratDataset-SYNTHETIC record (no `action`, no top-level meta)."""
+    return {
+        "id": id_,
+        "question": f"Synthetic Q{id_}",
+        "answer": "synthetic answer",
+        "dialogue": [
+            {"student": "synthetic student 1", "teacher": "synthetic teacher 1", "state": "a1"},
+            {"student": "synthetic student 2", "teacher": "synthetic teacher 2", "state": "b3"},
+        ],
+    }
+
+
+def _socraticmath_record(id_: int) -> dict:
+    """Minimal SocraticMATH HF record.
+
+    Empirical schema: conversations[0] = problem (from=assistant), [1] = teacher
+    opening (from=assistant), [2..] alternating user/assistant.
+    """
+    return {
+        "id": id_,
+        "conversations": [
+            {"from": "assistant", "value": f"Problem {id_}: solve for x."},
+            {"from": "assistant", "value": "What is the first step you would take?"},
+            {"from": "user", "value": "I'd isolate x."},
+            {"from": "assistant", "value": "Good — show me how."},
+            {"from": "user", "value": "Subtract 3 from both sides."},
+        ],
+    }
+
+
 def _socrateach_multi_record() -> dict:
     """Minimal SocraTeach_Multi record (one problem with one dialogue)."""
     return {
@@ -126,8 +157,32 @@ def test_load_socrat_en_schema():
     assert records[0]["ground_truth_states"] == ["a1", "b2"]
 
 
-def test_load_socrat_en_state_prefix_in_assistant_turn():
-    """Each assistant turn must be prefixed with [State: ...] [Action: ...]."""
+def test_load_socrat_en_user_turn_contains_consultant_markers():
+    """Per TRAINING_PLAN §0.2: state/action live on the user turn with the
+    inference-matching long labels (苏格拉底教学顾问评估结果 / 苏格拉底教学顾问建议的操作),
+    never as a bracketed prefix on the assistant target."""
+    from src.project.dataset import load_socrat_en
+
+    raw = [_socrat_record(1)]
+    with patch("datasets.load_dataset", return_value=_mock_hf(raw)):
+        records = load_socrat_en(split="all")
+
+    user_turns = [m for m in records[0]["messages"] if m["role"] == "user"]
+    assert len(user_turns) == 2
+    assert "苏格拉底教学顾问评估结果: 学生处于 a1 状态" in user_turns[0]["content"]
+    assert "苏格拉底教学顾问建议的操作: give_example" in user_turns[0]["content"]
+    assert "苏格拉底教学顾问评估结果: 学生处于 b2 状态" in user_turns[1]["content"]
+    assert "苏格拉底教学顾问建议的操作: heuristic_question" in user_turns[1]["content"]
+    # Student utterance is preserved verbatim, with the marker appended after it.
+    assert user_turns[0]["content"].startswith("student turn 1")
+    assert user_turns[1]["content"].startswith("student turn 2")
+
+
+def test_load_socrat_en_assistant_turn_has_no_state_prefix():
+    """Assistant target is the clean teacher response — never the bracketed
+    prefix that was the original bug. Loss only fires on assistant turns
+    (SFTConfig.assistant_only_loss=True), so any leakage here would teach
+    the model to emit literal [State:..] strings."""
     from src.project.dataset import load_socrat_en
 
     raw = [_socrat_record(1)]
@@ -136,8 +191,28 @@ def test_load_socrat_en_state_prefix_in_assistant_turn():
 
     assistant_turns = [m for m in records[0]["messages"] if m["role"] == "assistant"]
     assert len(assistant_turns) == 2
-    assert assistant_turns[0]["content"].startswith("[State: a1] [Action: give_example]")
-    assert assistant_turns[1]["content"].startswith("[State: b2] [Action: heuristic_question]")
+    for at in assistant_turns:
+        assert not at["content"].startswith("[State:"), f"leaked: {at['content']!r}"
+        assert "[Action:" not in at["content"], f"leaked: {at['content']!r}"
+    assert assistant_turns[0]["content"] == "teacher turn 1"
+    assert assistant_turns[1]["content"] == "teacher turn 2"
+
+
+def test_load_socrat_zh_user_turn_contains_consultant_markers():
+    """Mirror coverage for socrat-zh — same long labels, since the BERT
+    consultant emits Chinese markers regardless of dialogue language."""
+    from src.project.dataset import load_socrat_zh
+
+    raw = [_socrat_record(1)]
+    with patch("datasets.load_dataset", return_value=_mock_hf(raw)):
+        records = load_socrat_zh(split="all")
+
+    user_turns = [m for m in records[0]["messages"] if m["role"] == "user"]
+    assistant_turns = [m for m in records[0]["messages"] if m["role"] == "assistant"]
+    assert "苏格拉底教学顾问评估结果: 学生处于 a1 状态" in user_turns[0]["content"]
+    assert "苏格拉底教学顾问建议的操作: give_example" in user_turns[0]["content"]
+    for at in assistant_turns:
+        assert not at["content"].startswith("[State:"), f"leaked: {at['content']!r}"
 
 
 def test_load_socrat_en_train_test_split():
@@ -171,6 +246,94 @@ def test_load_socrat_zh_schema():
     for r in records:
         _assert_record_schema(r, "socrat-zh")
     assert records[0]["ground_truth_states"] is not None
+
+
+# ---------------------------------------------------------------------------
+# socrat-synthetic
+# ---------------------------------------------------------------------------
+
+
+def test_load_socrat_synthetic_schema():
+    from src.project.dataset import load_socrat_synthetic
+
+    raw = [_socrat_synthetic_record(i) for i in range(5)]
+    with patch("datasets.load_dataset", return_value=_mock_hf(raw)):
+        records = load_socrat_synthetic(split="all")
+
+    assert len(records) == 5
+    for r in records:
+        _assert_record_schema(r, "socrat-synthetic")
+        # ground_truth_states preserved for eval (BERT classifier scoring)
+        assert r["ground_truth_states"] is not None
+    assert records[0]["ground_truth_states"] == ["a1", "b3"]
+
+
+def test_load_socrat_synthetic_no_consultant_marker():
+    """Synthetic records have no `action` field, so the Pattern A marker
+    cannot be constructed. User turns are clean student utterances; the
+    BERT consultant supplies markers at inference."""
+    from src.project.dataset import load_socrat_synthetic
+
+    raw = [_socrat_synthetic_record(1)]
+    with patch("datasets.load_dataset", return_value=_mock_hf(raw)):
+        records = load_socrat_synthetic(split="all")
+
+    user_turns = [m for m in records[0]["messages"] if m["role"] == "user"]
+    assert user_turns[0]["content"] == "synthetic student 1"
+    assert "苏格拉底教学顾问" not in user_turns[0]["content"]
+    assert "苏格拉底教学顾问" not in user_turns[1]["content"]
+
+
+# ---------------------------------------------------------------------------
+# socraticmath / socraticmath-sol
+# ---------------------------------------------------------------------------
+
+
+def test_load_socraticmath_schema():
+    from src.project.dataset import load_socraticmath
+
+    raw = [_socraticmath_record(i) for i in range(5)]
+    with patch("datasets.load_dataset", return_value=_mock_hf(raw)):
+        records = load_socraticmath(split="all")
+
+    assert len(records) == 5
+    for r in records:
+        _assert_record_schema(r, "socraticmath")
+        assert r["ground_truth_states"] is None
+
+
+def test_load_socraticmath_problem_in_system_prompt():
+    """Position-0 conversations entry (problem statement) is hoisted into the
+    system prompt under `问题：`, not emitted as a dialogue turn."""
+    from src.project.dataset import load_socraticmath
+
+    raw = [_socraticmath_record(1)]
+    with patch("datasets.load_dataset", return_value=_mock_hf(raw)):
+        records = load_socraticmath(split="all")
+
+    system_msg = records[0]["messages"][0]
+    assert system_msg["role"] == "system"
+    assert "问题：Problem 1: solve for x." in system_msg["content"]
+
+    non_system = [m for m in records[0]["messages"] if m["role"] != "system"]
+    # Position 0 (problem) skipped; dialogue starts at position 1 (teacher).
+    assert non_system[0]["role"] == "assistant"
+    assert non_system[0]["content"] == "What is the first step you would take?"
+    assert non_system[1]["role"] == "user"
+    assert non_system[1]["content"] == "I'd isolate x."
+
+
+def test_load_socraticmath_sol_uses_separate_source_key():
+    """The -sol loader shares conversion logic but tags records as
+    `socraticmath-sol` so the two variants don't collide in TRAIN_SOURCES."""
+    from src.project.dataset import load_socraticmath_sol
+
+    raw = [_socraticmath_record(i) for i in range(3)]
+    with patch("datasets.load_dataset", return_value=_mock_hf(raw)):
+        records = load_socraticmath_sol(split="all")
+
+    for r in records:
+        _assert_record_schema(r, "socraticmath-sol")
 
 
 # ---------------------------------------------------------------------------
@@ -233,6 +396,164 @@ def test_load_socrateach_single_ends_with_assistant():
     last_msg = records[0]["messages"][-1]
     assert last_msg["role"] == "assistant"
     assert last_msg["content"] == "current teacher response"
+
+
+# ---------------------------------------------------------------------------
+# Stage 1 — pedagogy filter + general-instruction loaders
+# ---------------------------------------------------------------------------
+
+
+def _openhermes_record(prompt: str, response: str, with_system: bool = False) -> dict:
+    convs: list[dict] = []
+    if with_system:
+        convs.append({"from": "system", "value": "You are helpful."})
+    convs.append({"from": "human", "value": prompt})
+    convs.append({"from": "gpt", "value": response})
+    return {"id": "oh-1", "conversations": convs}
+
+
+def _ultrachat_record(prompt: str, response: str) -> dict:
+    return {
+        "prompt_id": "uc-1",
+        "messages": [
+            {"role": "user", "content": prompt},
+            {"role": "assistant", "content": response},
+        ],
+    }
+
+
+def test_pedagogy_keyword_filter_accepts_explain_prompts():
+    from src.project.dataset import _passes_pedagogy_filter
+
+    msgs = [
+        {"role": "user", "content": "Explain how photosynthesis works."},
+        {"role": "assistant", "content": "A" * 300},
+    ]
+    assert _passes_pedagogy_filter(msgs)
+
+
+def test_pedagogy_keyword_filter_rejects_short_assistant_turn():
+    from src.project.dataset import _passes_pedagogy_filter
+
+    msgs = [
+        {"role": "user", "content": "Explain that."},
+        {"role": "assistant", "content": "Yes."},  # too short
+    ]
+    assert not _passes_pedagogy_filter(msgs)
+
+
+def test_pedagogy_keyword_filter_rejects_essay_length():
+    from src.project.dataset import _passes_pedagogy_filter
+
+    msgs = [
+        {"role": "user", "content": "Explain that."},
+        {"role": "assistant", "content": "A" * 3000},  # too long
+    ]
+    assert not _passes_pedagogy_filter(msgs)
+
+
+def test_pedagogy_keyword_filter_rejects_no_keyword_match():
+    from src.project.dataset import _passes_pedagogy_filter
+
+    msgs = [
+        {"role": "user", "content": "Write a haiku about cats."},
+        {"role": "assistant", "content": "A" * 300},
+    ]
+    assert not _passes_pedagogy_filter(msgs)
+
+
+def test_load_openhermes_filters_and_caps_at_target():
+    """Stream is consumed until target_n records pass the filter, then stops."""
+    from src.project.dataset import load_openhermes
+
+    # Mix of pedagogy and non-pedagogy records — only the pedagogy ones survive.
+    pedagogy_response = "Photosynthesis is " + "the process by which plants " * 20
+    raw = [_openhermes_record(f"Explain topic {i}", pedagogy_response) for i in range(5)] + [
+        _openhermes_record(f"Write poem {i}", "Roses are red.") for i in range(5)
+    ]
+    with (
+        patch("datasets.load_dataset", return_value=_mock_hf(raw)),
+        patch.dict("os.environ", {"TRAIN_STAGE1_OPENHERMES_N": "3"}),
+    ):
+        records = load_openhermes(split="all", streaming=False)
+
+    assert len(records) == 3  # capped at target
+    for r in records:
+        _assert_record_schema(r, "openhermes-2.5")
+        # All survivors are pedagogy-tagged
+        first_user = next(m for m in r["messages"] if m["role"] == "user")
+        assert "explain" in first_user["content"].lower()
+
+
+def test_load_openhermes_prepends_generic_system_when_missing():
+    from src.project.dataset import load_openhermes
+
+    pedagogy_response = "Let me walk you through this " * 20
+    raw = [_openhermes_record("Explain photosynthesis", pedagogy_response, with_system=False)]
+    with (
+        patch("datasets.load_dataset", return_value=_mock_hf(raw)),
+        patch.dict("os.environ", {"TRAIN_STAGE1_OPENHERMES_N": "1"}),
+    ):
+        records = load_openhermes(split="all", streaming=False)
+
+    assert records[0]["messages"][0]["role"] == "system"
+    assert records[0]["messages"][0]["content"] == "You are a helpful assistant."
+
+
+def test_load_openhermes_preserves_source_system_when_present():
+    from src.project.dataset import load_openhermes
+
+    pedagogy_response = "Let me walk you through this " * 20
+    raw = [_openhermes_record("Explain photosynthesis", pedagogy_response, with_system=True)]
+    with (
+        patch("datasets.load_dataset", return_value=_mock_hf(raw)),
+        patch.dict("os.environ", {"TRAIN_STAGE1_OPENHERMES_N": "1"}),
+    ):
+        records = load_openhermes(split="all", streaming=False)
+
+    assert records[0]["messages"][0]["role"] == "system"
+    assert records[0]["messages"][0]["content"] == "You are helpful."
+
+
+def test_load_ultrachat_passthrough_messages_field():
+    from src.project.dataset import load_ultrachat
+
+    pedagogy_response = "Step by step, " + "the answer is " * 30
+    raw = [_ultrachat_record("Walk me through this", pedagogy_response)]
+    with (
+        patch("datasets.load_dataset", return_value=_mock_hf(raw)),
+        patch.dict("os.environ", {"TRAIN_STAGE1_ULTRACHAT_N": "1"}),
+    ):
+        records = load_ultrachat(split="all", streaming=False)
+
+    assert len(records) == 1
+    _assert_record_schema(records[0], "ultrachat_200k")
+
+
+def test_load_slimorca_sharegpt_passthrough():
+    from src.project.dataset import load_slimorca
+
+    pedagogy_response = "Reasoning: " + "first we note " * 30
+    raw = [
+        {
+            "id": "so-1",
+            "conversations": [
+                {"from": "system", "value": "You are a helpful tutor."},
+                {"from": "human", "value": "Explain why the sky is blue"},
+                {"from": "gpt", "value": pedagogy_response},
+            ],
+        }
+    ]
+    with (
+        patch("datasets.load_dataset", return_value=_mock_hf(raw)),
+        patch.dict("os.environ", {"TRAIN_STAGE1_SLIMORCA_N": "1"}),
+    ):
+        records = load_slimorca(split="all", streaming=False)
+
+    assert len(records) == 1
+    _assert_record_schema(records[0], "slimorca-dedup")
+    # Source system prompt preserved
+    assert records[0]["messages"][0]["content"] == "You are a helpful tutor."
 
 
 # ---------------------------------------------------------------------------
