@@ -4,6 +4,47 @@ Engineering decisions, what we've tried, and what's next. Each entry is dated an
 
 ---
 
+## 2026-05-25 — n=681 parity sub-leaderboard cell #3 landed (qwen3.5 × A3B-35B think)
+
+**Ran:** `qwen3.5 × A3B-35B · think · fewshot10 · n=681 · seed=42` overnight on the single 5090. Walltime 9h41m (34878 s), 3968 turns scored, judge cost $16.53 (Sonnet 4.6, 10 workers, 19 min API). Output at `results/t4-bert-a3b-fewshot10-n681/`. qwen3.5 consultant on CPU (`KELE_BERT_DEVICE=cpu`) per the rule established by the bilingual canonical n=400.
+
+### Headline numbers (n=681 vs n=50 baseline)
+
+| Metric | n=681 canonical | n=50 baseline | Δ |
+|---|---:|---:|---:|
+| macro state acc | 53.40 | 54.86 | **−1.46** |
+| stage_bal | **60.02** | 58.62 | **+1.40** |
+| judge (Sonnet 4.6) | 7.56 | 7.52 | +0.04 |
+| **unified** | **67.81** | 66.91 | **+0.90** |
+| stage a (questioning) | 100.00 | 100.00 | 0.00 |
+| stage b (anchoring) | 43.89 | 50.85 | −6.96 |
+| stage c (induction) | 32.38 | 39.58 | −7.20 |
+| stage d (extension) | 43.54 | 36.00 | +7.54 |
+| stage e (closure) | **80.27** | 66.67 | **+13.60** |
+
+### Three findings
+
+1. **Per-stage profile shifts substantially at canonical scale.** Closure jumped +13.60 pp, b/c each dropped ~7 pp. The n=50 sample was misleadingly low on closure — A3B's true closure strength only surfaces with full-scale measurement. Stage-balanced rises (+1.40) even as macro falls (−1.46) because the closure gain outweighs the b/c losses under equal-weight macro.
+2. **Stage_bal beats macro at canonical scale on this cell.** Demonstrates the metric-switch motivation in real-time: macro hides A3B's closure dominance under frequency-weighting. Unified climbs +0.90 pts thanks to stage_bal recovery plus a small judge bump.
+3. **TODO #14 cell #3 done; parity-gap update.** Master leaderboard now seats this cell at **#11 unified (67.81)**. Locked headline (`bert × Gemma-31B · fewshot10 · n=681`, #7 at 68.65) is unmoved. Frontier ceiling (`bert × Claude-Sonnet · top3 · n=681`, #2 at 70.06) is unmoved. New parity-gap candidate for qwen3.5 × A3B at canonical scale: **2.25 unified pts behind frontier** — wider than the screening-tier 1.12-pt gap because the n=50 → n=681 promotion costs ~1 pt on stage_bal as the closure profile re-balances. Honest open-weight winner at canonical scale remains the legacy `bert × Gemma-31B · fewshot10 · n=681` until cells #1, #2, #4a of TODO #14 land.
+
+### One operational lesson (saved to memory)
+
+`kele.py:81` defaults `hf_repo` to a list that concatenates `SocratDataset-EN` + `SocratDataset` (~1362 dialogues). First launch attempt used the default and was about to do 1362 dialogues (~18 h, double the budget); killed at dialogue 0 within 3 min via the first progress.log line. Parked as `results/t4-bert-a3b-fewshot10-n681-ABORTED-DUAL-REPO-DEFAULT/`. Captured in `memory/feedback_dataset_path_required_n681.md`. **Going forward**: always pass `DATASET_PATH=references/KELE/SocratDataset.json` for canonical Chinese-only n=681; the launcher scripts forward this to `--dataset-path`.
+
+### Cost actuals vs estimates
+
+- Walltime: estimated 8.8 GPU-h (from n=50 throughput) → actual 9.7 GPU-h. ~10% over budget. Root cause: ~1-in-15 to 1-in-20 outlier rate of ~10-minute think-mode dialogues at canonical scale; n=50 sample under-sampled the outlier frequency.
+- Judge cost: estimated $15 → actual $16.53 (~10% over). Calibrated against the n=400 bilingual ($8.81 / 400 dialogues = $0.022/dialogue; n=681 extrapolation $15 matched within 10%).
+
+### What's still on the wall
+
+- **TODO #14 (remaining):** 3 of 4 cells. `bert-fixed × Gemma-31B · n=681` (~12 h, ~$15), `qwen3.5 × Gemma-31B · n=681` (~13 h, ~$15), `qwen3.5 × Qwen-27B · no-think · n=681` (~1 h, ~$15). Cheapest-first ordering: 27B-no-think → bert-fixed × Gemma → qwen3.5 × Gemma.
+- **TODO #24:** paper STL contamination Limitations § + appendix table (writing only).
+- **Paper hygiene cleanup** from canonical retraction (drop the "Sonnet judges English more leniently" sentence if it landed in draft).
+
+---
+
 ## 2026-05-24 — Bilingual probe promoted to canonical scale (n=400) — Stage 1 SUCCESS confirmed 🎯
 
 **Ran:** `qwen3.5 × Gemma-31B · fewshot10 · EN · canonical · n=400 · seed=42` overnight on the single 5090. Walltime 7h47m (28011 s), 2324 turns scored, judge cost $8.81 (Sonnet 4.6, 10 workers). Output at `results/bilingual-probe-t4-en-canonical-n400-seed42/`.

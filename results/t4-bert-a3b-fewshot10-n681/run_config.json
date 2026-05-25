@@ -1,0 +1,16 @@
+{
+  "experiment": "t4-bert-a3b-fewshot10-n681",
+  "teacher_model": "Qwen 35B A3B",
+  "teacher_base_url": "http://localhost:8080/v1",
+  "consultant_model": "Qwen 35B A3B",
+  "consultant_base_url": "http://localhost:8080/v1",
+  "thinking_budget": 0,
+  "max_teaching_rounds": 8,
+  "unified": false,
+  "workers": 1,
+  "total_dialogues": 681,
+  "completed": 681,
+  "total_elapsed_seconds": 34878.32,
+  "started_at": "2026-05-24T23:14:43-07:00",
+  "finished_at": "2026-05-25T08:56:02-07:00"
+}
