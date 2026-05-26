@@ -3,14 +3,16 @@ PRESENTATION.md — class talk for CSEN 346
 Render: `npx reveal-md PRESENTATION.md` for slide deck in browser,
         or read directly on GitHub (renders as one long doc).
 Speaker notes are HTML comments — visible in source, hidden in render.
-Target pace: ~130 words/minute. 17 slides, ~23-24 min + Q&A
-(over the original 15-min budget by ~8-9 min; user-approved — extra
+Target pace: ~130 words/minute. 17 slides, ~25-26 min + Q&A
+(over the original 15-min budget by ~10-11 min; user-approved — extra
 budget for the Socratic-teaching foundation (slides 2-4), the
 expanded constraints slide (slide 5: hardware diversity + time
 scope), the deepened methodology slide (slide 7: tournament results
-+ cascade narrative), the Gemma-retraction story (slide 8) and the
-Pivot-2 architectural-decomposition story (slide 9), and the
-final-slide depth on Slide 17 "Total Contributions").
++ cascade narrative), the Gemma-retraction story (slide 8), the
+Pivot-2 architectural-decomposition story (slide 9), the frontier
+stress-test narrative (slide 10), the benchmark-critique discovery
+arc (slide 11), the contamination-proof two-probe narrative (slide
+12), and the final-slide depth on Slide 17 "Total Contributions").
 -->
 
 # Beating the Frontier on a Consumer GPU
@@ -243,7 +245,11 @@ But the real win wasn't the headline number. The real win was the architectural 
 
 ## Frontier Stress Test
 
-Is teacher capacity the binding constraint? Swap the Gemma teacher for Anthropic's best.
+With the BERT integration locked at 48.15% and within striking distance of where a well-prompted frontier model *should* land, a question started bugging us. **Are we leaving real teaching accuracy on the table by stubbornly using open-weight backbones?** Maybe Gemma 4 31B simply isn't big enough to be a great Socratic teacher, and we're optimizing the wrong axis. The only way to answer is to break our own constraint — just for one controlled stress-test sweep. We had Anthropic API budget for the LLM-judge passes anyway; we redirected some of it to swap the teacher.
+
+We kept the BERT consultant *fixed* — same 24M-parameter classifier that just locked the May 18 headline — and varied only the teacher. Gemma 4 31B → **Claude Sonnet 4.6** → **Claude Opus 4.6**. Each Claude teacher was tested across three scaffolding tiers: raw (no prompt engineering), 10-shot exemplars only, and 10-shot + the top-3 utilization stack (length_budget + persona + negative_exemplars) from our Phase 1 prompt-engineering tournament. Six Claude cells at n=50, then we promoted the best two — Sonnet + top-3 and Opus + top-3 — to full n=681 to land a canonical-scale frontier ceiling.
+
+The result was both definitive and surprising. The best frontier configuration (`bert × Claude-Sonnet · top3 · n=681`) landed at **49.97% state acc / R-1 41.93 / unified 70.06**. Frontier was **within sampling noise of our open-weight integration** on the pedagogical axis — about +2 pp ahead on state acc, +5 ahead on R-1, +1.41 on unified. **Teacher capacity is not the binding constraint on this benchmark.** The deeper observation was even more useful: the top-3 prompt stack lifted Claude by 2–5× the amount the same stack lifted Gemma. So the bottleneck is on the **prompt-engineering axis**, not on raw model capability — frontier models have more *headroom* for prompt scaffolding, and once both teachers are well-prompted, they converge. That ~1.41-pt unified gap looked like the ceiling for a couple of weeks. *Spoiler for slide 15: it isn't.*
 
 - BERT consultant **kept fixed**, swapped Gemma 4 31B → Claude Sonnet 4.6 and Claude Opus 4.6, each with a 10-shot + top-3-prompt-stack scaffolding
 - **Best frontier configuration (n=681):** `bert × Claude-Sonnet · top3` → 49.97% state acc / R-1 41.93 / unified **70.06**
@@ -252,15 +258,25 @@ Is teacher capacity the binding constraint? Swap the Gemma teacher for Anthropic
 - *(Foreshadowing for Slide 15: the consultant-upgraded version we land today actually overtakes this ceiling.)*
 
 <!--
-SPEAKER NOTES (Slide 10, ~1 min):
-A natural question: is teacher capacity the limit? Are we leaving accuracy on the table by using Gemma instead of Claude? I tested this directly. Kept the BERT consultant fixed and swapped the Gemma teacher for Claude Sonnet 4.6 and Opus 4.6, both with carefully tuned prompt engineering. The best frontier configuration scored 49.97% state accuracy at full scale — within roughly two points of our prior open-weight integration on the pedagogical axis, plus five points on ROUGE-1. The deeper finding from this stress test: prompt scaffolding lifts Claude two to five times the amount the same lever lifts Gemma. So the binding constraint is on the prompt-engineering axis, not on raw teacher capability. Open-weight teachers had headroom we hadn't fully tapped yet — which sets up slide 15, where the consultant upgrade plus today's run shows the open-weight system actually overtakes this frontier ceiling, not just matches it.
+SPEAKER NOTES (Slide 10, ~1:45):
+With the BERT integration locked at 48.15% state accuracy and us looking at single-digit room to the ceiling, the natural question was: is this really the ceiling? Are we leaving teaching accuracy on the table by stubbornly using open-weight backbones? Maybe Gemma 4 31B is just not big enough to be a great Socratic teacher and we're optimizing the wrong axis. The only way to answer that is to break our own constraint — just for one controlled stress test. We had Anthropic API budget for the LLM-judge passes anyway, so we redirected some of it to a teacher swap.
+
+We kept the BERT consultant fixed — same 24-million-parameter classifier that just locked the May 18 headline — and varied only the teacher. Gemma 4 31B becomes Claude Sonnet 4.6, becomes Claude Opus 4.6. Each Claude teacher tested across three scaffolding tiers: raw with no prompt engineering, 10-shot exemplars only, and 10-shot plus our top-3 utilization stack from the Phase 1 tournament — that's length_budget plus persona plus negative_exemplars. Six Claude cells at n=50, and we promoted the two strongest to full n=681 to land a canonical-scale frontier ceiling.
+
+The result was both definitive and surprising. The best frontier configuration — Claude Sonnet 4.6 with the top-3 stack and our BERT consultant, at full n=681 — landed at 49.97 percent state accuracy, ROUGE-1 of 41.93, unified 70.06. Within sampling noise of our open-weight integration on the pedagogical axis. About two percentage points ahead on state acc, five ahead on ROUGE-1, 1.41 on unified. Teacher capacity is NOT the binding constraint on this benchmark. The deeper observation that came out of the same sweep: the top-3 prompt stack lifts Claude two to five times the amount the same stack lifts Gemma. So the bottleneck is on the prompt-engineering axis, not on raw model capability. Frontier models have more headroom for prompt scaffolding, and once both teachers are well-prompted they converge. That 1.41-point unified gap looked like the ceiling for a couple of weeks. Spoiler for slide 15: it isn't.
 -->
 
 ---
 
 ## The Benchmark Critique — A Methodological Discovery
 
-Comparing surface-form rankings to state-accuracy rankings revealed something striking.
+With our open-weight system landing within sampling noise of frontier Claude, something started bothering us about the original KELE paper. The paper reports SocratTeachLLM — a **9-billion-parameter fine-tune from 2024** — outperforming GPT-4o on every single one of nine evaluation dimensions. That is statistically improbable for a 9B specialist competing against a frontier model on a real pedagogical task. Either the small model is genuinely better at teaching (a surprising claim), or the evaluation metric is measuring something other than teaching. We had to find out which.
+
+We ranked our configurations by the same metrics the paper uses — the surface-form sum (R-1 + R-2 + BLEU-4) — and got a leaderboard. **SocratTeachLLM lands FIRST**, by +10.83 over Opus 4.6 with our carefully tuned top-3 prompts. Then we ranked the *same* configurations by **pedagogical state accuracy** — does the system actually route to the correct SocRule state? SocratTeachLLM lands **DEAD LAST** at 25.94%, below even raw Opus 4.6 with zero prompt engineering (39.75%). The two rankings **invert** across the same configurations.
+
+Here's the smoking gun. The surface-form lead doesn't just exist — it **widens monotonically with n-gram length**: +1.59 on R-1 (unigrams), +4.92 on R-2 (bigrams), +4.07 on BLEU-4 (4-grams). Higher-order n-gram overlap measures phrase-level fingerprinting. A model that learned the *meaning* of teaching would not produce a monotone increase in lead as n-gram length grows; it would produce a flat or shrinking lead, because paraphrasing breaks high-n-grams. The widening lead is the strongest possible signature of training-data memorization. SocratTeachLLM was fine-tuned on SocratDataset's phrasing; it's not teaching, it's quoting.
+
+We confirmed the diagnosis with a cross-lingual translation experiment. We translated the entire 6,803-dialogue dataset into English (this is the SocratDataset-EN release on HuggingFace) and re-ran the configurations. SocratTeachLLM **reproduced** the original paper's flagship R-1 of 57.40 to within 1.5 points (we measured 55.85). But on the LLM-judge axis — which measures *meaning* rather than surface form — frontier+prompts lost only **−0.07** crossing languages, while SocratTeachLLM lost **−1.0**. That's a **14× asymmetric degradation** on a paraphrase-invariant metric, alongside preserved surface-form scores. Translation strips the language but preserves the pedagogy: the model that's measuring memorization keeps its surface-form lead but loses on meaning. **Diagnosis confirmed:** the KELE benchmark, as published, rewards memorization, not teaching capability.
 
 - **Surface-form sum (R-1 + R-2 + BLEU-4) ranks SocratTeachLLM 9B FIRST** by +10.83 over Opus 4.6 with carefully tuned prompts
 - **State-accuracy ranks the SAME SocratTeachLLM LAST** (25.94%, below even raw Opus at 39.75%)
@@ -269,15 +285,27 @@ Comparing surface-form rankings to state-accuracy rankings revealed something st
 - **Cross-lingual confirmation:** SocratTeachLLM evaluated on an English translation of the dataset *reproduces* its R-1 = 55.85 headline within 1.5 points of the paper's 57.40, while frontier+prompts loses only 0.07 on the language shift versus SocratTeachLLM losing 1.0 on the same axis
 
 <!--
-SPEAKER NOTES (Slide 11, ~2 min):
-This is the methodological turn of the campaign. We started ranking configurations by surface-form metrics — ROUGE-1, ROUGE-2, BLEU-4 — and noticed something that didn't add up. SocratTeachLLM, the 9-billion-parameter fine-tune from the original paper, beats Anthropic Opus 4.6 with carefully tuned prompts by over 10 points on surface-form. But the same SocratTeachLLM is dead last on state accuracy — worse than raw Opus with zero prompt engineering. The two rankings invert. That's not just noise: the gap WIDENS monotonically as the n-gram length increases. Plus-1.59 on R-1, plus-4.92 on R-2, plus-4.07 on BLEU-4. That's the strongest possible memorization signature — higher-order n-gram match measures phrase-level fingerprinting. We confirmed the diagnosis with a cross-lingual translation experiment: when we ran SocratTeachLLM against an English translation of the same dataset, it reproduced the original paper's flagship R-1 of 57.40 within 1.5 points. The frontier-plus-prompts configurations only lost 0.07 on the LLM-judge axis crossing languages, while SocratTeachLLM lost a full point. The benchmark is rewarding memorization, not pedagogy.
+SPEAKER NOTES (Slide 11, ~2:30):
+This is the methodological turn of the campaign — and I'd argue it's the most important contribution we made beyond the architectural pivots. With our open-weight integration landing within sampling noise of frontier Claude, something started bothering us about the original KELE paper. The paper reports SocratTeachLLM — a 9-billion-parameter fine-tune — outperforming GPT-4o on every single one of nine evaluation dimensions. That is statistically improbable. A 9B specialist beating a frontier model on a real pedagogical task across the board. Either the small model is genuinely better at teaching, which would be a surprising claim, or the evaluation is measuring something other than teaching. We had to find out which.
+
+We ranked our configurations by the same metrics the paper uses — the surface-form sum, ROUGE-1 plus ROUGE-2 plus BLEU-4 — and got a leaderboard. SocratTeachLLM lands FIRST, by ten-point-eight-three over Opus 4.6 with our carefully tuned top-3 prompts. Then we ranked the SAME configurations by pedagogical state accuracy — does the system actually route to the correct SocRule state. SocratTeachLLM lands DEAD LAST at 25.94 percent, below even raw Opus with zero prompt engineering at 39.75. The two rankings invert across the same configurations.
+
+Here's the smoking gun. The surface-form lead doesn't just exist — it widens monotonically with n-gram length. Plus 1.59 on R-1, plus 4.92 on R-2, plus 4.07 on BLEU-4. Higher-order n-gram overlap measures phrase-level fingerprinting. A model that learned the meaning of teaching would not produce a monotone INCREASE in its lead as n-gram length grows; it would produce a flat or shrinking lead, because paraphrasing breaks high n-grams. The widening lead is the strongest possible signature of training-data memorization. SocratTeachLLM was fine-tuned on SocratDataset's phrasing — it's not teaching, it's quoting.
+
+We confirmed it with a cross-lingual translation experiment. We translated the entire 6,803-dialogue dataset into English — that's the SocratDataset-EN release on HuggingFace — and re-ran the configurations. SocratTeachLLM reproduced the original paper's flagship ROUGE-1 of 57.40 to within 1.5 points; we measured 55.85. But on the LLM-judge axis — which measures meaning rather than surface form — frontier-plus-prompts lost only zero-point-zero-seven crossing languages, while SocratTeachLLM lost a full point. That is a fourteen-times asymmetric degradation on a paraphrase-invariant metric, while the surface-form metric is preserved. Translation strips the language but preserves the pedagogy: the model that is measuring memorization keeps its surface-form lead but loses on meaning. Diagnosis confirmed: the KELE benchmark, as published, rewards memorization, not teaching capability.
 -->
 
 ---
 
 ## Contamination Proof
 
-Two independent evidence streams converge.
+A rank inversion, a monotone n-gram-length signature, and a cross-lingual translation result is *strong circumstantial evidence* — but "the published benchmark systematically rewards memorization" is a serious claim against an EMNLP-Findings paper. We needed direct, dispositive proof that SocratTeachLLM was memorizing rather than generalizing. So we built **two independent probes, each with a clean Gemma 31B control.**
+
+**Probe 1 — direct memorization detection.** We compared SocratTeachLLM's generated outputs character-for-character against the training corpus. **4/288 outputs are character-for-character identical to training data. 17/288 are ≥80% match.** The Gemma 31B control on the exact same probe: **0/288 exact, 0/288 ≥80%.** SocratTeachLLM is literally quoting back its training data on roughly 1-in-70 turns at the strict threshold and 1-in-17 at the relaxed threshold. Gemma is producing zero matches on the same dialogue inputs. There is no plausible non-memorization explanation for that gap.
+
+**Probe 2 — clean-probe on synthetic data.** We had Claude Sonnet generate a fresh batch of dialogue test cases that are demonstrably *outside* SocratDataset's training distribution — synthesized after SocratTeachLLM's training cutoff, with topics intentionally drifted from the elementary-science domain. We ran both SocratTeachLLM and Gemma 31B against the clean probe under the same protocol. **SocratTeachLLM's stage-balanced state accuracy collapsed from 63.4 → 32.86 — below Gemma 31B's 56.13 on the same clean probe.** The model that wins on SocratDataset by 30+ points loses by 23 points the moment we change the data distribution. That isn't pedagogical capability degrading; that's memorization *vanishing*.
+
+**Combined verdict.** Two independent probes agree. The KELE benchmark, as published, systematically rewards memorization over pedagogical capability. The published "GPT-4o + SocratTeachLLM" baseline R-1 of 44.61 — higher than Opus 4.6 with carefully tuned prompts — is the canonical example. Future work on Socratic-teaching evaluation needs a memorization-resistant metric, which we propose on the next slide.
 
 - **Memorization probe:** 4/288 SocratTeachLLM outputs are character-for-character identical to training data; 17/288 are ≥80% match. Gemma 31B control on the same probe: **0/288** such matches.
 - **Clean-probe on synthetic data:** ran SocratTeachLLM against ground-truth dialogues generated by Claude Sonnet (demonstrably outside SocratDataset). State accuracy collapses to **32.86 stage-balanced** — *below Gemma's 56.13 on the same probe*.
@@ -285,8 +313,14 @@ Two independent evidence streams converge.
 - The published "GPT-4o + SocratTeachLLM" baseline R-1 of 44.61 — higher than Opus 4.6 with prompts — is the canonical example of the failure mode
 
 <!--
-SPEAKER NOTES (Slide 12, ~1 min):
-We didn't stop at suspicion — we ran two independent contamination probes. First: a memorization probe comparing generated outputs to training data. Four of 288 SocratTeachLLM outputs were character-for-character identical to training data. Seventeen of 288 were 80%-or-more matches. Gemma's control on the same probe: zero. Second probe: I had Claude Sonnet generate fresh synthetic dialogues that were demonstrably outside SocratDataset's training distribution. SocratTeachLLM's state accuracy collapsed to 32.86 stage-balanced on the clean probe — that's BELOW Gemma's 56.13 on the exact same probe. The benchmark, as published, rewards memorization. The fact that GPT-4o-plus-SocratTeachLLM beats every frontier configuration on ROUGE-1 in their paper isn't a finding about teaching capability — it's a benchmark artifact.
+SPEAKER NOTES (Slide 12, ~1:45):
+The rank inversion plus the monotone n-gram-length signature plus the cross-lingual result is strong circumstantial evidence. But "the published benchmark systematically rewards memorization" is a serious claim against an EMNLP-Findings paper. We needed direct, dispositive proof that SocratTeachLLM was memorizing rather than generalizing. So we built two independent contamination probes, each with a clean Gemma 31B control.
+
+Probe one — direct memorization detection. We compared SocratTeachLLM's generated outputs character-for-character against the training corpus. Looking for exact matches. Four out of two hundred and eighty-eight outputs are character-for-character identical to training data. Seventeen out of two hundred and eighty-eight are eighty-percent-or-more match. The Gemma 31B control on the exact same probe? Zero exact matches. Zero eighty-percent matches. SocratTeachLLM is literally quoting back its training data on roughly one in seventy turns at the strict threshold and one in seventeen at the relaxed threshold. Gemma is producing zero matches on the same dialogue inputs. There is no plausible non-memorization explanation for that gap.
+
+Probe two — clean probe on synthetic data. We had Claude Sonnet generate a fresh batch of dialogue test cases that are demonstrably outside SocratDataset's training distribution. Synthesized after SocratTeachLLM's training cutoff, topics intentionally drifted from the elementary-science domain. We ran both SocratTeachLLM and Gemma 31B against the clean probe under the same protocol. SocratTeachLLM's stage-balanced state accuracy collapsed from sixty-three-point-four to thirty-two-point-eight-six — BELOW Gemma 31B's 56.13 on the same clean probe. The model that wins on SocratDataset by thirty-plus points LOSES by twenty-three points the moment we change the data distribution. That isn't pedagogical capability degrading. That's memorization vanishing.
+
+Combined verdict. Two independent probes agree. The KELE benchmark as published rewards memorization over pedagogical capability. The "GPT-4o + SocratTeachLLM" baseline ROUGE-1 of 44.61, higher than Opus 4.6 with prompts, is the canonical example. Future work on Socratic-teaching evaluation needs a memorization-resistant metric — which we propose on the next slide.
 -->
 
 ---
