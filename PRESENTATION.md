@@ -106,7 +106,7 @@ Here is what a KELE pipeline actually does, with a real dialogue from the datase
 
 ## Our Constraints
 
-<img src="assets/pc-rig.jpg" alt="The RTX 5090 rig — primary test platform for the campaign" style="max-height: 240px; display: block; margin: 0.5em auto;">
+<img src="assets/pc-rig.jpeg" alt="The RTX 5090 rig — primary test platform for the campaign" style="max-height: 240px; display: block; margin: 0.5em auto;">
 
 A single 32 GB consumer GPU as the primary test rig, **$0 budget** for per-run API calls, and **one Spring quarter** of Santa Clara class time.
 
