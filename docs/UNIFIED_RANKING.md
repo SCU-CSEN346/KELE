@@ -68,7 +68,7 @@ All 8 cells now judged. Cell labels follow `docs/NAMING_CONVENTION.md`:
 | 1 | 4 | `qwen3.5 × Qwen-27B · think · fewshot10 · n=50` | 53.19 | 58.68 | 7.51 | **66.89** |
 | 2 | 3 | `qwen3.5 × A3B-35B · fewshot10 · n=50` | 54.86 | 58.62 | 7.52 | **66.91** |
 | 3 | 5 | `bert-fixed × Qwen-27B · think · fewshot10 · n=50` | 49.08 | 57.15 | 7.41 | **65.65** |
-| 4 | 🥇 1 | **`qwen3.5 × Gemma-31B · fewshot10 · n=50`** | 51.58 | 56.13 | **8.18** | **68.94** |
+| 4 | 🥇 1 | **`qwen3.5 × Gemma-31B · fewshot10 · n=50`** † | 51.58 | 56.13 | **8.18** | **68.94** |
 | 5 | 6 | `qwen3.5 × Qwen-27B · no-think · fewshot10 · n=50` | 51.89 | 55.45 | 7.56 | **65.54** |
 | 6 | 🥈 2 | **`bert-fixed × Gemma-31B · fewshot10 · n=50`** | 45.94 | 52.73 | **8.26** | **67.65** |
 | 7 | 7 | `bert-fixed × Qwen-27B · no-think · fewshot10 · n=50` | 46.85 | 52.62 | 7.59 | **64.25** |
@@ -77,6 +77,8 @@ All 8 cells now judged. Cell labels follow `docs/NAMING_CONVENTION.md`:
 **The headline shifts.** Under stage_bal alone, T4 × Qwen 27B-think narrowly wins (58.68); under unified, **qwen3.5 × Gemma 31B wins decisively** (68.94 vs Qwen-think's 66.89 — a 2.05-point margin, well outside n=50 noise on the judge axis). Even bert-fixed × Gemma 31B (67.65) beats both Qwen-think configurations on unified.
 
 The driver is judge score: Gemma sits at **8.18–8.26** across both consultants while Qwen sits at **7.41–7.59**. That ~0.65-point judge gap (×10 = 6.5 unified-pp) more than swallows the stage_bal advantage Qwen had on closure.
+
+† **Canonical-scale promotion landed AND promoted to locked headline 2026-05-26.** `qwen3.5 × Gemma-31B · fewshot10 · n=681` lands at unified **72.24** (stage_bal 61.32, judge 8.32) — **#1 on the full master leaderboard AND the paper's current locked headline**, beating the prior #1 frontier ceiling (`bert × Claude-Sonnet · top3 · n=681` at 70.06) by +2.18 unified pts. Positive scaling +3.30 vs the n=50 baseline of this same cell. The screening-tier "1.12-pt parity gap" claim has been **inverted to overtaking** — a single 32 GB consumer GPU running a 31B-param open-weight teacher with prompt engineering beats the best frontier configuration on a memorization-resistant evaluation at canonical sample size. The prior 2026-05-18 BERT-classifier locked headline (unified 68.65) is preserved as the BERT-classifier-axis architectural result. See `docs/EXPERIMENT_LOG.md` 2026-05-26 entry and paper §`sec:unified-ranking-overtaking` for the full breakdown.
 
 **Three honest readings of the same data:**
 

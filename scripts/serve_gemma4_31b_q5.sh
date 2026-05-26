@@ -2,14 +2,16 @@
 # Serve Gemma 4 31B-it Unsloth UD-Q5_K_XL GGUF as an OpenAI-compatible API
 # server on the RTX 5090.
 #
-# 180K context: ~26 GB total / ~6 GB headroom on the 32 GB 5090. Reduced from
-# the earlier 220K ceiling on 2026-05-23 after the bilingual probe hit CUDA
-# OOM trying to load the T4 BERT consultant on top of a 220K Gemma server —
-# the headroom was simply too thin for a co-resident consultant.
-# Per-token KV scales: 128K→200K=20 KB/token, 200K→250K=25 KB/token (heavier
-# slots above 200K). 180K stays in the cheap regime AND leaves ~6 GB for
-# whatever co-resident BERT consultant the eval needs.
-# Per-slot ~30K context across 6 slots — still well above KELE turn size (<10K).
+# 150K context: tighter than the previous 180K ceiling. Reduced 2026-05-26
+# after the t4-bert-gemma-fewshot10-n681 crash showed we were operating too
+# close to the 32 GB VRAM limit — peak transients during checkpoint
+# restore/erase (~250 MiB each, up to 32 per slot) were spiking into the
+# headroom. 180K traces: ~26 GB resident / ~6 GB headroom (insufficient).
+# Earlier history: 220K → CUDA OOM with co-resident T4 BERT consultant
+# (2026-05-23). Per-token KV scales: 128K→200K=20 KB/token, 200K→250K=25
+# KB/token. 150K saves ~600 MB vs 180K AND stays well within the cheap regime.
+# Per-slot ~38K context across 4 slots — still well above KELE turn size (<10K).
+# Slot count matches KELE_PARALLEL_WORKERS=4 (see serve_gemma4_31b.sh PARALLEL).
 #
 # Both the KELE teacher and consultant hit this same server (configs/
 # gemma4-31b-local.env). Shares port 8080 with the other Qwen/Gemma variants
@@ -29,5 +31,5 @@ WEIGHT_FILE="${GEMMA4_31B_WEIGHT_FILE:-gemma-4-31B-it-UD-Q5_K_XL.gguf}"
 exec "$SCRIPT_DIR/serve_gemma4_31b.sh" \
   -m "$GEMMA4_31B_WEIGHTS_DIR/$WEIGHT_FILE" \
   -a "Gemma 4 31B" \
-  -c 184320 \
+  -c 153600 \
   "$@"
