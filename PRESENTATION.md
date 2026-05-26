@@ -3,27 +3,17 @@ PRESENTATION.md — class talk for CSEN 346
 Render: `npx reveal-md PRESENTATION.md` for slide deck in browser,
         or read directly on GitHub (renders as one long doc).
 Speaker notes are HTML comments — visible in source, hidden in render.
-Target pace: ~130 words/minute. 17 slides, ~27-28 min + Q&A
-(over the original 15-min budget by ~12-13 min; user-approved —
-extra budget for the Socratic-teaching foundation (slides 2-4), the
-expanded constraints slide (slide 5: hardware diversity + time
-scope), the deepened methodology slide (slide 7: tournament results
-+ cascade narrative), the Gemma-retraction story (slide 8), the
-Pivot-2 architectural-decomposition story (slide 9), the frontier
-stress-test narrative (slide 10), the benchmark-critique discovery
-arc (slide 11), the contamination-proof two-probe narrative (slide
-12), the unified-metric design story (slide 13), the consultant-
-upgrade story with the Qwen 27B think-mode footnote (slide 14),
-the reveal-slide campaign payoff (slide 15), and the final-slide
-depth on Slide 17 "Total Contributions" — now 23 items across
-6 categories, including the energy-speed-deployability category).
+Target pace: ~130 words/min. 17 slides, ~27–28 min + Q&A.
+(Over the original 15-min budget by ~12–13 min; user-approved
+to let each section earn its narrative arc rather than be
+compressed to bullets.)
 -->
 
 # Beating the Frontier on a Consumer GPU
 
 ### Reproducing and Extending KELE: a Multi-Agent Socratic Teaching Framework
 
-**Maximilian Khan** **Ulises Chavarria** · CSEN 346 · Santa Clara University · May 2026
+**Maximilian Khan** · **Ulises Chavarria** · CSEN 346 · Santa Clara University · May 2026
 
 A 31B-parameter open-weight teacher running on a single 32 GB consumer GPU — beating Anthropic's best frontier model on a memorization-resistant Chinese pedagogy benchmark at canonical sample size, at **zero** per-run API cost.
 
@@ -292,7 +282,7 @@ We confirmed the diagnosis with a cross-lingual translation experiment. We trans
 
 <!--
 SPEAKER NOTES (Slide 11, ~2:30):
-This is the methodological turn of the campaign — and I'd argue it's the most important contribution we made beyond the architectural pivots. With our open-weight integration landing within sampling noise of frontier Claude, something started bothering us about the original KELE paper. The paper reports SocratTeachLLM — a 9-billion-parameter fine-tune — outperforming GPT-4o on every single one of nine evaluation dimensions. That is statistically improbable. A 9B specialist beating a frontier model on a real pedagogical task across the board. Either the small model is genuinely better at teaching, which would be a surprising claim, or the evaluation is measuring something other than teaching. We had to find out which.
+This is the methodological turn of the campaign, and the contribution that most informs how to evaluate Socratic teaching systems going forward. With our open-weight integration landing within sampling noise of frontier Claude, something started bothering us about the original KELE paper. The paper reports SocratTeachLLM — a 9-billion-parameter fine-tune — outperforming GPT-4o on every single one of nine evaluation dimensions. That is statistically improbable. A 9B specialist beating a frontier model on a real pedagogical task across the board. Either the small model is genuinely better at teaching, which would be a surprising claim, or the evaluation is measuring something other than teaching. We had to find out which.
 
 We ranked our configurations by the same metrics the paper uses — the surface-form sum, ROUGE-1 plus ROUGE-2 plus BLEU-4 — and got a leaderboard. SocratTeachLLM lands FIRST, by ten-point-eight-three over Opus 4.6 with our carefully tuned top-3 prompts. Then we ranked the SAME configurations by pedagogical state accuracy — does the system actually route to the correct SocRule state. SocratTeachLLM lands DEAD LAST at 25.94 percent, below even raw Opus with zero prompt engineering at 39.75. The two rankings invert across the same configurations.
 
