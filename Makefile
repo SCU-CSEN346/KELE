@@ -182,7 +182,8 @@ _install-torch-rocm:
 	  --index-url https://download.pytorch.org/whl/rocm7.2 \
 	  "torch==2.11.0" "torchaudio==2.11.0"
 	uv pip uninstall torchvision 2>/dev/null || true
-	@echo "✓ torch+rocm7.2 installed (torchvision excluded — ABI mismatch on gfx1201)"
+	uv pip install --force-reinstall "triton==3.5.1"
+	@echo "✓ torch+rocm7.2 + triton==3.5.1 installed (torchvision excluded — ABI mismatch on gfx1201)"
 
 _install-torch-cuda:
 	uv pip install --force-reinstall \
@@ -191,8 +192,9 @@ _install-torch-cuda:
 	@echo "✓ torch+cu126 installed"
 
 # ── RDNA4 / gfx1201 FLA Triton workaround ────────────────────────────────────
-# Forces num_stages=1 in flash-linear-attention Triton autotune configs to
-# sidestep the Triton 3.6.0 software-pipelining use-after-free on gfx1201.
+# Patches flash-linear-attention autotune configs: num_stages>=2→1, num_warps>4→4.
+# Addresses Triton 3.6.0 tritonamdgpu-pipeline UAF + RDNA4 wave-32 scheduling.
+# _install-torch-rocm now pins triton==3.5.1 (pre-bug); keep patches as safety net.
 # Re-run after every `uv sync` or `make install-rocm`. See PR #79 thread.
 patch-fla-rocm:
 	bash scripts/patch_fla_rocm.sh
