@@ -1,13 +1,14 @@
 # Master leaderboard
 
-Configs available: 22/23
+Configs available: 23/24
 
-> **Note (2026-05-25):** This file uses the legacy `composite = state + 0.5 × R-1` metric and predates the unified ranking. For the authoritative leaderboard under `unified = 0.5 × stage_balanced + 0.5 × (judge × 10)`, see `results/_orchestrator_logs/backtest_stage_balanced_latest.md` and `README.md`. The composite metric over-credits surface-form mimicry (`docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md`).
+> **Note (2026-05-26):** This file uses the legacy `composite = state + 0.5 × R-1` metric and predates the unified ranking. For the authoritative leaderboard under `unified = 0.5 × stage_balanced + 0.5 × (judge × 10)`, see `results/_orchestrator_logs/backtest_stage_balanced_latest.md` and `README.md`. The composite metric over-credits surface-form mimicry (`docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md`). **Latest addition (2026-05-26):** `qwen3.5 × Gemma-31B · fewshot10 · n=681` (TODO #14 cell #2) — composite 74.21, unified **72.24 (NEW #1 OVERALL, FRONTIER OVERTAKEN)**.
 
 ## Sorted by composite (state + 0.5*R-1)
 
 | Config | State | R-1 | R-2 | BLEU-4 | Semantic R-1 | LLM-judge | Composite | n_turns |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
+| **qwen3.5 × Gemma-31B + 10-shot (n=681 TODO #14 cell #2, 2026-05-26) — NEW #1 UNIFIED** | **55.39** | **37.65** | **16.74** | **9.61** | — | **8.32** | **74.21** | **3974** |
 | Gemma 4 31B + top-3 stack | 50.72 | 41.13 | 18.60 | 12.91 | 0.7326 | 8.17 | 71.28 | 278 |
 | Opus 4.6 + BERT + top-3 | 49.82 | 42.77 | 21.12 | 15.53 | 0.7523 | 8.08 | 71.20 | 271 |
 | Sonnet 4.6 + BERT + top-3 (n=681 Phase 3) | 49.97 | 41.93 | 20.43 | 13.46 | — | 8.19 | 70.94 | 3840 |
@@ -36,6 +37,7 @@ Configs available: 22/23
 | Config | R-1 | R-2 | BLEU-4 | Sum | State | LLM-judge | Semantic |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Opus 4.6 consultant + SocratTeachLLM (n=50) | 47.58 | 28.06 | 21.21 | 96.85 | 38.44 | 7.80 | 0.7692 |
+| **qwen3.5 × Gemma-31B + 10-shot (n=681 TODO #14 cell #2)** | **37.65** | **16.74** | **9.61** | **64.00** | **55.39** | **8.32** | — |
 | Sonnet 4.6 consultant + SocratTeachLLM (EN) | 55.85 | 33.79 | 3.56 | 93.20 | 22.11 | 6.62 | — |
 | Sonnet 4.6 consultant + SocratTeachLLM (n=50 clean rerun) | 45.61 | 26.70 | 20.45 | 92.76 | 18.57 | 7.63 | — |
 | GPT-4o + SocratTeachLLM (paper baseline) | 44.61 | 26.04 | 19.60 | 90.25 | 25.94 | — | — |

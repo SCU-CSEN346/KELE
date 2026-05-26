@@ -36,7 +36,14 @@ ALIAS=""
 CONTEXT=65536
 KV_QUANT="q4_0"
 GPU_LAYERS=99
-PARALLEL=6
+# Match KELE_PARALLEL_WORKERS=4 used by eval scripts. Idle slots are not free:
+# llama.cpp reserves per-slot KV cache bookkeeping and accumulates per-slot
+# context checkpoints (~200-270 MiB each, up to 32 per slot). With -np 6 and
+# only 4 workers, the LCP-similarity router still spreads requests across 5-6
+# slots over time, inflating checkpoint memory and contributing to the
+# 2026-05-26 crash on t4-bert-gemma-fewshot10-n681. Pinning -np to KELE
+# worker count keeps the cache concentrated and frees ~500 MiB headroom.
+PARALLEL=4
 HOST="0.0.0.0"
 PORT=8080
 # ROCm0 is ~6% faster than Vulkan0 on TG for gfx1201 (llama-bench 2026-05-24).
