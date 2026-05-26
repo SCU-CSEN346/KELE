@@ -1,5 +1,7 @@
-# Training outputs — checkpoints and logs can be multi-GB
+# Training outputs — checkpoints, logs, and eval results can be multi-GB
 outputs/
+results/
+logs/
 
 # Python
 __pycache__/
@@ -15,6 +17,17 @@ dist/
 # Coverage
 .coverage
 htmlcov/
+
+# Data — generated / large files not suited for git
+data/SocratDataset-EN.json
+data/translate.log
+data/translate_checkpoint.json
+data/archive/
+
+# Secrets and local tooling
+.env
+.claude/
+.railguard/
 
 # Editor
 .idea/

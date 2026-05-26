@@ -141,16 +141,24 @@ def build_model_and_tokenizer():
         base_model,
         quantization_config=bnb_config,
         torch_dtype=torch_dtype,
+        attn_implementation="sdpa",
         device_map="auto",
         trust_remote_code=True,
     )
+
+    if hasattr(model, "visual"):
+        import torch as _torch
+
+        del model.visual
+        _torch.cuda.empty_cache()
+        print("  Dropped vision encoder to free VRAM")
 
     if method == "qlora":
         from peft import prepare_model_for_kbit_training
 
         model = prepare_model_for_kbit_training(
             model,
-            use_gradient_checkpointing=_bool(_get("TRAIN_GRAD_CKPT", "false")),
+            use_gradient_checkpointing=False,
         )
 
     return model, tokenizer
