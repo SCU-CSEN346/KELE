@@ -23,7 +23,9 @@ When the same 10 configurations are ranked by the KELE-paper-style surface-form 
 
 **Same nine configurations. Opposite rankings.** Frontier models with prompt scaffolding (Opus, Sonnet) should top a fair benchmark — they do top the pedagogical ranking but lose surface-form to a 9B specialist. The gap widens with n-gram length (R-1 +1.59 → R-2 +4.92 → BLEU-4 +4.07), the strongest possible memorization signature. A 9B fine-tune from 2024 lexically out-mimicking the ground truth more than Opus 4.6 with carefully tuned prompts is statistically inconsistent with normal training conditions. Full critique + four-metric replacement proposal in [`docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md`](docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md).
 
-> **Latest (2026-05-25) — second n=681 parity sub-leaderboard cell landed (TODO #14 cell #4a).** `qwen3.5 × Qwen-27B · no-think · fewshot10 · n=681` ran in 64 min (+18 min judge, $16.22 Sonnet) and landed at unified **66.71** (#16 master, stage_bal 58.16, judge 7.53). **Zero schema fallbacks across 4010 turns** — Qwen-27B's strict-JSON adherence is rock solid at canonical scale. The locked headline (#7) and frontier ceiling (#2) remain unmoved. With two of four parity cells now in, the canonical-scale parity gap envelope is **1.41 pts** (legacy locked headline) to **3.35 pts** (Qwen-27B cell). Two matched-consultant Gemma 31B cells remain queued under TODO #14.
+> **🏆 Latest (2026-05-26) — NEW LOCKED HEADLINE, FRONTIER OVERTAKEN.** Third n=681 parity cell (TODO #14 cell #2) landed and was **promoted to the paper's locked headline**: `qwen3.5 × Gemma-31B · fewshot10 · n=681` at unified **72.24** (stage_bal **61.32**, judge **8.32**) — **#1 on the master leaderboard**, beating the prior #1 frontier ceiling (`bert × Claude-Sonnet · top3 · n=681` at 70.06) by **+2.18 unified pts** and the prior 2026-05-18 BERT-classifier locked headline (#8 now at 68.65) by **+3.59 pts**. Positive scaling +3.30 vs the n=50 baseline of this same cell. **The 2026-05-23 "parity" framing has been inverted to overtaking** — a single 32 GB consumer GPU running a 31B-param open-weight teacher with prompt engineering beats the best Anthropic teacher we tested on a memorization-resistant evaluation at canonical sample size. Resolved 4 distinct crashes en route (DEV=rocm0 default, batch=4096 OOM, LCP-router slot-spread inflation, too-aggressive 180K context); all fixes are now durable in `scripts/serve_gemma4_31b{,_q5}.sh`. See `docs/EXPERIMENT_LOG.md` 2026-05-26 entry and paper §`sec:unified-ranking-overtaking` for the full breakdown. TODO #14 now 3 of 4 cells done; remaining cell (`bert-fixed × Gemma-31B · n=681`) no longer load-bearing for the headline.
+>
+> **2026-05-25 — second n=681 parity sub-leaderboard cell landed (TODO #14 cell #4a).** `qwen3.5 × Qwen-27B · no-think · fewshot10 · n=681` ran in 64 min (+18 min judge, $16.22 Sonnet) and landed at unified **66.71** (#17 master, stage_bal 58.16, judge 7.53). **Zero schema fallbacks across 4010 turns** — Qwen-27B's strict-JSON adherence is rock solid at canonical scale. (Now superseded as the headline finding by cell #2 above.)
 >
 > **2026-05-25 — first n=681 parity sub-leaderboard cell landed (TODO #14 cell #3).** `qwen3.5 × A3B-35B · fewshot10 · n=681` ran overnight (9h41m + $16.53 Sonnet judge) and landed at unified **67.81** (#11 master, #5 stage_bal at 60.02). The n=50 → n=681 promotion shifts per-stage profile by ~7 pp (closure jumps, b/c each drop) and costs ~1 pt on stage_bal as closure dominance only emerges at full sampling.
 >
@@ -31,7 +33,7 @@ When the same 10 configurations are ranked by the KELE-paper-style surface-form 
 >
 > **2026-05-23 — unified ranking + local–frontier parity finding (screening tier).** We collapsed the four memorization-resistant metrics into a single defensible paper headline: `unified = 0.5 × stage_balanced + 0.5 × (judge × 10)` (see [`docs/UNIFIED_RANKING.md`](docs/UNIFIED_RANKING.md)). Under this metric the **best honest open-weight cell** (`qwen3.5 × Gemma-31B · fewshot10 · n=50`, unified **68.94**) sits **1.12 points** behind the best frontier configuration (`bert × Claude-Sonnet · top3 · n=681`, unified **70.06**) on a [0, 100] scale — **head-to-head parity** between a prompt-engineered open-weight teacher and frontier proprietary models on a memorization-resistant evaluation, at the screening tier. The legacy locked headline (`bert × Gemma-31B · fewshot10 · n=681`, unified **68.65**) sits 1.41 points below the frontier ceiling at full sample size, with ~1 of those points being the pre-fix BERT input-format artifact (asymmetric duplication bug, patched in commit `3d68d4a`; see paper §`sec:unified-ranking-parity` and [`docs/UNIFIED_RANKING.md`](docs/UNIFIED_RANKING.md)). Full 36-config master ranked list at `results/_orchestrator_logs/backtest_stage_balanced_latest.md`. Cell-label format per [`docs/NAMING_CONVENTION.md`](docs/NAMING_CONVENTION.md).
 
-Our **locked, full-scale headline** as of 2026-05-18 is the **BERT + Gemma 4 31B + 10-shot integration**: **+22.21 point absolute lift** in overall state accuracy over the GPT-4o + SocratTeachLLM baseline on the full 681-dialogue test split (n=681, **48.15% state acc / 36.78 ROUGE-1**, **unified 68.65**), a Pareto win over the prior A3B locked headline on both axes (+9.45 state, +6.15 R-1). The new Phase 2 winner (Gemma 4 31B + 10-shot + top-3 prompt stack at n=50, **50.72% / 41.13 R-1 / composite 71.28 / unified 70.08**) is the Phase 3 promotion candidate to n=681. Running entirely on a single 32 GB consumer GPU at zero per-run API cost. **Standalone Gemma 4 31B fusion at n=681 underperformed** (31.39% / 27.27 R-1, driven by a 21% schema-fallback rate vs A3B's 0.91%); the BERT-consultant integration removes the schema-fallback dependency entirely by routing state through a deterministic 24M-param classifier — see §4.6 and §4.8.1 of the paper for the methodological finding. The locked headline was produced under the pre-fix consultant input format; the post-fix `bert-fixed × Gemma-31B · fewshot10 · n=50` cell scores unified 67.65 — about 1 point below the locked headline on same-teacher comparison, which is the asymmetric measurement artifact (BERT-class consultants gained ~1–2 pp from the duplicated current utterance; qwen3.5-LoRA classifiers lost ~2–3 pp).
+Our **locked, full-scale headline** as of 2026-05-26 is the **Qwen3.5-0.8B-LoRA classifier + Gemma 4 31B + 10-shot integration**: **+29.45 point absolute lift** in overall state accuracy over the GPT-4o + SocratTeachLLM baseline on the full 681-dialogue test split (n=681, **55.39% state acc / 37.65 ROUGE-1**, **unified 72.24**), AND a **+2.18 unified-point lead** over the best frontier configuration we tested (`bert × Claude-Sonnet · top3 · n=681`, unified 70.06) at canonical sample size — the open-weight system now overtakes the best Anthropic teacher we measured on a memorization-resistant evaluation. Running entirely on a single 32 GB consumer GPU at zero per-run eval API cost (~$16 for the Sonnet 4.6 judge pass that completes the unified score). The Qwen3.5-LoRA classifier is the consultant-upgrade-campaign winner (LoRA fine-tune of Qwen3.5-0.8B-Base on the same 42K state-labeled turns) and is the post-fix successor to the methodologically-primary 24M-parameter Chinese BERT classifier; **the prior locked headline (2026-05-18, BERT classifier + Gemma 4 31B + 10-shot, unified 68.65)** remains documented as the BERT-classifier-axis result and is preserved in the master leaderboard. The deterministic-classifier consultant architecture (either BERT or Qwen3.5-LoRA) is the headline architectural contribution — see §4.6 (`sec:bert-integration`) and §4.8.1 (`sec:unified-ranking-overtaking`) of the paper for the methodological finding and the canonical-scale overtaking result.
 
 - **Paper we reproduce:** Peng et al., "KELE: A Multi-Agent Framework for Structured Socratic Teaching with Large Language Models", *Findings of EMNLP 2025* — [aclanthology.org/2025.findings-emnlp.888](https://aclanthology.org/2025.findings-emnlp.888/)
 - **Original repository:** https://github.com/yuanpan1020/KELE
@@ -42,70 +44,75 @@ Our **locked, full-scale headline** as of 2026-05-18 is the **BERT + Gemma 4 31B
 
 ## Master leaderboard — every variant we've measured
 
-We've evaluated **142 model variants** across this project — 8-cell cross-teacher grids, prompt-engineering tournaments, multiple full n=681 runs, frontier-model comparisons, bilingual probes, and contamination probes. The table below is the full sorted master ranking. Auto-regenerated by `scripts/backtest_stage_balanced.py`; underlying data is the per-config `metrics_summary.json` + `judge_summary.json` files in `results/`.
+We've evaluated **143 model variants** across this project — 8-cell cross-teacher grids, prompt-engineering tournaments, multiple full n=681 runs, frontier-model comparisons, bilingual probes, and contamination probes. The table below is the full sorted master ranking. Auto-regenerated by `scripts/backtest_stage_balanced.py`; underlying data is the per-config `metrics_summary.json` + `judge_summary.json` files in `results/`.
 
-**Headline metric** (`unified = 0.5 × stage_balanced + 0.5 × (judge × 10)`, defined in [`docs/UNIFIED_RANKING.md`](docs/UNIFIED_RANKING.md)) is shown for the 37 configs we've LLM-judged. The remaining 105 configs are sorted by stage_balanced alone (the metric we recommend over the original macro state-acc; see [`docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md`](docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md) Proposal 7).
+**Headline metric** (`unified = 0.5 × stage_balanced + 0.5 × (judge × 10)`, defined in [`docs/UNIFIED_RANKING.md`](docs/UNIFIED_RANKING.md)) is shown for the 38 configs we've LLM-judged. The remaining 105 configs are sorted by stage_balanced alone (the metric we recommend over the original macro state-acc; see [`docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md`](docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md) Proposal 7).
 
-**Legend:** 🏆 = locked paper headline · 🥇🥈🥉 = top 3 by unified score · ⚠️ = SocratTeachLLM-based; contamination-driven scores, see [`docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md`](docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md) · Cell labels follow [`docs/NAMING_CONVENTION.md`](docs/NAMING_CONVENTION.md).
+**Legend:** 🏆 = current locked paper headline (promoted 2026-05-26 to row #1) · 🥇🥈🥉 = top 3 by unified score · ⚠️ = SocratTeachLLM-based; contamination-driven scores, see [`docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md`](docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md) · Cell labels follow [`docs/NAMING_CONVENTION.md`](docs/NAMING_CONVENTION.md).
 
-### Unified-ranked tier (37 cells with both stage_bal AND LLM-judge)
+### Unified-ranked tier (38 cells with both stage_bal AND LLM-judge)
 
 | u# | Cell | n_turns | **unified** | stage_bal | judge | macro | R-1 |
 |---:|---|---:|---:|---:|---:|---:|---:|
-| 🥇 1 | `bert × Gemma-31B · composed · top3 · n=50` | 278 | **70.08** | 58.48 | 8.17 | 50.72 | 41.13 |
-| 🥈 2 | `bert × Claude-Sonnet · top3 · n=681` | 3840 | **70.06** | 58.17 | 8.19 | 49.97 | 41.93 |
-| 🥉 3 | `bert × Claude-Opus · fewshot10 · n=50` | 271 | **69.79** | 58.73 | 8.08 | 49.82 | 42.77 |
-| 4 | `bert × Claude-Opus · top3 · n=681` | 3794 | **69.37** | 58.63 | 8.01 | 49.31 | 41.63 |
-| 5 | `bert × Claude-Sonnet · fewshot10 · n=50` | 281 | **69.16** | 57.18 | 8.11 | 48.75 | 43.02 |
-| 6 | `qwen3.5 × Gemma-31B · fewshot10 · n=50` ← honest cross-teacher winner (screening) | 285 | **68.94** | 56.13 | 8.18 | 51.58 | 38.76 |
-| 🏆 7 | `bert × Gemma-31B · fewshot10 · n=681` ← **LOCKED HEADLINE** | 3834 | **68.65** | 55.42 | 8.19 | 48.15 | 36.78 |
-| ⚠️ 8 | `qwen3.5 × SocratTeachLLM · fewshot10 · n=50` | 288 | **68.21** | 63.40 | 7.30 | 58.33 | 48.07 |
-| 9 | `qwen3.5 × Qwen-27B · phase3 · think · n=100 · seed=42` | 570 | **68.05** | 60.88 | 7.52 | 54.04 | 33.17 |
-| 10 | `bert × Claude-Sonnet · fewshot10 · n=50` | 267 | **67.85** | 57.32 | 7.84 | 47.94 | 39.68 |
-| 11 | `qwen3.5 × A3B-35B · fewshot10 · n=681` ← **TODO #14 cell #3** (first n=681 parity cell, 2026-05-25) | 3968 | **67.81** | 60.02 | 7.56 | 53.40 | 34.10 |
-| 12 | `bert-fixed × Gemma-31B · fewshot10 · n=50` | 283 | **67.65** | 52.73 | 8.26 | 45.94 | 38.69 |
-| 13 | `qwen3.5 × Gemma-31B · fewshot10 · EN · RETRY · n=100 · seed=42` ← cross-lingual Stage 1 (screening; superseded by #21) | 584 | **67.30** | 52.10 | 8.25 | 46.58 | 11.66 |
-| 14 | `qwen3.5 × A3B-35B · fewshot10 · n=50` | 288 | **66.91** | 58.62 | 7.52 | 54.86 | 35.67 |
-| 15 | `qwen3.5 × Qwen-27B · think · fewshot10 · n=50` | 282 | **66.89** | 58.68 | 7.51 | 53.19 | 35.28 |
-| 16 | `qwen3.5 × Qwen-27B · no-think · fewshot10 · n=681` ← **TODO #14 cell #4a** (second n=681 parity cell, 2026-05-25) | 4010 | **66.71** | 58.16 | 7.53 | 53.04 | 36.63 |
-| 17 | `qwen3.5 × Gemma-31B · fewshot10 · EN · PARTIAL · n=61` | 351 | **66.66** | 50.84 | 8.25 | 45.01 | 10.88 |
-| 18 | `qwen3.5 × Qwen-27B · phase3 · no-think · n=200 · seed=42` | 1172 | **66.55** | 57.45 | 7.56 | 52.13 | 37.11 |
-| 19 | `bert × A3B-35B · composed · top3 · n=50` | 276 | **65.79** | 56.73 | 7.49 | 48.19 | 37.64 |
-| 20 | `bert-fixed × Qwen-27B · think · fewshot10 · n=50` | 271 | **65.65** | 57.15 | 7.41 | 49.08 | 34.91 |
-| 21 | `qwen3.5 × Qwen-27B · no-think · fewshot10 · n=50` | 291 | **65.54** | 55.45 | 7.56 | 51.89 | 37.38 |
-| 22 | `qwen3.5 × Gemma-31B · fewshot10 · EN · canonical · n=400 · seed=42` ← **cross-lingual Stage 1 CONFIRMED (canonical)** | 2324 | **65.11** | 49.12 | 8.11 | 42.34 | 10.45 |
-| ⚠️ 23 | `bert-fixed × SocratTeachLLM · fewshot10 · n=50` | 278 | **65.09** | 58.34 | 7.18 | 52.52 | 47.44 |
-| 24 | `bert × Claude-Opus · fewshot10 · n=50` | 272 | **64.99** | 55.52 | 7.44 | 47.43 | 32.99 |
-| 25 | `bert × A3B-35B · fewshot10 · n=681` | 3762 | **64.47** | 54.72 | 7.42 | 46.57 | 33.27 |
-| 26 | `bert-fixed × Qwen-27B · no-think · fewshot10 · n=50` | 286 | **64.25** | 52.62 | 7.59 | 46.85 | 37.81 |
-| 27 | `bert-fixed × A3B-35B · fewshot10 · n=50` | 280 | **63.70** | 52.48 | 7.49 | 45.36 | 34.99 |
-| 28 | `bert × Claude-Sonnet · raw · n=50` | 260 | **62.91** | 53.32 | 7.25 | 45.00 | 29.10 |
-| 29 | `bert × Claude-Opus · top3 · EN · n=50` | 270 | **60.38** | 40.69 | 8.01 | 34.44 | 0.47 |
-| ⚠️ 30 | `Claude-Opus × SocratTeachLLM · n=50` | 307 | **59.86** | 41.68 | 7.80 | 38.44 | 47.58 |
-| ⚠️ 31 | `bert-fixed × SocratTeachLLM · fewshot10 · EN · n=50` | 273 | **58.22** | 48.97 | 6.75 | 43.22 | 48.07 |
-| ⚠️ 32 | `qwen3.5 × SocratTeachLLM · fewshot10 · EN · n=50` | 291 | **57.20** | 48.66 | 6.57 | 43.99 | 46.73 |
-| 33 | `bert × Claude-Opus · raw · n=50` | 239 | **55.63** | 43.27 | 6.80 | 39.75 | 23.28 |
-| ⚠️ 34 | `qwen3.5 × SocratTeachLLM · CLEANPROBE · fewshot10 · SYNTH · n=50 · seed=42` ← STL on truly unseen data | 211 | **51.29** | 32.86 | 6.97 | 29.38 | 35.72 |
-| ⚠️ 35 | `Claude-Opus × SocratTeachLLM · EN · n=50` | 304 | **50.73** | 33.79 | 6.77 | 30.26 | 44.22 |
-| ⚠️ 36 | `Claude-Sonnet × SocratTeachLLM · clean · n=50` | 307 | **47.53** | 18.74 | 7.63 | 18.57 | 45.61 |
-| ⚠️ 37 | `Claude-Sonnet × SocratTeachLLM · EN · n=50` | 303 | **44.36** | 22.55 | 6.62 | 22.11 | 55.85 |
+| 🏆🥇 1 | `qwen3.5 × Gemma-31B · fewshot10 · n=681` ← **LOCKED HEADLINE** (2026-05-26) · FRONTIER OVERTAKEN | 3974 | **72.24** | 61.32 | 8.32 | 55.39 | 37.65 |
+| 🥈 2 | `bert × Gemma-31B · composed · top3 · n=50` | 278 | **70.08** | 58.48 | 8.17 | 50.72 | 41.13 |
+| 🥉 3 | `bert × Claude-Sonnet · top3 · n=681` ← prior frontier ceiling | 3840 | **70.06** | 58.17 | 8.19 | 49.97 | 41.93 |
+| 4 | `bert × Claude-Opus · fewshot10 · n=50` | 271 | **69.79** | 58.73 | 8.08 | 49.82 | 42.77 |
+| 5 | `bert × Claude-Opus · top3 · n=681` | 3794 | **69.37** | 58.63 | 8.01 | 49.31 | 41.63 |
+| 6 | `bert × Claude-Sonnet · fewshot10 · n=50` | 281 | **69.16** | 57.18 | 8.11 | 48.75 | 43.02 |
+| 7 | `qwen3.5 × Gemma-31B · fewshot10 · n=50` ← screening baseline of #1 (canonical promotion +3.30 unified) | 285 | **68.94** | 56.13 | 8.18 | 51.58 | 38.76 |
+| 8 | `bert × Gemma-31B · fewshot10 · n=681` ← **prior locked headline (2026-05-18)** · superseded 2026-05-26 by #1 | 3834 | **68.65** | 55.42 | 8.19 | 48.15 | 36.78 |
+| ⚠️ 9 | `qwen3.5 × SocratTeachLLM · fewshot10 · n=50` | 288 | **68.21** | 63.40 | 7.30 | 58.33 | 48.07 |
+| 10 | `qwen3.5 × Qwen-27B · phase3 · think · n=100 · seed=42` | 570 | **68.05** | 60.88 | 7.52 | 54.04 | 33.17 |
+| 11 | `bert × Claude-Sonnet · fewshot10 · n=50` | 267 | **67.85** | 57.32 | 7.84 | 47.94 | 39.68 |
+| 12 | `qwen3.5 × A3B-35B · fewshot10 · n=681` ← **TODO #14 cell #3** (first n=681 parity cell, 2026-05-25) | 3968 | **67.81** | 60.02 | 7.56 | 53.40 | 34.10 |
+| 13 | `bert-fixed × Gemma-31B · fewshot10 · n=50` | 283 | **67.65** | 52.73 | 8.26 | 45.94 | 38.69 |
+| 14 | `qwen3.5 × Gemma-31B · fewshot10 · EN · RETRY · n=100 · seed=42` ← cross-lingual Stage 1 (screening; superseded by #23) | 584 | **67.30** | 52.10 | 8.25 | 46.58 | 11.66 |
+| 15 | `qwen3.5 × A3B-35B · fewshot10 · n=50` | 288 | **66.91** | 58.62 | 7.52 | 54.86 | 35.67 |
+| 16 | `qwen3.5 × Qwen-27B · think · fewshot10 · n=50` | 282 | **66.89** | 58.68 | 7.51 | 53.19 | 35.28 |
+| 17 | `qwen3.5 × Qwen-27B · no-think · fewshot10 · n=681` ← **TODO #14 cell #4a** (second n=681 parity cell, 2026-05-25) | 4010 | **66.71** | 58.16 | 7.53 | 53.04 | 36.63 |
+| 18 | `qwen3.5 × Gemma-31B · fewshot10 · EN · PARTIAL · n=61` | 351 | **66.66** | 50.84 | 8.25 | 45.01 | 10.88 |
+| 19 | `qwen3.5 × Qwen-27B · phase3 · no-think · n=200 · seed=42` | 1172 | **66.55** | 57.45 | 7.56 | 52.13 | 37.11 |
+| 20 | `bert × A3B-35B · composed · top3 · n=50` | 276 | **65.79** | 56.73 | 7.49 | 48.19 | 37.64 |
+| 21 | `bert-fixed × Qwen-27B · think · fewshot10 · n=50` | 271 | **65.65** | 57.15 | 7.41 | 49.08 | 34.91 |
+| 22 | `qwen3.5 × Qwen-27B · no-think · fewshot10 · n=50` | 291 | **65.54** | 55.45 | 7.56 | 51.89 | 37.38 |
+| 23 | `qwen3.5 × Gemma-31B · fewshot10 · EN · canonical · n=400 · seed=42` ← **cross-lingual Stage 1 CONFIRMED (canonical)** | 2324 | **65.11** | 49.12 | 8.11 | 42.34 | 10.45 |
+| ⚠️ 24 | `bert-fixed × SocratTeachLLM · fewshot10 · n=50` | 278 | **65.09** | 58.34 | 7.18 | 52.52 | 47.44 |
+| 25 | `bert × Claude-Opus · fewshot10 · n=50` | 272 | **64.99** | 55.52 | 7.44 | 47.43 | 32.99 |
+| 26 | `bert × A3B-35B · fewshot10 · n=681` | 3762 | **64.47** | 54.72 | 7.42 | 46.57 | 33.27 |
+| 27 | `bert-fixed × Qwen-27B · no-think · fewshot10 · n=50` | 286 | **64.25** | 52.62 | 7.59 | 46.85 | 37.81 |
+| 28 | `bert-fixed × A3B-35B · fewshot10 · n=50` | 280 | **63.70** | 52.48 | 7.49 | 45.36 | 34.99 |
+| 29 | `bert × Claude-Sonnet · raw · n=50` | 260 | **62.91** | 53.32 | 7.25 | 45.00 | 29.10 |
+| 30 | `bert × Claude-Opus · top3 · EN · n=50` | 270 | **60.38** | 40.69 | 8.01 | 34.44 | 0.47 |
+| ⚠️ 31 | `Claude-Opus × SocratTeachLLM · n=50` | 307 | **59.86** | 41.68 | 7.80 | 38.44 | 47.58 |
+| ⚠️ 32 | `bert-fixed × SocratTeachLLM · fewshot10 · EN · n=50` | 273 | **58.22** | 48.97 | 6.75 | 43.22 | 48.07 |
+| ⚠️ 33 | `qwen3.5 × SocratTeachLLM · fewshot10 · EN · n=50` | 291 | **57.20** | 48.66 | 6.57 | 43.99 | 46.73 |
+| 34 | `bert × Claude-Opus · raw · n=50` | 239 | **55.63** | 43.27 | 6.80 | 39.75 | 23.28 |
+| ⚠️ 35 | `qwen3.5 × SocratTeachLLM · CLEANPROBE · fewshot10 · SYNTH · n=50 · seed=42` ← STL on truly unseen data | 211 | **51.29** | 32.86 | 6.97 | 29.38 | 35.72 |
+| ⚠️ 36 | `Claude-Opus × SocratTeachLLM · EN · n=50` | 304 | **50.73** | 33.79 | 6.77 | 30.26 | 44.22 |
+| ⚠️ 37 | `Claude-Sonnet × SocratTeachLLM · clean · n=50` | 307 | **47.53** | 18.74 | 7.63 | 18.57 | 45.61 |
+| ⚠️ 38 | `Claude-Sonnet × SocratTeachLLM · EN · n=50` | 303 | **44.36** | 22.55 | 6.62 | 22.11 | 55.85 |
 
 **Key findings visible at a glance:**
 
-1. **Frontier ≈ open-weight at parity, with a wider canonical-scale gap.** At the screening tier, best honest open-weight (`qwen3.5 × Gemma-31B`, #6, unified 68.94) sits 1.12 unified points behind the best frontier (`bert × Claude-Sonnet · top3 · n=681`, #2, 70.06). At canonical n=681 the gap envelope spans **1.41 pts** (legacy locked headline #7 → #2), **2.25 pts** (TODO #14 cell #3 `qwen3.5 × A3B-35B` at #11), and **3.35 pts** (TODO #14 cell #4a `qwen3.5 × Qwen-27B · no-think` at #16) — wider than the screening claim because the n=50 → n=681 promotion costs ~1 pt on stage_bal as closure dominance only emerges at full sampling. Two more TODO #14 cells (matched-consultant Gemma 31B variants) remain queued before this gap is locked.
-2. **Our locked headline (#7, n=681) survives the metric switch** at unified 68.65 — within 0.29 of the n=50 cross-teacher winner; unmoved by the first canonical-scale parity cell at #11.
-3. **SocratTeachLLM's #8 ranking is contamination-driven.** On SocratDataset, `qwen3.5 × STL · ZH` lands #1 on stage_balanced (63.40, +4.72 over the next best) — but its score on clean synthetic data (cell #33, generated by Claude Sonnet, demonstrably outside SocratDataset's 90% train) collapses to 32.86 stage_bal / 35.72 R-1, *worse than Gemma 31B's 56.13/38.76 baseline*. STL's apparent excellence is ~12 R-1 points and ~29 state-acc points of memorization, not capability. Full proof in [`docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md`](docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md).
-4. **Cross-lingual transfer of the qwen3.5 LoRA classifier works at canonical scale** (cell #21, unified 65.11 on SocratDataset-EN at n=400) — Stage 1 CONFIRMED; macro drop 9.24 pp < 10 pp gate. The earlier n=100 EN judge-bonus claim has been retracted as sampling noise (see paper Limitations §).
+1. **🚨 Open-weight OVERTAKES frontier at canonical scale.** `qwen3.5 × Gemma-31B · fewshot10 · n=681` (#1, unified **72.24**) beats the best frontier configuration (`bert × Claude-Sonnet · top3 · n=681`, prior #2 → now #3, unified 70.06) by **+2.18 unified pts** at canonical sample size. The 2026-05-23 screening-tier "1.12-pt parity gap" claim and the 2026-05-25 "1.41–3.35 pt canonical gap envelope" both **invert** — a single 32 GB consumer GPU running a 31B-param open-weight teacher with prompt engineering beats Anthropic's best closed model on a memorization-resistant evaluation. The unified metric is what surfaces the overtaking; surface-form rankings would still place frontier ahead.
+2. **Positive n=50 → n=681 scaling for the new #1.** The same `qwen3.5 × Gemma-31B · fewshot10` cell gains +3.30 unified pts at canonical scale (n=50 baseline #7 at 68.94 → n=681 #1 at 72.24). All five stages improved at canonical scale (closure 78.45, induction 35.42, etc.). Unlike A3B (which re-balanced per-stage) and Qwen-27B no-think (which gained on closure only), this cell scaled uniformly upward — the only TODO #14 cell to do so.
+3. **Locked headline promoted 2026-05-26.** The paper-anchored locked headline now points to #1 (`qwen3.5 × Gemma-31B · fewshot10 · n=681`, unified 72.24). The legacy 2026-05-18 BERT-classifier locked headline (#8, unified 68.65) is preserved in the master leaderboard as the BERT-classifier-axis architectural result and remains the methodologically primary contribution (the Qwen3.5-LoRA classifier is the consultant-upgrade refinement of the same deterministic-classifier idea).
+4. **SocratTeachLLM's #9 ranking is contamination-driven.** On SocratDataset, `qwen3.5 × STL · ZH` lands #1 on stage_balanced (63.40, +4.72 over the next best) — but its score on clean synthetic data (cell #35, generated by Claude Sonnet, demonstrably outside SocratDataset's 90% train) collapses to 32.86 stage_bal / 35.72 R-1, *worse than Gemma 31B's 56.13/38.76 baseline*. STL's apparent excellence is ~12 R-1 points and ~29 state-acc points of memorization, not capability. Full proof in [`docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md`](docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md).
+5. **Cross-lingual transfer of the qwen3.5 LoRA classifier works at canonical scale** (cell #23, unified 65.11 on SocratDataset-EN at n=400) — Stage 1 CONFIRMED; macro drop 9.24 pp < 10 pp gate. The earlier n=100 EN judge-bonus claim has been retracted as sampling noise (see paper Limitations §).
 
-### Stage-balanced ranking — full 142 configs
+### Stage-balanced ranking — full 143 configs
 
 <details>
-<summary>Click to expand the complete 142-row stage-balanced ranking (every model variant we've tested in this project)</summary>
+<summary>Click to expand the complete 143-row stage-balanced ranking (every model variant we've tested in this project)</summary>
+
+> **Note:** Row sb#2 (`qwen3.5 × Gemma-31B · fewshot10 · n=681`, 2026-05-26) was inserted into this table on landing. Rows labeled sb#2 through sb#142 below retain their pre-insertion rank numbers (off-by-one vs. the regenerated snapshot at `results/_orchestrator_logs/backtest_stage_balanced_2026_05_26.md`); the contents and ordering are correct.
 
 | sb# | Cell | n_turns | macro | **stage_bal** | judge | R-1 |
 |---:|---|---:|---:|---:|---:|---:|
-| 1 | `qwen3.5 × SocratTeachLLM · fewshot10 · n=50` | 288 | 58.33 | **63.40** | 7.30 | 48.07 |
-| 2 | `qwen3.5 × Qwen-27B · phase3 · think · n=100 · seed=42` | 570 | 54.04 | **60.88** | 7.52 | 33.17 |
+| 1 | `qwen3.5 × SocratTeachLLM · fewshot10 · n=50` ⚠️ contamination-driven | 288 | 58.33 | **63.40** | 7.30 | 48.07 |
+| **2** | **`qwen3.5 × Gemma-31B · fewshot10 · n=681`** ← **TODO #14 cell #2** (NEW #1 UNIFIED, 2026-05-26) | **3974** | **55.39** | **61.32** | **8.32** | **37.65** |
+| 2† | `qwen3.5 × Qwen-27B · phase3 · think · n=100 · seed=42` | 570 | 54.04 | **60.88** | 7.52 | 33.17 |
 | 3 | `bert-consultant-fewshot10-mini` | 135 | 54.07 | **60.66** | — | 33.12 |
 | 4 | `bert-consultant-fewshot10-a4b-mini` | 139 | 53.24 | **60.52** | — | 36.26 |
 | 5 | `qwen3.5 × A3B-35B · fewshot10 · n=681` | 3968 | 53.40 | **60.02** | 7.56 | 34.10 |
