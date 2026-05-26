@@ -115,6 +115,8 @@ Four constraints shape everything else in the talk. First, the primary rig: one 
 
 ## Pivot 1: Fusion Architecture
 
+KELE requires two LLMs running at the same time — a consultant and a teacher — but our 32 GB consumer GPU couldn't host both. We needed a way to preserve KELE's decomposition without doubling the memory footprint. The idea we landed on — we called it *fusion* — was simple: instead of running two separate LLM deployments, ask a single open-weight backbone to do both jobs in one structured-output call, returning the state prediction and the teacher response as two fields of the same JSON output. One model. One forward pass. One KV cache. Modern LLMs are good enough at JSON adherence that we thought this could work — and it did. Our first full n=681 run, Qwen 35B-A3B in fusion-think mode, landed at **38.70% state accuracy**, a 1.49× lift over KELE's GPT-4o baseline, on the single 5090 at zero per-run API cost. **Fusion was our first locked headline** and proved the campaign was viable. But it also planted the seed for what came next: the architecture's reliance on strict JSON grammar turned out to be a hidden fragility (you'll see Gemma 4 31B collapse from it on the next slide), and the lesson we eventually drew was that the consultant axis didn't need to be an LLM at all. We've since moved past fusion in favor of the integration architecture on slide 9 — but fusion is how we got into the game.
+
 Collapse consultant and teacher into a **single backbone**, single forward pass, structured-output call returning both the state prediction and the teacher response.
 
 - **Two-call** (consultant LLM → teacher LLM): VRAM-prohibitive, slow, KV cache duplicated
