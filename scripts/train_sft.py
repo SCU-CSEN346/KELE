@@ -143,6 +143,7 @@ def build_model_and_tokenizer():
         torch_dtype=torch_dtype,
         attn_implementation="sdpa",
         device_map="auto",
+        low_cpu_mem_usage=True,
         trust_remote_code=True,
     )
 
@@ -271,7 +272,15 @@ def dry_run() -> None:
     # Use a temp dir so the SFTConfig constructor (TrainingArguments) doesn't
     # create the real output_dir on disk as a side-effect of the dry run.
     with tempfile.TemporaryDirectory() as tmp:
-        build_sft_config(output_dir=tmp)
+        _prev_bf16 = os.environ.get("TRAIN_BF16")
+        os.environ["TRAIN_BF16"] = "false"
+        try:
+            build_sft_config(output_dir=tmp)
+        finally:
+            if _prev_bf16 is None:
+                del os.environ["TRAIN_BF16"]
+            else:
+                os.environ["TRAIN_BF16"] = _prev_bf16
 
     print("\nLoading training data (HF download required)...")
     from src.project.dataset import load_split_pair

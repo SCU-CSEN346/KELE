@@ -15,6 +15,7 @@
         setup-l40s start-local-tl-server \
         test-gpu-stack test-vllm \
         patch-fla-rocm patch-fla-rocm-restore patch-fla-rocm-dry-run \
+        download-gemma4-31b \
         train-gemma4-31b-dry-run train-gemma4-31b-stage2 \
         tournament tournament-think tournament-warmup tournament-warmup-think tournament-status tournament-eliminate \
         tournament-finalize tournament-archive tournament-restore tournament-reset \
@@ -62,6 +63,7 @@ help:
 	@echo "  eval-qwen35b-a3b-smoke Run scripts/eval_qwen35b_a3b.sh smoke (n=5,   ~2 min projected)"
 	@echo "  eval-qwen35b-a3b-mini  Run scripts/eval_qwen35b_a3b.sh mini  (n=25,  ~5 min projected)"
 	@echo "  eval-qwen35b-a3b-full  Run scripts/eval_qwen35b_a3b.sh full  (n=681, ~20-30 h projected)"
+	@echo "  download-gemma4-31b   Download google/gemma-4-31b-it weights to HF cache (~60 GB)"
 	@echo "  eval-gemma4-31b-smoke  Run scripts/eval_gemma4_31b.sh smoke  (n=5)"
 	@echo "  eval-gemma4-31b-mini   Run scripts/eval_gemma4_31b.sh mini   (n=25)"
 	@echo "  eval-gemma4-31b-full   Run scripts/eval_gemma4_31b.sh full   (n=681)"
@@ -336,6 +338,9 @@ eval-gemma4-31b-fusion-smoke:
 # No patch-fla-rocm needed — Gemma 4 uses standard softmax attention (no FLA).
 # ROCm env vars (TORCH_USE_HIPBLASLT=0, garbage_collection_threshold:0.8) are
 # gfx1201 workarounds that apply to all training targets.
+
+download-gemma4-31b:
+	uv run hf download google/gemma-4-31b-it
 
 train-gemma4-31b-dry-run:
 	uv run python scripts/train_sft.py --config configs/train-sft-gemma4-31b-qlora.env --dry-run
