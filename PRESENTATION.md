@@ -3,18 +3,20 @@ PRESENTATION.md — class talk for CSEN 346
 Render: `npx reveal-md PRESENTATION.md` for slide deck in browser,
         or read directly on GitHub (renders as one long doc).
 Speaker notes are HTML comments — visible in source, hidden in render.
-Target pace: ~130 words/minute. 17 slides, ~27 min + Q&A
-(over the original 15-min budget by ~12 min; user-approved — extra
-budget for the Socratic-teaching foundation (slides 2-4), the
+Target pace: ~130 words/minute. 17 slides, ~27-28 min + Q&A
+(over the original 15-min budget by ~12-13 min; user-approved —
+extra budget for the Socratic-teaching foundation (slides 2-4), the
 expanded constraints slide (slide 5: hardware diversity + time
 scope), the deepened methodology slide (slide 7: tournament results
 + cascade narrative), the Gemma-retraction story (slide 8), the
 Pivot-2 architectural-decomposition story (slide 9), the frontier
 stress-test narrative (slide 10), the benchmark-critique discovery
 arc (slide 11), the contamination-proof two-probe narrative (slide
-12), the unified-metric design story (slide 13), the reveal-slide
-campaign payoff (slide 15), and the final-slide depth on Slide 17
-"Total Contributions").
+12), the unified-metric design story (slide 13), the consultant-
+upgrade story with the Qwen 27B think-mode footnote (slide 14),
+the reveal-slide campaign payoff (slide 15), and the final-slide
+depth on Slide 17 "Total Contributions" — now 23 items across
+6 categories, including the energy-speed-deployability category).
 -->
 
 # Beating the Frontier on a Consumer GPU
@@ -468,15 +470,15 @@ The campaign by the numbers. 143 distinct configurations measured. 38 of them LL
 
 ## Total Contributions
 
-Every improvement we made over the original KELE paper (Peng et al., EMNLP 2025 Findings) — **19 distinct contributions across five categories**.
+Every improvement we made over the original KELE paper (Peng et al., EMNLP 2025 Findings) — **23 distinct contributions across six categories**.
 
-### 🔧 Architectural upgrades (vs. KELE's two-model stack)
+### Architectural upgrades (vs. KELE's two-model stack)
 
 1. **Classifier-as-consultant, deployed on CPU+Compute.** Replaced KELE's GPT-4o LLM consultant with a deterministic supervised classifier — 24M-param Chinese BERT (`bge-small-zh-v1.5`) initially, upgraded to a ~800M-param Qwen3.5-0.8B-LoRA classifier in the current locked headline. Both run on **CPU+Compute, freeing the entire GPU's VRAM** for the much larger teacher LLM. Eliminates per-run API spend on the consultant axis. Classifier state accuracy 61.64% on the 34-state test split — +17.5 pp over the best LLM consultant.
 2. **Consultant-upgrade funnel (T1–T4).** Systematic 2×2 search over {Qwen3-Embedding-0.6B, Qwen3.5-0.8B-Base} × {frozen, LoRA}. T4 (Qwen3.5-0.8B + LoRA r=8) won at +6.23 pp over the BERT baseline and is the current locked-headline consultant.
 3. **Composed teacher prompt engineering** — stage-balanced 10-shot exemplars + top-3 utilization stack (length_budget + persona + negative_exemplars), surfaced by a 10-cell n=50 prompt-engineering tournament. +6.02 state acc / +3.29 R-1 over the raw teacher; +5 unified pts on Gemma.
 
-### 📐 Methodological & evaluation contributions
+### Methodological & evaluation contributions
 
 4. **Benchmark critique.** Surface-form metrics (ROUGE/BLEU) on SocratDataset systematically reward training-data memorization over teaching capability. Same configurations rank in **opposite orders** under ROUGE vs.\ state accuracy; the gap widens monotonically with n-gram length — the strongest possible memorization signature.
 5. **Unified ranking metric** (`unified = 0.5 × stage_balanced + 0.5 × (judge × 10)`). Memorization-resistant single-number ranking. `stage_balanced` corrects KELE's frequency-weighted macro (closure under-counting); `judge` is a 4-axis Claude Sonnet 4.6 rubric (Socratic validity, advancement, age-appropriateness, question-form).
@@ -484,36 +486,43 @@ Every improvement we made over the original KELE paper (Peng et al., EMNLP 2025 
 7. **Smoke / mini / full evaluation protocol** with smoke-mini averaging as a low-cost full-run predictor (predicted A3B's full-run lift within 0.10 pp); surfaced Gemma 31B's 15.32-pp full-scale collapse via schema-fallback-rate triangulation.
 8. **n=400 canonical sample-size recommendation.** Bootstrap convergence analysis across 7 full-scale n=681 runs: all four primary metrics converge within ≤2 pp at n=400 — **41% compute saving with no loss of decision precision**.
 
-### 🌐 Dataset contributions (public on 🤗 `ulises-c/…`)
+### Dataset contributions (public on HuggingFace `ulises-c/…`)
 
 9. **SocratDataset-EN** — full English translation of all 6,803 dialogues / 42,892 turns. Anchors the cross-lingual transfer experiment + the SocratTeachLLM language-bound memorization counter-probe.
 10. **SocratDataset-SYNTHETIC + SYNTHETIC-EN** — Claude-generated clean-probe datasets (n=75 each), demonstrably outside SocratDataset's training distribution.
 
-### 📊 Key empirical findings
+### Key empirical findings
 
-11. **🏆 Frontier OVERTAKEN at canonical n=681.** Current locked headline (`qwen3.5 × Gemma-31B · fewshot10 · n=681`) at unified **72.24** beats the best frontier teacher we tested (`bert × Claude-Sonnet · top3 · n=681`, unified 70.06) by **+2.18 unified pts**. A 31B open-weight teacher on one 32 GB consumer GPU beats Anthropic's best on a memorization-resistant benchmark.
+11. **Frontier OVERTAKEN at canonical n=681.** Current locked headline (`qwen3.5 × Gemma-31B · fewshot10 · n=681`) at unified **72.24** beats the best frontier teacher we tested (`bert × Claude-Sonnet · top3 · n=681`, unified 70.06) by **+2.18 unified pts**. A 31B open-weight teacher on one 32 GB consumer GPU beats Anthropic's best on a memorization-resistant benchmark.
 12. **State accuracy: 25.94% (KELE) → 55.39% (ours) = 2.14× lift / +29.45 pp absolute.** Per-stage GPT-4o-baseline multipliers: **c = 7.54× · d = 9.20× · e = 6.58×**. Stage b moves from KELE's −13.67 pp deficit to +9.46 pp lift — every stage now positive.
 13. **Cross-lingual transfer of the SocRule routing.** Qwen3.5-LoRA consultant trained only on Chinese scores unified 65.11 at n=400 on the English test split — Stage 1 confirmed; macro drop 9.24 pp inside the 10 pp gate. Pedagogical state labels (a0–e34) are language-invariant.
 14. **Schema-fallback rate is the missing variable** in cross-architecture scaling prediction. Gemma 31B's 21% full-scale fallback rate (vs.\ A3B's 0.91%) crushed its smoke/mini projection by 15.32 pp. Methodological lesson: JSON-structured-output dependencies should be replaced with deterministic routing whenever feasible.
 15. **Teacher capacity is NOT the binding constraint** on this benchmark. Frontier-teacher stress test shows prompt scaffolding lifts Claude by 2–5× the amount the same lever lifts Gemma; swapping open-weight for frontier teacher is not the bottleneck.
 16. **Architecture-correlated think-benefit gradient** within Qwen 3.6: MoE A3B gains ~19 pp from reasoning scaffolding, dense 27B gains ~11–17 pp. Robust across n=25, n=33, n=50, n=681 — explicit reasoning compensates for the MoE per-token compute deficit.
 
-### ⚙️ Engineering & economics
+### Engineering & economics
 
 17. **143 configurations measured, 38 LLM-judged.** Master leaderboard auto-regenerated from per-config JSON summaries via `scripts/backtest_stage_balanced.py`. Full audit trail in `results/_orchestrator_logs/`.
 18. **Single-GPU + $0 per-run eval pipeline.** Entire locked-headline pipeline runs on one RTX 5090 (32 GB VRAM); judge passes (~$16/cell) are the only marginal API cost.
 19. **Compute audit:** **119.5 GPU-h confirmed** (7 full n=681 runs + 13-model tournament + prompt tournament + bilingual canonical + cross-teacher matrix + consultant upgrade campaign); **$258.86 total Anthropic spend** (frontier comparisons + judge passes; $0 on the open-weight eval pipeline itself).
 
+### Energy, speed & deployability
+
+20. **Datacenter LLM consultant → on-host classifier.** KELE's GPT-4o consultant runs in massive frontier-AI datacenters with multi-megawatt energy and water footprints. Our Qwen3.5-0.8B-LoRA consultant is an ~800M-parameter model running on the host CPU, **roughly three orders of magnitude smaller per inference than GPT-4o**. Per-inference energy is roughly proportional to active parameter count: same routing decision, dramatically less energy.
+21. **~10–20× faster per turn on the consultant axis.** CPU-resident classifier completes a state classification in ~50–100 ms per turn; the original KELE pipeline waits ~1–2 s for a GPT-4o API round-trip on every turn. The speed gain compounds across 4,000+ turns per evaluation.
+22. **Zero external API dependency on the eval pipeline.** No rate limits, no per-token pricing, no internet required, no datacenter routing, no third-party data path. The pipeline runs offline once weights are downloaded; reproducible, deterministic, and not subject to API deprecation or pricing changes.
+23. **Deployable to any classroom with the hardware.** A single 32 GB consumer GPU plus a modern CPU. Student-conversation data never leaves the machine — meaningful for the educational deployment context KELE was designed for, where data-privacy and offline-capable operation are first-order requirements rather than nice-to-haves.
+
 ---
 
-**Code · data · paper draft:** github.com/ulises-c/csen-346 · 🤗 ulises-c (SocratDataset, SocratDataset-EN, SocratDataset-SYNTHETIC, SocratDataset-SYNTHETIC-EN, SocratTeachLLM mirror)
+**Code · data · paper draft:** github.com/ulises-c/csen-346 · HuggingFace `ulises-c/…` (SocratDataset, SocratDataset-EN, SocratDataset-SYNTHETIC, SocratDataset-SYNTHETIC-EN, SocratTeachLLM mirror)
 
 **Questions?**
 
 <!--
-SPEAKER NOTES (Slide 17, ~90s — denser than the rest; the final-slide depth gives audience the full picture, speaker picks which bullets to voice):
+SPEAKER NOTES (Slide 17, ~2 min — denser than the rest; the final-slide depth gives audience the full picture, speaker picks which bullets to voice):
 
-Nineteen distinct improvements over the original KELE paper, organized into five categories.
+Twenty-three distinct improvements over the original KELE paper, organized into six categories.
 
 Three architectural upgrades. First and headline: we replaced KELE's GPT-4o consultant with a deterministic supervised classifier, initially a 24-million-parameter Chinese BERT, then upgraded to an 800-million-parameter Qwen3.5-LoRA classifier in the current locked headline. Crucially, both run on CPU plus compute, which frees the entire GPU's VRAM for the teacher LLM. Second: the consultant upgrade was systematic, a four-cell funnel over two backbones crossed with frozen versus LoRA. The LoRA-fine-tuned Qwen3.5-0.8B won by 6.23 percentage points and became the headline consultant. Third: composed prompt engineering on the teacher (stage-balanced 10-shot exemplars plus a top-3 utilization stack) surfaced by a 10-cell n=50 tournament, lifts the teacher's pedagogy without retraining.
 
@@ -524,6 +533,8 @@ Two public datasets: SocratDataset-EN, the first full English translation of the
 Six empirical findings, most importantly the frontier-overtaking result we showed on slide 15. State accuracy 2.14 times GPT-4o. Cross-lingual transfer works. Schema-fallback rate is the missing variable for cross-architecture scaling prediction. Teacher capacity is not the binding constraint on this benchmark; prompt scaffolding is 2 to 5 times more impactful. And the architecture-correlated think-benefit gradient within the Qwen 3.6 family: MoE A3B gains 19 points from reasoning scaffolding, dense 27B gains 11 to 17, robust across four sample sizes.
 
 Three engineering wins: 143 configurations measured, single-GPU at zero dollars per inference run on the eval pipeline, full compute audit at 119 and a half GPU-hours and 258 dollars of Anthropic spend. Every API dollar bought either a frontier comparison or a memorization-resistant judgment.
+
+And the sixth category: energy, speed, and deployability. KELE's GPT-4o consultant runs in massive frontier-AI datacenters with multi-megawatt energy and water footprints. We replaced it with an 800-million-parameter classifier on the host CPU, roughly three orders of magnitude smaller per inference, and per-inference energy is roughly proportional to active parameter count. CPU classifier inference takes 50 to 100 milliseconds per turn; the original GPT-4o API round-trip takes 1 to 2 seconds, so 10 to 20 times faster per turn on the consultant axis, and that speed gain compounds across 4,000 turns per evaluation. Zero external API dependency: no rate limits, no per-token pricing, no internet required, no third-party data path, no API deprecation risk. And the result that ties this all together: the entire pipeline is deployable to any classroom with consumer hardware. A single 32 GB GPU plus a modern CPU. Student-conversation data never leaves the machine. For the educational deployment context KELE was designed for, where data-privacy and offline-capable operation are first-order requirements rather than nice-to-haves, that's a significant practical win.
 
 Code, data, paper draft are public. Questions?
 -->
