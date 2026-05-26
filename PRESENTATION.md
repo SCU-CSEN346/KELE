@@ -3,8 +3,8 @@ PRESENTATION.md — class talk for CSEN 346
 Render: `npx reveal-md PRESENTATION.md` for slide deck in browser,
         or read directly on GitHub (renders as one long doc).
 Speaker notes are HTML comments — visible in source, hidden in render.
-Target pace: ~130 words/min. 18 slides, ~29–30 min + Q&A.
-(Over the original 15-min budget by ~14–15 min; user-approved
+Target pace: ~130 words/min. 20 slides, ~32–33 min + Q&A.
+(Over the original 15-min budget by ~17–18 min; user-approved
 to let each section earn its narrative arc rather than be
 compressed to bullets.)
 -->
@@ -286,7 +286,7 @@ We tried something almost embarrassingly simple. We took `bge-small-zh-v1.5` (a 
 
 The classifier slotted directly into the pipeline as a drop-in consultant. The full integration (BERT consultant + Gemma 4 31B teacher + 10-shot stage-balanced exemplars) ran at n=681 in 12 hours 53 minutes and landed at **48.15% state accuracy / 36.78 R-1 / unified 68.65**. That became the **prior locked headline on 2026-05-18**: a **+22.21 pp lift over the GPT-4o + SocratTeachLLM baseline (1.86× over the published number)**, on a single 32 GB consumer GPU, at **zero per-run API cost** for the eval pipeline. A 24-million-parameter classifier doing the routing work that GPT-4o was doing in the original KELE paper.
 
-But the real win wasn't the headline number. It was the **architectural decomposition** that made the headline possible: the original KELE bundled *pedagogical routing* AND *surface-form generation* into one LLM consultant call, which is why JSON adherence became a load-bearing fragility. We split those axes (a deterministic classifier handles routing, an LLM teacher handles language), and each can be optimized independently with the right tool for the job. That decomposition is the headline architectural contribution of the campaign, and the path that took us from this slide to today's frontier-overtaking result on slide 16.
+But the real win wasn't the headline number. It was the **architectural decomposition** that made the headline possible: the original KELE bundled *pedagogical routing* AND *surface-form generation* into one LLM consultant call, which is why JSON adherence became a load-bearing fragility. We split those axes (a deterministic classifier handles routing, an LLM teacher handles language), and each can be optimized independently with the right tool for the job. That decomposition is the headline architectural contribution of the campaign, and the path that took us from this slide to today's frontier-overtaking result on slide 18.
 
 - Replace the consultant LLM with a **24M-parameter Chinese BERT classifier** (`bge-small-zh-v1.5`)
 - Trained on SocratDataset's 42K labeled turns in **92 seconds** — 61.64% test-split state accuracy, **+17.5 pp over the best LLM consultant**
@@ -312,13 +312,13 @@ With the BERT integration locked at 48.15% and within striking distance of where
 
 We kept the BERT consultant *fixed* (same 24M-parameter classifier that just locked the May 18 headline) and varied only the teacher. Gemma 4 31B → **Claude Sonnet 4.6** → **Claude Opus 4.6**. Each Claude teacher was tested across three scaffolding tiers: raw (no prompt engineering), 10-shot exemplars only, and 10-shot + the top-3 utilization stack (length_budget + persona + negative_exemplars) from our Phase 1 prompt-engineering tournament. Six Claude cells at n=50, then we promoted the best two (Sonnet + top-3 and Opus + top-3) to full n=681 to land a canonical-scale frontier ceiling.
 
-The result was both definitive and surprising. The best frontier configuration (`bert × Claude-Sonnet · top3 · n=681`) landed at **49.97% state acc / R-1 41.93 / unified 70.06**. Frontier was **within sampling noise of our open-weight integration** on the pedagogical axis — about +2 pp ahead on state acc, +5 ahead on R-1, +1.41 on unified. **Teacher capacity is not the binding constraint on this benchmark.** The deeper observation was even more useful: the top-3 prompt stack lifted Claude by 2–5× the amount the same stack lifted Gemma. So the bottleneck is on the **prompt-engineering axis**, not on raw model capability — frontier models have more *headroom* for prompt scaffolding, and once both teachers are well-prompted, they converge. That ~1.41-pt unified gap looked like the ceiling for a couple of weeks. *Spoiler for slide 16: it isn't.*
+The result was both definitive and surprising. The best frontier configuration (`bert × Claude-Sonnet · top3 · n=681`) landed at **49.97% state acc / R-1 41.93 / unified 70.06**. Frontier was **within sampling noise of our open-weight integration** on the pedagogical axis — about +2 pp ahead on state acc, +5 ahead on R-1, +1.41 on unified. **Teacher capacity is not the binding constraint on this benchmark.** The deeper observation was even more useful: the top-3 prompt stack lifted Claude by 2–5× the amount the same stack lifted Gemma. So the bottleneck is on the **prompt-engineering axis**, not on raw model capability — frontier models have more *headroom* for prompt scaffolding, and once both teachers are well-prompted, they converge. That ~1.41-pt unified gap looked like the ceiling for a couple of weeks. *Spoiler for slide 18: it isn't.*
 
 - BERT consultant **kept fixed**, swapped Gemma 4 31B → Claude Sonnet 4.6 and Claude Opus 4.6, each with a 10-shot + top-3-prompt-stack scaffolding
 - **Best frontier configuration (n=681):** `bert × Claude-Sonnet · top3` → 49.97% state acc / R-1 41.93 / unified **70.06**
 - Frontier within sampling noise of our prior open-weight headline on state acc (~+2 pp), +5 on R-1
 - **Conclusion: teacher capacity is not the binding constraint.** Prompt scaffolding lifts Claude 2–5× the amount the same lever lifts Gemma — the bottleneck is on the prompt-engineering axis, not on raw model capability.
-- *(Foreshadowing for Slide 16: the consultant-upgraded version we land today actually overtakes this ceiling.)*
+- *(Foreshadowing for Slide 18: the consultant-upgraded version we land today actually overtakes this ceiling.)*
 
 <!--
 SPEAKER NOTES (Slide 11, ~1:45):
@@ -326,7 +326,7 @@ With the BERT integration locked at 48.15% state accuracy and us looking at sing
 
 We kept the BERT consultant fixed — same 24-million-parameter classifier that just locked the May 18 headline — and varied only the teacher. Gemma 4 31B becomes Claude Sonnet 4.6, becomes Claude Opus 4.6. Each Claude teacher tested across three scaffolding tiers: raw with no prompt engineering, 10-shot exemplars only, and 10-shot plus our top-3 utilization stack from the Phase 1 tournament — that's length_budget plus persona plus negative_exemplars. Six Claude cells at n=50, and we promoted the two strongest to full n=681 to land a canonical-scale frontier ceiling.
 
-The result was both definitive and surprising. The best frontier configuration — Claude Sonnet 4.6 with the top-3 stack and our BERT consultant, at full n=681 — landed at 49.97 percent state accuracy, ROUGE-1 of 41.93, unified 70.06. Within sampling noise of our open-weight integration on the pedagogical axis. About two percentage points ahead on state acc, five ahead on ROUGE-1, 1.41 on unified. Teacher capacity is NOT the binding constraint on this benchmark. The deeper observation that came out of the same sweep: the top-3 prompt stack lifts Claude two to five times the amount the same stack lifts Gemma. So the bottleneck is on the prompt-engineering axis, not on raw model capability. Frontier models have more headroom for prompt scaffolding, and once both teachers are well-prompted they converge. That 1.41-point unified gap looked like the ceiling for a couple of weeks. Spoiler for slide 16: it isn't.
+The result was both definitive and surprising. The best frontier configuration — Claude Sonnet 4.6 with the top-3 stack and our BERT consultant, at full n=681 — landed at 49.97 percent state accuracy, ROUGE-1 of 41.93, unified 70.06. Within sampling noise of our open-weight integration on the pedagogical axis. About two percentage points ahead on state acc, five ahead on ROUGE-1, 1.41 on unified. Teacher capacity is NOT the binding constraint on this benchmark. The deeper observation that came out of the same sweep: the top-3 prompt stack lifts Claude two to five times the amount the same stack lifts Gemma. So the bottleneck is on the prompt-engineering axis, not on raw model capability. Frontier models have more headroom for prompt scaffolding, and once both teachers are well-prompted they converge. That 1.41-point unified gap looked like the ceiling for a couple of weeks. Spoiler for slide 18: it isn't.
 -->
 
 ---
@@ -394,14 +394,139 @@ Probe one — direct memorization detection. We compared SocratTeachLLM's genera
 
 Probe two — clean probe on synthetic data. We had Claude Sonnet generate a fresh batch of dialogue test cases that are demonstrably outside SocratDataset's training distribution. Synthesized after SocratTeachLLM's training cutoff, topics intentionally drifted from the elementary-science domain. We ran both SocratTeachLLM and Gemma 31B against the clean probe under the same protocol. SocratTeachLLM's stage-balanced state accuracy collapsed from sixty-three-point-four to thirty-two-point-eight-six — BELOW Gemma 31B's 56.13 on the same clean probe. The model that wins on SocratDataset by thirty-plus points LOSES by twenty-three points the moment we change the data distribution. That isn't pedagogical capability degrading. That's memorization vanishing.
 
-Combined verdict. Two independent probes agree. The KELE benchmark as published rewards memorization over pedagogical capability. The "GPT-4o + SocratTeachLLM" baseline ROUGE-1 of 44.61, higher than Opus 4.6 with prompts, is the canonical example. Future work on Socratic-teaching evaluation needs a memorization-resistant metric — which we propose on the next slide.
+Combined verdict. Two independent probes agree. The KELE benchmark as published rewards memorization over pedagogical capability. The "GPT-4o + SocratTeachLLM" baseline ROUGE-1 of 44.61, higher than Opus 4.6 with prompts, is the canonical example. Future work on Socratic-teaching evaluation needs a memorization-resistant metric — which we build over the next three slides.
+-->
+
+---
+
+## How We Measure State Accuracy
+
+State accuracy is the **per-turn binary correctness metric**: did the consultant's predicted state match the ground-truth label from SocratDataset?
+
+### The comparison
+
+- **Ground truth**: SocratDataset's per-turn annotation — one of 34 SocRule labels (`a0`, `a1`, `b2`–`b7`, `c8`–`c29`, `d30`–`d33`, `e34`).
+- **Prediction**: what our consultant returned for that same turn.
+- **Match**: *exact string equality*. `c12 == c12` is correct; predicting `c11` when truth is `c12` is wrong, even though both are in stage `c`.
+
+```python
+# from src/project/metrics.py (compute_state_accuracy)
+correct  = sum(turn.pred_state == turn.gt_state for turn in dialogue)
+total    = len(dialogue)
+overall  = correct / total * 100
+per_stage[X] = correct_X / total_X * 100   # bucketed by gt_state[0]
+```
+
+### Per-stage breakdown — why some stages are easier than others
+
+Turns are bucketed by **ground-truth stage** (the first character of the label), then the 34-way exact-match rate is computed within each bucket.
+
+| Stage | # labels | Random baseline | Difficulty |
+|---|---:|---:|---|
+| `a` (questioning) | 2 | 50% | trivial (only `a0` / `a1`) |
+| `b` (concept probing) | 6 | 16.7% | moderate |
+| `c` (inductive reasoning) | **22** | **4.5%** | **hardest** — biggest label fan-out |
+| `d` (rule construction) | 4 | 25% | narrow |
+| `e` (closure) | 1 | 100% | trivial (only `e34`) |
+
+Stage `c` is consistently the lowest per-stage number across every cell on our master leaderboard. Our **7.54× lift on stage `c`** vs KELE's GPT-4o baseline (slide 18) is the most informative per-stage number we'll report.
+
+### The classifier's two heads
+
+Our BERT classifier reports both:
+- **Stage head** (5-way, `a/b/c/d/e`) — **86.55%** on the test split.
+- **State head** (34-way, `a0`…`e34`) — **61.64%** on the test split.
+
+The 87/62 gap reveals where the difficulty lives: the consultant knows the right *stage* most of the time, but knowing the right *strategy within stage* is the harder problem — especially within stage `c`.
+
+### `stage_balanced`: the variant we use in the unified score
+
+Two ways to aggregate per-stage numbers into one overall number:
+
+- **Macro (KELE's default):** `correct / total × 100` — frequency-weighted; closure (stage `e`) is only ~12% of turns so it's structurally under-counted.
+- **Stage-balanced:** `(1/5) × Σ per_stage[X]` — equal weight per stage regardless of turn count; closure carries 20% of the metric.
+
+We adopt **stage-balanced** because closure is the pedagogically load-bearing moment of the dialogue. It's the half of the unified-score formula on slide 16.
+
+<!--
+SPEAKER NOTES (Slide 14, ~2 min):
+Let me explain how we measure state accuracy, because it's the foundation of every headline number we'll show in a few slides.
+
+The comparison is per-turn and exact-match. For each turn, the dataset has a ground-truth label — one of 34 SocRule labels like c12 or d33. Our consultant produces a prediction. They have to match exactly. Predicting c11 when truth is c12 is wrong, even though both are in stage c. Overall state accuracy is correct turns divided by total turns, times one hundred.
+
+The per-stage breakdown is where this gets pedagogically interesting. We bucket turns by ground-truth stage — that's the letter prefix, a through e — and compute the 34-way exact-match rate within each bucket. The table shows why some stages are way easier than others. Stage a has only two possible labels, so random guessing gets 50 percent. Stage e has only one label, e34, so any time the ground truth is e34 you score 100 percent just by predicting e34. Stage c is the hard one. It has twenty-two possible labels, so random guessing is 4.5 percent. Stage c is consistently the lowest per-stage number across every model we measured, and our 7.54-times lift on stage c versus the GPT-4o baseline is the most informative number on slide 18.
+
+Our BERT classifier has two heads: a 5-way head for stage and a 34-way head for the full state. Stage-level accuracy is 86.55 percent on the test split; state-level is 61.64 percent. That 25-point gap tells you the consultant knows the right *stage* most of the time, but knowing the right *strategy within stage* is the harder problem — especially within stage c.
+
+Last thing on this slide: stage-balanced macro. There are two ways to aggregate per-stage numbers. KELE's default macro is correct over total — frequency-weighted — which structurally under-counts closure because closure is only about 12 percent of turns. Stage-balanced is one-fifth times the sum of per-stage accuracies, equal weight per stage. We use stage-balanced because closure is the pedagogically load-bearing moment of the dialogue and shouldn't be hidden by frequency weighting. Stage-balanced is half of the unified-score formula on slide 16.
+
+Cross-model comparison: every model evaluation runs the same kele.py evaluate pipeline and produces the same metrics_summary.json with overall and per_stage. Comparing models is diffing those numbers.
+-->
+
+---
+
+## Why an LLM Judge?
+
+State accuracy measures whether the consultant **routes correctly** — picks the right one of 34 SocRule strategies. It says nothing about **response quality**: the actual text the teacher LLM generates.
+
+### The motivating example
+
+- Consultant correctly predicts state `c12` (good move: surface the misconception via incomplete rule + misleading question).
+- Teacher generates: *"You're wrong. Try again."*
+
+That turn scores **+1 on state accuracy** (routing is perfect) and produces a terrible Socratic move. State accuracy doesn't catch it. We need a second axis.
+
+### The rubric — 4 axes, 0–10 per turn
+
+We score every generated teacher response with Claude Sonnet 4.6 against this rubric:
+
+| Axis | What it measures | Score |
+|---|---|---:|
+| Socratic validity | Is this a legitimate teaching move at this stage? | 0–3 |
+| Advancement | Does the response actually advance the student's reasoning? | 0–3 |
+| Age-appropriateness | Is the vocabulary/complexity right for elementary-school students? | 0–2 |
+| Question-form fidelity | Is the response actually a question (Socratic), or did it slip into telling? | 0–2 |
+
+**Total: 0–10 per turn**, averaged across the run → per-cell `judge` score.
+
+### Why Claude Sonnet 4.6 as the judge
+
+- **Frontier-tier capability.** Grading these four axes per turn requires understanding both Chinese pedagogy and the SocRule framework well enough to make defensible judgments. Sonnet 4.6 does both.
+- **Single judge, not ensemble.** Defensible, reproducible, ~$15 per full evaluation. A 3-judge ensemble (Sonnet + GPT-4o + Gemini) would triple cost; single-judge variance is bounded and we measured it.
+- **Neutral third party.** Sonnet judges Gemma, A3B, and Qwen teachers — it never judges itself. When Claude IS the teacher (frontier stress test, slide 11), we still use Sonnet as the judge for consistency.
+
+### Why this is memorization-resistant
+
+The rubric measures **teaching moves and form** — not phrasing match to a reference text. A model that memorizes SocratDataset's exact phrasing gets **zero** rubric advantage, because the judge isn't comparing to a reference. It's evaluating the response on its own pedagogical merits.
+
+That's exactly why the judge axis sees through SocratTeachLLM. STL's judge score is mid-tier at **7.30/10** even when its ROUGE-1 score is unbeatably high. The judge is not fooled by phrasing memorization.
+
+### Cost & operational footprint
+
+- **~$15.70 per judge pass** at canonical n=681 (~3,974 turns × 10 parallel workers).
+- **~20 minutes wall clock** per pass.
+- Judge passes account for the **largest share** of our $258.86 total Anthropic spend (slide 19).
+
+<!--
+SPEAKER NOTES (Slide 15, ~2 min):
+State accuracy measures whether the consultant routes correctly — picks the right strategy out of 34. But it says nothing about response quality, the actual text the teacher generates. Imagine the consultant correctly predicts state c12 — surface the misconception via incomplete rule and misleading question — and the teacher generates "you're wrong, try again." That turn scores plus-one on state accuracy because routing is perfect, but produces a terrible Socratic move. We needed a second axis.
+
+So we built an LLM-judge rubric. Every generated teacher response gets scored on four axes by Claude Sonnet 4.6. Socratic validity, zero to three: is this a legitimate teaching move at this stage? Advancement, zero to three: does the response actually advance the student's reasoning, or stall, or confuse? Age-appropriateness, zero to two: is the vocabulary and complexity right for elementary-school students? Question-form fidelity, zero to two: is the response actually a question, or did it slip into telling the answer? Total zero to ten per turn, averaged across the run gives us the per-cell judge score.
+
+Why Claude Sonnet 4.6 specifically? Three reasons. First, frontier-tier capability — the judge needs to understand both Chinese pedagogy and the SocRule framework well enough to grade four axes per turn. Sonnet 4.6 does both. Second, single-judge rather than ensemble — keeps the cost down to about fifteen dollars per full evaluation; a three-judge ensemble would triple that. Variance is bounded and we measured it. Third, neutrality — Sonnet judges Gemma, A3B, and Qwen teachers as a third party. When Claude itself is the teacher in the frontier stress test, we still use Sonnet as the judge for consistency, but the judge never judges itself.
+
+Why this axis is memorization-resistant: the rubric measures teaching moves and form. Not phrasing match to a reference text. A model that memorizes SocratDataset's exact phrasing gets zero rubric advantage. That's exactly why the judge axis sees through SocratTeachLLM. STL's judge score is mid-tier at 7.30 out of 10, even when its ROUGE-1 is unbeatably high. The judge isn't fooled by phrasing memorization.
+
+The cost: about fifteen dollars and seventy cents per judge pass at canonical n=681, twenty minutes wall clock. Judge passes account for the largest share of our $258.86 total Anthropic spend on this campaign.
+
+So now we have two memorization-resistant axes: state accuracy on the routing side, judge on the quality side. The next slide combines them.
 -->
 
 ---
 
 ## The Unified Metric
 
-Coming out of the benchmark critique and the contamination proof, we knew ROUGE and BLEU were measuring the wrong thing for Socratic teaching. But we still needed *something* — a defensible single-number ranking we could put in a paper headline and use to compare configurations without an ad-hoc per-metric argument every time. Six per-cell metrics already live in our leaderboard (macro state-acc, stage-balanced macro, pedagogically-weighted macro, frequency-inverse, LLM-judge, and the four-piece surface-form panel). None of them is bulletproof in isolation. The **unified score** is our answer.
+We now have **two memorization-resistant axes** — stage-balanced state accuracy (slide 14) and the LLM-judge rubric (slide 15). Each measures something the other can't catch. We combine them into one defensible single-number ranking:
 
 ```
 unified = 0.5 × stage_balanced + 0.5 × (judge × 10)
@@ -409,24 +534,30 @@ unified = 0.5 × stage_balanced + 0.5 × (judge × 10)
 
 *Both inputs on [0, 100]; output on [0, 100]. Higher is better.*
 
-The formula picks two metrics that are **memorization-resistant by construction** and equal-weights them. **`stage_balanced`** is the equal-weight per-stage macro state accuracy. The published "macro" weights by stage frequency, which structurally under-counts the closure stage (stage e is ~12% of turns but the pedagogically load-bearing moment of the dialogue). `stage_balanced` fixes that: 20% weight per stage, regardless of frequency. **`judge`** is the Claude Sonnet 4.6 rubric — four axes (Socratic validity / advancement / age-appropriateness / question-form fidelity), 0–10 scale per turn, averaged across the run. Neither input rewards token-level mimicry; both are designed to survive the contamination probe from the previous slide.
+### Why 50/50
 
-The 50/50 weighting is deliberate. We don't have a principled prior on whether pedagogical routing should outweigh response quality, and both inputs share comparable memorization-resistance. Equal weighting requires no extra defense beyond "both axes matter, neither dominates" — any other weighting would force us into an argument we don't need to fight in the headline. **This is the metric that surfaces today's frontier-overtaking result on slide 16.** Without it — ranking by surface form — the leaderboard would still put SocratTeachLLM on top.
+We don't have a principled prior on whether pedagogical routing should outweigh response quality. Both axes are memorization-resistant by construction. Equal weighting requires no defense beyond *"both matter, neither dominates"* — any other weighting forces an argument we don't need to fight in the headline.
 
-- **`stage_balanced`** — equal-weight per-stage state accuracy (corrects the published macro's structural under-counting of stage e, closure)
-- **`judge`** — Claude Sonnet 4.6 rubric on 4 axes (Socratic validity / advancement / age-appropriateness / question-form fidelity), 0–10 scale
-- Both inputs are **memorization-resistant by construction** — surface-form metrics are *excluded*, per the critique
-- Master leaderboard: **143 configurations, 38 LLM-judged**, auto-regenerated by `scripts/backtest_stage_balanced.py`
+### Why this is the right answer
+
+- ROUGE / BLEU are excluded by design (slide 12's critique)
+- `stage_balanced` corrects KELE's frequency-weighted macro (slide 14)
+- `judge` measures response quality independent of phrasing (slide 15)
+- Result: a single number that **can't be gamed by memorizing the test set**
+
+**This is the metric that surfaces today's frontier-overtaking result on slide 18.** Without it — ranking by surface form alone — the leaderboard would still put SocratTeachLLM on top.
+
+- Master leaderboard: **143 configurations, 38 LLM-judged**, auto-regenerated by `scripts/backtest_stage_balanced.py`.
 
 <!--
-SPEAKER NOTES (Slide 14, ~2 min):
-Once we had rejected surface-form metrics with the critique and the contamination proof, we still had a problem — six per-cell metrics live in our leaderboard and none of them is bulletproof in isolation. We needed a single defensible number for paper headlines and decision-making, without an ad-hoc per-metric argument every time. So we built the unified score.
+SPEAKER NOTES (Slide 16, ~1:15):
+We now have the two pieces. State accuracy from slide 14: does the consultant route to the right SocRule strategy? LLM-judge rubric from slide 15: is the teacher's actual response a good Socratic move? Each axis is memorization-resistant by construction, and each catches something the other can't. Combine them with equal weight: unified equals one-half stage-balanced state accuracy plus one-half judge times ten. Both inputs land on a zero-to-one-hundred scale, so output lands there too. Higher is better.
 
-The formula is simple. One-half stage-balanced state accuracy, plus one-half judge score times ten. Both inputs land on a zero-to-one-hundred scale, so the output lands on zero-to-one-hundred. Higher is better. The two inputs are deliberately chosen to be memorization-resistant by construction.
+The fifty-fifty weighting is deliberate. We don't have a principled prior on whether pedagogical routing should outweigh response quality. Both axes are memorization-resistant. Equal weighting requires no defense beyond "both matter, neither dominates," and any other weighting forces an argument we don't need to fight in the headline.
 
-Stage-balanced is the equal-weight per-stage macro state accuracy. The published macro weights by stage frequency — which structurally under-counts the closure stage. Stage e is roughly twelve percent of turns but it is the pedagogically load-bearing moment of the dialogue. Frequency weighting hides failures on closure. Stage-balanced fixes that — twenty percent weight per stage, regardless of frequency. Judge is the Claude Sonnet 4.6 rubric score — four axes, Socratic validity, advancement of student reasoning, age-appropriateness, and question-form fidelity, zero to ten scale per turn, averaged across the run. Neither input rewards token-level mimicry; both survive the contamination probe we just showed.
+This is what's right about it. Surface-form metrics are excluded per the critique on slide 12. Stage-balanced corrects KELE's macro from slide 14. Judge measures response quality independent of phrasing from slide 15. The result is a single number that can't be gamed by memorizing the test set.
 
-The fifty-fifty weighting is deliberate. We don't have a principled prior on whether pedagogical routing should outweigh response quality, and both inputs share comparable memorization-resistance. Equal weighting requires no extra defense beyond "both axes matter, neither dominates." Any other weighting would force us into an argument we do not need to fight in the headline. This is the metric that surfaces today's frontier-overtaking result on slide 16. Without it — ranking by surface form alone — the leaderboard would still put SocratTeachLLM on top. The master leaderboard now sits at 143 configurations, 38 of them LLM-judged, all auto-regenerated by a backtest script.
+And this is the metric that surfaces today's frontier-overtaking result on slide 18. Without it, ranking by surface form alone, the leaderboard would still put SocratTeachLLM on top. Master leaderboard is at 143 configurations, 38 with full unified score.
 -->
 
 ---
@@ -447,7 +578,7 @@ With the upgraded consultant in hand, we set up a 4-cell sub-leaderboard at cano
 > *Qwen 27B **think-mode** was the original plan for the 4th cell. At screening tier it landed at unified **68.05** (`qwen3.5 × Qwen-27B · phase3 · think · n=100`, master #10), ahead of the no-think variant. We substituted no-think for the canonical-scale measurement because llama.cpp's prompt-cache stalls trigger CUDA launch timeouts under Qwen 27B think above n ≈ 100. The no-think run shipped cleanly in 64 min with zero schema fallbacks; the think-mode canonical-scale cell remains an open infrastructure item.*
 
 <!--
-SPEAKER NOTES (Slide 15, ~1:15):
+SPEAKER NOTES (Slide 17, ~1:15):
 The BERT classifier proved the architecture: a deterministic classifier on the consultant axis is the right architectural primitive. But it also raised a follow-up question: could the consultant axis itself be improved? Same principle (match the tool to the job), only now applied to the classifier rather than the consultant-versus-LLM choice. We ran a systematic four-cell consultant-upgrade funnel: two candidate backbones (Qwen3-Embedding-0.6B and Qwen3.5-0.8B-Base) crossed with two training regimes (frozen features versus LoRA fine-tuning). The Qwen3.5-0.8B-Base with LoRA at rank 8 won decisively at 6.23 percentage points over the BERT baseline, and became our post-fix consultant going forward.
 
 With the upgraded consultant in hand, we set up a four-cell sub-leaderboard at canonical n=681, designed to confirm or revise the screening-tier parity finding from May 23. Three cells landed before today: A3B 35B at unified 67.81, Qwen-27B no-think at 66.71, and the bert-fixed Gemma cell is pending completion. Both A3B and Qwen-27B trail the frontier ceiling by 2.25 and 3.35 unified points respectively. The fourth cell, qwen3.5 cross Gemma 31B at n=681, ran this morning and landed at unified 72.24. That's the result we'll unpack on the next slide.
@@ -476,7 +607,7 @@ This is the result the campaign was building toward. Open-weight pedagogy on con
 - **A 31B-param open-weight teacher with prompt engineering on a single 32 GB consumer GPU beats Anthropic's best frontier model on a memorization-resistant Chinese pedagogy benchmark at canonical sample size, at $0 per-run eval API cost.**
 
 <!--
-SPEAKER NOTES (Slide 16, ~2:30):
+SPEAKER NOTES (Slide 18, ~2:30):
 This is what we ran this morning. The fourth and final cell of the canonical-scale sub-leaderboard. Same architectural pattern we have been refining for three months — deterministic classifier on the consultant axis, LLM teacher with composed prompt engineering — now with the upgraded Qwen3.5-LoRA classifier as the consultant and Gemma 4 31B as the teacher, against the full 681-dialogue test split. The run took roughly twelve GPU-hours. It landed at unified seventy-two point twenty-four.
 
 That number doesn't just beat our prior locked headline of sixty-eight-point-six-five. It beats the frontier ceiling we measured ourselves on slide ten. The best frontier configuration (Claude Sonnet 4.6 with our top-3 prompt stack and the BERT consultant at n=681) scored unified seventy-point-zero-six. We just scored seventy-two-point-twenty-four. That's a two-point-one-eight unified-point lead at the same canonical sample size. A 31-billion-parameter open-weight teacher with prompt engineering, running on my single 32-gigabyte consumer GPU at zero dollars per-run for the eval pipeline, overtook Anthropic's best Claude Sonnet configuration on a memorization-resistant Chinese pedagogy benchmark. The parity framing from May 23 inverts to overtaking on May 26.
@@ -530,7 +661,7 @@ locked-headline promotions ................. 3
 ```
 
 <!--
-SPEAKER NOTES (Slide 17, ~1 min):
+SPEAKER NOTES (Slide 19, ~1 min):
 The campaign by the numbers. 143 distinct configurations measured. 38 of them LLM-judged. Seven full n=681 runs at canonical scale. Adding up every named wall-clock from the paper, the experiment log, and the consultant-upgrade log gives 119 and a half GPU-hours of confirmed compute — roughly five days of continuous wall clock on the 5090, plus another fifteen to twenty-five GPU-hours of un-itemized smoke and mini runs we didn't time precisely. The biggest single block is the seven full n=681 runs at 77 hours; the next biggest is the 13-model tournament at 14 hours. API spend with Anthropic totaled 258 dollars and 86 cents. Three line items there: frontier-teacher comparisons at n=681 with Claude Sonnet and Opus as the teacher; the Phase 2 frontier-teacher n=50 sweeps stress-testing prompt scaffolding; and the LLM-judge passes that produce the unified score. The open-weight eval pipeline itself is zero dollars per-run — every API dollar bought either a frontier comparison or a memorization-resistant judgment. The progression at the bottom shows the unified-score rank-1 cell as it shifted: A3B fusion in early May, retraction of standalone Gemma when we discovered the schema-fallback issue, BERT integration becoming the locked headline on the 18th of May, then a series of canonical-scale cells in late May ending with today's frontier overtaking.
 -->
 
@@ -588,7 +719,7 @@ Every improvement we made over the original KELE paper (Peng et al., EMNLP 2025 
 **Questions?**
 
 <!--
-SPEAKER NOTES (Slide 18, ~2 min — denser than the rest; the final-slide depth gives audience the full picture, speaker picks which bullets to voice):
+SPEAKER NOTES (Slide 20, ~2 min — denser than the rest; the final-slide depth gives audience the full picture, speaker picks which bullets to voice):
 
 Twenty-three distinct improvements over the original KELE paper, organized into six categories.
 
@@ -598,7 +729,7 @@ Five methodological contributions. The benchmark critique: ROUGE and BLEU on thi
 
 Two public datasets: SocratDataset-EN, the first full English translation of the 6,803 dialogues, and the clean-probe synthetic datasets in both languages.
 
-Six empirical findings, most importantly the frontier-overtaking result we showed on slide 16. State accuracy 2.14 times GPT-4o. Cross-lingual transfer works. Schema-fallback rate is the missing variable for cross-architecture scaling prediction. Teacher capacity is not the binding constraint on this benchmark; prompt scaffolding is 2 to 5 times more impactful. And the architecture-correlated think-benefit gradient within the Qwen 3.6 family: MoE A3B gains 19 points from reasoning scaffolding, dense 27B gains 11 to 17, robust across four sample sizes.
+Six empirical findings, most importantly the frontier-overtaking result we showed on slide 18. State accuracy 2.14 times GPT-4o. Cross-lingual transfer works. Schema-fallback rate is the missing variable for cross-architecture scaling prediction. Teacher capacity is not the binding constraint on this benchmark; prompt scaffolding is 2 to 5 times more impactful. And the architecture-correlated think-benefit gradient within the Qwen 3.6 family: MoE A3B gains 19 points from reasoning scaffolding, dense 27B gains 11 to 17, robust across four sample sizes.
 
 Three engineering wins: 143 configurations measured, single-GPU at zero dollars per inference run on the eval pipeline, full compute audit at 119 and a half GPU-hours and 258 dollars of Anthropic spend. Every API dollar bought either a frontier comparison or a memorization-resistant judgment.
 
