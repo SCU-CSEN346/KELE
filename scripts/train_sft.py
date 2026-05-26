@@ -29,6 +29,7 @@ Environment variables (see configs/train-sft-qwen25-7b-lora.env for defaults):
     TRAIN_MAX_SEQ_LEN       Max token length per record (default 2048)
     TRAIN_BF16              true | false (default true)
     TRAIN_GRAD_CKPT         true | false; enable for 14B or tight VRAM (default false)
+    TRAIN_PREQ              true | false; load from pre-quantized NF4 checkpoint (default false)
     TRAIN_SOURCES           Comma-separated source keys (default socrat-zh,socrat-en)
     TRAIN_OUTPUT_DIR        Output directory for checkpoints (default outputs/sft)
     TRAIN_LOGGING_STEPS     Log every N steps (default 10)
@@ -120,8 +121,9 @@ def build_model_and_tokenizer():
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
 
+    preq = _bool(_get("TRAIN_PREQ", "false"))
     bnb_config = None
-    if method == "qlora":
+    if method == "qlora" and not preq:
         from transformers import BitsAndBytesConfig
 
         bnb_config = BitsAndBytesConfig(
@@ -131,6 +133,8 @@ def build_model_and_tokenizer():
             bnb_4bit_use_double_quant=True,
         )
         print(f"  QLoRA: 4-bit NF4, double-quant, {'bf16' if use_bf16 else 'fp16'} compute")
+    elif method == "qlora":
+        print("  QLoRA: loading pre-quantized NF4 checkpoint — skipping BF16 staging")
 
     torch_dtype: torch.dtype | None = None
     if method == "lora" and use_bf16:

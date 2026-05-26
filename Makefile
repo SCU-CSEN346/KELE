@@ -16,7 +16,8 @@
         test-gpu-stack test-vllm \
         patch-fla-rocm patch-fla-rocm-restore patch-fla-rocm-dry-run \
         download-gemma4-31b \
-        train-gemma4-31b-dry-run train-gemma4-31b-stage2 \
+        prequant-gemma4-31b-l40s transfer-gemma4-31b-nf4 \
+        train-gemma4-31b-dry-run train-gemma4-31b-stage2 train-gemma4-31b-stage2-preq \
         tournament tournament-think tournament-warmup tournament-warmup-think tournament-status tournament-eliminate \
         tournament-finalize tournament-archive tournament-restore tournament-reset \
         tournament-download tournament-help
@@ -63,7 +64,10 @@ help:
 	@echo "  eval-qwen35b-a3b-smoke Run scripts/eval_qwen35b_a3b.sh smoke (n=5,   ~2 min projected)"
 	@echo "  eval-qwen35b-a3b-mini  Run scripts/eval_qwen35b_a3b.sh mini  (n=25,  ~5 min projected)"
 	@echo "  eval-qwen35b-a3b-full  Run scripts/eval_qwen35b_a3b.sh full  (n=681, ~20-30 h projected)"
-	@echo "  download-gemma4-31b   Download google/gemma-4-31b-it weights to HF cache (~60 GB)"
+	@echo "  download-gemma4-31b         Download google/gemma-4-31b-it weights to HF cache (~60 GB)"
+	@echo "  prequant-gemma4-31b-l40s    Print instructions for pre-quantizing to NF4 on L40S"
+	@echo "  transfer-gemma4-31b-nf4     rsync NF4 checkpoint from L40S (HOST=user@host)"
+	@echo "  train-gemma4-31b-stage2-preq  Train Stage 2b from pre-quantized NF4 checkpoint"
 	@echo "  eval-gemma4-31b-smoke  Run scripts/eval_gemma4_31b.sh smoke  (n=5)"
 	@echo "  eval-gemma4-31b-mini   Run scripts/eval_gemma4_31b.sh mini   (n=25)"
 	@echo "  eval-gemma4-31b-full   Run scripts/eval_gemma4_31b.sh full   (n=681)"
@@ -349,6 +353,28 @@ train-gemma4-31b-stage2:
 	mkdir -p outputs/sft-stage2-gemma4-31b
 	nohup env TORCH_USE_HIPBLASLT=0 \
 	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8,expandable_segments:True \
+	  uv run --no-sync python scripts/train_sft.py \
+	  --config configs/train-sft-stage2-gemma4-31b.env \
+	  > outputs/sft-stage2-gemma4-31b/train.log 2>&1 &
+	@echo "Training started. Monitor: tail -f outputs/sft-stage2-gemma4-31b/train.log"
+
+prequant-gemma4-31b-l40s:
+	@echo "Run on the L40S machine (needs 96GB+ RAM, CUDA GPU):"
+	@echo "  python scripts/prequant_gemma4.py --output gemma-4-31b-nf4"
+	@echo ""
+	@echo "Then transfer back:"
+	@echo "  make transfer-gemma4-31b-nf4 HOST=user@l40s-host"
+
+transfer-gemma4-31b-nf4:
+	mkdir -p models/gemma-4-31b-nf4
+	rsync -avP "$(HOST):gemma-4-31b-nf4/" models/gemma-4-31b-nf4/
+
+train-gemma4-31b-stage2-preq:
+	mkdir -p outputs/sft-stage2-gemma4-31b
+	nohup env TORCH_USE_HIPBLASLT=0 \
+	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8,expandable_segments:True \
+	  TRAIN_BASE_MODEL=models/gemma-4-31b-nf4 \
+	  TRAIN_PREQ=true \
 	  uv run --no-sync python scripts/train_sft.py \
 	  --config configs/train-sft-stage2-gemma4-31b.env \
 	  > outputs/sft-stage2-gemma4-31b/train.log 2>&1 &
