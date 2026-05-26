@@ -10,7 +10,7 @@ Target pace: ~130 words/minute. 15 slides, ~14:45 + Q&A.
 
 ### Reproducing and Extending KELE: a Multi-Agent Socratic Teaching Framework
 
-**Max Holloway** · CSEN 346 · Santa Clara University · May 2026
+**Maximilian Khan** · CSEN 346 · Santa Clara University · May 2026
 
 A 31B-parameter open-weight teacher running on a single 32 GB consumer GPU — beating Anthropic's best frontier model on a memorization-resistant Chinese pedagogy benchmark at canonical sample size, at **zero** per-run API cost.
 
