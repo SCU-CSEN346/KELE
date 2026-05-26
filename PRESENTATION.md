@@ -229,15 +229,31 @@ This is what we locked this morning. The fourth TODO 14 cell: Qwen3.5-LoRA class
 Three months of campaign. Numbers from the master leaderboard and the experiment log.
 
 ```
-configurations measured ............... 143
-configurations LLM-judged .............. 38
-full n=681 runs ......................... 7
-GPU-hours of compute (approx.) ...... ~130
-API spend (total, approx.) ........... ~$90
-prompts written (tournament) ........... 10
-papers in flight ........................ 1
-locked-headline promotions ............. 3
+configurations measured .................. 143
+configurations LLM-judged ................. 38
+full n=681 runs ............................ 7
+GPU-hours (named-run audit trail) ....... 119.5
+GPU-hours (incl. un-itemized smoke/mini)  ~140
+API spend (total, Anthropic) .......... $258.86
+prompts written (tournament) .............. 10
+papers in flight ........................... 1
+locked-headline promotions ................. 3
 ```
+
+**GPU-hour breakdown** (from paper Table 1, Table 2, EXPERIMENT_LOG, and CONSULTANT_UPGRADE_LOG):
+
+| Block | Hours |
+|---|---:|
+| 7 full n=681 runs (A3B, Gemma standalone, BERT+Gemma, BERT+A3B, 3× qwen3.5) | 77.2 |
+| 13-model n=50 tournament | 14.4 |
+| Phase 1 prompt-engineering tournament (10 cells × n=50) | 6.2 |
+| Bilingual canonical n=400 | 7.8 |
+| Cross-teacher 8-cell n=50 matrix + judge re-eval | 6.0 |
+| Consultant upgrade campaign (T1–T4 training + Layer-2 mini) | 7.9 |
+| BERT classifier training (92s v1 + 211s v2) | 0.1 |
+| **Confirmed total** | **119.5** |
+
+**API spend** goes to three line items: (i) Phase 3 frontier-teacher n=681 runs — Claude Sonnet and Opus as teacher, ~4,000 turns each; (ii) Phase 2 frontier-teacher n=50 sweeps — 6 Claude-teacher configurations stress-testing prompt scaffolding; (iii) the LLM-judge passes across 38 cells that produce the unified score. The open-weight eval pipeline itself is $0 per-run — every API dollar bought either a frontier comparison or a memorization-resistant judgment.
 
 **Rank-#1 progression** (master leaderboard, by unified score)
 
@@ -251,7 +267,7 @@ locked-headline promotions ............. 3
 
 <!--
 SPEAKER NOTES (Slide 14, ~1 min):
-The campaign by the numbers. 143 distinct configurations measured. 38 of them LLM-judged. Seven full n=681 runs at canonical scale. Approximately 130 GPU-hours of compute total — that's roughly a week and a half of continuous wall clock on the 5090. About 90 dollars total in API spend, mostly Sonnet 4.6 for the judge passes. 10 prompt-engineering utilizations from the tournament. One paper in flight, three locked-headline promotions over the campaign. The progression at the bottom shows the unified-score rank-1 cell as it shifted: A3B fusion in early May, retraction of standalone Gemma when we discovered the schema-fallback issue, BERT integration becoming the locked headline on the 18th of May, then a series of canonical-scale cells in late May ending with today's frontier overtaking.
+The campaign by the numbers. 143 distinct configurations measured. 38 of them LLM-judged. Seven full n=681 runs at canonical scale. Adding up every named wall-clock from the paper, the experiment log, and the consultant-upgrade log gives 119 and a half GPU-hours of confirmed compute — roughly five days of continuous wall clock on the 5090, plus another fifteen to twenty-five GPU-hours of un-itemized smoke and mini runs we didn't time precisely. The biggest single block is the seven full n=681 runs at 77 hours; the next biggest is the 13-model tournament at 14 hours. API spend with Anthropic totaled 258 dollars and 86 cents. Three line items there: frontier-teacher comparisons at n=681 with Claude Sonnet and Opus as the teacher; the Phase 2 frontier-teacher n=50 sweeps stress-testing prompt scaffolding; and the LLM-judge passes that produce the unified score. The open-weight eval pipeline itself is zero dollars per-run — every API dollar bought either a frontier comparison or a memorization-resistant judgment. The progression at the bottom shows the unified-score rank-1 cell as it shifted: A3B fusion in early May, retraction of standalone Gemma when we discovered the schema-fallback issue, BERT integration becoming the locked headline on the 18th of May, then a series of canonical-scale cells in late May ending with today's frontier overtaking.
 -->
 
 ---
