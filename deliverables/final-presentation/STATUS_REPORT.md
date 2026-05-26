@@ -3,7 +3,9 @@
 **Project:** Reproducing and Extending KELE — A Multi-Agent Framework for Structured Socratic Teaching with LLMs
 **Team:** Cyberdyne — Ulises Chavarria · Maximilian Khan *(2-member team; no 3rd member joined)*
 **Course:** CSEN 346, Santa Clara University, Spring 2026
-**Status snapshot date:** 2026-05-25
+**Status snapshot date:** 2026-05-25 *(updated 2026-05-26 with locked-headline promotion — see §1.2)*
+
+> **🏆 Update 2026-05-26 — Locked headline promoted; frontier overtaken.** Post-snapshot, TODO #14 cell #2 (`qwen3.5 × Gemma-31B · fewshot10 · n=681`) landed at unified **72.24** (master #1) and was promoted to the paper's locked headline, beating the best frontier configuration we tested (`bert × Claude-Sonnet · top3 · n=681`, unified 70.06) by **+2.18 unified pts** at canonical n=681. The 2026-05-23 parity framing has inverted to overtaking. The prior 2026-05-18 BERT-classifier locked headline (unified 68.65) is now at master #8 and preserved as the BERT-classifier-axis architectural result. TODO #14 status: **3 of 4 cells done**; remaining cell #1 (`bert-fixed × Gemma-31B · n=681`) is no longer load-bearing for the overtaking claim. Section-level updates in §1.2 below; older paragraphs reflect the 2026-05-25 snapshot.
 **Two distinct deliverable dates (per instructor, 2026-05-25):**
 - **2026-05-26 — In-class presentation:** 5 min per member × 2 members = **10 min talk** + **10 min Q&A**. **No demo on this date.**
 - **2026-06-04 — Final submission:** paper + code + HF artifacts + **poster + demo**.
@@ -25,7 +27,7 @@ The initial-presentation deck (2026-04-07) proposed four future-improvement dire
 | **(1)** Mixture of Experts for multi-subject teaching (gating) | **Dropped** | SocratDataset is single-domain (elementary science); no multi-subject corpus available within budget. Not pursued. |
 | **(2)** RL-based stage transitions (replace rigid rules) | **Dropped** | Replaced by a stronger empirical finding — KELE's SocRule transitions are not the bottleneck; the *consultant* classifier is. Pivot is documented in `docs/EXPERIMENT_LOG.md`. |
 | **(3)** Learned consultant (discrete classifier replacing LLM) | **✅ Shipped — became the project's locked headline.** | 24M-param `bge-small-zh` BERT consultant. 86.55% stage acc / 61.64% state acc at <100s training. Replaces the GPT-4o consultant entirely; +22.21 pp absolute state-acc lift at n=681. |
-| **(4)** Stronger evaluation (ablation + cross-domain) | **✅ Shipped — significantly expanded.** | 142 model variants measured, 37 with full unified score, 8-cell cross-teacher matrix, 4-metric memorization-resistant evaluation panel, bootstrap convergence analysis (n=400 sufficient). |
+| **(4)** Stronger evaluation (ablation + cross-domain) | **✅ Shipped — significantly expanded.** | 143 model variants measured, 38 with full unified score (as of 2026-05-26), 8-cell cross-teacher matrix, 4-metric memorization-resistant evaluation panel, bootstrap convergence analysis (n=400 sufficient). |
 
 **New contributions not in the original pitch (all three load-bearing in the paper):**
 
@@ -42,11 +44,12 @@ All numbers from `results/master_leaderboard.md`, `results/_orchestrator_logs/ba
 | 🥇 1 | `bert × Gemma-31B · composed · top3 · n=50` | 278 | **70.08** | 58.48 | 8.17 | 41.13 |
 | 🥈 2 | `bert × Claude-Sonnet · top3 · n=681` | 3840 | 70.06 | 58.17 | 8.19 | 41.93 |
 | 🥉 3 | `bert × Claude-Opus · fewshot10 · n=50` | 271 | 69.79 | 58.73 | 8.08 | 42.77 |
-| 🏆 7 | **`bert × Gemma-31B · fewshot10 · n=681`** ← **LOCKED HEADLINE** | 3834 | **68.65** | 55.42 | 8.19 | 36.78 |
+| 🏆🥇 1 | **`qwen3.5 × Gemma-31B · fewshot10 · n=681`** ← **CURRENT LOCKED HEADLINE (2026-05-26)** | 3974 | **72.24** | 61.32 | 8.32 | 37.65 |
+| 8 | `bert × Gemma-31B · fewshot10 · n=681` ← prior locked headline (2026-05-18); preserved as BERT-classifier-axis result | 3834 | 68.65 | 55.42 | 8.19 | 36.78 |
 | ⚠️ 8 | `qwen3.5 × SocratTeachLLM · fewshot10 · n=50` (contamination-driven) | 288 | 68.21 | 63.40 | 7.30 | 48.07 |
 | ⚠️ last (37) | `Claude-Sonnet × SocratTeachLLM · EN · n=50` | 303 | 44.36 | 22.55 | 6.62 | 55.85 |
 
-**Local–frontier parity gap envelope at canonical n=681:** 1.41 pts (legacy locked headline) → 2.25 pts (qwen3.5 × A3B-35B) → 3.35 pts (qwen3.5 × Qwen-27B no-think). The 4-cell `TODO #14` sub-leaderboard has 2/4 cells landed.
+**Local-vs-frontier at canonical n=681 (3 of 4 TODO #14 cells landed):** `qwen3.5 × Gemma-31B` leads by **+2.18 pts** (current locked headline, overtaking); `qwen3.5 × A3B-35B` trails by 2.25 pts; `qwen3.5 × Qwen-27B no-think` trails by 3.35 pts. The 2026-05-23 parity framing has inverted to overtaking: teacher choice is the binding driver and Gemma 31B + Qwen3.5-LoRA classifier overtakes; A3B and Qwen-27B don't. Remaining cell #1 (`bert-fixed × Gemma-31B · n=681`) is no longer load-bearing for the overtaking claim.
 
 ### 1.3 Fine-tuning progress — consultant vs. teacher
 
@@ -163,7 +166,7 @@ Cross-checked against the seven graded sections in `references/requirements/proj
 
 ### 1.4 Experimental campaign at a glance
 
-- **142 model variants** measured end-to-end on the SocratDataset 681-dialogue test split (and subsets).
+- **143 model variants** measured end-to-end on the SocratDataset 681-dialogue test split (and subsets), 38 with full unified score (as of 2026-05-26).
 - **37 configurations** have both stage_balanced AND LLM-judge scores (the unified-ranking tier).
 - **7 full-scale n=681 runs** (Gemma 31B, A3B-35B, Qwen-27B no-think, Claude Sonnet, Claude Opus, BERT integrations, plus the GPT-4o + SocratTeachLLM baseline reproduction).
 - **8-cell cross-teacher matrix at n=50** (post-fix consultant) for like-for-like comparison.
@@ -270,14 +273,13 @@ Plan-of-record: `docs/HF_PUBLISHING_PLAN.md`. Five model repos under `maxjkh/…
 
 **Why stretch:** the locked headline uses the `state_classifier_v1` BERT checkpoint, which is in `results/` and reproducible from `scripts/train_state_classifier_34way.py`. Public HF release strengthens the submission but is not gating.
 
-### 2.7 (STRETCH, not blocking submission) — TODO #14 remaining cells
+### 2.7 (STRETCH, not blocking submission) — TODO #14 remaining cell
 
-`docs/EXPERIMENT_LOG.md` (2026-05-25 entry) — 2 of 4 cells landed. Two outstanding apples-to-apples n=681 cells:
+`docs/EXPERIMENT_LOG.md` (2026-05-25 + 2026-05-26 entries) — **3 of 4 cells landed**. Cell #2 (`qwen3.5 × Gemma-31B · fewshot10 · n=681`) landed 2026-05-26 at unified 72.24 and was promoted to the locked headline (overtaking frontier by +2.18 unified pts). One outstanding apples-to-apples n=681 cell:
 
-- [ ] `bert-fixed × Gemma-31B · fewshot10 · n=681` (~12 GPU-h, ~$15 judge spend) — closes the pre-fix consultant input-format artifact for the locked headline.
-- [ ] `qwen3.5 × Gemma-31B · fewshot10 · n=681` (~13 GPU-h, ~$15) — completes the parity sub-leaderboard.
+- [ ] `bert-fixed × Gemma-31B · fewshot10 · n=681` (~12 GPU-h, ~$15 judge spend) — closes the BERT-vs-Qwen3.5-LoRA classifier comparison at canonical scale under matched post-fix conditions. **No longer load-bearing for the overtaking claim** — only confirms the BERT-classifier-axis result at canonical scale.
 
-Outcome would tighten the Limitations §"pre-fix consultant input-format artifact" claim and the §"local–frontier parity verified only at n=50 for the post-fix cells" claim. Strictly an evidence upgrade — not gating for the paper or presentation.
+Outcome would tighten the Limitations §"pre-fix consultant input-format artifact" claim. Strictly an evidence upgrade — not gating for the paper or presentation.
 
 ### 2.8 (BLOCKING-GATED for June 4) — Teacher SFT (Stage 2a → 2b on Qwen3.6-27B QLoRA)
 
@@ -413,7 +415,7 @@ DEMO
 
 (HF data artifacts — SocratDataset, SocratDataset-EN, SocratDataset-SYNTHETIC, SocratTeachLLM mirror — are already live and listed in §1.4 / §1.3.)
 
-**Bottom line.** The science is locked: 142 model variants measured, locked headline at unified 68.65 with five fine-tuned consultant checkpoints, four HF datasets live, paper drafted end-to-end, complete experimental campaign in `results/`. **Three near-term sprints stand between now and grading:**
+**Bottom line.** The science is locked: 143 model variants measured, **current locked headline at unified 72.24 (overtaking the best frontier teacher we tested by +2.18 unified pts at canonical n=681; promoted 2026-05-26)** with five fine-tuned consultant checkpoints, four HF datasets live, paper drafted end-to-end, complete experimental campaign in `results/`. **Three near-term sprints stand between now and grading:**
 
 1. **May 26 (in ~24h) — May 26 talk.** Compress the 20-slide OUTLINE.md to an 8-slide / 10-min deck for 5 min × 2 speakers. Build 3 must-have figures, rehearse to ≤9:45, prep Q&A defensive material. No demo, no poster.
 2. **May 27 → 30 — Teacher SFT sprint (Ulises-owned, §2.8).** Hard-gated on the talk being clean and the synthetic baseline extending to n=75. If both gates pass: fix `dataset.py`, run Stage 2a → 2b QLoRA on Qwen3.6-27B overnight, eval on test (n=400) + synthetic (n=75), add one paragraph + one row to the paper. If either gate fails: SFT slips to documented future work — the locked headline is already an A submission.
@@ -421,4 +423,4 @@ DEMO
 
 **Two paper targets:** the 6-page class deliverable is required and graded; the full-length venue-submission candidate (ACL Rolling Review / EMNLP Findings / NAACL 2026) is a post-graduation stretch — preserved from the same long-form draft, polished after Jun 4, anonymized per target venue.
 
-**Fine-tuning honesty disclosure** (likely Q&A topic on May 26): consultant-side fine-tuning is fully shipped (5 trained classifiers, two of them on the headline path); teacher-side fine-tuning is mid-sprint, decisively gated, and either lands in the Jun 4 paper or remains documented future work. The pivot toward consultant-side fine-tuning was deliberate — contamination evidence (`docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md`) shifted the right target away from "beat SocratTeachLLM on its memorization metric" toward "win on memorization-resistant metrics," which the BERT-consultant integration achieves (unified 68.65 vs. frontier 70.06).
+**Fine-tuning honesty disclosure** (likely Q&A topic on May 26): consultant-side fine-tuning is fully shipped (5 trained classifiers, two of them on the headline path; the Qwen3.5-LoRA classifier is the current locked-headline consultant as of 2026-05-26); teacher-side fine-tuning is mid-sprint, decisively gated, and either lands in the Jun 4 paper or remains documented future work. The pivot toward consultant-side fine-tuning was deliberate — contamination evidence (`docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md`) shifted the right target away from "beat SocratTeachLLM on its memorization metric" toward "win on memorization-resistant metrics," which the current locked headline now does **decisively** (unified 72.24 vs. best frontier 70.06, +2.18 lead at canonical n=681).

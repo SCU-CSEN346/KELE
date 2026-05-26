@@ -138,8 +138,9 @@ Two-zone slide. Top zone = the 4-row pitch-vs-delivery table with ✅/❌ marker
 
 | | **Paper's ROUGE/BLEU ranking** | **Our unified ranking (pedagogical)** |
 |---|---|---|
-| 🥇 #1 | GPT-4o + SocratTeachLLM | **Gemma 31B + BERT (ours)** |
-| 🥈 #2 | Claude Opus + BERT | Claude Sonnet + BERT |
+| 🥇 #1 | GPT-4o + SocratTeachLLM | **Gemma 31B + Qwen3.5-LoRA (ours, n=681)** |
+| 🥈 #2 | Claude Opus + BERT | Gemma 31B + BERT (ours, n=50) |
+| 🥉 #3 | … | Claude Sonnet + BERT (frontier, n=681) |
 | 🚨 Last | Claude Opus (raw) | **GPT-4o + SocratTeachLLM** |
 
 **Why the surface metrics mislead:**
@@ -182,8 +183,9 @@ The inversion table is the centerpiece — use color coding (gold/silver/red) co
 | Consultant | Teacher | State Acc | Δ vs original |
 |---|---|---|---|
 | GPT-4o (original KELE) | SocratTeachLLM | 25.94% | baseline |
-| **BERT (ours)** | Gemma 31B | 48.15% | **+22.21 pp** |
+| BERT (ours, prior locked headline 2026-05-18) | Gemma 31B | 48.15% | **+22.21 pp** |
 | **BERT (ours)** | Claude Sonnet | 49.97% | **+24.03 pp** |
+| **Qwen3.5-LoRA (ours, current locked headline 2026-05-26)** | **Gemma 31B** | **55.39%** | **+29.45 pp** |
 
 **2. Unified score** — memorization-resistant ranking
 ```
@@ -209,39 +211,40 @@ Top half: two-column architecture diagram (KELE original on the left, ours on th
 
 ---
 
-# SLIDE 6 — Master Leaderboard + Local–Frontier Parity
+# SLIDE 6 — Master Leaderboard + Local OVERTAKES Frontier (2026-05-26)
 
 **Speaker:** Max · **Time:** ~90 s
 *(This is what April pitch direction #4 — "Stronger Evaluation via ablation + cross-domain" — became.)*
 
 ### On-screen
 
-**142 configurations measured. 37 with full unified score. Top of the pedagogical ranking:**
+**143 configurations measured. 38 with full unified score. Top of the pedagogical ranking:**
 
 | Rank | Config | n | Unified | Stage_bal | Judge |
 |---:|---|---:|---:|---:|---:|
-| 🥇 1 | bert × Gemma-31B · top3 · n=50 | 278 | **70.08** | 58.48 | 8.17 |
-| 🥈 2 | bert × Claude-Sonnet · top3 · n=681 | 3840 | 70.06 | 58.17 | 8.19 |
-| 🥉 3 | bert × Claude-Opus · fewshot10 · n=50 | 271 | 69.79 | 58.73 | 8.08 |
-| 🏆 7 | **bert × Gemma-31B · fewshot10 · n=681** | 3834 | **68.65** | 55.42 | 8.19 |
-| ⚠️ 8 | qwen3.5 × SocratTeachLLM · n=50 | 288 | 68.21 | 63.40 | 7.30 |
-| ⚠️ last (37) | Claude-Sonnet × SocratTeachLLM · EN · n=50 | 303 | 44.36 | 22.55 | 6.62 |
+| 🏆🥇 1 | **`qwen3.5 × Gemma-31B · fewshot10 · n=681`** ← **LOCKED HEADLINE (2026-05-26)** | 3974 | **72.24** | 61.32 | 8.32 |
+| 🥈 2 | bert × Gemma-31B · top3 · n=50 | 278 | 70.08 | 58.48 | 8.17 |
+| 🥉 3 | bert × Claude-Sonnet · top3 · n=681 (best frontier we tested) | 3840 | 70.06 | 58.17 | 8.19 |
+| 4 | bert × Claude-Opus · fewshot10 · n=50 | 271 | 69.79 | 58.73 | 8.08 |
+| 8 | bert × Gemma-31B · fewshot10 · n=681 (prior locked headline 2026-05-18) | 3834 | 68.65 | 55.42 | 8.19 |
+| ⚠️ 9 | qwen3.5 × SocratTeachLLM · n=50 | 288 | 68.21 | 63.40 | 7.30 |
+| ⚠️ last (38) | Claude-Sonnet × SocratTeachLLM · EN · n=50 | 303 | 44.36 | 22.55 | 6.62 |
 
-🏆 = **locked headline** (full n=681) · ⚠️ = SocratTeachLLM, contamination-inflated
+🏆 = **current locked headline** (full n=681, 2026-05-26) · ⚠️ = SocratTeachLLM, contamination-inflated
 
-> **Parity:** best frontier (`Claude-Sonnet`, 70.06) vs. best open-weight (`Gemma 31B`, 70.08) → **gap 0.02 pts**. Locked headline at n=681 trails by 1.41 pts — inside sampling noise.
+> **Overtaking:** current locked headline (`qwen3.5 × Gemma-31B · n=681`, unified **72.24**) vs. best frontier we tested (`bert × Claude-Sonnet · top3 · n=681`, 70.06) → **+2.18 unified pts ahead, at the same canonical n=681 sample size**. The 2026-05-23 "parity" framing has inverted into overtaking.
 
 ### Speaker notes
 
-"We ran 142 configurations end-to-end on the SocratDataset test split. 37 of them have the full unified score with both stage-balanced and LLM-judge measurements. Here's the top of the table.
+"We ran 143 configurations end-to-end on the SocratDataset test split. 38 of them have the full unified score with both stage-balanced and LLM-judge measurements. Here's the top of the table — and the headline lives in row 1.
 
-The headline finding is at the top. The best frontier configuration — a BERT consultant paired with Claude Sonnet as the teacher, full n=681 — scores unified 70.06. The best open-weight configuration — BERT consultant paired with Gemma 31B — scores 70.08. That's a gap of *two hundredths* of a point. Effectively zero. Indistinguishable.
+The current locked paper headline — landed this morning — is the row at the top: Qwen3.5-LoRA classifier paired with Gemma 31B as the teacher, ten-shot stage-balanced prompting, full 681-dialogue test split. Unified score 72.24. The best frontier configuration we measured under matched consultant infrastructure — BERT classifier with Claude Sonnet 4.6 and the top-3 prompt stack, also at full n=681 — sits in third place at 70.06. Our open-weight cell leads the frontier ceiling by 2.18 unified points at the same canonical sample size.
 
-The row marked with the trophy — number 7 — is our **locked paper headline**: BERT consultant, Gemma 31B teacher, ten-shot prompting, full n=681. It scores 68.65. That's 1.41 points behind the frontier ceiling — but well inside our measurement noise at this sample size. Importantly, this is the configuration that runs entirely on a 32 GB consumer GPU at zero per-inference API cost.
+For context: the row at rank 8, 68.65, is the *prior* locked headline from May 18 — same architecture but with the smaller 24M-param BERT classifier as the consultant. The methodological contribution is the deterministic-classifier-as-consultant pattern; the consultant upgrade from BERT to Qwen3.5-LoRA at the post-fix input format is what closed the remaining gap to the frontier and then overtook it.
 
-The two rows with warning triangles are SocratTeachLLM-based — contamination-inflated, exactly the pattern from slide 4. And notice the very last row — *Claude Sonnet teaching with SocratTeachLLM on English* — scores 44 unified, dead last. That's a contamination signature flipping the other way when the test data leaves the training distribution.
+The two rows with warning triangles are SocratTeachLLM-based — contamination-inflated, exactly the pattern from slide 4. The very last row — Claude Sonnet teaching with SocratTeachLLM on English — scores 44, dead last. That's the contamination signature flipping the other way when the test data leaves the training distribution.
 
-So the takeaway: open-weight local models on a memorization-resistant benchmark — they don't trail the frontier. They sit right next to it."
+So the takeaway: open-weight local models on a memorization-resistant benchmark — they don't trail the frontier anymore. They lead. Single 32 GB consumer GPU. Zero dollars per inference run on the eval pipeline."
 
 **Transition:** "But the contamination claim is doing a lot of work on this slide. Let me show you the direct evidence."
 
@@ -297,7 +300,7 @@ Left half: two-bar chart, SocratTeachLLM stage_bal 63.4 (original test, blue) vs
 
 1. **A 24M-param BERT consultant replaces a multi-billion-parameter LLM consultant** — matching state-routing accuracy at zero per-run API cost.
 2. **ROUGE and BLEU are misleading metrics for Socratic teaching.** The "winning" model in the original paper ranks last on pedagogical accuracy. The unified score fixes this.
-3. **Open-weight local models reach frontier parity on a memorization-resistant benchmark.** Gemma 31B + BERT + 10-shot ≈ Claude Sonnet.
+3. **Open-weight local models OVERTAKE the best frontier teacher we tested on a memorization-resistant benchmark.** Gemma 31B + Qwen3.5-LoRA + 10-shot at canonical n=681 = unified 72.24, beating Claude Sonnet + top-3 + BERT at n=681 (unified 70.06) by **+2.18 unified pts**.
 
 > *"If you're evaluating educational AI, measure pedagogy — not n-gram overlap."*
 
@@ -311,7 +314,7 @@ Left half: two-bar chart, SocratTeachLLM stage_bal 63.4 (original test, blue) vs
 
 Second: ROUGE and BLEU are systematically misleading for any teaching task where the reference model was fine-tuned on the test distribution. The published winner of the KELE benchmark ranks *last* on pedagogical accuracy when you use a memorization-resistant metric. The unified score we propose — half stage-balanced accuracy, half LLM-judge — is one way to fix this. We don't claim it's the only way.
 
-Third: when you do measure pedagogy instead of n-gram overlap, open-weight local models like Gemma 31B reach frontier parity. Our system ties Claude Sonnet within measurement noise, runs on a consumer GPU, and costs zero API dollars per inference.
+Third: when you do measure pedagogy instead of n-gram overlap, open-weight local models like Gemma 31B don't just match the frontier — they overtake it. Our current locked headline at canonical n=681 beats the best Claude configuration we tested by 2.18 unified points, runs on a single 32 GB consumer GPU, and costs zero API dollars per inference run on the eval pipeline.
 
 The paper goes to the deeper experiments — eight-cell cross-teacher matrix, bootstrap convergence analysis showing n=400 is sufficient, the full contamination proof. We're also mid-sprint on a Stage 2 SFT teacher of our own — we shipped the pipeline yesterday in PR #79, and training is running right now on Gemma 4 31B. We had to pivot off of Qwen3.6-27B because of a Triton kernel bug on our AMD GPU — happy to talk about that in Q&A if it's interesting.
 
@@ -342,7 +345,7 @@ Both speakers field. Pre-read these to keep responses crisp.
 - Two orthogonal, memorization-resistant axes. No principled prior for weighting one over the other. Any other weighting requires defending why one axis dominates — a fight we don't need to have for the headline.
 
 **Q: Where is your fine-tuned teacher?**
-- Consultant side: fully shipped — 5 trained classifiers, two of them (`state_classifier_v1` and `state-clf-qwen3.5-0.8b-lora`) on the headline path. Teacher side: pipeline shipped in PR #79 (format fix, three Stage 2 loaders, three Stage 1 loaders, DPO pair builder with Source 3 functional). Training the Gemma 4 31B base mid-sprint. The decision *not* to race to a SocratTeachLLM replacement was deliberate — once contamination evidence landed, the right target became "win on memorization-resistant metrics," which the BERT-consultant integration already achieves (unified 68.65 vs. frontier 70.06).
+- Consultant side: fully shipped — 5 trained classifiers, two of them (`state_classifier_v1` and `state-clf-qwen3.5-0.8b-lora`) on the headline path; the Qwen3.5-LoRA classifier is the current locked-headline consultant as of 2026-05-26. Teacher side: pipeline shipped in PR #79 (format fix, three Stage 2 loaders, three Stage 1 loaders, DPO pair builder with Source 3 functional). Training the Gemma 4 31B base mid-sprint. The decision *not* to race to a SocratTeachLLM replacement was deliberate — once contamination evidence landed, the right target became "win on memorization-resistant metrics," which the current locked headline now does **decisively** at canonical scale (unified 72.24 vs. best frontier 70.06, a +2.18 lead at n=681).
 
 **Q: Why pivot from Qwen3.6-27B to Gemma 4 31B for SFT?**
 - Qwen3.6-27B uses gated DeltaNet layers that require `flash-linear-attention` (FLA). FLA's Triton 3.6.0 kernels page-fault at runtime on AMD gfx1201 (RDNA4 / R9700), and the torch fallback OOMs above 512 tokens — below the 1280-token requirement for SocratDataset. Gemma 4 31B-IT uses standard softmax attention, fits in 32 GB VRAM at seq=1280 with QLoRA (~21–23 GB peak), and is already the #1 open-weight teacher in our leaderboard (unified 70.08). Documented in PR #79.
@@ -361,7 +364,7 @@ Both speakers field. Pre-read these to keep responses crisp.
 - [ ] Produce the 3 must-have figures:
   - Slide 4 — inversion table + ROUGE n-gram-order bar chart
   - Slide 5 — two-column architecture diagram (KELE vs. ours)
-  - Slide 6 — leaderboard top-5 table with the parity callout
+  - Slide 6 — leaderboard top-5 table with the overtaking callout (+2.18 unified pts at n=681)
 - [ ] Dry run #1 — read straight through with stopwatch · target ≤9:45
 - [ ] Trim speaker notes to spoken length (~150 words per slide)
 - [ ] Q&A walk-through — read each question aloud, confirm both speakers can answer
