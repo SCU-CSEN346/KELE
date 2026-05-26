@@ -112,7 +112,7 @@ Cross-checked against the seven graded sections in `references/requirements/proj
 | Ethics Statement | May 14 | ✅ Written |
 | References (`custom.bib`) | All deadlines | ✅ Populated |
 
-**Length:** The current draft is **substantially over the 4–6 page limit** (770 lines of LaTeX, ~12+ pages compiled). Heavy trimming required before final submission.
+**Length & dual-target strategy:** The current `acl_latex.tex` draft (~12+ compiled pages) serves as the **long-form submission-candidate paper** (§2.2b stretch — for an actual venue submission post-graduation). A **separate 6-page `acl_latex_6page.tex`** must be derived from it as the class deliverable (§2.2 BLOCKING). The class version is a compressed subset; the long-form is preserved and polished separately for ACL Rolling Review / EMNLP Findings.
 
 #### Code (`src/project/`, `scripts/`, `configs/`, `tests/`)
 
@@ -203,15 +203,36 @@ The existing `OUTLINE.md` is 20 slides scoped for a 20-min talk with integrated 
 - [ ] **Prepare Q&A defensive material** (10 min Q&A is half the slot — preparation matters). Use `OUTLINE.md §Anticipated Q&A` as the source; expand 1–2 lines on each anticipated question. Key topics: contamination claim, BERT vs. LLM consultant, unified-metric weighting, real-classroom deployment, ethics.
 - [ ] **Export deck to PDF as backup.**
 
-### 2.2 (BLOCKING) — Trim the paper to the 4–6 page ACL limit (target: 2026-06-02)
+### 2.2 (BLOCKING for June 4) — Class-submission paper (6-page ACL trim)
 
-The current `acl_latex.tex` is ~12+ compiled pages. Required cuts to meet the rubric's "**4-6 page research paper (excluding references)**" limit:
+The class rubric requires a **4–6 page research paper (excluding references)**. The current `acl_latex.tex` is ~12+ compiled pages — built as a long-form draft to serve both this 6-page class deliverable *and* the longer-form submission candidate in §2.2b. The 6-page trim is the required artifact for grading.
 
-- [ ] **Compile current draft and measure actual page count.** Target: ≤6 body pages (refs are excluded from the limit).
-- [ ] **Identify aggressive cuts.** Likely candidates: the §4.5 tournament 13-model table can collapse to a 3-row best-of summary; §4.7 (Gemma pivot retraction) can compress to one paragraph; §4.12 (cross-architecture scaling discussion) can move detail to a Limitations footnote; the multiple per-stage tables can fold into one.
-- [ ] **Re-run [Agentic Reviewer](https://paperreview.ai/) before submission** (per the project guidelines and `docs/PLAN.md`).
-- [ ] **Add a "Member Contributions" appendix** (rubric requirement under the code submission section but typically also in the paper).
-- [ ] **Final BibTeX cleanup** — ensure every `\citep` resolves; check `custom.bib` against the cited keys.
+**Strategy:** maintain two LaTeX targets from the same content base:
+- `deliverables/overleaf/latex/acl_latex.tex` — long-form, conference-submission candidate (see §2.2b)
+- `deliverables/overleaf/latex/acl_latex_6page.tex` (new) — class deliverable, 6 pages body
+
+The cleanest setup is a new top-level `.tex` that `\input{}`s the same shared sections (intro, dataset, methodology, conclusion, ethics) and a slimmed Results section with the trim cuts inlined. Alternatively, branch the file and trim aggressively — easier to ship, harder to keep in sync. Given the deadline, **branch-and-trim is the recommended path** for the 6-page version.
+
+- [ ] **Create `acl_latex_6page.tex`** from `acl_latex.tex` and trim to ≤6 body pages.
+- [ ] **Identify aggressive cuts.** Likely candidates: the §4.5 tournament 13-model table → 3-row best-of summary; §4.7 (Gemma pivot retraction) → one paragraph; §4.12 (cross-architecture scaling discussion) → Limitations footnote; multiple per-stage tables → fold into one.
+- [ ] **Re-run [Agentic Reviewer](https://paperreview.ai/)** on the 6-page version before submission (per project guidelines and `docs/PLAN.md`).
+- [ ] **Add a "Member Contributions" paragraph** (rubric requirement under code submission; safest to also include in the paper).
+- [ ] **Final BibTeX cleanup** — ensure every `\citep` in the 6-page version resolves; check `custom.bib` against the cited keys.
+- [ ] (Conditional) **Add the SFT row + paragraph** if §2.8 lands — must fit within the 6-page budget.
+
+### 2.2b (STRETCH) — Full-length paper submission candidate
+
+The current `acl_latex.tex` long-form draft is already a strong basis for an actual venue submission (ACL Rolling Review, EMNLP Findings, or similar). The 6-page class version is necessarily a compressed subset; the long-form retains the methodological depth — full smoke/mini/full gating protocol, complete cross-teacher matrix, contamination-proof appendix, bootstrap convergence analysis, frontier-ceiling discussion — that strengthens external review.
+
+This is a *post-graduation* artifact, not a Jun 4 deliverable. But the trim work in §2.2 *removes* content from the 6-page version, which means the long-form draft must be preserved as a separate file before trimming, not edited in place.
+
+- [ ] **Preserve `acl_latex.tex` as the long-form file** before §2.2 begins (do not branch-and-trim *in place*).
+- [ ] **Post-Jun 4 polish pass** on the long-form: tighten abstract, harden Limitations §, ensure all claims are reproducible from `results/` artifacts, run a second Agentic Reviewer pass.
+- [ ] **Target a venue** — ACL Rolling Review (continuous), EMNLP 2026 Findings (~Aug deadline), or NAACL 2026 Industry/Findings track. The benchmark-critique angle and the BERT-consultant + open-weight-parity finding are both venue-worthy on their own; together they form a complete contribution.
+- [ ] **Anonymize + reformat** per target venue's submission guidelines (often the bottleneck — anonymized HF repo mirror, anonymous GitHub fork).
+- [ ] (Optional) **Add SFT results across both papers** if §2.8 lands, with extended ablation tables that don't fit in the 6-page version.
+
+**Why stretch:** Class grade does not depend on venue submission. Adds prestige and lifetime value of the project, but only after the Jun 4 package is complete.
 
 ### 2.3 (BLOCKING for June 4) — Poster
 
@@ -348,16 +369,19 @@ TEACHER SFT  (Ulises's individual contribution slice — §2.8 BLOCKING-GATED)
   [ ] Eval on test n=400 + synthetic n=75          5/30
   [ ] Paper paragraph + tables row                 6/1
 
-PAPER
+PAPER — class deliverable (6 pages, BLOCKING)
+  [x] Long-form draft in acl_latex.tex (12+ pages — source for both targets)
   [x] Intro & Related Work
   [x] Dataset & Methodology
   [x] Evaluation & Results
   [x] Conclusion, Limitations, Ethics
+  [ ] Preserve acl_latex.tex unchanged BEFORE trim begins (§2.2b)
+  [ ] Create acl_latex_6page.tex                   ← §2.2 BLOCKING
+  [ ] Trim to ≤6 body pages                        ← §2.2 BLOCKING
   [ ] (conditional) SFT row added to Tables 6/14   ← gated on §2.8 landing
-  [ ] Trim to 4-6 pages                            ← §2.2 BLOCKING
-  [ ] Agentic Reviewer pass
+  [ ] Agentic Reviewer pass on 6-page version
   [ ] Member-contributions paragraph (2 members)
-  [ ] Final bib cleanup
+  [ ] Final bib cleanup on 6-page version
 
 CODE  (in repo, already shipped)
   [x] Docstrings, .env.example, tests, README sections
@@ -375,6 +399,11 @@ DEMO
   [ ] Reference link in paper
 
 ═══════════════ STRETCH (only if BLOCKING items are clean by Jun 1) ═════════════════
+  [ ] Full-length paper submission candidate         ← §2.2b (post-Jun 4)
+       [ ] Preserve acl_latex.tex (long-form) intact
+       [ ] Post-Jun 4 polish pass
+       [ ] Target venue (ACL RR / EMNLP Findings / NAACL 2026)
+       [ ] Anonymize + reformat for venue
   [ ] HF state-classifier funnel publish (5 models, §2.6)
   [ ] HF teacher-SFT checkpoint publish              (depends on §2.8 landing)
   [ ] TODO #14 cells 1+2 — n=681 parity (§2.7)
@@ -388,6 +417,8 @@ DEMO
 
 1. **May 26 (in ~24h) — May 26 talk.** Compress the 20-slide OUTLINE.md to an 8-slide / 10-min deck for 5 min × 2 speakers. Build 3 must-have figures, rehearse to ≤9:45, prep Q&A defensive material. No demo, no poster.
 2. **May 27 → 30 — Teacher SFT sprint (Ulises-owned, §2.8).** Hard-gated on the talk being clean and the synthetic baseline extending to n=75. If both gates pass: fix `dataset.py`, run Stage 2a → 2b QLoRA on Qwen3.6-27B overnight, eval on test (n=400) + synthetic (n=75), add one paragraph + one row to the paper. If either gate fails: SFT slips to documented future work — the locked headline is already an A submission.
-3. **Jun 1 → 4 — Paper trim + poster + demo + README polish.** Trim paper to 4–6 pages, Agentic Reviewer pass, build 5-panel poster, record 3-min demo, add Member Contributions to README, verify HF links. Poster + demo + final paper land together on Jun 4.
+3. **Jun 1 → 4 — Paper trim + poster + demo + README polish.** Preserve the long-form `acl_latex.tex` intact (it's the seed of the §2.2b stretch submission candidate), then derive a separate `acl_latex_6page.tex` for the class deliverable. Agentic Reviewer pass on the 6-page version, build 5-panel poster, record 3-min demo, add Member Contributions to README, verify HF links. Poster + demo + 6-page paper land together on Jun 4.
+
+**Two paper targets:** the 6-page class deliverable is required and graded; the full-length venue-submission candidate (ACL Rolling Review / EMNLP Findings / NAACL 2026) is a post-graduation stretch — preserved from the same long-form draft, polished after Jun 4, anonymized per target venue.
 
 **Fine-tuning honesty disclosure** (likely Q&A topic on May 26): consultant-side fine-tuning is fully shipped (5 trained classifiers, two of them on the headline path); teacher-side fine-tuning is mid-sprint, decisively gated, and either lands in the Jun 4 paper or remains documented future work. The pivot toward consultant-side fine-tuning was deliberate — contamination evidence (`docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md`) shifted the right target away from "beat SocratTeachLLM on its memorization metric" toward "win on memorization-resistant metrics," which the BERT-consultant integration achieves (unified 68.65 vs. frontier 70.06).
