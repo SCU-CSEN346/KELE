@@ -77,8 +77,8 @@ fi
 # ── count current num_stages >= 2 references ─────────────────────────────────
 # Pattern: `num_stages=<2..9>` or `num_stages = <2..99>` (autotune configs)
 before=$(grep -rhEc 'num_stages[[:space:]]*=[[:space:]]*([2-9]|[1-9][0-9]+)' \
-  --include='*.py' "${fla_path}/ops" 2>/dev/null \
-  | awk '{s+=$1} END {print s+0}')
+  --include='*.py' --exclude='*.bak' "${fla_path}/ops" 2>/dev/null \
+  | awk '{s+=$1} END {print s+0}') || before=0
 printf '  num_stages>=2 references found: %d\n' "$before"
 
 if [[ "$mode" == 'dry-run' ]]; then
@@ -93,12 +93,12 @@ fi
 
 # ── apply patch ──────────────────────────────────────────────────────────────
 # sed -i.bak retains a .bak alongside each modified file for --restore.
-find "${fla_path}/ops" -type f -name '*.py' -exec sed -i.bak -E \
+find "${fla_path}/ops" -type f -name '*.py' ! -name '*.bak' -exec sed -i.bak -E \
   's/(num_stages[[:space:]]*=[[:space:]]*)([2-9]|[1-9][0-9]+)/\11/g' {} +
 
 after=$(grep -rhEc 'num_stages[[:space:]]*=[[:space:]]*([2-9]|[1-9][0-9]+)' \
-  --include='*.py' "${fla_path}/ops" 2>/dev/null \
-  | awk '{s+=$1} END {print s+0}')
+  --include='*.py' --exclude='*.bak' "${fla_path}/ops" 2>/dev/null \
+  | awk '{s+=$1} END {print s+0}') || after=0
 printf '  num_stages>=2 references remaining: %d\n' "$after"
 
 # Clear Triton kernel cache so previously-cached broken kernels are not reloaded.
