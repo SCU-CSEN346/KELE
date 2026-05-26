@@ -55,3 +55,7 @@ results/state-clf-*/final/
 references/KELE-EN/SocratDataset.json
 references/KELE-EN/data/
 references/KELE-EN/.cache/
+
+
+# Railguard
+./railguard/*
