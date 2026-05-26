@@ -137,6 +137,11 @@ def build_model_and_tokenizer():
         torch_dtype = torch.bfloat16
 
     print(f"  Loading weights  method={method}  dtype={torch_dtype or 'auto'}")
+
+    import os as _os
+
+    _offload_dir = "offload_weights"
+    _os.makedirs(_offload_dir, exist_ok=True)
     model = AutoModelForCausalLM.from_pretrained(
         base_model,
         quantization_config=bnb_config,
@@ -144,6 +149,8 @@ def build_model_and_tokenizer():
         attn_implementation="sdpa",
         device_map="auto",
         low_cpu_mem_usage=True,
+        offload_folder=_offload_dir,
+        offload_state_dict=True,
         trust_remote_code=True,
     )
 
@@ -154,6 +161,8 @@ def build_model_and_tokenizer():
             delattr(model, _vision_attr)
             _torch.cuda.empty_cache()
             print(f"  Dropped {_vision_attr!r} vision encoder to free VRAM")
+
+    torch.cuda.empty_cache()
 
     if method == "qlora":
         from peft import prepare_model_for_kbit_training

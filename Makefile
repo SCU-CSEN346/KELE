@@ -347,7 +347,8 @@ train-gemma4-31b-dry-run:
 
 train-gemma4-31b-stage2:
 	mkdir -p outputs/sft-stage2-gemma4-31b
-	nohup env TORCH_USE_HIPBLASLT=0 PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
+	nohup env TORCH_USE_HIPBLASLT=0 \
+	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8,expandable_segments:True \
 	  uv run --no-sync python scripts/train_sft.py \
 	  --config configs/train-sft-stage2-gemma4-31b.env \
 	  > outputs/sft-stage2-gemma4-31b/train.log 2>&1 &
