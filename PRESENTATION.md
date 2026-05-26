@@ -358,20 +358,24 @@ The fifty-fifty weighting is deliberate. We don't have a principled prior on whe
 
 ---
 
-## Consultant Upgrade + TODO #14
+## Consultant Upgrade + Canonical-Scale Sub-Leaderboard
 
-A systematic 4-cell `T1–T4` funnel produced the **Qwen3.5-0.8B-LoRA classifier** — successor to the 24M BERT (post-fix consultant input format, +6.23 pp over BERT). TODO #14 lined up 4 canonical-scale cells at n=681 to **confirm — or revise — the screening-tier parity finding**.
+The BERT classifier proved the architecture, but it also raised a follow-up question: could the consultant axis *itself* be improved? Same principle — match the tool to the job — only now applied to the classifier rather than the consultant-versus-LLM decision. We ran a systematic 4-cell consultant-upgrade funnel: two candidate backbones (`Qwen3-Embedding-0.6B`, `Qwen3.5-0.8B-Base`) crossed with two training regimes (frozen features vs. LoRA fine-tuning). The Qwen3.5-0.8B-Base + LoRA r=8 configuration won decisively at **+6.23 pp over the BERT baseline** and became our post-fix consultant going forward.
+
+With the upgraded consultant in hand, we set up a 4-cell sub-leaderboard at canonical n=681 to confirm — or revise — the screening-tier parity finding from May 23. Three cells had landed before today; the fourth, the matched cross-teacher cell most likely to move the headline, ran this morning.
 
 | Cell | unified | Status |
 |---|---:|---|
 | `qwen3.5 × A3B-35B · n=681` | 67.81 | ✅ 2026-05-25 (9h 41m) — 2.25 pts behind frontier ceiling |
 | `qwen3.5 × Qwen-27B no-think · n=681` | 66.71 | ✅ 2026-05-25 (1h 4m) — 3.35 pts behind frontier ceiling |
-| `bert-fixed × Gemma-31B · n=681` | — | queued, ~12 GPU-h — *no longer load-bearing* |
-| **`qwen3.5 × Gemma-31B · n=681`** | **?** | **today (2026-05-26), ~12 GPU-h — see next slide** |
+| `bert-fixed × Gemma-31B · n=681` | — | pending completion, ~12 GPU-h |
+| **`qwen3.5 × Gemma-31B · n=681`** | **72.24** | ✅ **today (2026-05-26), ~12 GPU-h — details on next slide** |
 
 <!--
-SPEAKER NOTES (Slide 14, ~45s):
-The consultant upgrade was a systematic four-cell funnel — two backbones crossed with frozen versus LoRA. T4, the LoRA fine-tune of Qwen3.5-0.8B-Base, won by 6.23 percentage points over BERT and became the successor consultant. With that classifier in hand, TODO 14 lined up four canonical-scale cells at n=681 — designed to *confirm or revise* the screening-tier parity finding from May 23. Three cells landed before today: A3B 35B at unified 67.81, Qwen-27B no-think at 66.71, and the bert-fixed Gemma cell still queued. Both A3B and Qwen-27B trail the frontier ceiling — 2.25 and 3.35 unified points respectively. The fourth cell ran today: qwen3.5 cross Gemma 31B at n=681. The result is on the next slide.
+SPEAKER NOTES (Slide 14, ~1 min):
+The BERT classifier proved the architecture — a deterministic classifier on the consultant axis is the right architectural primitive. But it also raised a follow-up question: could the consultant axis itself be improved? Same principle — match the tool to the job — only now applied to the classifier rather than the consultant-versus-LLM choice. We ran a systematic four-cell consultant-upgrade funnel: two candidate backbones (Qwen3-Embedding-0.6B and Qwen3.5-0.8B-Base) crossed with two training regimes (frozen features versus LoRA fine-tuning). The Qwen3.5-0.8B-Base with LoRA at rank 8 won decisively at 6.23 percentage points over the BERT baseline, and became our post-fix consultant going forward.
+
+With the upgraded consultant in hand, we set up a four-cell sub-leaderboard at canonical n=681 — designed to confirm or revise the screening-tier parity finding from May 23. Three cells landed before today: A3B 35B at unified 67.81, Qwen-27B no-think at 66.71, and the bert-fixed Gemma cell is pending completion. Both A3B and Qwen-27B trail the frontier ceiling — 2.25 and 3.35 unified points behind respectively. The fourth cell — qwen3.5 cross Gemma 31B at n=681 — ran this morning and landed at unified 72.24. That's the result we'll unpack on the next slide.
 -->
 
 ---
