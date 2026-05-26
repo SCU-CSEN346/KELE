@@ -74,32 +74,42 @@ if [[ "$mode" == 'restore' ]]; then
   exit 0
 fi
 
-# ── count current num_stages >= 2 references ─────────────────────────────────
-# Pattern: `num_stages=<2..9>` or `num_stages = <2..99>` (autotune configs)
-before=$(grep -rhEc 'num_stages[[:space:]]*=[[:space:]]*([2-9]|[1-9][0-9]+)' \
+# ── count issues: num_stages >= 2 and num_warps > 4 ─────────────────────────
+before_stages=$(grep -rhEc 'num_stages[[:space:]]*=[[:space:]]*([2-9]|[1-9][0-9]+)' \
   --include='*.py' --exclude='*.bak' "${fla_path}/ops" 2>/dev/null \
-  | awk '{s+=$1} END {print s+0}') || before=0
-printf '  num_stages>=2 references found: %d\n' "$before"
+  | awk '{s+=$1} END {print s+0}') || before_stages=0
+before_warps=$(grep -rhEc 'num_warps[[:space:]]*=[[:space:]]*([5-9]|[1-9][0-9]+)' \
+  --include='*.py' --exclude='*.bak' "${fla_path}/ops" 2>/dev/null \
+  | awk '{s+=$1} END {print s+0}') || before_warps=0
+printf '  num_stages>=2 references: %d\n' "$before_stages"
+printf '  num_warps>4   references: %d\n' "$before_warps"
 
 if [[ "$mode" == 'dry-run' ]]; then
   printf '(dry-run — no changes)\n'
   exit 0
 fi
 
-if [[ "$before" -eq 0 ]]; then
-  printf '  (already patched or no autotune configs — nothing to do)\n'
+if [[ "$before_stages" -eq 0 && "$before_warps" -eq 0 ]]; then
+  printf '  (already patched — nothing to do)\n'
   exit 0
 fi
 
-# ── apply patch ──────────────────────────────────────────────────────────────
+# ── apply patches ─────────────────────────────────────────────────────────────
 # sed -i.bak retains a .bak alongside each modified file for --restore.
+# Pass 1: num_stages >= 2 → 1  (Triton 3.6.0 tritonamdgpu-pipeline UAF fix)
+# Pass 2: num_warps > 4 → 4   (RDNA4 wave-32 scheduling fix)
 find "${fla_path}/ops" -type f -name '*.py' ! -name '*.bak' -exec sed -i.bak -E \
-  's/(num_stages[[:space:]]*=[[:space:]]*)([2-9]|[1-9][0-9]+)/\11/g' {} +
+  -e 's/(num_stages[[:space:]]*=[[:space:]]*)([2-9]|[1-9][0-9]+)/\11/g' \
+  -e 's/(num_warps[[:space:]]*=[[:space:]]*)([5-9]|[1-9][0-9]+)/\14/g' {} +
 
-after=$(grep -rhEc 'num_stages[[:space:]]*=[[:space:]]*([2-9]|[1-9][0-9]+)' \
+after_stages=$(grep -rhEc 'num_stages[[:space:]]*=[[:space:]]*([2-9]|[1-9][0-9]+)' \
   --include='*.py' --exclude='*.bak' "${fla_path}/ops" 2>/dev/null \
-  | awk '{s+=$1} END {print s+0}') || after=0
-printf '  num_stages>=2 references remaining: %d\n' "$after"
+  | awk '{s+=$1} END {print s+0}') || after_stages=0
+after_warps=$(grep -rhEc 'num_warps[[:space:]]*=[[:space:]]*([5-9]|[1-9][0-9]+)' \
+  --include='*.py' --exclude='*.bak' "${fla_path}/ops" 2>/dev/null \
+  | awk '{s+=$1} END {print s+0}') || after_warps=0
+printf '  num_stages>=2 remaining: %d\n' "$after_stages"
+printf '  num_warps>4   remaining: %d\n' "$after_warps"
 
 # Clear Triton kernel cache so previously-cached broken kernels are not reloaded.
 triton_cache="${HOME}/.triton/cache"
@@ -111,7 +121,8 @@ fi
 # Clear FLA bytecode cache so patched sources take effect on next import.
 find "${fla_path}/ops" -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
-printf '✓ FLA ROCm patch applied (changed %d → %d).\n' "$before" "$after"
+printf '✓ FLA ROCm patch applied (stages: %d→%d, warps: %d→%d).\n' \
+  "$before_stages" "$after_stages" "$before_warps" "$after_warps"
 printf '  to revert:  bash scripts/patch_fla_rocm.sh --restore\n'
 # shellcheck disable=SC2016  # backticks are intentional markdown-style command markers, not command substitution
 printf '  re-run after any `uv sync` or `make install-rocm`.\n'
