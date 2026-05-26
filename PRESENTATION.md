@@ -3,11 +3,13 @@ PRESENTATION.md — class talk for CSEN 346
 Render: `npx reveal-md PRESENTATION.md` for slide deck in browser,
         or read directly on GitHub (renders as one long doc).
 Speaker notes are HTML comments — visible in source, hidden in render.
-Target pace: ~130 words/minute. 17 slides, ~21 min + Q&A
-(over the original 15-min budget by ~6 min; user-approved — extra
+Target pace: ~130 words/minute. 17 slides, ~22-23 min + Q&A
+(over the original 15-min budget by ~7-8 min; user-approved — extra
 budget for the Socratic-teaching foundation (slides 2-4), the
 expanded constraints slide (slide 5: hardware diversity + time
-scope), and the final-slide depth on Slide 17 "Total Contributions").
+scope), the deepened methodology slide (slide 7: tournament results
++ cascade narrative), and the final-slide depth on Slide 17
+"Total Contributions").
 -->
 
 # Beating the Frontier on a Consumer GPU
@@ -131,22 +133,55 @@ The first pivot was architectural. Instead of running two LLMs, I collapsed both
 
 ---
 
-## Methodological Rigor: Smoke / Mini / Full
+## Picking the Backbone: 13-Model Tournament + Smoke / Mini / Full Cascade
 
-Cheap-first evaluation cascade. **Never pay full-scale compute until cheaper signals agree.**
+Open-weight pedagogy is a wide-open option space — dozens of viable backbones across the Qwen, Gemma, GLM, Mistral, Phi, and DeepSeek families, each with multiple sizes and quantizations. We couldn't afford to run all of them at canonical n=681 (a full run takes 10 to 22 hours of GPU wall-clock), so we built **two pieces of methodology** to triage the option space intelligently: a *cheap-first evaluation cascade* that filters bad bets before paying full-scale compute, and a *13-model tournament* that swept the family of popular and accessible open-weight backbones end-to-end at n=50.
+
+The cascade gates every architectural decision against progressively cheaper signals before promotion:
 
 | Tier | n | Wall clock | Use |
 |---|---:|---:|---|
-| Smoke | 5 | ~10–40 min | Triage candidates, sanity-check serving stack |
-| Mini | 25 | ~30 min – 1 h | Sharpen ranking, reject bad bets |
+| Smoke | 5 | ~10–40 min | Triage candidates, sanity-check the serving stack |
+| Mini | 25 | ~30 min – 1 h | Sharpen the ranking, reject bad bets |
 | Full | 681 | ~10–22 h | Lock the headline |
 
-- **Smoke + mini average predicted A3B's full-run state accuracy within 0.10 percentage points** (predicted +12.86, realized +12.76)
-- Every architectural decision gated on a cheap signal first
+**Why we trust the cascade:** the predictive validation is concrete — averaging the smoke- and mini-tier state-accuracy lifts on Qwen 35B-A3B predicted the full-run lift at **+12.86 pp**, the realized lift was **+12.76 pp** — accurate to **within 0.10 percentage points** of truth. That calibration is the reason we trusted the cascade to gate every architectural decision in the campaign. *(Caveat: the predictor is architecture-dependent — it failed catastrophically on Gemma 4 31B at full scale, which is exactly the story on the next slide.)*
+
+**The tournament:** 13 popular open-weight backbones × n=50 × no-think mode. No-think was the explicit choice — it kept the entire 13-model sweep within one overnight budget. Ulises ran the original sweep on his AMD Radeon R9700; we replicated key points on the 5090 and the A3B no-think result agreed across hardware to within **0.07 pp**, validating cross-hardware comparability.
+
+### 13-Model Tournament Results (n=50, no-think, sorted by state accuracy)
+
+| Rank | Model | Arch | State acc | R-1 | BLEU-4 | Wall clock |
+|---:|---|---|---:|---:|---:|---:|
+| 🥇 1 | **Gemma 4 26B-A4B Q4** | MoE (~4B active) | **38.67%** | 32.2 | 5.7 | 3h 05m |
+| 🥈 2 | Gemma 4 31B Q5 | dense | 35.86% | 33.0 | 6.4 | 5h 36m |
+| 🥉 3 | Qwen 27B Q4 | dense | 30.67% | 33.2 | 7.2 | 0h 59m |
+| 4 | Qwen 27B Q5 | dense | 28.62% | 33.4 | 7.2 | 1h 06m |
+| 5 | Qwen3 14B Q4 | dense | 22.48% | **39.5** | **11.5** | 0h 14m |
+| 6 | Mistral Small 24B Q4 | dense | 21.85% | 37.1 | 9.6 | 0h 25m |
+| 7 | Qwen 35B-A3B Q4 | MoE (~3B active) | 19.74% | 31.3 | 5.9 | 0h 21m |
+| 8 | Qwopus 35B-A3B Q4 | MoE + LoRA | 18.57% | 32.8 | 6.6 | 0h 17m |
+| 9 | Qwen3.5 9B Q4 | dense | 15.64% | 28.2 | 4.4 | 0h 19m |
+| 10 | GLM-4.7 23B-A3B Q4 | MoE | 13.16% | 33.0 | 5.3 | 0h 18m |
+| 11 | Gemma 3 27B Q4 | dense | 12.99% | 34.6 | 7.4 | 0h 31m |
+| 12 | Phi-4 14B Q5 | dense | 10.63% | 35.8 | 7.9 | 0h 25m |
+| 13 | DeepSeek R1 14B Q5 | dense |  8.17% | 35.7 | 10.6 | 0h 47m |
+
+**Three findings from the tournament:**
+
+- 🏅 **Gemma 4 family dominates.** Both A4B (#1) and dense 31B (#2) clear the next-best non-Gemma-4 model by 5+ pp on state accuracy. The Gemma 4 family became our forward candidate.
+- 🔀 **High ROUGE-1 does NOT predict high state accuracy.** Qwen3 14B leads the table on R-1 (39.5) but ranks #5 on state acc; DeepSeek R1 14B has R-1 35.7 but ranks dead last (8.17%). Surface-form metrics measure phrasing style, not pedagogical routing — the empirical foundation for our benchmark-critique contribution (slide 11).
+- 🎯 **The tournament is an input, not a verdict.** A4B (#1 no-think) was *not* promoted to the locked headline — its smoke-mini full-scale projection (~38.1%) sat below A3B's locked 38.70%, and A4B carries the same schema-fallback risk that later crushed Gemma 31B at full scale (next slide). The cascade + tournament feed into a Bayesian decision; A3B won the integrated decision despite ranking #7 in the no-think table.
 
 <!--
-SPEAKER NOTES (Slide 7, ~1 min):
-This is methodological — how we decide what to spend GPU hours on. Three tiers: smoke at n=5, mini at n=25, full at n=681. Cheap signals first. The reason: a full n=681 run takes 10 to 22 hours of wall clock. You don't want to pay that price to learn your serving stack is broken or your model is bad. For the A3B model specifically, averaging the smoke and mini state-accuracy lifts predicted the full-run lift within 0.10 percentage points. That's tight. It's a methodological tool we used to gate every architectural decision.
+SPEAKER NOTES (Slide 7, ~2:30):
+This is the methodology slide — how we decide which open-weight backbone to pour GPU hours into when there are dozens of candidates and we can only afford to run a handful at full scale. Two pieces of methodology work together.
+
+First, the cascade. Three tiers: smoke at n=5, mini at n=25, full at n=681. The reasoning is brutal: a full n=681 run takes 10 to 22 hours of wall clock on the 5090. You do not pay that price to learn your serving stack is broken or your model is bad. So every architectural decision goes through smoke first, then mini, before earning the right to spend a full GPU-night. The validation that lets us trust the cascade: averaging the smoke-tier and mini-tier state-accuracy lifts on Qwen 35B-A3B predicted the full-run lift at 12.86 percentage points — the realized lift came in at 12.76. That is calibration within 0.10 pp. Important caveat — and this is the next slide — the predictor is architecture-dependent. It failed catastrophically on Gemma 4 31B at full scale.
+
+Second, the tournament. Thirteen popular open-weight backbones, all at n=50, all in no-think mode. The no-think was deliberate — it kept the entire sweep within one overnight budget. Ulises ran the original sweep on his AMD Radeon R9700; we cross-validated key points on the 5090. The A3B no-think state-acc result agreed across hardware to within 0.07 pp — that's our cross-hardware comparability proof.
+
+The tournament table — three takeaways. One, the Gemma 4 family decisively dominates. A4B at thirty-eight-point-six-seven percent, Gemma 4 31B at thirty-five-point-eight-six, both clear of the next-best non-Gemma model by five points or more. Two, high ROUGE-1 does NOT predict high state accuracy. Qwen3 14B leads the table on ROUGE-1 at 39.5 but is rank five on state acc. DeepSeek R1 14B has a high ROUGE-1 of 35.7 and ranks dead last on the pedagogical axis at eight percent. That is the empirical seed of the benchmark critique we'll get to on slide 11 — surface-form metrics measure phrasing, not teaching. Three — and this is the methodological point — the tournament is an INPUT, not a verdict. The number one no-think model, A4B, was not the one we promoted to our first locked headline. A4B's smoke-mini projection sat below A3B's, and we later learned A4B carries the same schema-fallback risk that crushed Gemma 31B at full scale. So we promoted A3B — which ranks number seven in the no-think tournament — to our first full-scale locked headline. The cascade plus the tournament feed into a Bayesian decision; neither alone is the answer.
 -->
 
 ---
