@@ -15,6 +15,7 @@
         setup-l40s start-local-tl-server \
         test-gpu-stack test-vllm \
         patch-fla-rocm patch-fla-rocm-restore patch-fla-rocm-dry-run \
+        train-gemma4-31b-dry-run train-gemma4-31b-stage2 \
         tournament tournament-think tournament-warmup tournament-warmup-think tournament-status tournament-eliminate \
         tournament-finalize tournament-archive tournament-restore tournament-reset \
         tournament-download tournament-help
@@ -330,6 +331,22 @@ eval-qwen35b-a3b-fusion-nothink-smoke:
 # Gemma 4 has no thinking-mode equivalent, so only the --unified variant exists.
 eval-gemma4-31b-fusion-smoke:
 	bash scripts/eval_gemma4_31b.sh smoke --unified
+
+# ── Gemma 4 31B SFT training (Stage 2b) ──────────────────────────────────────
+# No patch-fla-rocm needed — Gemma 4 uses standard softmax attention (no FLA).
+# ROCm env vars (TORCH_USE_HIPBLASLT=0, garbage_collection_threshold:0.8) are
+# gfx1201 workarounds that apply to all training targets.
+
+train-gemma4-31b-dry-run:
+	uv run python scripts/train_sft.py --config configs/train-sft-gemma4-31b-qlora.env --dry-run
+
+train-gemma4-31b-stage2:
+	mkdir -p outputs/sft-stage2-gemma4-31b
+	nohup env TORCH_USE_HIPBLASLT=0 PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
+	  uv run --no-sync python scripts/train_sft.py \
+	  --config configs/train-sft-stage2-gemma4-31b.env \
+	  > outputs/sft-stage2-gemma4-31b/train.log 2>&1 &
+	@echo "Training started. Monitor: tail -f outputs/sft-stage2-gemma4-31b/train.log"
 
 # ── Tournament ────────────────────────────────────────────────────────────────
 
