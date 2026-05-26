@@ -374,11 +374,15 @@ With the upgraded consultant in hand, we set up a 4-cell sub-leaderboard at cano
 | `bert-fixed × Gemma-31B · n=681` | — | pending completion, ~12 GPU-h |
 | **`qwen3.5 × Gemma-31B · n=681`** | **72.24** | ✅ **today (2026-05-26), ~12 GPU-h — details on next slide** |
 
+> *Qwen 27B **think-mode** was the original plan for the 4th cell. At screening tier it landed at unified **68.05** (`qwen3.5 × Qwen-27B · phase3 · think · n=100`, master #10), ahead of the no-think variant. We substituted no-think for the canonical-scale measurement because llama.cpp's prompt-cache stalls trigger CUDA launch timeouts under Qwen 27B think above n ≈ 100. The no-think run shipped cleanly in 64 min with zero schema fallbacks; the think-mode canonical-scale cell remains an open infrastructure item.*
+
 <!--
-SPEAKER NOTES (Slide 14, ~1 min):
+SPEAKER NOTES (Slide 14, ~1:15):
 The BERT classifier proved the architecture: a deterministic classifier on the consultant axis is the right architectural primitive. But it also raised a follow-up question: could the consultant axis itself be improved? Same principle (match the tool to the job), only now applied to the classifier rather than the consultant-versus-LLM choice. We ran a systematic four-cell consultant-upgrade funnel: two candidate backbones (Qwen3-Embedding-0.6B and Qwen3.5-0.8B-Base) crossed with two training regimes (frozen features versus LoRA fine-tuning). The Qwen3.5-0.8B-Base with LoRA at rank 8 won decisively at 6.23 percentage points over the BERT baseline, and became our post-fix consultant going forward.
 
 With the upgraded consultant in hand, we set up a four-cell sub-leaderboard at canonical n=681, designed to confirm or revise the screening-tier parity finding from May 23. Three cells landed before today: A3B 35B at unified 67.81, Qwen-27B no-think at 66.71, and the bert-fixed Gemma cell is pending completion. Both A3B and Qwen-27B trail the frontier ceiling by 2.25 and 3.35 unified points respectively. The fourth cell, qwen3.5 cross Gemma 31B at n=681, ran this morning and landed at unified 72.24. That's the result we'll unpack on the next slide.
+
+A quick note on Qwen 27B think mode — likely Q&A topic. At screening tier (n=50 and n=100) the think-mode variant of Qwen 27B was actually our strongest non-Gemma open-weight cell — unified 68.05 at n=100, ranked tenth on the master leaderboard, ahead of the no-think variant we did promote. The plan was to scale Qwen 27B think to canonical n=681. The blocker is infrastructure: llama.cpp's prompt-cache stalls under Qwen 27B think above roughly n=100 trigger CUDA launch timeouts that crash the eval mid-run. We saw it happen. We substituted no-think to ship the canonical-scale measurement, and the no-think run shipped cleanly in 64 minutes with zero schema fallbacks across 4010 turns. The think-mode canonical-scale cell remains an open infrastructure item documented in memory feedback_qwen27b_context_cap. If someone asks, the absence is operational, not principled.
 -->
 
 ---
