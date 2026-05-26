@@ -306,7 +306,7 @@ Every improvement we made over the original KELE paper (Peng et al., EMNLP 2025 
 13. **Cross-lingual transfer of the SocRule routing.** Qwen3.5-LoRA consultant trained only on Chinese scores unified 65.11 at n=400 on the English test split — Stage 1 confirmed; macro drop 9.24 pp inside the 10 pp gate. Pedagogical state labels (a0–e34) are language-invariant.
 14. **Schema-fallback rate is the missing variable** in cross-architecture scaling prediction. Gemma 31B's 21% full-scale fallback rate (vs.\ A3B's 0.91%) crushed its smoke/mini projection by 15.32 pp. Methodological lesson: JSON-structured-output dependencies should be replaced with deterministic routing whenever feasible.
 15. **Teacher capacity is NOT the binding constraint** on this benchmark. Frontier-teacher stress test shows prompt scaffolding lifts Claude by 2–5× the amount the same lever lifts Gemma; swapping open-weight for frontier teacher is not the bottleneck.
-16. **Architecture-correlated think-benefit gradient** within Qwen 3.6: MoE A3B gains ~19 pp from reasoning scaffolding, dense 27B gains ~11–17 pp, LoRA-distilled Qwopus gains ~13 pp. Robust across n=25, n=33, n=50, n=681.
+16. **Architecture-correlated think-benefit gradient** within Qwen 3.6: MoE A3B gains ~19 pp from reasoning scaffolding, dense 27B gains ~11–17 pp. Robust across n=25, n=33, n=50, n=681 — explicit reasoning compensates for the MoE per-token compute deficit.
 
 ### ⚙️ Engineering & economics
 
@@ -331,7 +331,7 @@ Five methodological contributions. The benchmark critique — ROUGE and BLEU on 
 
 Two public datasets — SocratDataset-EN, the first full English translation of the 6,803 dialogues, and the clean-probe synthetic datasets in both languages.
 
-Six empirical findings — most importantly the frontier-overtaking result we showed on the previous slide. State accuracy 2.14 times GPT-4o. Cross-lingual transfer works. Schema-fallback rate is the missing variable for cross-architecture scaling prediction. Teacher capacity is not the binding constraint on this benchmark — prompt scaffolding is 2 to 5 times more impactful. And the architecture-correlated think-benefit gradient within the Qwen family, robust across four sample sizes.
+Six empirical findings — most importantly the frontier-overtaking result we showed on the previous slide. State accuracy 2.14 times GPT-4o. Cross-lingual transfer works. Schema-fallback rate is the missing variable for cross-architecture scaling prediction. Teacher capacity is not the binding constraint on this benchmark — prompt scaffolding is 2 to 5 times more impactful. And the architecture-correlated think-benefit gradient within the Qwen 3.6 family — MoE A3B gains 19 points from reasoning scaffolding, dense 27B gains 11 to 17, robust across four sample sizes.
 
 Three engineering wins: 143 configurations measured, single-GPU at zero dollars per inference run on the eval pipeline, full compute audit at 119 and a half GPU-hours and 258 dollars of Anthropic spend — every API dollar bought either a frontier comparison or a memorization-resistant judgment.
 
