@@ -146,12 +146,13 @@ def build_model_and_tokenizer():
         trust_remote_code=True,
     )
 
-    if hasattr(model, "visual"):
-        import torch as _torch
+    for _vision_attr in ("visual", "vision_tower"):
+        if hasattr(model, _vision_attr):
+            import torch as _torch
 
-        del model.visual
-        _torch.cuda.empty_cache()
-        print("  Dropped vision encoder to free VRAM")
+            delattr(model, _vision_attr)
+            _torch.cuda.empty_cache()
+            print(f"  Dropped {_vision_attr!r} vision encoder to free VRAM")
 
     if method == "qlora":
         from peft import prepare_model_for_kbit_training
