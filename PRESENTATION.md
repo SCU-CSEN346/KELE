@@ -3,16 +3,17 @@ PRESENTATION.md — class talk for CSEN 346
 Render: `npx reveal-md PRESENTATION.md` for slide deck in browser,
         or read directly on GitHub (renders as one long doc).
 Speaker notes are HTML comments — visible in source, hidden in render.
-Target pace: ~130 words/minute. 15 slides, ~17 min + Q&A
-(over the original 15-min budget by ~2 min; user-approved for the
-final-slide depth on Slide 15 "Total Contributions").
+Target pace: ~130 words/minute. 17 slides, ~20 min + Q&A
+(over the original 15-min budget by ~5 min; user-approved — extra
+budget for the Socratic-teaching foundation (slides 2-4) and the
+final-slide depth on Slide 17 "Total Contributions").
 -->
 
 # Beating the Frontier on a Consumer GPU
 
 ### Reproducing and Extending KELE: a Multi-Agent Socratic Teaching Framework
 
-**Maximilian Khan** · CSEN 346 · Santa Clara University · May 2026
+**Maximilian Khan** **Ulises Chavarria** · CSEN 346 · Santa Clara University · May 2026
 
 A 31B-parameter open-weight teacher running on a single 32 GB consumer GPU — beating Anthropic's best frontier model on a memorization-resistant Chinese pedagogy benchmark at canonical sample size, at **zero** per-run API cost.
 
@@ -23,18 +24,74 @@ Hi, I'm Max. Today I'll walk you through a 3-month NLP campaign reproducing and 
 
 ---
 
-## What is KELE?
+## What is Socratic Teaching?
 
-Peng et al., *Findings of EMNLP 2025* — a two-model framework for **Socratic teaching** of elementary-school students, in Chinese.
+A pedagogy where the **teacher asks structured questions instead of giving answers** — the student reasons their way to the answer themselves.
 
-- **Consultant LLM** classifies the student's cognitive state (34 fine-grained pedagogical states across 5 SocRule stages: questioning → anchoring → induction → extension → closure)
-- **Teacher LLM** generates a response conditioned on the predicted state
-- **SocratDataset:** 681 dialogues, ~4,300 teacher turns, ground-truth state-by-state annotations
-- **Original paper baseline:** GPT-4o (consultant) + SocratTeachLLM-9B (teacher) → **25.94% state accuracy**, R-1 44.61, BLEU-4 19.60
+- 📚 **Traditional instruction (passive):** teacher tells, student receives. Limited deep reasoning [Johnston 1994].
+- 💬 **Socratic instruction (active):** teacher questions, student constructs the answer through guided inquiry [Seeskin 1987 · Chang 1998].
+- 📊 **Pedagogical evidence:** Socratic dialogue consistently promotes deeper understanding and cognitive development [Knezic 2010].
+- ⚠️ **The bottleneck:** Socratic teaching requires *highly skilled* instructors. It doesn't scale to millions of students.
+- 🤖 **KELE's bet:** can an LLM-based system replicate the structured-questioning behavior of a skilled Socratic teacher — at scale?
 
 <!--
 SPEAKER NOTES (Slide 2, ~1 min):
-KELE is a 2025 EMNLP-Findings paper from Peng et al. It's a two-model pipeline for Socratic teaching: one LLM acts as a "consultant" that classifies which of 34 cognitive states the student is in — these states are grouped into 5 pedagogical stages they call SocRule: questioning, anchoring, induction, extension, closure. A second LLM acts as the "teacher" generating the actual response conditioned on the consultant's state prediction. The dataset is 681 Chinese dialogues, ~4300 teacher turns. The original paper's baseline used GPT-4o as the consultant and a fine-tuned 9B model called SocratTeachLLM as the teacher. They reported 25.94% state accuracy and R-1 44.61. Hold onto those numbers — they're the bar to beat.
+Before I tell you what KELE is, let me ground us in why anyone built it. Socratic teaching is a pedagogy where the teacher does not give answers — they ask structured questions that guide the student to discover the answer themselves. The contrast: traditional instruction is passive. The teacher tells, the student receives, and decades of research going back to Johnston 1994 shows that mode produces limited deep reasoning. Socratic teaching, going back to Seeskin in 1987 and Chang in 1998, flips that — the student does the cognitive work. Research consistently shows it promotes deeper understanding. But there is a bottleneck: it requires highly skilled instructors. One human Socratic tutor cannot scale to millions of students. KELE's bet is that an LLM-based system can replicate that structured-questioning behavior at scale.
+-->
+
+---
+
+## KELE's Framework — Two Agents, 5 Stages, 34 Strategies
+
+Peng et al., *Findings of EMNLP 2025*. A multi-agent framework that decomposes Socratic teaching into a finite-state machine.
+
+**Two agents:**
+- **Consultant LLM** — given dialogue history, classifies the current cognitive state + selects the teaching action
+- **Teacher LLM** — given the consultant's choice, generates the actual response in natural language
+
+**The SocRule framework — 5 hierarchical stages (must advance in order, no skip / no backtrack):**
+
+| Stage | Letter | # strategies | What the teacher does in this stage |
+|---|:-:|:-:|---|
+| Questioning | a | 2 (`a0`, `a1`) | Get the student to articulate a question (`a0` = pre-teaching default) |
+| Concept Probing | b | 6 (`b2`–`b7`) | Probe student's prior concepts from different angles |
+| Inductive Reasoning | c | **22** (`c8`–`c29`) | Surface misconceptions; counterexamples; build toward a rule (the cognitive heavy lift) |
+| Rule Construction | d | 4 (`d30`–`d33`) | Help the student state the rule correctly; prompt for the answer |
+| Closure | e | 1 (`e34`) | Summarize; confirm understanding |
+
+**The 34 teaching strategies in full** (label → action, from `references/KELE/consultant_teacher_socratic_teaching_system.py`):
+
+> **a1** ask sub-question · **b2** probe from different angles · **b3** change the question · **b4** related sub-questions · **b5** test concept understanding · **b6** review prior concepts · **b7** compare with student's error · **c8** counterexample · **c9** incomplete-rule + misleading question · **c10** ask "why" · **c11** demand the reason explicitly · **c12** incomplete-rule or counterexample · **c13** counterexample · **c14–c16** elicit predictions + new principle · **c17** generate the sub-question · **c18** reconsider · **c19** diagnostic question · **c20** verify the just-learned concept · **c21** think more carefully · **c22** ask "why" · **c23** re-form hypothesis · **c24** student tests hypothesis · **c25** verification method · **c26** compare two examples · **c27** guide testing · **c28** inform of error, ask for alternatives · **c29** show correct concept, ask why missed · **d30** present a related case, ask "predict" or "why" · **d31** show correct rule, ask to reconsider · **d32** present a related case, ask for prediction · **d33** general definition, ask for the answer · **e34** summarize the problem
+
+**SocratDataset:** 6,803 Chinese elementary-school dialogues · ~42,000 teacher turns · ground-truth state label per turn · 681-dialogue test split.
+
+<!--
+SPEAKER NOTES (Slide 3, ~1.5 min):
+This is KELE in one slide. Peng et al., EMNLP 2025 Findings. Two LLM agents: the consultant looks at the dialogue history and classifies which cognitive state the student is currently in, then picks the appropriate teaching action. The teacher LLM takes that action and turns it into actual language. The framework that gives this structure is called SocRule — five hierarchical stages that must advance in order. Stage a is questioning — the student articulates the question. Stage b, concept probing, six strategies to probe what the student already knows. Stage c, inductive reasoning, is the cognitive heavy lift — twenty-two strategies for handling misconceptions and counterexamples. Notice the asymmetry — c has 22 strategies, more than the other four stages combined — that is where the hard work happens. Stage d is rule construction, four strategies. Stage e is closure, one strategy, the wrap-up. The dataset has all 34 strategies labeled across roughly 42,000 turns drawn from 6,803 dialogues, with a 681-dialogue test split that the original paper evaluates on. The list below the table is every single strategy — you can read it during Q&A, but the takeaway during the talk is the structure: 2-6-22-4-1.
+-->
+
+---
+
+## A KELE Dialogue in Action
+
+A real 6-turn dialogue from SocratDataset (id=1), translated from Chinese. Topic: **"In which part of a plant are seeds usually found?"**
+
+| Turn | State | Student | Teacher (Socratic) |
+|:-:|:-:|---|---|
+| 1 | `a1` | "In which part of a plant are seeds usually found?" | "Great question! Do you think plant seeds are placed in a particular kind of place?" |
+| 2 | `b6` | "I think seeds might be inside the flower." | "The flower is indeed important. Do you remember which part of the flower becomes the seed?" |
+| 3 | `c9` | "Do the petals turn into seeds?" | "Interesting idea — but petals attract insects for pollination. Do you think seeds need protection?" |
+| 4 | `c12` | "Seeds might need a harder place to protect them." | "Excellent! Have you seen fruits like apples or watermelons? What's inside them?" |
+| 5 | `d33` | "Oh, I have! Fruits have seeds inside." | "Right! Fruits protect seeds. So now — in which part of a plant are seeds usually found?" |
+| 6 | `e34` | "Plant seeds are usually found inside fruits." | "Completely correct! Plant seeds are located inside fruits, which develop from the flower's ovary…" |
+
+- The **consultant** predicts a state at each turn: `a1 → b6 → c9 → c12 → d33 → e34` (smooth progression through all 5 SocRule stages)
+- The **teacher** uses that state to generate the response — never giving the answer directly, always probing
+- **Original paper baseline (GPT-4o consultant + SocratTeachLLM-9B teacher) on the 681-dialogue test split:** **25.94% state accuracy** · R-1 44.61 · BLEU-4 19.60 — **this is the bar to beat.**
+
+<!--
+SPEAKER NOTES (Slide 4, ~1.5 min):
+Here is what a KELE pipeline actually does, with a real dialogue from the dataset. The student asks: in which part of a plant are seeds usually found? The teacher does not say "in the fruit." Instead the consultant LLM classifies the student as state a1 — they have asked a question — and the teacher rephrases the question to probe the student's intuition: where do you think seeds are placed? The student guesses "inside the flower" — that is state b6, where the student is drawing on prior knowledge but the answer is incomplete. The teacher does not correct it directly; it asks which part of the flower becomes the seed. The student guesses "the petals" — that is state c9, a misconception. The teacher provides a counterexample — petals attract pollinators — and reframes toward protection. The student arrives at "seeds need a harder place" — state c12 — and the teacher introduces fruits. The student remembers fruits have seeds — state d33, rule construction. Final turn, e34: the student gives the correct answer and the teacher summarizes. Six turns to walk an elementary student from the question to the correct answer through structured questioning. None of it gives the answer directly. This is what we are building, and what KELE's original GPT-4o + SocratTeachLLM-9B baseline got 25.94% state accuracy on across the 681-dialogue test split. That number — and the surface-form numbers, R-1 of 44.61 and BLEU-4 of 19.60 — are the bar we are trying to beat.
 -->
 
 ---
@@ -49,7 +106,7 @@ A single 32 GB consumer GPU (NVIDIA RTX 5090) and **$0 budget** for per-run API 
 - **The challenge:** reproduce + improve on harder hardware than the original paper
 
 <!--
-SPEAKER NOTES (Slide 3, ~45s):
+SPEAKER NOTES (Slide 5, ~45s):
 Here's the constraint that shapes everything else. I have one RTX 5090 with 32 gigabytes of VRAM, and a budget of zero dollars for per-run API calls. KELE's original architecture requires two LLMs running simultaneously — a consultant and a teacher. You cannot fit two 30-billion-parameter open-weight models in 32 gigabytes of VRAM. And renting frontier API calls for the consultant role would burn budget on every single dialogue. So the campaign was: reproduce KELE plus improve on it, on harder hardware than the original paper used.
 -->
 
@@ -62,11 +119,11 @@ Collapse consultant and teacher into a **single backbone**, single forward pass,
 - **Two-call** (consultant LLM → teacher LLM): VRAM-prohibitive, slow, KV cache duplicated
 - **Fusion call** (one model, one JSON output with both fields): single backbone, ~2× faster
 - **First locked headline (n=681):** Qwen 35B-A3B fusion-think → **38.70% state accuracy** vs.\ GPT-4o's 25.94% — **+12.76 absolute pp / 1.49× lift** on a single consumer GPU
-- ⚠️ **Later superseded.** Fusion was the first locked headline but is *not* in our final contribution list — Pivot 2 (next slide) replaced the JSON-grammar-on-LLM path with a deterministic classifier, and the integration architecture outperforms fusion at every tier we care about.
+- ⚠️ **Later superseded.** Fusion was the first locked headline but is *not* in our final contribution list — Pivot 2 (slide 9) replaced the JSON-grammar-on-LLM path with a deterministic classifier, and the integration architecture outperforms fusion at every tier we care about.
 
 <!--
-SPEAKER NOTES (Slide 4, ~1 min):
-The first pivot was architectural. Instead of running two LLMs, I collapsed both roles into a single open-weight backbone using a structured-output call — one JSON response containing both the state prediction and the teacher utterance. This skips the consultant-to-teacher round trip and removes KV cache duplication, roughly halving wall-clock time. The first full-scale result on the 681-dialogue test split used Qwen 35B-A3B in fusion-think mode and scored 38.70% state accuracy — 12.76 percentage points above GPT-4o, a 1.49× lift, running on the single 5090 at zero API cost. That became our first locked headline. Heads-up before we move on: fusion was the architecture that got us into the game, but we've since moved past it — the integration architecture you'll see on slide 7 outperforms fusion at every tier we care about. So fusion is documented in the campaign history, not in our final contribution list.
+SPEAKER NOTES (Slide 6, ~1 min):
+The first pivot was architectural. Instead of running two LLMs, I collapsed both roles into a single open-weight backbone using a structured-output call — one JSON response containing both the state prediction and the teacher utterance. This skips the consultant-to-teacher round trip and removes KV cache duplication, roughly halving wall-clock time. The first full-scale result on the 681-dialogue test split used Qwen 35B-A3B in fusion-think mode and scored 38.70% state accuracy — 12.76 percentage points above GPT-4o, a 1.49× lift, running on the single 5090 at zero API cost. That became our first locked headline. Heads-up before we move on: fusion was the architecture that got us into the game, but we've since moved past it — the integration architecture you'll see on slide 9 outperforms fusion at every tier we care about. So fusion is documented in the campaign history, not in our final contribution list.
 -->
 
 ---
@@ -85,7 +142,7 @@ Cheap-first evaluation cascade. **Never pay full-scale compute until cheaper sig
 - Every architectural decision gated on a cheap signal first
 
 <!--
-SPEAKER NOTES (Slide 5, ~1 min):
+SPEAKER NOTES (Slide 7, ~1 min):
 This is methodological — how we decide what to spend GPU hours on. Three tiers: smoke at n=5, mini at n=25, full at n=681. Cheap signals first. The reason: a full n=681 run takes 10 to 22 hours of wall clock. You don't want to pay that price to learn your serving stack is broken or your model is bad. For the A3B model specifically, averaging the smoke and mini state-accuracy lifts predicted the full-run lift within 0.10 percentage points. That's tight. It's a methodological tool we used to gate every architectural decision.
 -->
 
@@ -101,7 +158,7 @@ Smoke and mini both suggested Gemma 4 31B would beat A3B at full scale by ~+8 pp
 - This is one of the campaign's headline methodological contributions
 
 <!--
-SPEAKER NOTES (Slide 6, ~1.5 min):
+SPEAKER NOTES (Slide 8, ~1.5 min):
 Here's where the rigor mattered. Gemma 4 31B looked like a slam dunk on smoke and mini — both tiers projected it would beat A3B at full scale by about 8 percentage points. We ran the full eval and it collapsed to 31.39% — fifteen points below projection, and seven points below A3B. We had to triangulate to find the root cause: at full scale, 21 percent of Gemma's outputs failed to match the strict JSON schema we required for the structured-output call. A3B's fallback rate was under 1 percent. The smoke and mini samples — each under 150 turns — surfaced zero fallbacks. So a methodology that worked for A3B failed for Gemma. The lesson generalized: cross-architecture scaling prediction has to triangulate schema-fallback rates, and JSON-structured-output dependencies should be replaced with deterministic routing whenever you can do it. That insight set up the next pivot.
 -->
 
@@ -117,7 +174,7 @@ If JSON-grammar adherence is the failure mode, **remove the JSON path** from the
 - **Prior locked headline (2026-05-18):** **+22.21 pp over GPT-4o (1.86×)**, $0 per-run API cost, ~13 GPU-hours, 24-million-parameter classifier doing the routing work that GPT-4o was doing in the original paper
 
 <!--
-SPEAKER NOTES (Slide 7, ~1.5 min):
+SPEAKER NOTES (Slide 9, ~1.5 min):
 Pivot 2 was the architectural payoff. If JSON-grammar adherence is the failure mode, take JSON off the critical path. I replaced the consultant LLM entirely with a 24-million-parameter Chinese BERT classifier — that's bge-small-zh — trained on the 42,000 labeled turns inside SocratDataset. Training took 92 seconds. The classifier hit 61.64% state accuracy on the test split, beating every LLM consultant we'd measured by more than 17 percentage points. The full integration — BERT consultant plus Gemma 4 31B teacher plus 10-shot stage-balanced exemplars — landed at 48.15% state accuracy on the full 681-dialogue split. That's 22.21 percentage points above GPT-4o, a 1.86x lift, at zero per-run API cost, in 13 GPU-hours of local compute. A 24-million-parameter classifier doing the routing work that GPT-4o does in the original paper. That became the 2026-05-18 locked headline.
 -->
 
@@ -131,11 +188,11 @@ Is teacher capacity the binding constraint? Swap the Gemma teacher for Anthropic
 - **Best frontier configuration (n=681):** `bert × Claude-Sonnet · top3` → 49.97% state acc / R-1 41.93 / unified **70.06**
 - Frontier within sampling noise of our prior open-weight headline on state acc (~+2 pp), +5 on R-1
 - **Conclusion: teacher capacity is not the binding constraint.** Prompt scaffolding lifts Claude 2–5× the amount the same lever lifts Gemma — the bottleneck is on the prompt-engineering axis, not on raw model capability.
-- *(Foreshadowing for Slide 13: the consultant-upgraded version we land today actually overtakes this ceiling.)*
+- *(Foreshadowing for Slide 15: the consultant-upgraded version we land today actually overtakes this ceiling.)*
 
 <!--
-SPEAKER NOTES (Slide 8, ~1 min):
-A natural question: is teacher capacity the limit? Are we leaving accuracy on the table by using Gemma instead of Claude? I tested this directly. Kept the BERT consultant fixed and swapped the Gemma teacher for Claude Sonnet 4.6 and Opus 4.6, both with carefully tuned prompt engineering. The best frontier configuration scored 49.97% state accuracy at full scale — within roughly two points of our prior open-weight integration on the pedagogical axis, plus five points on ROUGE-1. The deeper finding from this stress test: prompt scaffolding lifts Claude two to five times the amount the same lever lifts Gemma. So the binding constraint is on the prompt-engineering axis, not on raw teacher capability. Open-weight teachers had headroom we hadn't fully tapped yet — which sets up slide 13, where the consultant upgrade plus today's run shows the open-weight system actually overtakes this frontier ceiling, not just matches it.
+SPEAKER NOTES (Slide 10, ~1 min):
+A natural question: is teacher capacity the limit? Are we leaving accuracy on the table by using Gemma instead of Claude? I tested this directly. Kept the BERT consultant fixed and swapped the Gemma teacher for Claude Sonnet 4.6 and Opus 4.6, both with carefully tuned prompt engineering. The best frontier configuration scored 49.97% state accuracy at full scale — within roughly two points of our prior open-weight integration on the pedagogical axis, plus five points on ROUGE-1. The deeper finding from this stress test: prompt scaffolding lifts Claude two to five times the amount the same lever lifts Gemma. So the binding constraint is on the prompt-engineering axis, not on raw teacher capability. Open-weight teachers had headroom we hadn't fully tapped yet — which sets up slide 15, where the consultant upgrade plus today's run shows the open-weight system actually overtakes this frontier ceiling, not just matches it.
 -->
 
 ---
@@ -151,7 +208,7 @@ Comparing surface-form rankings to state-accuracy rankings revealed something st
 - **Cross-lingual confirmation:** SocratTeachLLM evaluated on an English translation of the dataset *reproduces* its R-1 = 55.85 headline within 1.5 points of the paper's 57.40, while frontier+prompts loses only 0.07 on the language shift versus SocratTeachLLM losing 1.0 on the same axis
 
 <!--
-SPEAKER NOTES (Slide 9, ~2 min):
+SPEAKER NOTES (Slide 11, ~2 min):
 This is the methodological turn of the campaign. We started ranking configurations by surface-form metrics — ROUGE-1, ROUGE-2, BLEU-4 — and noticed something that didn't add up. SocratTeachLLM, the 9-billion-parameter fine-tune from the original paper, beats Anthropic Opus 4.6 with carefully tuned prompts by over 10 points on surface-form. But the same SocratTeachLLM is dead last on state accuracy — worse than raw Opus with zero prompt engineering. The two rankings invert. That's not just noise: the gap WIDENS monotonically as the n-gram length increases. Plus-1.59 on R-1, plus-4.92 on R-2, plus-4.07 on BLEU-4. That's the strongest possible memorization signature — higher-order n-gram match measures phrase-level fingerprinting. We confirmed the diagnosis with a cross-lingual translation experiment: when we ran SocratTeachLLM against an English translation of the same dataset, it reproduced the original paper's flagship R-1 of 57.40 within 1.5 points. The frontier-plus-prompts configurations only lost 0.07 on the LLM-judge axis crossing languages, while SocratTeachLLM lost a full point. The benchmark is rewarding memorization, not pedagogy.
 -->
 
@@ -167,7 +224,7 @@ Two independent evidence streams converge.
 - The published "GPT-4o + SocratTeachLLM" baseline R-1 of 44.61 — higher than Opus 4.6 with prompts — is the canonical example of the failure mode
 
 <!--
-SPEAKER NOTES (Slide 10, ~1 min):
+SPEAKER NOTES (Slide 12, ~1 min):
 We didn't stop at suspicion — we ran two independent contamination probes. First: a memorization probe comparing generated outputs to training data. Four of 288 SocratTeachLLM outputs were character-for-character identical to training data. Seventeen of 288 were 80%-or-more matches. Gemma's control on the same probe: zero. Second probe: I had Claude Sonnet generate fresh synthetic dialogues that were demonstrably outside SocratDataset's training distribution. SocratTeachLLM's state accuracy collapsed to 32.86 stage-balanced on the clean probe — that's BELOW Gemma's 56.13 on the exact same probe. The benchmark, as published, rewards memorization. The fact that GPT-4o-plus-SocratTeachLLM beats every frontier configuration on ROUGE-1 in their paper isn't a finding about teaching capability — it's a benchmark artifact.
 -->
 
@@ -187,7 +244,7 @@ $$
 - Master leaderboard: **143 configurations, 38 LLM-judged**, auto-regenerated by `scripts/backtest_stage_balanced.py`
 
 <!--
-SPEAKER NOTES (Slide 11, ~1.5 min):
+SPEAKER NOTES (Slide 13, ~1.5 min):
 Once we'd rejected surface-form metrics, we still had a problem: six per-cell metrics, no single defensible single-number headline. So we built one. Unified equals one-half stage-balanced state accuracy, plus one-half judge score times ten. Stage-balanced is the equal-weight per-stage state accuracy — that corrects the published macro's structural under-counting of the closure stage, which is rare in the test split but pedagogically load-bearing. Judge is the LLM-judge composite — Claude Sonnet 4.6 scoring our outputs on four axes: socratic validity, advancement of student reasoning, age-appropriateness, and question-form fidelity. Both inputs are memorization-resistant by construction; surface-form metrics are excluded per the critique. The master leaderboard now sits at 143 configurations, 38 of them LLM-judged, all auto-regenerated by a backtest script.
 -->
 
@@ -205,7 +262,7 @@ A systematic 4-cell `T1–T4` funnel produced the **Qwen3.5-0.8B-LoRA classifier
 | **`qwen3.5 × Gemma-31B · n=681`** | **?** | **today (2026-05-26), ~12 GPU-h — see next slide** |
 
 <!--
-SPEAKER NOTES (Slide 12, ~45s):
+SPEAKER NOTES (Slide 14, ~45s):
 The consultant upgrade was a systematic four-cell funnel — two backbones crossed with frozen versus LoRA. T4, the LoRA fine-tune of Qwen3.5-0.8B-Base, won by 6.23 percentage points over BERT and became the successor consultant. With that classifier in hand, TODO 14 lined up four canonical-scale cells at n=681 — designed to *confirm or revise* the screening-tier parity finding from May 23. Three cells landed before today: A3B 35B at unified 67.81, Qwen-27B no-think at 66.71, and the bert-fixed Gemma cell still queued. Both A3B and Qwen-27B trail the frontier ceiling — 2.25 and 3.35 unified points respectively. The fourth cell ran today: qwen3.5 cross Gemma 31B at n=681. The result is on the next slide.
 -->
 
@@ -222,7 +279,7 @@ The consultant upgrade was a systematic four-cell funnel — two backbones cross
 - **A 31B-param open-weight teacher with prompt engineering on a single 32 GB consumer GPU beats Anthropic's best frontier model on a memorization-resistant Chinese pedagogy benchmark at canonical sample size, at $0 per-run eval API cost.**
 
 <!--
-SPEAKER NOTES (Slide 13, ~1.5 min):
+SPEAKER NOTES (Slide 15, ~1.5 min):
 This is what we locked this morning. The fourth TODO 14 cell: Qwen3.5-LoRA classifier with Gemma 4 31B teacher and 10-shot exemplars, at the full 681-dialogue test split. State accuracy 55.39 percent — that's 2.14 times GPT-4o's baseline of 25.94. ROUGE-1 of 37.65. LLM-judge score 8.32 out of 10. Unified score 72.24. That puts us 2.18 unified points above the best frontier configuration we tested — Claude Sonnet 4.6 with our top-3 prompt stack and the same BERT consultant — at the same canonical sample size. Per-stage multipliers versus GPT-4o on the hard middle and closure stages: 7.54x on induction, 9.20x on extension, 6.58x on closure. A 31-billion-parameter open-weight teacher on my single 32-gigabyte consumer GPU just overtook Anthropic's best frontier model on this benchmark. Zero dollars per-run for the eval pipeline. About 16 dollars for the LLM-judge pass that completes the unified score.
 -->
 
@@ -270,7 +327,7 @@ locked-headline promotions ................. 3
 ```
 
 <!--
-SPEAKER NOTES (Slide 14, ~1 min):
+SPEAKER NOTES (Slide 16, ~1 min):
 The campaign by the numbers. 143 distinct configurations measured. 38 of them LLM-judged. Seven full n=681 runs at canonical scale. Adding up every named wall-clock from the paper, the experiment log, and the consultant-upgrade log gives 119 and a half GPU-hours of confirmed compute — roughly five days of continuous wall clock on the 5090, plus another fifteen to twenty-five GPU-hours of un-itemized smoke and mini runs we didn't time precisely. The biggest single block is the seven full n=681 runs at 77 hours; the next biggest is the 13-model tournament at 14 hours. API spend with Anthropic totaled 258 dollars and 86 cents. Three line items there: frontier-teacher comparisons at n=681 with Claude Sonnet and Opus as the teacher; the Phase 2 frontier-teacher n=50 sweeps stress-testing prompt scaffolding; and the LLM-judge passes that produce the unified score. The open-weight eval pipeline itself is zero dollars per-run — every API dollar bought either a frontier comparison or a memorization-resistant judgment. The progression at the bottom shows the unified-score rank-1 cell as it shifted: A3B fusion in early May, retraction of standalone Gemma when we discovered the schema-fallback issue, BERT integration becoming the locked headline on the 18th of May, then a series of canonical-scale cells in late May ending with today's frontier overtaking.
 -->
 
@@ -321,7 +378,7 @@ Every improvement we made over the original KELE paper (Peng et al., EMNLP 2025 
 **Questions?**
 
 <!--
-SPEAKER NOTES (Slide 15, ~90s — denser than the rest; the final-slide depth gives audience the full picture, speaker picks which bullets to voice):
+SPEAKER NOTES (Slide 17, ~90s — denser than the rest; the final-slide depth gives audience the full picture, speaker picks which bullets to voice):
 
 Nineteen distinct improvements over the original KELE paper, organized into five categories.
 
@@ -331,7 +388,7 @@ Five methodological contributions. The benchmark critique — ROUGE and BLEU on 
 
 Two public datasets — SocratDataset-EN, the first full English translation of the 6,803 dialogues, and the clean-probe synthetic datasets in both languages.
 
-Six empirical findings — most importantly the frontier-overtaking result we showed on the previous slide. State accuracy 2.14 times GPT-4o. Cross-lingual transfer works. Schema-fallback rate is the missing variable for cross-architecture scaling prediction. Teacher capacity is not the binding constraint on this benchmark — prompt scaffolding is 2 to 5 times more impactful. And the architecture-correlated think-benefit gradient within the Qwen 3.6 family — MoE A3B gains 19 points from reasoning scaffolding, dense 27B gains 11 to 17, robust across four sample sizes.
+Six empirical findings — most importantly the frontier-overtaking result we showed on slide 15. State accuracy 2.14 times GPT-4o. Cross-lingual transfer works. Schema-fallback rate is the missing variable for cross-architecture scaling prediction. Teacher capacity is not the binding constraint on this benchmark — prompt scaffolding is 2 to 5 times more impactful. And the architecture-correlated think-benefit gradient within the Qwen 3.6 family — MoE A3B gains 19 points from reasoning scaffolding, dense 27B gains 11 to 17, robust across four sample sizes.
 
 Three engineering wins: 143 configurations measured, single-GPU at zero dollars per inference run on the eval pipeline, full compute audit at 119 and a half GPU-hours and 258 dollars of Anthropic spend — every API dollar bought either a frontier comparison or a memorization-resistant judgment.
 
