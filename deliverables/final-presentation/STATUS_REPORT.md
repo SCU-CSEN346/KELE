@@ -67,9 +67,9 @@ This is the line of work the locked headline rides on. Every checkpoint listed b
 
 The full consultant-upgrade funnel is documented in `docs/CONSULTANT_UPGRADE_LOG.md` (49 KB log of decisions and ablations). Training script: `scripts/train_state_classifier_34way.py`. Both T4 and `state_classifier_v1` are the consultants behind the leaderboard's `qwen3.5 × …` and `bert × …` cells respectively — they are not abstractions, they are checkpoints sitting in `results/state-clf-qwen3.5-0.8b-lora/final/` and `results/state_classifier_v1/final/` right now.
 
-#### B. Teacher-side fine-tuning — ⏳ PIPELINE READY, NOT YET TRAINED
+#### B. Teacher-side fine-tuning — ⏳ PIPELINE READY · EXECUTING IN NEXT SPRINT (gated, Jun 4 target)
 
-The original KELE paper's "headline" was `SocratTeachLLM` — a GLM4-9B fine-tuned on SocratDataset. Our equivalent ambition (Slide 19 of the outline; §`sec:nextsteps` of the paper) is to fine-tune our own teacher checkpoint. Current state: **everything is wired except the training run itself.**
+The original KELE paper's "headline" was `SocratTeachLLM` — a GLM4-9B fine-tuned on SocratDataset. Our equivalent ambition (Slide 19 of the outline; §`sec:nextsteps` of the paper) is to fine-tune our own teacher checkpoint. **This is Ulises's individual contribution** (base-model search → SFT pipeline design → execution); per the 2026-05-25 scope decision, it has been **promoted from stretch goal to a Jun 4 paper deliverable** under hard gates (§2.8). Current state: **everything is wired except the training run itself.**
 
 | Component | Status | Path / Evidence |
 |---|---|---|
@@ -92,7 +92,7 @@ The original KELE paper's "headline" was `SocratTeachLLM` — a GLM4-9B fine-tun
 
 **Why teacher fine-tuning is *not* the locked headline.** The campaign uncovered that the original SocratTeachLLM's apparent excellence is largely training-data memorization (`docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md`: stage_bal collapses 63.4 → 32.86 on the synthetic clean test set). Once that landed, the value proposition of "re-do SocratTeachLLM with a stronger base" weakened: the right comparison is no longer "match SocratTeachLLM's ROUGE-1" but "lift `unified` on the synthetic-clean evaluation past Gemma + 10-shot's 56.13." That target is achievable but is **strictly future work** for the paper; the locked headline does not need it.
 
-**Bottom line on fine-tuning.** Consultant side is done in depth — five fine-tuned classifiers, two of which (`v1` and T4-LoRA) are the consultants that produce every locked-headline number in the paper. Teacher side is a designed-but-undeployed extension — listed in the paper as `\S sec:nextsteps` item, in the presentation as Slide 19 "Future Work," and in this report as §2.8 stretch work.
+**Bottom line on fine-tuning.** Consultant side is done in depth — five fine-tuned classifiers, two of which (`v1` and T4-LoRA) are the consultants that produce every locked-headline number in the paper. Teacher side is the **next sprint's deliverable** (§2.8): Ulises's individual contribution path, gated on (a) May 26 deck being rehearsed and (b) synthetic-baseline extension to n=75 completing. If either gate fails, teacher SFT slips to documented-future-work (paper-as-is is already an A submission); if both pass, Stage 2a → 2b runs overnight and lands in the paper as a new row in Tables 6/14 before the Jun 4 paper-trim sprint.
 
 ### 1.4 Course rubric coverage
 
@@ -258,18 +258,44 @@ Plan-of-record: `docs/HF_PUBLISHING_PLAN.md`. Five model repos under `maxjkh/…
 
 Outcome would tighten the Limitations §"pre-fix consultant input-format artifact" claim and the §"local–frontier parity verified only at n=50 for the post-fix cells" claim. Strictly an evidence upgrade — not gating for the paper or presentation.
 
-### 2.8 (STRETCH, not blocking submission) — Stage 2 SFT pipeline (teacher fine-tuning)
+### 2.8 (BLOCKING-GATED for June 4) — Teacher SFT (Stage 2a → 2b on Qwen3.6-27B QLoRA)
 
-`docs/TRAINING_PLAN.md` — Qwen3.6-27B QLoRA fine-tune on a 3-stage pipeline (general SFT → Socratic SFT → DPO). **Pipeline is fully designed; no training has been launched.**
+**Owner:** Ulises (individual contribution slice — base-model search → SFT pipeline → execution). **Plan-of-record:** `docs/TRAINING_PLAN.md`. **Scope decision (2026-05-25):** promoted from stretch to a Jun 4 paper deliverable.
 
-- [ ] Fix `src/project/dataset.py` SFT format to match BERT-consultant inference format (§0.2 of TRAINING_PLAN).
-- [ ] Extend synthetic baseline from n=37 to n=75 (E1) so the post-SFT lift measurement is defensible.
-- [ ] Run LLM-judge on the three synthetic baselines (E2, ~$5).
-- [ ] Stage 2a → 2b training runs (~6–12 GPU-h on R9700).
-- [ ] DPO Stage 3 (~3 GPU-h).
-- [ ] Gemma 4 31B head-to-head Phase 2 (mirror config).
+**Why this matters.** This is Ulises's specific course contribution. Abandoning it leaves the paper's §`sec:nextsteps` item permanently un-shipped and removes a concrete artifact from the HF release. The pipeline is ~80% built; the remaining work is calibrated to ~2 GPU-evenings + ~10 hours of human work.
 
-**Why stretch:** Listed as "Future Work" in the OUTLINE.md and §`sec:nextsteps` of the paper. Shipping this expands the contribution significantly but does **not** unblock the final-submission package. **Earliest realistic completion = ~2 weeks of GPU time + tooling.** Given the May 26 / Jun 4 deadlines, attempt this only if the BLOCKING items are clean by Jun 1.
+**Hard gates (both must hold before Stage 2b launches):**
+
+- **Gate A** — May 26 slide deck rehearsed and ≤9:45 timing confirmed (§2.1 closed).
+- **Gate B** — Synthetic baseline extended from n=37 to n=75 (Wilson 95% CI halves from ~7pp to ~3.5pp), making post-SFT lift measurement defensible.
+
+If either gate fails by 2026-05-30, **SFT slips to documented future work** and §2.8 collapses back to "see §1.3.B for status." The locked headline (unified 68.65) is already an A submission and does not depend on SFT landing.
+
+**Calibrated execution path (in order):**
+
+| Step | Effort | Target date | Outcome |
+|---|---|---|---|
+| Fix `src/project/dataset.py` SFT format (TRAINING_PLAN §0.2) — move `(state, action)` from assistant target into user turn, verify with `--dry-run` | ~2 h human | 2026-05-26 (post-talk) | Unblocks all downstream training |
+| Synthetic baseline extension n=37 → n=75 on the 3 candidates (Qwen 27B think/no-think + Gemma 31B) | ~3 h GPU + 1 h human | 2026-05-27 | Gate B satisfied; CI halves to ~3.5pp |
+| LLM-judge on the 3 baselines (E2 in TRAINING_PLAN §0.1) | ~1 h compute + ~$5 Sonnet | 2026-05-28 | Baselines on `unified` so post-SFT lift is reportable on the project's primary metric |
+| **Stage 2a (breadth)** — `socrateach-multi + socrateach-single` mix, 1–2 epochs, lr=5e-5, QLoRA r=16 | ~3 h GPU on R9700 | 2026-05-28 evening | Warm-start checkpoint |
+| **Stage 2b (structural)** — 2a checkpoint → `socrat-zh + socrat-en` with state/action in user turn, 3 epochs (matches paper) | ~6 h GPU overnight | 2026-05-29 → 30 | Final fine-tuned teacher checkpoint |
+| Eval on test (n=400 canonical) + synthetic n=75, paired with BERT consultant | ~2 h GPU + ~$1 judge | 2026-05-30 | Paper-grade numbers — one row each in Tables 6 and 14 |
+| Write the paper paragraph + Tables row (1 row addition, 1 paragraph) | ~1 h human | 2026-06-01 | Lands before paper-trim sprint (§2.2) |
+
+**Explicitly out of scope for Jun 4:**
+
+- ❌ **Stage 3 DPO** — pair-construction tooling unwritten (~150–200k pairs from 3 sources); requires `scripts/build_dpo_pairs.py` + `scripts/train_dpo.py`. Stays as documented future work in the paper.
+- ❌ **Phase 2 — Gemma 4 31B head-to-head SFT** — same recipe with `TRAIN_BASE_MODEL=google/gemma-4-31b-it`. Stays as documented future work.
+
+**Outcome interpretation matrix.** All three outcomes are publishable:
+
+| Outcome on `unified` (test, n=400) | Interpretation | Paper framing |
+|---|---|---|
+| Fine-tuned teacher **wins** vs. BERT+Gemma+10shot (≥+1 pt) | Pareto upgrade on the locked headline | Promote SFT as the new locked headline; original headline becomes the prompt-engineering baseline |
+| Fine-tuned teacher **ties** (±1 pt) | Consultant axis dominates teacher axis | "Consultant routing — not teacher capacity — is the binding constraint" — strengthens the BERT-consultant thesis |
+| Fine-tuned teacher **wins on test but loses on synthetic** | Contamination signature on own training data | Powerful confirmation of `docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md` thesis applied to *our own* training, not just STL |
+| Fine-tuned teacher **loses both** | Either undertraining or data-format issue | Document honestly in §Limitations; locked headline stands |
 
 ### 2.9 (STRETCH) — Prompt-engineering tournament
 
@@ -287,7 +313,9 @@ Outcome would tighten the Limitations §"pre-fix consultant input-format artifac
 | Demo recording slips past Jun 4 | Medium | Record in the same hour the slide deck's data figures are produced — they share the same `kele test` invocation. Submit Drive/YouTube link if HF Space build is not viable. |
 | Locked headline's pre-fix BERT artifact challenged in Q&A | Low | Documented in §Limitations of the paper and the Anticipated Q&A in OUTLINE.md. Post-fix `bert-fixed × Gemma · n=50` lands at unified 67.65 — ~1 pt below locked headline, within sampling noise. |
 | Q&A challenges SocratTeachLLM contamination claim | Low | `docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md` carries the full case; backed by the synthetic-test-set collapse (stage_bal 63.4 → 32.9) and the cross-lingual translation experiment. |
-| Q&A challenges "where is your fine-tuned teacher?" | Medium | Be honest: consultant-side fine-tuning shipped (5 checkpoints); teacher-side fine-tuning is designed and infrastructured but not executed (`docs/TRAINING_PLAN.md`). Pivot was *deliberate* — once contamination evidence landed, beating SocratTeachLLM on its memorization metric stopped being the right target. |
+| Q&A challenges "where is your fine-tuned teacher?" | Medium | Two answers depending on §2.8 outcome. If SFT lands by Jun 4: "Stage 2a→2b Qwen3.6-27B QLoRA — here are the numbers on test + synthetic." If it slips: "Consultant-side fine-tuning shipped (5 checkpoints); teacher-side designed and partially trained (synthetic baseline complete, Stage 2 SFT pipeline in `feat/stage2-sft-pipeline-design` branch). The decision to *not* ship a full SocratTeachLLM-replacement was deliberate after contamination evidence landed." |
+| **Teacher SFT runs but underperforms BERT+Gemma+10shot baseline** | Medium | Already mitigated by the outcome-interpretation matrix in §2.8 — every outcome (win / tie / synthetic-divergence / lose-both) has a publishable framing. Worst case (lose-both) goes into §Limitations; locked headline stands. |
+| **Teacher SFT slips past Jun 1 paper-trim deadline** | Medium | Hard gate in §2.8 — if Gate A or Gate B fails by 2026-05-30, SFT slips to documented future work. No new paper text required in that path; paper-as-is is already complete. |
 | HF artifacts pulled / link rot before grading | Low | All four datasets and STL mirror live; backup via `master_leaderboard.md` and `results/` raw artifacts checked into the repo |
 | GPU unavailable during final week | Medium | All headline numbers are locked and in `results/`. Remaining GPU work (§2.6–§2.8) is stretch — no replication needed for submission. |
 
@@ -309,11 +337,23 @@ PRESENTATION
 
 ═══════════════ JUNE 4 (final submission: paper + code + HF + poster + demo) ═════════
 
+TEACHER SFT  (Ulises's individual contribution slice — §2.8 BLOCKING-GATED)
+  Gate A — May 26 deck rehearsed                   (must close by 5/27)
+  Gate B — Synthetic baseline n=37 → n=75 done    (must close by 5/30)
+  [ ] Fix dataset.py SFT format (§0.2)             5/26 post-talk
+  [ ] Synthetic baseline n=75 (E1)                 5/27
+  [ ] LLM-judge on 3 baselines (E2, ~$5)          5/28
+  [ ] Stage 2a (breadth) training                  5/28 evening
+  [ ] Stage 2b (structural) training               5/29-30 overnight
+  [ ] Eval on test n=400 + synthetic n=75          5/30
+  [ ] Paper paragraph + tables row                 6/1
+
 PAPER
   [x] Intro & Related Work
   [x] Dataset & Methodology
   [x] Evaluation & Results
   [x] Conclusion, Limitations, Ethics
+  [ ] (conditional) SFT row added to Tables 6/14   ← gated on §2.8 landing
   [ ] Trim to 4-6 pages                            ← §2.2 BLOCKING
   [ ] Agentic Reviewer pass
   [ ] Member-contributions paragraph (2 members)
@@ -336,16 +376,18 @@ DEMO
 
 ═══════════════ STRETCH (only if BLOCKING items are clean by Jun 1) ═════════════════
   [ ] HF state-classifier funnel publish (5 models, §2.6)
+  [ ] HF teacher-SFT checkpoint publish              (depends on §2.8 landing)
   [ ] TODO #14 cells 1+2 — n=681 parity (§2.7)
-  [ ] Stage 2 SFT teacher fine-tune (§2.8)
+  [ ] Stage 3 DPO + Phase 2 Gemma head-to-head      (out of Jun 4 scope, future work)
   [ ] Prompt-engineering tournament n=681 promotion (§2.9)
 ```
 
 (HF data artifacts — SocratDataset, SocratDataset-EN, SocratDataset-SYNTHETIC, SocratTeachLLM mirror — are already live and listed in §1.4 / §1.3.)
 
-**Bottom line.** The science is locked: 142 model variants measured, locked headline at unified 68.65 with five fine-tuned consultant checkpoints, four HF datasets live, paper drafted end-to-end, complete experimental campaign in `results/`. **Two near-term packaging sprints stand between now and grading:**
+**Bottom line.** The science is locked: 142 model variants measured, locked headline at unified 68.65 with five fine-tuned consultant checkpoints, four HF datasets live, paper drafted end-to-end, complete experimental campaign in `results/`. **Three near-term sprints stand between now and grading:**
 
-1. **May 26 (in ~24h):** *compress* the 20-slide OUTLINE.md to an 8-slide / 10-min deck for 5 min × 2 speakers, build the 3 must-have figures, rehearse, and prep Q&A defensive material. No demo, no poster — just the talk and the room.
-2. **Jun 4:** trim the paper to 4–6 pages, run it through Agentic Reviewer, record the 3-min demo, build the poster, add Member Contributions to the README, verify HF links. The poster + demo + final paper land together.
+1. **May 26 (in ~24h) — May 26 talk.** Compress the 20-slide OUTLINE.md to an 8-slide / 10-min deck for 5 min × 2 speakers. Build 3 must-have figures, rehearse to ≤9:45, prep Q&A defensive material. No demo, no poster.
+2. **May 27 → 30 — Teacher SFT sprint (Ulises-owned, §2.8).** Hard-gated on the talk being clean and the synthetic baseline extending to n=75. If both gates pass: fix `dataset.py`, run Stage 2a → 2b QLoRA on Qwen3.6-27B overnight, eval on test (n=400) + synthetic (n=75), add one paragraph + one row to the paper. If either gate fails: SFT slips to documented future work — the locked headline is already an A submission.
+3. **Jun 1 → 4 — Paper trim + poster + demo + README polish.** Trim paper to 4–6 pages, Agentic Reviewer pass, build 5-panel poster, record 3-min demo, add Member Contributions to README, verify HF links. Poster + demo + final paper land together on Jun 4.
 
-**Fine-tuning honesty disclosure** (likely Q&A topic): consultant-side fine-tuning is fully shipped (5 trained classifiers, two of them on the headline path); teacher-side fine-tuning is plumbed but not run (TRAINING_PLAN.md + train_sft.py + QLoRA config + synthetic baseline all exist; no SFT/DPO checkpoints have been produced). The pivot was deliberate — once contamination evidence landed (`docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md`), beating SocratTeachLLM on its memorization metric stopped being the right target, and prompt-engineering plus the BERT consultant closed the gap on the metrics that actually matter (unified 68.65 vs. frontier 70.06).
+**Fine-tuning honesty disclosure** (likely Q&A topic on May 26): consultant-side fine-tuning is fully shipped (5 trained classifiers, two of them on the headline path); teacher-side fine-tuning is mid-sprint, decisively gated, and either lands in the Jun 4 paper or remains documented future work. The pivot toward consultant-side fine-tuning was deliberate — contamination evidence (`docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md`) shifted the right target away from "beat SocratTeachLLM on its memorization metric" toward "win on memorization-resistant metrics," which the BERT-consultant integration achieves (unified 68.65 vs. frontier 70.06).
