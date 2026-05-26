@@ -1,9 +1,11 @@
 <!--
-PRESENTATION.md — 15-minute class talk for CSEN 346
+PRESENTATION.md — class talk for CSEN 346
 Render: `npx reveal-md PRESENTATION.md` for slide deck in browser,
         or read directly on GitHub (renders as one long doc).
 Speaker notes are HTML comments — visible in source, hidden in render.
-Target pace: ~130 words/minute. 15 slides, ~14:45 + Q&A.
+Target pace: ~130 words/minute. 15 slides, ~17 min + Q&A
+(over the original 15-min budget by ~2 min; user-approved for the
+final-slide depth on Slide 15 "Total Contributions").
 -->
 
 # Beating the Frontier on a Consumer GPU
@@ -60,10 +62,11 @@ Collapse consultant and teacher into a **single backbone**, single forward pass,
 - **Two-call** (consultant LLM → teacher LLM): VRAM-prohibitive, slow, KV cache duplicated
 - **Fusion call** (one model, one JSON output with both fields): single backbone, ~2× faster
 - **First locked headline (n=681):** Qwen 35B-A3B fusion-think → **38.70% state accuracy** vs.\ GPT-4o's 25.94% — **+12.76 absolute pp / 1.49× lift** on a single consumer GPU
+- ⚠️ **Later superseded.** Fusion was the first locked headline but is *not* in our final contribution list — Pivot 2 (next slide) replaced the JSON-grammar-on-LLM path with a deterministic classifier, and the integration architecture outperforms fusion at every tier we care about.
 
 <!--
 SPEAKER NOTES (Slide 4, ~1 min):
-The first pivot was architectural. Instead of running two LLMs, I collapsed both roles into a single open-weight backbone using a structured-output call — one JSON response containing both the state prediction and the teacher utterance. This skips the consultant-to-teacher round trip and removes KV cache duplication, roughly halving wall-clock time. The first full-scale result on the 681-dialogue test split used Qwen 35B-A3B in fusion-think mode and scored 38.70% state accuracy — 12.76 percentage points above GPT-4o, a 1.49× lift, running on the single 5090 at zero API cost. That became our first locked headline.
+The first pivot was architectural. Instead of running two LLMs, I collapsed both roles into a single open-weight backbone using a structured-output call — one JSON response containing both the state prediction and the teacher utterance. This skips the consultant-to-teacher round trip and removes KV cache duplication, roughly halving wall-clock time. The first full-scale result on the 681-dialogue test split used Qwen 35B-A3B in fusion-think mode and scored 38.70% state accuracy — 12.76 percentage points above GPT-4o, a 1.49× lift, running on the single 5090 at zero API cost. That became our first locked headline. Heads-up before we move on: fusion was the architecture that got us into the game, but we've since moved past it — the integration architecture you'll see on slide 7 outperforms fusion at every tier we care about. So fusion is documented in the campaign history, not in our final contribution list.
 -->
 
 ---
@@ -126,12 +129,13 @@ Is teacher capacity the binding constraint? Swap the Gemma teacher for Anthropic
 
 - BERT consultant **kept fixed**, swapped Gemma 4 31B → Claude Sonnet 4.6 and Claude Opus 4.6, each with a 10-shot + top-3-prompt-stack scaffolding
 - **Best frontier configuration (n=681):** `bert × Claude-Sonnet · top3` → 49.97% state acc / R-1 41.93 / unified **70.06**
-- Frontier within sampling noise of our open-weight on state acc (~+2 pp), +5 on R-1
-- **Conclusion: teacher capacity is not the binding constraint.** A well-prompted open-weight teacher matches frontier on the pedagogical axis
+- Frontier within sampling noise of our prior open-weight headline on state acc (~+2 pp), +5 on R-1
+- **Conclusion: teacher capacity is not the binding constraint.** Prompt scaffolding lifts Claude 2–5× the amount the same lever lifts Gemma — the bottleneck is on the prompt-engineering axis, not on raw model capability.
+- *(Foreshadowing for Slide 13: the consultant-upgraded version we land today actually overtakes this ceiling.)*
 
 <!--
 SPEAKER NOTES (Slide 8, ~1 min):
-A natural question: is teacher capacity the limit? Are we leaving accuracy on the table by using Gemma instead of Claude? I tested this directly. Kept the BERT consultant fixed and swapped the Gemma teacher for Claude Sonnet 4.6 and Opus 4.6, both with carefully tuned prompt engineering. The best frontier configuration scored 49.97% state accuracy at full scale — within roughly two points of our open-weight integration. Frontier wins on ROUGE-1 by about five points but ties on the pedagogical-routing axis. Conclusion: teacher capacity is not the binding constraint on this benchmark. A well-prompted open-weight teacher matches the frontier on the thing that actually matters for teaching.
+A natural question: is teacher capacity the limit? Are we leaving accuracy on the table by using Gemma instead of Claude? I tested this directly. Kept the BERT consultant fixed and swapped the Gemma teacher for Claude Sonnet 4.6 and Opus 4.6, both with carefully tuned prompt engineering. The best frontier configuration scored 49.97% state accuracy at full scale — within roughly two points of our prior open-weight integration on the pedagogical axis, plus five points on ROUGE-1. The deeper finding from this stress test: prompt scaffolding lifts Claude two to five times the amount the same lever lifts Gemma. So the binding constraint is on the prompt-engineering axis, not on raw teacher capability. Open-weight teachers had headroom we hadn't fully tapped yet — which sets up slide 13, where the consultant upgrade plus today's run shows the open-weight system actually overtakes this frontier ceiling, not just matches it.
 -->
 
 ---
@@ -191,18 +195,18 @@ Once we'd rejected surface-form metrics, we still had a problem: six per-cell me
 
 ## Consultant Upgrade + TODO #14
 
-The consultant upgrade campaign produced a **Qwen3.5-0.8B-LoRA classifier** — methodological successor to the 24M BERT — and TODO #14 lined up a 4-cell canonical-scale sub-leaderboard at n=681 to confirm screening-tier parity.
+A systematic 4-cell `T1–T4` funnel produced the **Qwen3.5-0.8B-LoRA classifier** — successor to the 24M BERT (post-fix consultant input format, +6.23 pp over BERT). TODO #14 lined up 4 canonical-scale cells at n=681 to **confirm — or revise — the screening-tier parity finding**.
 
 | Cell | unified | Status |
 |---|---:|---|
-| `qwen3.5 × A3B-35B · n=681` | 67.81 | ✅ 2026-05-25 (9h 41m) |
-| `qwen3.5 × Qwen-27B no-think · n=681` | 66.71 | ✅ 2026-05-25 (1h 4m) |
-| `bert-fixed × Gemma-31B · n=681` | — | queued, ~12 GPU-h |
-| **`qwen3.5 × Gemma-31B · n=681`** | **?** | **today, ~12 GPU-h** |
+| `qwen3.5 × A3B-35B · n=681` | 67.81 | ✅ 2026-05-25 (9h 41m) — 2.25 pts behind frontier ceiling |
+| `qwen3.5 × Qwen-27B no-think · n=681` | 66.71 | ✅ 2026-05-25 (1h 4m) — 3.35 pts behind frontier ceiling |
+| `bert-fixed × Gemma-31B · n=681` | — | queued, ~12 GPU-h — *no longer load-bearing* |
+| **`qwen3.5 × Gemma-31B · n=681`** | **?** | **today (2026-05-26), ~12 GPU-h — see next slide** |
 
 <!--
 SPEAKER NOTES (Slide 12, ~45s):
-The consultant upgrade campaign produced a successor to the BERT classifier — a LoRA fine-tune of Qwen3.5-0.8B-Base. Same methodological idea, larger backbone, post-fix consultant input format. TODO 14 was a four-cell canonical-scale sub-leaderboard at n=681, designed to confirm the screening-tier parity finding at full sample size. Three cells were done before today: A3B at 67.81, Qwen-27B no-think at 66.71, plus one queued. Today's run was the fourth: qwen3.5 cross Gemma-31B at n=681.
+The consultant upgrade was a systematic four-cell funnel — two backbones crossed with frozen versus LoRA. T4, the LoRA fine-tune of Qwen3.5-0.8B-Base, won by 6.23 percentage points over BERT and became the successor consultant. With that classifier in hand, TODO 14 lined up four canonical-scale cells at n=681 — designed to *confirm or revise* the screening-tier parity finding from May 23. Three cells landed before today: A3B 35B at unified 67.81, Qwen-27B no-think at 66.71, and the bert-fixed Gemma cell still queued. Both A3B and Qwen-27B trail the frontier ceiling — 2.25 and 3.35 unified points respectively. The fourth cell ran today: qwen3.5 cross Gemma 31B at n=681. The result is on the next slide.
 -->
 
 ---
