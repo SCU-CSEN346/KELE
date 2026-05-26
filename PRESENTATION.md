@@ -3,13 +3,14 @@ PRESENTATION.md — class talk for CSEN 346
 Render: `npx reveal-md PRESENTATION.md` for slide deck in browser,
         or read directly on GitHub (renders as one long doc).
 Speaker notes are HTML comments — visible in source, hidden in render.
-Target pace: ~130 words/minute. 17 slides, ~22-23 min + Q&A
-(over the original 15-min budget by ~7-8 min; user-approved — extra
+Target pace: ~130 words/minute. 17 slides, ~23-24 min + Q&A
+(over the original 15-min budget by ~8-9 min; user-approved — extra
 budget for the Socratic-teaching foundation (slides 2-4), the
 expanded constraints slide (slide 5: hardware diversity + time
 scope), the deepened methodology slide (slide 7: tournament results
-+ cascade narrative), and the final-slide depth on Slide 17
-"Total Contributions").
++ cascade narrative), the Gemma-retraction story (slide 8) and the
+Pivot-2 architectural-decomposition story (slide 9), and the
+final-slide depth on Slide 17 "Total Contributions").
 -->
 
 # Beating the Frontier on a Consumer GPU
@@ -188,7 +189,13 @@ The tournament table — three takeaways. One, the Gemma 4 family decisively dom
 
 ## The Gemma 4 31B Retraction
 
-Smoke and mini both suggested Gemma 4 31B would beat A3B at full scale by ~+8 pp. **Full run collapsed: 31.39%** — 15.32 pp below projection.
+With the cascade calibrated and the tournament telling us Gemma 4 was the top-tier family, we set up what we expected to be our next locked headline. The Gemma 4 31B dense variant had won every smoke and mini we'd thrown at it; the smoke-mini average projected it would land at ~46.7% state accuracy at full scale — **about 8 percentage points above A3B's locked 38.70%**. We kicked off the full n=681 fusion-think run overnight, expecting to wake up to a new headline.
+
+Twenty-one hours and forty-nine minutes later, the result came back. **31.39%.** That's not a margin loss — that's *seven points below* the existing locked headline and *fifteen points below* the projection. We had projected a new headline. What we got was a retraction. So we became detectives.
+
+The smoke-mini predictor had been calibrated on A3B to within 0.10 pp — it had no business being off by 15 pp. We instrumented per-turn fallback rates and went hunting for whatever was crushing Gemma at scale that hadn't surfaced at smaller n. We found it: **21% of Gemma's outputs at full scale failed the strict JSON schema** the fusion architecture requires. A3B's fallback rate on the same protocol was 0.91% — a **20× gap**. Fallback turns default to "stay in current state," which silently degrades the consultant prediction. The small-sample smoke and mini runs (each under 150 turns) had encountered **zero fallbacks** — the failure rate was a long-tail phenomenon that only surfaced at sample sizes in the hundreds. So the predictor wasn't broken; it was *missing a variable*.
+
+That insight is the campaign's headline methodological contribution — and it set up Pivot 2 on the very next slide: if JSON-grammar adherence is the failure mode, take the JSON path off the consultant axis entirely.
 
 - Root cause discovered by triangulation: **21% schema-fallback rate at n=681** vs. A3B's 0.91% — the model's JSON-grammar adherence broke at scale
 - The smoke and mini samples (each <150 turns) **never surfaced a single fallback**
@@ -196,15 +203,25 @@ Smoke and mini both suggested Gemma 4 31B would beat A3B at full scale by ~+8 pp
 - This is one of the campaign's headline methodological contributions
 
 <!--
-SPEAKER NOTES (Slide 8, ~1.5 min):
-Here's where the rigor mattered. Gemma 4 31B looked like a slam dunk on smoke and mini — both tiers projected it would beat A3B at full scale by about 8 percentage points. We ran the full eval and it collapsed to 31.39% — fifteen points below projection, and seven points below A3B. We had to triangulate to find the root cause: at full scale, 21 percent of Gemma's outputs failed to match the strict JSON schema we required for the structured-output call. A3B's fallback rate was under 1 percent. The smoke and mini samples — each under 150 turns — surfaced zero fallbacks. So a methodology that worked for A3B failed for Gemma. The lesson generalized: cross-architecture scaling prediction has to triangulate schema-fallback rates, and JSON-structured-output dependencies should be replaced with deterministic routing whenever you can do it. That insight set up the next pivot.
+SPEAKER NOTES (Slide 8, ~2 min):
+This is where the rigor mattered most. After the cascade and the tournament, the natural next move was to promote the tournament leader's dense variant — Gemma 4 31B — to a full n=681 run. The smoke and mini had been perfect. The smoke-mini average projected the full lift at about plus-eight percentage points above A3B's locked headline. We kicked the run off overnight, expecting to wake up to a new locked headline. Twenty-one hours and forty-nine minutes of GPU time later, we got the result. 31.39 percent. Seven points below A3B. Fifteen points below the projection. That's not a noisy outcome — that is a catastrophic miss. So we did what scientists do when the model fails — we became detectives.
+
+The smoke-mini predictor was off by fifteen points. That has no business happening; on A3B it was accurate to within zero-point-one. So either the predictor is broken or it is missing a variable. We instrumented per-turn fallback rates — meaning, how often did the model fail to produce valid JSON for the fusion schema and fall back to the safety default. At full scale, 21 percent of Gemma's outputs failed the JSON schema. A3B's fallback rate on the exact same protocol was 0.91 percent — a twenty-times gap. And the small-sample runs — smoke at n=5, mini at n=25, each under 150 turns total — had encountered exactly zero fallbacks. The failure rate is a long-tail phenomenon. It only emerges at sample sizes in the hundreds. So the predictor isn't broken — it is missing a variable, and the variable is schema-fallback rate.
+
+That insight became the campaign's headline methodological contribution — cross-architecture scaling prediction has to triangulate schema-fallback rates at scale, because small-n samples can mask a twenty-times degradation. And the architectural lesson — if JSON-grammar adherence is the failure mode, take the JSON path off the consultant axis entirely — is what set up the next slide, Pivot 2.
 -->
 
 ---
 
 ## Pivot 2: BERT Consultant Integration
 
-If JSON-grammar adherence is the failure mode, **remove the JSON path** from the consultant.
+Coming out of the Gemma retraction, we had a sharp insight. The consultant's job is *state classification* — it picks one of 34 SocRule states given the dialogue history. That is a classification problem, not a generation problem. We had been asking a 30-billion-parameter LLM to do classification by producing structured JSON, and the JSON-adherence requirement was the source of the long-tail fragility that crushed Gemma at scale. So we asked the question the retraction made obvious: **what if the consultant axis didn't have to be an LLM at all?**
+
+We tried something almost embarrassingly simple. We took `bge-small-zh-v1.5` — a **24-million-parameter** pretrained Chinese BERT encoder, freely available on HuggingFace — added a 34-way classification head, and fine-tuned it on SocratDataset's 42,000 state-labeled turns. The whole training run took **92 seconds**. On the 681-dialogue test split, the classifier reached **86.55% stage accuracy** at the 5-way level and **61.64% state accuracy** at the 34-way level. That's **+17.5 percentage points over the best LLM consultant** we had measured — by a model 1,400× smaller, trained in under two minutes.
+
+The classifier slotted directly into the pipeline as a drop-in consultant. The full integration — BERT consultant + Gemma 4 31B teacher + 10-shot stage-balanced exemplars — ran at n=681 in 12 hours 53 minutes and landed at **48.15% state accuracy / 36.78 R-1 / unified 68.65**. That became the **prior locked headline on 2026-05-18**: a **+22.21 pp lift over the GPT-4o + SocratTeachLLM baseline (1.86× over the published number)**, on a single 32 GB consumer GPU, at **zero per-run API cost** for the eval pipeline. A 24-million-parameter classifier doing the routing work that GPT-4o was doing in the original KELE paper.
+
+But the real win wasn't the headline number. It was the **architectural decomposition** that made the headline possible: the original KELE bundled *pedagogical routing* AND *surface-form generation* into one LLM consultant call, which is why JSON adherence became a load-bearing fragility. We split those axes — a deterministic classifier handles routing, an LLM teacher handles language — and each can be optimized independently with the right tool for the job. That decomposition is the headline architectural contribution of the campaign, and the path that took us from this slide to today's frontier-overtaking result on slide 15.
 
 - Replace the consultant LLM with a **24M-parameter Chinese BERT classifier** (`bge-small-zh-v1.5`)
 - Trained on SocratDataset's 42K labeled turns in **92 seconds** — 61.64% test-split state accuracy, **+17.5 pp over the best LLM consultant**
@@ -212,8 +229,14 @@ If JSON-grammar adherence is the failure mode, **remove the JSON path** from the
 - **Prior locked headline (2026-05-18):** **+22.21 pp over GPT-4o (1.86×)**, $0 per-run API cost, ~13 GPU-hours, 24-million-parameter classifier doing the routing work that GPT-4o was doing in the original paper
 
 <!--
-SPEAKER NOTES (Slide 9, ~1.5 min):
-Pivot 2 was the architectural payoff. If JSON-grammar adherence is the failure mode, take JSON off the critical path. I replaced the consultant LLM entirely with a 24-million-parameter Chinese BERT classifier — that's bge-small-zh — trained on the 42,000 labeled turns inside SocratDataset. Training took 92 seconds. The classifier hit 61.64% state accuracy on the test split, beating every LLM consultant we'd measured by more than 17 percentage points. The full integration — BERT consultant plus Gemma 4 31B teacher plus 10-shot stage-balanced exemplars — landed at 48.15% state accuracy on the full 681-dialogue split. That's 22.21 percentage points above GPT-4o, a 1.86x lift, at zero per-run API cost, in 13 GPU-hours of local compute. A 24-million-parameter classifier doing the routing work that GPT-4o does in the original paper. That became the 2026-05-18 locked headline.
+SPEAKER NOTES (Slide 9, ~2 min):
+Coming out of the Gemma retraction, we had one sharp insight. The consultant's job is to classify the current dialogue state — pick one of 34 SocRule labels — and that is fundamentally a classification problem. Not a generation problem. We had been asking a 30-billion-parameter LLM to do classification by producing structured JSON, and the JSON-adherence requirement was what crushed Gemma at scale. So the question the retraction made obvious was: what if the consultant axis didn't have to be an LLM at all?
+
+We tried something almost embarrassingly simple. Took bge-small-zh — a 24-million-parameter pretrained Chinese BERT encoder, freely available on HuggingFace — added a 34-way classification head, and fine-tuned it on the 42,000 state-labeled turns inside SocratDataset. The whole training run finished in 92 seconds. Yes, seconds. On the 681-dialogue test split, the classifier hit 86.55 percent stage accuracy at the 5-way level and 61.64 percent state accuracy at the 34-way level — beating every LLM consultant we had measured by more than 17 percentage points, on a model 1,400 times smaller, trained in under two minutes.
+
+We dropped it into the pipeline. BERT consultant plus Gemma 4 31B teacher plus 10-shot stage-balanced exemplars. Full n=681 run, twelve hours fifty-three minutes, 48.15 percent state accuracy, 36.78 ROUGE-1, unified 68.65. That became our locked headline on May 18. Twenty-two-point-two-one percentage points above GPT-4o's baseline, a 1.86x lift, on a single 32 gigabyte consumer GPU at zero per-run API cost.
+
+But the real win wasn't the headline number. The real win was the architectural decomposition. The original KELE bundled pedagogical routing AND surface-form generation into one consultant LLM call, which is why JSON adherence became a load-bearing fragility. We split those axes — deterministic classifier for routing, LLM teacher for language — and each can be optimized independently with the right tool for the job. That decomposition is the headline architectural contribution of the campaign, and the path that took us from this slide to today's frontier-overtaking result.
 -->
 
 ---
