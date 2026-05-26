@@ -3,8 +3,8 @@ PRESENTATION.md — class talk for CSEN 346
 Render: `npx reveal-md PRESENTATION.md` for slide deck in browser,
         or read directly on GitHub (renders as one long doc).
 Speaker notes are HTML comments — visible in source, hidden in render.
-Target pace: ~130 words/minute. 17 slides, ~26 min + Q&A
-(over the original 15-min budget by ~11 min; user-approved — extra
+Target pace: ~130 words/minute. 17 slides, ~27 min + Q&A
+(over the original 15-min budget by ~12 min; user-approved — extra
 budget for the Socratic-teaching foundation (slides 2-4), the
 expanded constraints slide (slide 5: hardware diversity + time
 scope), the deepened methodology slide (slide 7: tournament results
@@ -12,8 +12,9 @@ scope), the deepened methodology slide (slide 7: tournament results
 Pivot-2 architectural-decomposition story (slide 9), the frontier
 stress-test narrative (slide 10), the benchmark-critique discovery
 arc (slide 11), the contamination-proof two-probe narrative (slide
-12), the unified-metric design story (slide 13), and the final-slide
-depth on Slide 17 "Total Contributions").
+12), the unified-metric design story (slide 13), the reveal-slide
+campaign payoff (slide 15), and the final-slide depth on Slide 17
+"Total Contributions").
 -->
 
 # Beating the Frontier on a Consumer GPU
@@ -382,6 +383,14 @@ With the upgraded consultant in hand, we set up a four-cell sub-leaderboard at c
 
 ## Today: Frontier Overtaken
 
+This is what we ran this morning. The fourth and final cell of the canonical-scale sub-leaderboard. Same architectural pattern we've been refining for three months — deterministic classifier on the consultant axis, LLM teacher with composed prompt engineering — now with the upgraded Qwen3.5-LoRA classifier and Gemma 4 31B as the teacher, against the full 681-dialogue test split. The run took roughly **12 GPU-hours** and landed at **unified 72.24**.
+
+That number doesn't just beat our prior locked headline. **It beats the frontier ceiling we measured ourselves.** `bert × Claude-Sonnet · top3 · n=681` — the best frontier configuration we tested on slide 10 — scored unified 70.06. We just scored **72.24 — a +2.18 unified-point lead** at the same canonical sample size. A 31B-parameter open-weight teacher with prompt engineering, running on a single 32 GB consumer GPU at $0 per-run eval API cost, **overtook Anthropic's best Claude Sonnet 4.6 configuration on a memorization-resistant Chinese pedagogy benchmark**. The "parity" framing from May 23 inverts to overtaking on May 26.
+
+The win isn't a single-axis fluke. State accuracy lands at **55.39%** — a **2.14× lift over KELE's GPT-4o baseline** of 25.94% (+29.45 pp absolute). The per-stage breakdown shows *where* the gains live: the cognitive heavy-lift stages where general-purpose LLMs collapse in the KELE paper (c=4.70% / d=5.04% / e=11.92% baseline) post the biggest multipliers — **c = 7.54×, d = 9.20×, e = 6.58×**. Stage b moves from KELE's −13.67 pp deficit to a +9.46 pp lift. Every stage now positive. The integration architecture isn't just better than the baseline; it's better *precisely on the stages KELE was designed to handle.*
+
+This is the result the campaign was building toward. Open-weight pedagogy on consumer hardware was not supposed to beat the frontier. The benchmark critique was meant to tighten the comparison. The unified metric was meant to make ranking defensible. The consultant upgrade was meant to close the screening-tier gap. Today, three months of methodology bridges into a single result: **a 31B open-weight teacher on a single 32 GB consumer GPU beats Anthropic's best frontier teacher on a memorization-resistant Chinese pedagogy benchmark, at canonical sample size, at zero per-run eval API cost.** This is a big deal.
+
 `qwen3.5 × Gemma-31B · fewshot10 · n=681`:
 
 - State accuracy **55.39%** = **2.14× GPT-4o baseline** (+29.45 pp absolute)
@@ -391,8 +400,14 @@ With the upgraded consultant in hand, we set up a four-cell sub-leaderboard at c
 - **A 31B-param open-weight teacher with prompt engineering on a single 32 GB consumer GPU beats Anthropic's best frontier model on a memorization-resistant Chinese pedagogy benchmark at canonical sample size, at $0 per-run eval API cost.**
 
 <!--
-SPEAKER NOTES (Slide 15, ~1.5 min):
-This is what we locked this morning. The fourth TODO 14 cell: Qwen3.5-LoRA classifier with Gemma 4 31B teacher and 10-shot exemplars, at the full 681-dialogue test split. State accuracy 55.39 percent — that's 2.14 times GPT-4o's baseline of 25.94. ROUGE-1 of 37.65. LLM-judge score 8.32 out of 10. Unified score 72.24. That puts us 2.18 unified points above the best frontier configuration we tested — Claude Sonnet 4.6 with our top-3 prompt stack and the same BERT consultant — at the same canonical sample size. Per-stage multipliers versus GPT-4o on the hard middle and closure stages: 7.54x on induction, 9.20x on extension, 6.58x on closure. A 31-billion-parameter open-weight teacher on my single 32-gigabyte consumer GPU just overtook Anthropic's best frontier model on this benchmark. Zero dollars per-run for the eval pipeline. About 16 dollars for the LLM-judge pass that completes the unified score.
+SPEAKER NOTES (Slide 15, ~2:30):
+This is what we ran this morning. The fourth and final cell of the canonical-scale sub-leaderboard. Same architectural pattern we have been refining for three months — deterministic classifier on the consultant axis, LLM teacher with composed prompt engineering — now with the upgraded Qwen3.5-LoRA classifier as the consultant and Gemma 4 31B as the teacher, against the full 681-dialogue test split. The run took roughly twelve GPU-hours. It landed at unified seventy-two point twenty-four.
+
+That number doesn't just beat our prior locked headline of sixty-eight-point-six-five. It beats the frontier ceiling we measured ourselves on slide ten. The best frontier configuration — Claude Sonnet 4.6 with our top-3 prompt stack and the BERT consultant at n=681 — scored unified seventy-point-zero-six. We just scored seventy-two-point-twenty-four. That is a two-point-one-eight unified-point lead at the same canonical sample size. A 31-billion-parameter open-weight teacher with prompt engineering, running on my single 32-gigabyte consumer GPU at zero dollars per-run for the eval pipeline, overtook Anthropic's best Claude Sonnet configuration on a memorization-resistant Chinese pedagogy benchmark. The parity framing from May 23 inverts to overtaking on May 26.
+
+And this isn't a single-axis fluke. State accuracy lands at fifty-five-point-thirty-nine percent — a 2.14 times lift over KELE's GPT-4o baseline of twenty-five-point-ninety-four. That is twenty-nine-point-four-five percentage points of absolute lift. The per-stage breakdown shows where the gains live. The cognitive heavy-lift stages where general-purpose LLMs collapse in the KELE paper — stage c at 4.70 percent baseline, stage d at 5.04 percent, stage e at 11.92 percent — post the biggest multipliers under our system. C is 7.54 times the baseline. D is 9.20 times. E is 6.58 times. Stage b — which had been a thirteen-point deficit under the prior BERT integration — moves to a nine-point lift. Every stage is now positive. The integration architecture isn't just better than the baseline; it is better precisely on the stages KELE was designed to handle.
+
+This is the result the campaign was building toward. Open-weight pedagogy on consumer hardware was not supposed to beat the frontier. The benchmark critique was meant to tighten the comparison. The unified metric was meant to make ranking defensible. The consultant upgrade was meant to close the screening-tier gap. Today, three months of methodology bridges into a single result. A 31B open-weight teacher on a single 32 GB consumer GPU beats Anthropic's best frontier teacher on a memorization-resistant Chinese pedagogy benchmark, at canonical sample size, at zero per-run eval API cost. This is a big deal.
 -->
 
 ---
