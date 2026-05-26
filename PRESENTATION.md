@@ -1,9 +1,11 @@
 <!--
-PRESENTATION.md — 15-minute class talk for CSEN 346
+PRESENTATION.md — class talk for CSEN 346
 Render: `npx reveal-md PRESENTATION.md` for slide deck in browser,
         or read directly on GitHub (renders as one long doc).
 Speaker notes are HTML comments — visible in source, hidden in render.
-Target pace: ~130 words/minute. 15 slides, ~14:45 + Q&A.
+Target pace: ~130 words/minute. 15 slides, ~17 min + Q&A
+(over the original 15-min budget by ~2 min; user-approved for the
+final-slide depth on Slide 15 "Total Contributions").
 -->
 
 # Beating the Frontier on a Consumer GPU
@@ -60,10 +62,11 @@ Collapse consultant and teacher into a **single backbone**, single forward pass,
 - **Two-call** (consultant LLM → teacher LLM): VRAM-prohibitive, slow, KV cache duplicated
 - **Fusion call** (one model, one JSON output with both fields): single backbone, ~2× faster
 - **First locked headline (n=681):** Qwen 35B-A3B fusion-think → **38.70% state accuracy** vs.\ GPT-4o's 25.94% — **+12.76 absolute pp / 1.49× lift** on a single consumer GPU
+- ⚠️ **Later superseded.** Fusion was the first locked headline but is *not* in our final contribution list — Pivot 2 (next slide) replaced the JSON-grammar-on-LLM path with a deterministic classifier, and the integration architecture outperforms fusion at every tier we care about.
 
 <!--
 SPEAKER NOTES (Slide 4, ~1 min):
-The first pivot was architectural. Instead of running two LLMs, I collapsed both roles into a single open-weight backbone using a structured-output call — one JSON response containing both the state prediction and the teacher utterance. This skips the consultant-to-teacher round trip and removes KV cache duplication, roughly halving wall-clock time. The first full-scale result on the 681-dialogue test split used Qwen 35B-A3B in fusion-think mode and scored 38.70% state accuracy — 12.76 percentage points above GPT-4o, a 1.49× lift, running on the single 5090 at zero API cost. That became our first locked headline.
+The first pivot was architectural. Instead of running two LLMs, I collapsed both roles into a single open-weight backbone using a structured-output call — one JSON response containing both the state prediction and the teacher utterance. This skips the consultant-to-teacher round trip and removes KV cache duplication, roughly halving wall-clock time. The first full-scale result on the 681-dialogue test split used Qwen 35B-A3B in fusion-think mode and scored 38.70% state accuracy — 12.76 percentage points above GPT-4o, a 1.49× lift, running on the single 5090 at zero API cost. That became our first locked headline. Heads-up before we move on: fusion was the architecture that got us into the game, but we've since moved past it — the integration architecture you'll see on slide 7 outperforms fusion at every tier we care about. So fusion is documented in the campaign history, not in our final contribution list.
 -->
 
 ---
@@ -126,12 +129,13 @@ Is teacher capacity the binding constraint? Swap the Gemma teacher for Anthropic
 
 - BERT consultant **kept fixed**, swapped Gemma 4 31B → Claude Sonnet 4.6 and Claude Opus 4.6, each with a 10-shot + top-3-prompt-stack scaffolding
 - **Best frontier configuration (n=681):** `bert × Claude-Sonnet · top3` → 49.97% state acc / R-1 41.93 / unified **70.06**
-- Frontier within sampling noise of our open-weight on state acc (~+2 pp), +5 on R-1
-- **Conclusion: teacher capacity is not the binding constraint.** A well-prompted open-weight teacher matches frontier on the pedagogical axis
+- Frontier within sampling noise of our prior open-weight headline on state acc (~+2 pp), +5 on R-1
+- **Conclusion: teacher capacity is not the binding constraint.** Prompt scaffolding lifts Claude 2–5× the amount the same lever lifts Gemma — the bottleneck is on the prompt-engineering axis, not on raw model capability.
+- *(Foreshadowing for Slide 13: the consultant-upgraded version we land today actually overtakes this ceiling.)*
 
 <!--
 SPEAKER NOTES (Slide 8, ~1 min):
-A natural question: is teacher capacity the limit? Are we leaving accuracy on the table by using Gemma instead of Claude? I tested this directly. Kept the BERT consultant fixed and swapped the Gemma teacher for Claude Sonnet 4.6 and Opus 4.6, both with carefully tuned prompt engineering. The best frontier configuration scored 49.97% state accuracy at full scale — within roughly two points of our open-weight integration. Frontier wins on ROUGE-1 by about five points but ties on the pedagogical-routing axis. Conclusion: teacher capacity is not the binding constraint on this benchmark. A well-prompted open-weight teacher matches the frontier on the thing that actually matters for teaching.
+A natural question: is teacher capacity the limit? Are we leaving accuracy on the table by using Gemma instead of Claude? I tested this directly. Kept the BERT consultant fixed and swapped the Gemma teacher for Claude Sonnet 4.6 and Opus 4.6, both with carefully tuned prompt engineering. The best frontier configuration scored 49.97% state accuracy at full scale — within roughly two points of our prior open-weight integration on the pedagogical axis, plus five points on ROUGE-1. The deeper finding from this stress test: prompt scaffolding lifts Claude two to five times the amount the same lever lifts Gemma. So the binding constraint is on the prompt-engineering axis, not on raw teacher capability. Open-weight teachers had headroom we hadn't fully tapped yet — which sets up slide 13, where the consultant upgrade plus today's run shows the open-weight system actually overtakes this frontier ceiling, not just matches it.
 -->
 
 ---
@@ -191,18 +195,18 @@ Once we'd rejected surface-form metrics, we still had a problem: six per-cell me
 
 ## Consultant Upgrade + TODO #14
 
-The consultant upgrade campaign produced a **Qwen3.5-0.8B-LoRA classifier** — methodological successor to the 24M BERT — and TODO #14 lined up a 4-cell canonical-scale sub-leaderboard at n=681 to confirm screening-tier parity.
+A systematic 4-cell `T1–T4` funnel produced the **Qwen3.5-0.8B-LoRA classifier** — successor to the 24M BERT (post-fix consultant input format, +6.23 pp over BERT). TODO #14 lined up 4 canonical-scale cells at n=681 to **confirm — or revise — the screening-tier parity finding**.
 
 | Cell | unified | Status |
 |---|---:|---|
-| `qwen3.5 × A3B-35B · n=681` | 67.81 | ✅ 2026-05-25 (9h 41m) |
-| `qwen3.5 × Qwen-27B no-think · n=681` | 66.71 | ✅ 2026-05-25 (1h 4m) |
-| `bert-fixed × Gemma-31B · n=681` | — | queued, ~12 GPU-h |
-| **`qwen3.5 × Gemma-31B · n=681`** | **?** | **today, ~12 GPU-h** |
+| `qwen3.5 × A3B-35B · n=681` | 67.81 | ✅ 2026-05-25 (9h 41m) — 2.25 pts behind frontier ceiling |
+| `qwen3.5 × Qwen-27B no-think · n=681` | 66.71 | ✅ 2026-05-25 (1h 4m) — 3.35 pts behind frontier ceiling |
+| `bert-fixed × Gemma-31B · n=681` | — | queued, ~12 GPU-h — *no longer load-bearing* |
+| **`qwen3.5 × Gemma-31B · n=681`** | **?** | **today (2026-05-26), ~12 GPU-h — see next slide** |
 
 <!--
 SPEAKER NOTES (Slide 12, ~45s):
-The consultant upgrade campaign produced a successor to the BERT classifier — a LoRA fine-tune of Qwen3.5-0.8B-Base. Same methodological idea, larger backbone, post-fix consultant input format. TODO 14 was a four-cell canonical-scale sub-leaderboard at n=681, designed to confirm the screening-tier parity finding at full sample size. Three cells were done before today: A3B at 67.81, Qwen-27B no-think at 66.71, plus one queued. Today's run was the fourth: qwen3.5 cross Gemma-31B at n=681.
+The consultant upgrade was a systematic four-cell funnel — two backbones crossed with frozen versus LoRA. T4, the LoRA fine-tune of Qwen3.5-0.8B-Base, won by 6.23 percentage points over BERT and became the successor consultant. With that classifier in hand, TODO 14 lined up four canonical-scale cells at n=681 — designed to *confirm or revise* the screening-tier parity finding from May 23. Three cells landed before today: A3B 35B at unified 67.81, Qwen-27B no-think at 66.71, and the bert-fixed Gemma cell still queued. Both A3B and Qwen-27B trail the frontier ceiling — 2.25 and 3.35 unified points respectively. The fourth cell ran today: qwen3.5 cross Gemma 31B at n=681. The result is on the next slide.
 -->
 
 ---
@@ -272,17 +276,65 @@ The campaign by the numbers. 143 distinct configurations measured. 38 of them LL
 
 ---
 
-## Three Contributions
+## Total Contributions
 
-1. **Fusion architecture** — practical primitive for KELE-style multi-agent pipelines on consumer hardware. Single backbone, structured-output call, ~2× faster than two-call.
-2. **Classifier-as-consultant integration** — deterministic state routing × LLM-driven response generation, two independently-optimizable axes. Replaces fragile JSON-on-LLM with a 24M-param BERT (or 800M-param Qwen3.5-LoRA) classifier that runs at zero marginal VRAM cost.
-3. **Benchmark critique + unified metric** — surface-form metrics on SocratDataset reward memorization, not teaching. The unified metric (`0.5 × stage_balanced + 0.5 × judge × 10`) is what surfaces the frontier-overtaking result.
+Every improvement we made over the original KELE paper (Peng et al., EMNLP 2025 Findings) — **19 distinct contributions across five categories**.
 
-**Code, data, paper draft:** github.com/ulises-c/csen-346 · 🤗 ulises-c/SocratDataset · 🤗 ulises-c/SocratDataset-EN
+### 🔧 Architectural upgrades (vs. KELE's two-model stack)
+
+1. **Classifier-as-consultant, deployed on CPU+Compute.** Replaced KELE's GPT-4o LLM consultant with a deterministic supervised classifier — 24M-param Chinese BERT (`bge-small-zh-v1.5`) initially, upgraded to a ~800M-param Qwen3.5-0.8B-LoRA classifier in the current locked headline. Both run on **CPU+Compute, freeing the entire GPU's VRAM** for the much larger teacher LLM. Eliminates per-run API spend on the consultant axis. Classifier state accuracy 61.64% on the 34-state test split — +17.5 pp over the best LLM consultant.
+2. **Consultant-upgrade funnel (T1–T4).** Systematic 2×2 search over {Qwen3-Embedding-0.6B, Qwen3.5-0.8B-Base} × {frozen, LoRA}. T4 (Qwen3.5-0.8B + LoRA r=8) won at +6.23 pp over the BERT baseline and is the current locked-headline consultant.
+3. **Composed teacher prompt engineering** — stage-balanced 10-shot exemplars + top-3 utilization stack (length_budget + persona + negative_exemplars), surfaced by a 10-cell n=50 prompt-engineering tournament. +6.02 state acc / +3.29 R-1 over the raw teacher; +5 unified pts on Gemma.
+
+### 📐 Methodological & evaluation contributions
+
+4. **Benchmark critique.** Surface-form metrics (ROUGE/BLEU) on SocratDataset systematically reward training-data memorization over teaching capability. Same configurations rank in **opposite orders** under ROUGE vs.\ state accuracy; the gap widens monotonically with n-gram length — the strongest possible memorization signature.
+5. **Unified ranking metric** (`unified = 0.5 × stage_balanced + 0.5 × (judge × 10)`). Memorization-resistant single-number ranking. `stage_balanced` corrects KELE's frequency-weighted macro (closure under-counting); `judge` is a 4-axis Claude Sonnet 4.6 rubric (Socratic validity, advancement, age-appropriateness, question-form).
+6. **Contamination proof** — two independent evidence streams: memorization probe (4/288 char-identical, 17/288 ≥80% match for SocratTeachLLM vs.\ 0/288 Gemma control) + synthetic clean-probe (SocratTeachLLM collapses 63.4 → 32.86 stage_bal on demonstrably-unseen synthetic data).
+7. **Smoke / mini / full evaluation protocol** with smoke-mini averaging as a low-cost full-run predictor (predicted A3B's full-run lift within 0.10 pp); surfaced Gemma 31B's 15.32-pp full-scale collapse via schema-fallback-rate triangulation.
+8. **n=400 canonical sample-size recommendation.** Bootstrap convergence analysis across 7 full-scale n=681 runs: all four primary metrics converge within ≤2 pp at n=400 — **41% compute saving with no loss of decision precision**.
+
+### 🌐 Dataset contributions (public on 🤗 `ulises-c/…`)
+
+9. **SocratDataset-EN** — full English translation of all 6,803 dialogues / 42,892 turns. Anchors the cross-lingual transfer experiment + the SocratTeachLLM language-bound memorization counter-probe.
+10. **SocratDataset-SYNTHETIC + SYNTHETIC-EN** — Claude-generated clean-probe datasets (n=75 each), demonstrably outside SocratDataset's training distribution.
+
+### 📊 Key empirical findings
+
+11. **🏆 Frontier OVERTAKEN at canonical n=681.** Current locked headline (`qwen3.5 × Gemma-31B · fewshot10 · n=681`) at unified **72.24** beats the best frontier teacher we tested (`bert × Claude-Sonnet · top3 · n=681`, unified 70.06) by **+2.18 unified pts**. A 31B open-weight teacher on one 32 GB consumer GPU beats Anthropic's best on a memorization-resistant benchmark.
+12. **State accuracy: 25.94% (KELE) → 55.39% (ours) = 2.14× lift / +29.45 pp absolute.** Per-stage GPT-4o-baseline multipliers: **c = 7.54× · d = 9.20× · e = 6.58×**. Stage b moves from KELE's −13.67 pp deficit to +9.46 pp lift — every stage now positive.
+13. **Cross-lingual transfer of the SocRule routing.** Qwen3.5-LoRA consultant trained only on Chinese scores unified 65.11 at n=400 on the English test split — Stage 1 confirmed; macro drop 9.24 pp inside the 10 pp gate. Pedagogical state labels (a0–e34) are language-invariant.
+14. **Schema-fallback rate is the missing variable** in cross-architecture scaling prediction. Gemma 31B's 21% full-scale fallback rate (vs.\ A3B's 0.91%) crushed its smoke/mini projection by 15.32 pp. Methodological lesson: JSON-structured-output dependencies should be replaced with deterministic routing whenever feasible.
+15. **Teacher capacity is NOT the binding constraint** on this benchmark. Frontier-teacher stress test shows prompt scaffolding lifts Claude by 2–5× the amount the same lever lifts Gemma; swapping open-weight for frontier teacher is not the bottleneck.
+16. **Architecture-correlated think-benefit gradient** within Qwen 3.6: MoE A3B gains ~19 pp from reasoning scaffolding, dense 27B gains ~11–17 pp. Robust across n=25, n=33, n=50, n=681 — explicit reasoning compensates for the MoE per-token compute deficit.
+
+### ⚙️ Engineering & economics
+
+17. **143 configurations measured, 38 LLM-judged.** Master leaderboard auto-regenerated from per-config JSON summaries via `scripts/backtest_stage_balanced.py`. Full audit trail in `results/_orchestrator_logs/`.
+18. **Single-GPU + $0 per-run eval pipeline.** Entire locked-headline pipeline runs on one RTX 5090 (32 GB VRAM); judge passes (~$16/cell) are the only marginal API cost.
+19. **Compute audit:** **119.5 GPU-h confirmed** (7 full n=681 runs + 13-model tournament + prompt tournament + bilingual canonical + cross-teacher matrix + consultant upgrade campaign); **$258.86 total Anthropic spend** (frontier comparisons + judge passes; $0 on the open-weight eval pipeline itself).
+
+---
+
+**Code · data · paper draft:** github.com/ulises-c/csen-346 · 🤗 ulises-c (SocratDataset, SocratDataset-EN, SocratDataset-SYNTHETIC, SocratDataset-SYNTHETIC-EN, SocratTeachLLM mirror)
 
 **Questions?**
 
 <!--
-SPEAKER NOTES (Slide 15, ~30s):
-Three takeaways from the campaign. First, the fusion architecture as a practical primitive for KELE-style multi-agent pipelines on consumer hardware. Second, the classifier-as-consultant decomposition — deterministic routing and LLM generation as two independently-optimizable axes — that's the architectural contribution. Third, the methodological reframing: surface-form metrics reward memorization on this benchmark; the unified metric, by construction memorization-resistant, is what made the frontier-overtaking visible. The code, data, and paper draft are public. Happy to take questions.
+SPEAKER NOTES (Slide 15, ~90s — denser than the rest; the final-slide depth gives audience the full picture, speaker picks which bullets to voice):
+
+Nineteen distinct improvements over the original KELE paper, organized into five categories.
+
+Three architectural upgrades. First and headline: we replaced KELE's GPT-4o consultant with a deterministic supervised classifier — initially a 24-million-parameter Chinese BERT, then upgraded to an 800-million-parameter Qwen3.5-LoRA classifier in the current locked headline. Crucially, both run on CPU plus compute, which frees the entire GPU's VRAM for the teacher LLM. Second: the consultant upgrade was systematic — a four-cell funnel over two backbones crossed with frozen versus LoRA. The LoRA-fine-tuned Qwen3.5-0.8B won by 6.23 percentage points and became the headline consultant. Third: composed prompt engineering on the teacher — stage-balanced 10-shot exemplars plus a top-3 utilization stack — surfaced by a 10-cell n=50 tournament, lifts the teacher's pedagogy without retraining.
+
+Five methodological contributions. The benchmark critique — ROUGE and BLEU on this dataset systematically reward memorization over teaching, and the ranking inversion widens monotonically with n-gram length. The unified metric — half stage-balanced state accuracy, half LLM-judge — that fixes the ranking. The contamination proof, with two independent evidence streams. The smoke-mini-full evaluation protocol that caught the Gemma 31B retraction. And the n=400 canonical sample-size recommendation, which would save 41 percent of compute on future Socratic-teaching evaluations with no loss of decision precision.
+
+Two public datasets — SocratDataset-EN, the first full English translation of the 6,803 dialogues, and the clean-probe synthetic datasets in both languages.
+
+Six empirical findings — most importantly the frontier-overtaking result we showed on the previous slide. State accuracy 2.14 times GPT-4o. Cross-lingual transfer works. Schema-fallback rate is the missing variable for cross-architecture scaling prediction. Teacher capacity is not the binding constraint on this benchmark — prompt scaffolding is 2 to 5 times more impactful. And the architecture-correlated think-benefit gradient within the Qwen 3.6 family — MoE A3B gains 19 points from reasoning scaffolding, dense 27B gains 11 to 17, robust across four sample sizes.
+
+Three engineering wins: 143 configurations measured, single-GPU at zero dollars per inference run on the eval pipeline, full compute audit at 119 and a half GPU-hours and 258 dollars of Anthropic spend — every API dollar bought either a frontier comparison or a memorization-resistant judgment.
+
+Code, data, paper draft are public. Questions?
 -->
+
