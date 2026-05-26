@@ -3,10 +3,11 @@ PRESENTATION.md — class talk for CSEN 346
 Render: `npx reveal-md PRESENTATION.md` for slide deck in browser,
         or read directly on GitHub (renders as one long doc).
 Speaker notes are HTML comments — visible in source, hidden in render.
-Target pace: ~130 words/minute. 17 slides, ~20 min + Q&A
-(over the original 15-min budget by ~5 min; user-approved — extra
-budget for the Socratic-teaching foundation (slides 2-4) and the
-final-slide depth on Slide 17 "Total Contributions").
+Target pace: ~130 words/minute. 17 slides, ~21 min + Q&A
+(over the original 15-min budget by ~6 min; user-approved — extra
+budget for the Socratic-teaching foundation (slides 2-4), the
+expanded constraints slide (slide 5: hardware diversity + time
+scope), and the final-slide depth on Slide 17 "Total Contributions").
 -->
 
 # Beating the Frontier on a Consumer GPU
@@ -96,18 +97,18 @@ Here is what a KELE pipeline actually does, with a real dialogue from the datase
 
 ---
 
-## Our Constraint
+## Our Constraints
 
-A single 32 GB consumer GPU (NVIDIA RTX 5090) and **$0 budget** for per-run API calls.
+A single 32 GB consumer GPU as the primary test rig, **$0 budget** for per-run API calls, and **one Spring quarter** of Santa Clara class time.
 
-- KELE's canonical stack requires **two model deployments simultaneously** — one for the consultant, one for the teacher
-- Two 30B-class open-weight models will not co-resident on 32 GB
-- Renting frontier API consultancy = burning the API budget on every dialogue
-- **The challenge:** reproduce + improve on harder hardware than the original paper
+- 🖥️ **Primary rig — NVIDIA RTX 5090 (32 GB VRAM, CUDA).** Every locked headline ran here under this VRAM bound. Renting frontier API consultancy on every dialogue would also burn the API budget, so the consultant axis has to be local-and-cheap.
+- 🌐 **Cross-platform deployments — Ulises-owned secondary platforms.** Apple M4 Mac Minis (CPU inference for the consultant sensitivity sweep), AMD Radeon R9700 (32 GB, ROCm — the original 13-model no-think tournament and the SocratDataset-EN translation pipeline ran here at ~390 records/h), plus WAVE HPC V100 batch jobs for off-rig validation. **Cross-hardware comparability validated:** the 5090 reproduces the R9700 tournament's A3B no-think point within **0.07 pp** — our results aren't 5090-specific.
+- 🏗️ **Architecture — separate consultant + teacher, within VRAM.** KELE's canonical stack requires **two model deployments simultaneously**, and two 30B-class open-weight LLMs do not co-resident on 32 GB. We *tried* fusion (single-backbone — see slide 6) and it was the first locked headline, but we moved past it. **The consultant-teacher separation is what KELE got right architecturally**, and our final system keeps that separation by downsizing the consultant axis to a deterministic classifier (24M or ~800M params) that fits alongside the 31B teacher on the same GPU.
+- 🎓 **Time — one Spring quarter at SCU.** Three months, fixed budget — not a multi-year industrial campaign. We *could* sweep more model sizes, more quantization configs, more fine-tunings, but instead we focused on **popular, accessible open-source models** that align with KELE's framing (Qwen 3.6 family, Gemma 4 family, frontier Claude as comparison ceiling) over fully covering the option space.
 
 <!--
-SPEAKER NOTES (Slide 5, ~45s):
-Here's the constraint that shapes everything else. I have one RTX 5090 with 32 gigabytes of VRAM, and a budget of zero dollars for per-run API calls. KELE's original architecture requires two LLMs running simultaneously — a consultant and a teacher. You cannot fit two 30-billion-parameter open-weight models in 32 gigabytes of VRAM. And renting frontier API calls for the consultant role would burn budget on every single dialogue. So the campaign was: reproduce KELE plus improve on it, on harder hardware than the original paper used.
+SPEAKER NOTES (Slide 5, ~1:15):
+Four constraints shape everything else in the talk. First, the primary rig: one RTX 5090, 32 gigabytes of VRAM, CUDA — every locked-headline result you'll see today ran on that single machine, with a zero-dollar-per-run budget for the eval pipeline itself. Second, cross-platform — this is largely Ulises's contribution. He maintains a small deployment stack: Apple M4 Mac Minis for the CPU-inference consultant-sensitivity sweep, an AMD Radeon R9700 with 32 GB of ROCm-backed VRAM that ran the original 13-model tournament AND the SocratDataset-EN translation pipeline at roughly 390 records per hour, plus the WAVE HPC V100 for off-rig batch validation. The 5090 reproduces the R9700's A3B no-think point within 0.07 percentage points — so the results are hardware-independent. Third, architecture — KELE's canonical stack requires two model deployments simultaneously, and two 30-billion-class open-weight LLMs don't fit in 32 gigs together. We tried fusion — collapsing both roles into one backbone — and that was our first locked headline. But we moved past it: the consultant-teacher separation is what KELE actually got right architecturally. Our final system keeps that separation but downsizes the consultant to a deterministic classifier so the two axes can coexist on the same GPU. Fourth, time — this is a one-quarter Santa Clara class project, not a multi-year industrial campaign. We could sweep more model sizes and more quantization configs in principle, but we deliberately scoped to popular, accessible open-source models aligned with KELE's framing — Qwen 3.6, Gemma 4, frontier Claude as a comparison ceiling — instead of trying to cover the full option space.
 -->
 
 ---
