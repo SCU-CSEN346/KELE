@@ -412,8 +412,6 @@ def main() -> None:
     # pick up where it left off. Worst-case rollback = TRAIN_SAVE_STEPS
     # × step_time (default 200 × 19s = ~63 min on Gemma 4 31B QLoRA).
     # To start over from scratch, rm -rf the checkpoint-* dirs first.
-    from pathlib import Path
-
     has_checkpoint = any(Path(sft_cfg.output_dir).glob("checkpoint-*"))
 
     print("\nStarting training...")
