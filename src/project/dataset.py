@@ -20,8 +20,8 @@ Stage 1 — General instruction (ulises-c/general-instruction-dataset-sft-stage-
 Stage 2 — Socratic teaching (ulises-c/socratic-teaching-datasets-sft-stage-2 collection):
     "socrat-zh"           ulises-c/SocratDataset          (original Chinese, state+action annotated)
     "socrat-en"           ulises-c/SocratDataset-EN       (English translation, state+action annotated)
-    "socrat-synthetic"    ulises-c/SocratDataset-SYNTHETIC (Chinese synthetic, state annotated)
-    "socrat-synthetic-en" ulises-c/SocratDataset-SYNTHETIC-EN (English synthetic, state annotated)
+    "socrat-synthetic"    ulises-c/SocratDataset-SYNTHETIC (Chinese synthetic, state annotated) — eval only
+    "socrat-synthetic-en" ulises-c/SocratDataset-SYNTHETIC-EN (English synthetic, state annotated) — eval only
     "socrateach-multi"    ulises-c/SocraTeach_Multi
     "socrateach-single"   ulises-c/SocraTeach_Single
     "socratic-math"       ulises-c/SocraticMATH
@@ -31,9 +31,8 @@ Usage:
     from src.project.dataset import load_training_data
     # Stage 1
     records = load_training_data(["openhermes", "ultrachat", "slimorca"])
-    # Stage 2 full mix
-    records = load_training_data(["socrat-zh", "socrat-en", "socrat-synthetic",
-                                   "socrat-synthetic-en", "socrateach-multi",
+    # Stage 2 full mix (socrat-synthetic / socrat-synthetic-en are eval-only)
+    records = load_training_data(["socrat-zh", "socrat-en", "socrateach-multi",
                                    "socrateach-single", "socratic-math", "socratic-math-sol"])
 """
 
