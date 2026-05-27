@@ -112,7 +112,7 @@ _CONSULTANT_MAP = [
     # so dirs like `bert-fixed-bert-socratteachllm-…` route to bert-fixed (not bert).
     ("bge-small-bert-", "bert-fixed"),  # post-fix BERT, original naming
     ("bert-fixed-bert-", "bert-fixed"),  # post-fix BERT, alt naming used by STL bilingual cells
-    ("t4-bert-fixed-", "bert-fixed"),  # post-fix BERT at canonical n=681 (n=50 sibling uses bge-small-bert-)
+    ("t4-bert-fixed-", "bert-fixed"),  # post-fix BERT at canonical n; n=50 in bge-small-bert-
     ("t4-bert-", "qwen3.5"),  # T4 = qwen3.5 LoRA
     ("claude-opus-consultant-", "Claude-Opus"),  # LLM-as-consultant
     ("claude-sonnet-consultant-", "Claude-Sonnet"),
