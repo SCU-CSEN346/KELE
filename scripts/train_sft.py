@@ -195,7 +195,16 @@ def build_lora_config():
         "LORA_TARGET_MODULES",
         "q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj",
     )
-    target_modules = [t.strip() for t in targets_raw.split(",") if t.strip()]
+    # PEFT treats target_modules as a regex when it's a single string (anchored).
+    # Use this to scope LoRA to text-only paths on multimodal models like
+    # google/gemma-4-31b-it, where vision_tower's Gemma4ClippableLinear wrappers
+    # crash get_peft_model with "Target module ... is not supported".
+    # Convention: if the value starts with "^" treat it as a regex; otherwise
+    # split on comma as a suffix-match list.
+    if targets_raw.lstrip().startswith("^"):
+        target_modules = targets_raw.strip()
+    else:
+        target_modules = [t.strip() for t in targets_raw.split(",") if t.strip()]
 
     print(f"\nLoRA config  r={r}  alpha={alpha}  dropout={dropout}\n  targets: {target_modules}")
 
