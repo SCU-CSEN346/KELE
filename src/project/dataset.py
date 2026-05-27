@@ -7,21 +7,37 @@ TRL SFTTrainer + apply_chat_template.
 Each record:
     {
         "id":                  str,
-        "source":              "socrat-zh" | "socrat-en" | "socrat-synthetic"
-                             | "socrateach-multi" | "socrateach-single"
-                             | "socraticmath" | "socraticmath-sol",
+        "source":              str,  # see _SOURCE_LOADERS for valid keys
         "messages":            [{"role": "system"|"user"|"assistant", "content": str}, ...],
-        "ground_truth_states": list[str] | None,  # only for socrat-zh / socrat-en / socrat-synthetic
+        "ground_truth_states": list[str] | None,  # only for KELE state-annotated sources
     }
+
+Stage 1 — General instruction (ulises-c/general-instruction-dataset-sft-stage-1 collection):
+    "openhermes"          teknium/OpenHermes-2.5
+    "ultrachat"           HuggingFaceH4/ultrachat_200k
+    "slimorca"            Open-Orca/slimorca-deduped-cleaned-corrected
+
+Stage 2 — Socratic teaching (ulises-c/socratic-teaching-datasets-sft-stage-2 collection):
+    "socrat-zh"           ulises-c/SocratDataset          (original Chinese, state+action annotated)
+    "socrat-en"           ulises-c/SocratDataset-EN       (English translation, state+action annotated)
+    "socrat-synthetic"    ulises-c/SocratDataset-SYNTHETIC (Chinese synthetic, state annotated) — eval only
+    "socrat-synthetic-en" ulises-c/SocratDataset-SYNTHETIC-EN (English synthetic, state annotated) — eval only
+    "socrateach-multi"    ulises-c/SocraTeach_Multi
+    "socrateach-single"   ulises-c/SocraTeach_Single
+    "socratic-math"       ulises-c/SocraticMATH
+    "socratic-math-sol"   ulises-c/SocraticMATH-sol
 
 Usage:
     from src.project.dataset import load_training_data
-    records = load_training_data(["socrat-zh", "socrat-en", "socrateach-multi", "socrateach-single"])
+    # Stage 1
+    records = load_training_data(["openhermes", "ultrachat", "slimorca"])
+    # Stage 2 full mix (socrat-synthetic / socrat-synthetic-en are eval-only)
+    records = load_training_data(["socrat-zh", "socrat-en", "socrateach-multi",
+                                   "socrateach-single", "socratic-math", "socratic-math-sol"])
 """
 
 from __future__ import annotations
 
-import os
 import random
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -206,116 +222,6 @@ def load_socrat_en(
 
 
 # ---------------------------------------------------------------------------
-# SocratDataset-SYNTHETIC — contamination-control eval set
-# ---------------------------------------------------------------------------
-
-
-def _socrat_synthetic_to_messages(record: dict) -> dict:
-    """Convert one SocratDataset-SYNTHETIC record to messages format.
-
-    Schema differs from socrat-zh/socrat-en: turn keys are only
-    {student, teacher, state} — no `action` field, no top-level options/hint/
-    knowledge. Since action is required to build the Pattern A user-turn marker
-    (TRAINING_PLAN §0.2), the marker is omitted for synthetic and student
-    utterances flow through unchanged. This loader exists for evaluation only;
-    at inference time the BERT consultant generates state+action live.
-    """
-    q = record["question"]
-    system_parts = [_SOCRAT_ZH_SYSTEM, f"问题：{q}"]
-    messages = [{"role": "system", "content": "\n".join(system_parts)}]
-    states: list[str] = []
-
-    for turn in record.get("dialogue", []):
-        messages.append({"role": "user", "content": turn["student"]})
-        messages.append({"role": "assistant", "content": turn["teacher"]})
-        state = _strip_quotes(turn.get("state", ""))
-        if state:
-            states.append(state)
-
-    return {
-        "id": str(record["id"]),
-        "source": "socrat-synthetic",
-        "messages": messages,
-        "ground_truth_states": states if states else None,
-    }
-
-
-def load_socrat_synthetic(
-    split: str = "train",
-    seed: int = 42,
-    hf_repo: str = "ulises-c/SocratDataset-SYNTHETIC",
-    config: str = "default",
-) -> list[dict]:
-    """Load SocratDataset-SYNTHETIC from HuggingFace.
-
-    Eval-only by design (do not include in TRAIN_SOURCES). The synthetic split
-    is the contamination-control reference for SocratTeachLLM and is held out
-    of every training config. See docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md.
-
-    config="default"        → 37 records (ids 100001-100037), original baseline
-    config="n75_extension"  → 38 records (ids 100038-100075), Stage 2b eval floor
-    config="n75_all"        → all 75 records combined
-    """
-    from datasets import load_dataset as hf_load
-
-    if config == "n75_all":
-        raw_default = [dict(r) for r in hf_load(hf_repo, "default", split="train")]
-        raw_ext = [dict(r) for r in hf_load(hf_repo, "n75_extension", split="train")]
-        raw = raw_default + raw_ext
-    else:
-        raw = [dict(r) for r in hf_load(hf_repo, config, split="train")]
-    converted = [_socrat_synthetic_to_messages(r) for r in raw]
-    if split == "all":
-        return converted
-    return _split(converted, split, seed)
-
-
-# ---------------------------------------------------------------------------
-# SocratDataset-SYNTHETIC-EN — English contamination-control eval set
-# ---------------------------------------------------------------------------
-
-
-def _socrat_synthetic_en_to_messages(record: dict) -> dict:
-    q = record["question"]
-    system_parts = [_SOCRAT_EN_SYSTEM, f"Problem: {q}"]
-    messages = [{"role": "system", "content": "\n".join(system_parts)}]
-    states: list[str] = []
-
-    for turn in record.get("dialogue", []):
-        messages.append({"role": "user", "content": turn["student"]})
-        messages.append({"role": "assistant", "content": turn["teacher"]})
-        state = _strip_quotes(turn.get("state", ""))
-        if state:
-            states.append(state)
-
-    return {
-        "id": str(record["id"]),
-        "source": "socrat-synthetic-en",
-        "messages": messages,
-        "ground_truth_states": states if states else None,
-    }
-
-
-def load_socrat_synthetic_en(
-    split: str = "train",
-    seed: int = 42,
-    hf_repo: str = "ulises-c/SocratDataset-SYNTHETIC-EN",
-) -> list[dict]:
-    """Load SocratDataset-SYNTHETIC-EN from HuggingFace.
-
-    75 English elementary-science Socratic dialogues (ids 200001-200075).
-    Eval-only by design — do not include in TRAIN_SOURCES.
-    """
-    from datasets import load_dataset as hf_load
-
-    raw = [dict(r) for r in hf_load(hf_repo, split="train")]
-    converted = [_socrat_synthetic_en_to_messages(r) for r in raw]
-    if split == "all":
-        return converted
-    return _split(converted, split, seed)
-
-
-# ---------------------------------------------------------------------------
 # SocraTeach_Multi
 # ---------------------------------------------------------------------------
 
@@ -440,43 +346,115 @@ def load_socrateach_single(
 
 
 # ---------------------------------------------------------------------------
-# SocraticMATH (and SocraticMATH-sol variant)
+# SocratDataset-SYNTHETIC (Chinese, state-annotated, no action field)
 # ---------------------------------------------------------------------------
 
 
-def _socraticmath_to_messages(record: dict, source: str) -> dict:
-    """Convert one SocraticMATH (or -sol) record to messages format.
+def load_socrat_synthetic(
+    split: str = "train",
+    seed: int = 42,
+    hf_repo: str = "ulises-c/SocratDataset-SYNTHETIC",
+) -> list[dict]:
+    """Load SocratDataset-SYNTHETIC from HuggingFace (both configs, combined).
 
-    HF schema (verified empirically on train split, 5476/5476 records):
-        conversations[0]: from=assistant, value=problem statement
-            (problem + solution for the -sol variant)
-        conversations[1]: from=assistant, value=teacher's opening question
-        conversations[2..]: alternating user/assistant (student/teacher)
-
-    Position 0 is conceptually the problem context, not a dialogue turn — we
-    hoist it into the system prompt under a `Problem:` heading and consume
-    positions 1+ as the dialogue, teacher-first (mirroring socrateach-multi).
+    Merges the `default` (37 records) and `n75_extension` (38 records) configs
+    into a single pool of 75 records before splitting.
     """
-    convs = [dict(c) for c in record.get("conversations", [])]
-    if not convs:
+    from datasets import load_dataset as hf_load
+
+    raw_default = [dict(r) for r in hf_load(hf_repo, split="train")]
+    raw_ext = [dict(r) for r in hf_load(hf_repo, name="n75_extension", split="train")]
+
+    def _convert(r: dict) -> dict:
+        q = r["question"]
+        system_content = f"{_SOCRAT_ZH_SYSTEM}\n问题：{q}"
+        messages: list[dict] = [{"role": "system", "content": system_content}]
+        states: list[str] = []
+        for turn in r.get("dialogue", []):
+            messages.append({"role": "user", "content": turn["student"]})
+            state = turn.get("state", "")
+            teacher_content = turn["teacher"]
+            if state:
+                teacher_content = f"[State: {state}]\n" + teacher_content
+            messages.append({"role": "assistant", "content": teacher_content})
+            if state:
+                states.append(state)
         return {
-            "id": str(record["id"]),
-            "source": source,
-            "messages": [{"role": "system", "content": _SOCRATEACH_SYSTEM}],
-            "ground_truth_states": None,
+            "id": str(r["id"]),
+            "source": "socrat-synthetic",
+            "messages": messages,
+            "ground_truth_states": states if states else None,
         }
 
-    problem = convs[0].get("value", "") if convs[0].get("from") == "assistant" else ""
-    system_parts = [_SOCRATEACH_SYSTEM]
-    if problem:
-        system_parts.append(f"问题：{problem}")
+    converted = [_convert(r) for r in raw_default + raw_ext]
+    if split == "all":
+        return converted
+    return _split(converted, split, seed)
 
-    messages: list[dict] = [{"role": "system", "content": "\n".join(system_parts)}]
-    # Skip position 0 (problem) — already in the system prompt.
-    for c in convs[1:]:
-        role = "assistant" if c.get("from") == "assistant" else "user"
-        messages.append({"role": role, "content": c.get("value", "")})
 
+# ---------------------------------------------------------------------------
+# SocratDataset-SYNTHETIC-EN (English, state-annotated, no action field)
+# ---------------------------------------------------------------------------
+
+
+def load_socrat_synthetic_en(
+    split: str = "train",
+    seed: int = 42,
+    hf_repo: str = "ulises-c/SocratDataset-SYNTHETIC-EN",
+) -> list[dict]:
+    """Load SocratDataset-SYNTHETIC-EN from HuggingFace (75 records)."""
+    from datasets import load_dataset as hf_load
+
+    raw = [dict(r) for r in hf_load(hf_repo, split="train")]
+
+    def _convert(r: dict) -> dict:
+        q = r["question"]
+        system_content = f"{_SOCRAT_EN_SYSTEM}\nProblem: {q}"
+        messages: list[dict] = [{"role": "system", "content": system_content}]
+        states: list[str] = []
+        for turn in r.get("dialogue", []):
+            messages.append({"role": "user", "content": turn["student"]})
+            state = turn.get("state", "")
+            teacher_content = turn["teacher"]
+            if state:
+                teacher_content = f"[State: {state}]\n" + teacher_content
+            messages.append({"role": "assistant", "content": teacher_content})
+            if state:
+                states.append(state)
+        return {
+            "id": str(r["id"]),
+            "source": "socrat-synthetic-en",
+            "messages": messages,
+            "ground_truth_states": states if states else None,
+        }
+
+    converted = [_convert(r) for r in raw]
+    if split == "all":
+        return converted
+    return _split(converted, split, seed)
+
+
+# ---------------------------------------------------------------------------
+# SocraticMATH / SocraticMATH-sol
+# ---------------------------------------------------------------------------
+
+_SOCRATIC_MATH_SYSTEM = (
+    "You are a Socratic mathematics teacher. Guide the student to discover the answer "
+    "through guiding questions — never give away the answer directly."
+)
+
+
+def _socratic_math_to_messages(record: dict, source: str) -> dict:
+    """Convert one SocraticMATH record to messages format.
+
+    Both SocraticMATH and SocraticMATH-sol share the same `conversations` schema:
+    each turn has `from` ("user" or "assistant") and `value`.  The -sol variant
+    prefixes the first assistant turn with a full solution (【解析】:).
+    """
+    messages: list[dict] = [{"role": "system", "content": _SOCRATIC_MATH_SYSTEM}]
+    for turn in record.get("conversations", []):
+        role = "user" if turn["from"] == "user" else "assistant"
+        messages.append({"role": role, "content": turn["value"]})
     return {
         "id": str(record["id"]),
         "source": source,
@@ -485,246 +463,132 @@ def _socraticmath_to_messages(record: dict, source: str) -> dict:
     }
 
 
-def load_socraticmath(
+def _load_socratic_math_all(hf_repo: str, source: str) -> list[dict]:
+    """Load all three HF splits and combine into a single pool."""
+    from datasets import load_dataset as hf_load
+
+    all_records: list[dict] = []
+    for hf_split in ("train", "validation", "test"):
+        all_records.extend(
+            [_socratic_math_to_messages(dict(r), source) for r in hf_load(hf_repo, split=hf_split)]
+        )
+    return all_records
+
+
+def load_socratic_math(
     split: str = "train",
     seed: int = 42,
     hf_repo: str = "ulises-c/SocraticMATH",
 ) -> list[dict]:
-    """Load SocraticMATH from HuggingFace and convert to messages format."""
-    from datasets import load_dataset as hf_load
-
-    raw = [dict(r) for r in hf_load(hf_repo, split="train")]
-    converted = [_socraticmath_to_messages(r, "socraticmath") for r in raw]
+    """Load SocraticMATH (6,846 records) from HuggingFace."""
+    converted = _load_socratic_math_all(hf_repo, "socratic-math")
     if split == "all":
         return converted
     return _split(converted, split, seed)
 
 
-def load_socraticmath_sol(
+def load_socratic_math_sol(
     split: str = "train",
     seed: int = 42,
     hf_repo: str = "ulises-c/SocraticMATH-sol",
 ) -> list[dict]:
-    """Load SocraticMATH-sol (variant with solutions prepended to problem)."""
-    from datasets import load_dataset as hf_load
-
-    raw = [dict(r) for r in hf_load(hf_repo, split="train")]
-    converted = [_socraticmath_to_messages(r, "socraticmath-sol") for r in raw]
+    """Load SocraticMATH-sol (6,846 records with prepended solutions) from HuggingFace."""
+    converted = _load_socratic_math_all(hf_repo, "socratic-math-sol")
     if split == "all":
         return converted
     return _split(converted, split, seed)
 
 
 # ---------------------------------------------------------------------------
-# Stage 1 — general instruction SFT (pedagogy-adjacent subsets)
+# Stage 1: General instruction datasets (ShareGPT / chat format)
 # ---------------------------------------------------------------------------
-#
-# Per TRAINING_PLAN §2 Stage 1: scoped ~30-50k pedagogy-adjacent subset of three
-# general-instruction datasets, not the 1.4M firehose. Filter is keyword + length;
-# the LLM-judge alternative ($35) is deferred unless the eyeball audit (Stage 1
-# §3.2 of the design plan) fails on all three sources.
-#
-# Loaders stream from HF (streaming=True) and stop at TRAIN_STAGE1_<SOURCE>_N
-# matched records, so memory stays bounded and bytes only land on disk while the
-# stream is consumed. None of the production Stage 1 datasets are downloaded by
-# tests (mocks intercept hf_load).
-
-_STAGE1_GENERIC_SYSTEM = "You are a helpful assistant."
-
-_PEDAGOGY_KEYWORDS = (
-    "explain",
-    "step by step",
-    "step-by-step",
-    "walk me through",
-    "guide me",
-    "why does",
-    "why is",
-    "how does",
-    "how do you",
-    "what is the difference",
-    "show your work",
-    "show me how",
-    "reasoning",
-    "first principles",
-    "intuition",
-    "teach me",
-    "help me understand",
-)
 
 
-def _pedagogy_keyword_match(text: str) -> bool:
-    """Return True if the text contains any pedagogy-adjacent surface keyword."""
-    if not text:
-        return False
-    t = text.lower()
-    return any(kw in t for kw in _PEDAGOGY_KEYWORDS)
+def _sharegpt_to_messages(record: dict, source: str, idx: int) -> dict:
+    """Convert a ShareGPT-style record (from/value turns) to messages format.
 
-
-def _length_filter(messages: list[dict]) -> bool:
-    """Require the first assistant turn to be 200-2500 chars (long-form
-    explanation, not one-liner Q&A, not a whole essay)."""
-    asst = next((m for m in messages if m["role"] == "assistant"), None)
-    if not asst:
-        return False
-    n = len(asst.get("content", ""))
-    return 200 <= n <= 2500
-
-
-def _stage1_target(env_key: str, default: int) -> int:
-    raw = os.environ.get(env_key)
-    if raw is None:
-        return default
-    try:
-        return int(raw)
-    except ValueError:
-        return default
-
-
-def _sharegpt_to_messages(conversations: list[dict]) -> list[dict]:
-    """Map ShareGPT-style turns ({from, value}) into the standard messages shape."""
-    role_map = {
-        "system": "system",
-        "human": "user",
-        "user": "user",
-        "gpt": "assistant",
-        "assistant": "assistant",
-    }
-    out: list[dict] = []
-    for c in conversations:
-        c = dict(c)
-        from_field = c.get("from")
-        if not isinstance(from_field, str):
-            continue
-        role = role_map.get(from_field)
-        if role is None:
-            continue
-        out.append({"role": role, "content": c.get("value", "")})
-    return out
-
-
-def _openhermes_to_messages(record: dict) -> dict | None:
-    convs = record.get("conversations") or []
-    msgs = _sharegpt_to_messages(convs)
-    if not msgs:
-        return None
-    # If no system turn from source, prepend a minimal generic one.
-    if msgs[0]["role"] != "system":
-        msgs = [{"role": "system", "content": _STAGE1_GENERIC_SYSTEM}, *msgs]
-    return {
-        "id": str(record.get("id") or record.get("idx") or record.get("hash") or ""),
-        "source": "openhermes-2.5",
-        "messages": msgs,
-        "ground_truth_states": None,
-    }
-
-
-def _ultrachat_to_messages(record: dict) -> dict | None:
-    msgs = list(record.get("messages") or [])
-    if not msgs:
-        return None
-    msgs = [
-        {"role": m["role"], "content": m["content"]} for m in msgs if "role" in m and "content" in m
-    ]
-    if not msgs:
-        return None
-    if msgs[0]["role"] != "system":
-        msgs = [{"role": "system", "content": _STAGE1_GENERIC_SYSTEM}, *msgs]
-    return {
-        "id": str(record.get("prompt_id") or record.get("id") or ""),
-        "source": "ultrachat_200k",
-        "messages": msgs,
-        "ground_truth_states": None,
-    }
-
-
-def _slimorca_to_messages(record: dict) -> dict | None:
-    convs = record.get("conversations") or []
-    msgs = _sharegpt_to_messages(convs)
-    if not msgs:
-        return None
-    if msgs[0]["role"] != "system":
-        msgs = [{"role": "system", "content": _STAGE1_GENERIC_SYSTEM}, *msgs]
-    return {
-        "id": str(record.get("id") or ""),
-        "source": "slimorca-dedup",
-        "messages": msgs,
-        "ground_truth_states": None,
-    }
-
-
-def _passes_pedagogy_filter(messages: list[dict]) -> bool:
-    """Combined pedagogy filter: first user turn must hit a keyword AND the
-    first assistant turn must satisfy the long-form length bounds."""
-    first_user = next((m for m in messages if m["role"] == "user"), None)
-    if not first_user or not _pedagogy_keyword_match(first_user.get("content", "")):
-        return False
-    return _length_filter(messages)
-
-
-def _stage1_stream(
-    hf_repo: str,
-    converter,
-    target_n: int,
-    streaming: bool = True,
-) -> list[dict]:
-    """Stream from HF, run records through converter + pedagogy filter, stop at target_n.
-
-    `streaming=True` is the production path; tests pass streaming=False so the
-    mock can return a finite list. Filter logic is identical either way.
+    Handles the standard ShareGPT schema used by OpenHermes-2.5 and SlimOrca:
+        {"conversations": [{"from": "system"|"human"|"gpt", "value": "..."}]}
     """
-    from datasets import load_dataset as hf_load
-
-    ds = hf_load(hf_repo, split="train", streaming=streaming)
-    records: list[dict] = []
-    for raw in ds:
-        rec = converter(dict(raw))
-        if rec is None:
-            continue
-        if not _passes_pedagogy_filter(rec["messages"]):
-            continue
-        records.append(rec)
-        if len(records) >= target_n:
-            break
-    return records
+    messages: list[dict] = []
+    for turn in record.get("conversations", []):
+        role_map = {"system": "system", "human": "user", "gpt": "assistant"}
+        role = role_map.get(turn.get("from", ""), "")
+        if role:
+            messages.append({"role": role, "content": turn.get("value", "")})
+    return {
+        "id": str(record.get("id", f"{source}-{idx}")),
+        "source": source,
+        "messages": messages,
+        "ground_truth_states": None,
+    }
 
 
 def load_openhermes(
     split: str = "train",
     seed: int = 42,
     hf_repo: str = "teknium/OpenHermes-2.5",
-    streaming: bool = True,
 ) -> list[dict]:
-    target = _stage1_target("TRAIN_STAGE1_OPENHERMES_N", 15000)
-    records = _stage1_stream(hf_repo, _openhermes_to_messages, target, streaming=streaming)
-    if split == "all":
-        return records
-    return _split(records, split, seed)
+    """Load OpenHermes-2.5 (~1M records) from HuggingFace."""
+    from datasets import load_dataset as hf_load
 
-
-def load_ultrachat(
-    split: str = "train",
-    seed: int = 42,
-    hf_repo: str = "HuggingFaceH4/ultrachat_200k",
-    streaming: bool = True,
-) -> list[dict]:
-    target = _stage1_target("TRAIN_STAGE1_ULTRACHAT_N", 10000)
-    records = _stage1_stream(hf_repo, _ultrachat_to_messages, target, streaming=streaming)
+    raw = [dict(r) for r in hf_load(hf_repo, split="train")]
+    converted = [
+        _sharegpt_to_messages(r, "openhermes", i)
+        for i, r in enumerate(raw)
+        if r.get("conversations")
+    ]
     if split == "all":
-        return records
-    return _split(records, split, seed)
+        return converted
+    return _split(converted, split, seed)
 
 
 def load_slimorca(
     split: str = "train",
     seed: int = 42,
     hf_repo: str = "Open-Orca/slimorca-deduped-cleaned-corrected",
-    streaming: bool = True,
 ) -> list[dict]:
-    target = _stage1_target("TRAIN_STAGE1_SLIMORCA_N", 10000)
-    records = _stage1_stream(hf_repo, _slimorca_to_messages, target, streaming=streaming)
+    """Load SlimOrca-deduped (~500k records) from HuggingFace."""
+    from datasets import load_dataset as hf_load
+
+    raw = [dict(r) for r in hf_load(hf_repo, split="train")]
+    converted = [
+        _sharegpt_to_messages(r, "slimorca", i) for i, r in enumerate(raw) if r.get("conversations")
+    ]
     if split == "all":
-        return records
-    return _split(records, split, seed)
+        return converted
+    return _split(converted, split, seed)
+
+
+def load_ultrachat(
+    split: str = "train",
+    seed: int = 42,
+    hf_repo: str = "HuggingFaceH4/ultrachat_200k",
+) -> list[dict]:
+    """Load UltraChat-200k from HuggingFace.
+
+    Uses train_sft + test_sft HF splits as the combined pool; our own _split
+    then carves out the 90/10 train/eval partition.
+    """
+    from datasets import load_dataset as hf_load
+
+    raw: list[dict] = []
+    for hf_split in ("train_sft", "test_sft"):
+        raw.extend([dict(r) for r in hf_load(hf_repo, split=hf_split)])
+
+    converted = [
+        {
+            "id": str(r.get("id", f"ultrachat-{i}")),
+            "source": "ultrachat",
+            "messages": r["messages"],
+            "ground_truth_states": None,
+        }
+        for i, r in enumerate(raw)
+        if r.get("messages")
+    ]
+    if split == "all":
+        return converted
+    return _split(converted, split, seed)
 
 
 # ---------------------------------------------------------------------------
@@ -732,17 +596,19 @@ def load_slimorca(
 # ---------------------------------------------------------------------------
 
 _SOURCE_LOADERS = {
+    # Stage 1 — general instruction
+    "openhermes": load_openhermes,
+    "ultrachat": load_ultrachat,
+    "slimorca": load_slimorca,
+    # Stage 2 — Socratic teaching
     "socrat-zh": load_socrat_zh,
     "socrat-en": load_socrat_en,
     "socrat-synthetic": load_socrat_synthetic,
     "socrat-synthetic-en": load_socrat_synthetic_en,
     "socrateach-multi": load_socrateach_multi,
     "socrateach-single": load_socrateach_single,
-    "socraticmath": load_socraticmath,
-    "socraticmath-sol": load_socraticmath_sol,
-    "openhermes-2.5": load_openhermes,
-    "ultrachat_200k": load_ultrachat,
-    "slimorca-dedup": load_slimorca,
+    "socratic-math": load_socratic_math,
+    "socratic-math-sol": load_socratic_math_sol,
 }
 
 
@@ -762,8 +628,8 @@ def load_training_data(
     Downloads each source concurrently; result order matches `sources`.
 
     Args:
-        sources: List of source keys to include. Defaults to all four.
-            Valid values: "socrat-zh", "socrat-en", "socrateach-multi", "socrateach-single"
+        sources: List of source keys to include. Defaults to all known sources.
+            See module docstring for the full list of valid keys.
         split: "train", "test", or "all". Applied independently to each source.
         seed: Random seed for reproducible splits (same seed across all sources).
 
