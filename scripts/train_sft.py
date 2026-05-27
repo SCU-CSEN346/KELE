@@ -105,6 +105,26 @@ def build_hf_datasets():
 # Model + tokenizer
 # ---------------------------------------------------------------------------
 
+# Gemma 4 training-compatible chat template. Renders byte-identical to the
+# stock google/gemma-4-31b-it template (turn markers <|turn>...<turn|>, native
+# system role) but wraps assistant content in {% generation %} so TRL's
+# assistant_only_loss can find the assistant-token boundary. No tool-calling
+# macros — not needed for SFT on Socratic dialogues.
+_GEMMA4_TRAINING_CHAT_TEMPLATE = """{{- bos_token -}}
+{%- for message in messages -%}
+{%- set role = 'model' if message['role'] == 'assistant' else message['role'] -%}
+{{- '<|turn>' + role + '\n' -}}
+{%- if role == 'model' -%}
+{% generation %}{{ message['content'] | trim }}{% endgeneration %}
+{%- else -%}
+{{- message['content'] | trim -}}
+{%- endif -%}
+{{- '<turn|>\n' -}}
+{%- endfor -%}
+{%- if add_generation_prompt -%}
+{{- '<|turn>model\n' -}}
+{%- endif -%}"""
+
 
 def build_model_and_tokenizer():
     """Load base model and tokenizer.  Returns (model, tokenizer)."""
@@ -120,6 +140,18 @@ def build_model_and_tokenizer():
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
+
+    # Gemma 4 ships a 17K-char chat template (tool-calling macros) without
+    # {% generation %} markers, so TRL 1.4+'s SFTTrainer rejects it under
+    # assistant_only_loss=True. TRL has hardcoded training-compatible templates
+    # for Gemma/Gemma2/Gemma3 but NOT yet for Gemma 4. Swap in a minimal
+    # training-compatible template that renders byte-identical to the original
+    # (verified for system/user/assistant messages) but adds the generation
+    # block markers around assistant content. No tool-calling support — not
+    # needed for SFT on Socratic dialogues.
+    if "gemma-4" in base_model.lower():
+        tokenizer.chat_template = _GEMMA4_TRAINING_CHAT_TEMPLATE
+        print("  Patched tokenizer.chat_template for Gemma 4 (added {% generation %} markers)")
 
     preq = _bool(_get("TRAIN_PREQ", "false"))
     bnb_config = None
