@@ -1,0 +1,16 @@
+{
+  "experiment": "bilingual-probe-t4-en-canonical-n400-seed42",
+  "teacher_model": "Gemma 4 31B",
+  "teacher_base_url": "http://localhost:8080/v1",
+  "consultant_model": "Gemma 4 31B",
+  "consultant_base_url": "http://localhost:8080/v1",
+  "thinking_budget": 0,
+  "max_teaching_rounds": 8,
+  "unified": false,
+  "workers": 1,
+  "total_dialogues": 400,
+  "completed": 400,
+  "total_elapsed_seconds": 28010.99,
+  "started_at": "2026-05-23T23:58:38-07:00",
+  "finished_at": "2026-05-24T07:45:29-07:00"
+}

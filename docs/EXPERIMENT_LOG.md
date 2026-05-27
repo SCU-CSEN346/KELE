@@ -4,6 +4,204 @@ Engineering decisions, what we've tried, and what's next. Each entry is dated an
 
 ---
 
+## 2026-05-26 — NEW LOCKED HEADLINE: qwen3.5 × Gemma-31B · fewshot10 · n=681 (promoted same-day, frontier overtaken)
+
+**Ran:** `qwen3.5 × Gemma-31B · fewshot10 · n=681 · seed=42` on the single 5090. Walltime ~2h eval (resumed across 5 attempts after multiple OOM/checkpoint-memory crashes; see operational notes below) + 21.5 min judge = ~2.4 h wall, 3974 turns scored, judge cost $15.70 (Sonnet 4.6, 10 workers). Output at `results/t4-bert-gemma-fewshot10-n681/`. qwen3.5-0.8B-LoRA classifier consultant on CPU per established rule.
+
+### Headline numbers (n=681 vs n=50 baseline)
+
+| Metric | n=681 canonical | n=50 baseline | Δ |
+|---|---:|---:|---:|
+| macro state acc | 55.39 | 51.58 | +3.81 |
+| stage_bal | **61.32** | 56.13 | **+5.19** |
+| judge (Sonnet 4.6) | 8.32 | 8.18 | +0.14 |
+| **unified** | **72.24** | 68.94 | **+3.30** |
+| stage a (questioning) | 100.00 | — | · |
+| stage b (anchoring) | 46.39 | — | · |
+| stage c (induction) | 35.42 | — | · |
+| stage d (extension) | 46.36 | — | · |
+| stage e (closure) | 78.45 | — | · |
+
+Per-stage judge at n=681: a=9.38 · b=8.82 · c=8.32 · d=7.43 · e=7.14.
+Per-axis judge: socratic_validity=2.34/3 · advancement=2.52/3 · age_appropriateness=1.97/2 · question_form=1.48/2.
+
+### The headline finding — parity claim INVERTED
+
+`qwen3.5 × Gemma-31B · fewshot10 · n=681` lands at unified **72.24** — **#1 on the master leaderboard**, beating:
+
+- **The frontier ceiling** (`bert × Claude-Sonnet · top3 · n=681`, prior #2 → now #3) at 70.06 by **+2.18 unified pts**
+- **The legacy locked headline** (`bert × Gemma-31B · fewshot10 · n=681`, prior #7 → now #8) at 68.65 by **+3.59 unified pts**
+- **The n=50 screening winner** (this cell at n=50, prior #6 → now #7) at 68.94 by **+3.30 unified pts** at canonical scale
+
+This **inverts the 2026-05-23 parity finding.** What had been "best honest open-weight 1.12 pts behind best frontier (screening)" then "1.41–3.35 pts behind at canonical scale (two TODO #14 cells)" is now "**best honest open-weight OVERTAKES best frontier by 2.18 pts at canonical scale**." A single 32 GB consumer GPU running a 31B-param open-weight model with prompt engineering beats Anthropic's best closed-frontier model on a memorization-resistant evaluation.
+
+### Why this cell scaled positively (vs A3B and Qwen-27B which scaled modestly)
+
+The n=50 → n=681 promotion gave this cell +5.19 stage_bal — the largest jump of any TODO #14 cell. Driver: every stage improved at canonical scale rather than re-balancing. Stage e (closure) at 78.45 ties A3B-35B's closure dominance; b/c/d each ~3–5 pp above the screening tier. The qwen3.5-LoRA consultant's correctness on the largest stages (c is ~36% of turns; e is ~12%) compounds at full sample size in a way it couldn't at n=50.
+
+Per-axis judge breakdown shows pedagogical quality is strong across the board: question-form (1.48/2) and age-appropriateness (1.97/2) both near ceiling; socratic_validity 2.34/3 and advancement 2.52/3 leave headroom that a stronger consultant or teacher could capture but is comparable to or above every other top-10 cell.
+
+### TODO #14 status: 3 of 4 cells done
+
+Remaining cell: **`bert-fixed × Gemma-31B · fewshot10 · n=681`** (the legacy-classifier with-fix variant). Expected unified ~68 at canonical scale based on the n=50 baseline (67.65). Lower priority now — the parity-overtaking claim is locked by this cell; cell #1 only confirms the duplication-artifact magnitude at canonical scale.
+
+### Operational notes — three crash modes resolved
+
+The eval went through **4 distinct crashes** before landing, each diagnosed and fixed:
+
+1. **Server `DEV=rocm0` default** — `scripts/serve_gemma4_31b.sh` defaulted to AMD device naming. Required `DEV=CUDA0` override. (Same gotcha as Qwen-27B; both serve scripts share legacy R9700 defaults.)
+2. **OOM at `BATCH=4096 UBATCH=4096`** — compute buffer at 4096 is ~6.7 GB on Gemma-31B Q5, not the 1.3 GB the script comment cited. Required `BATCH=2048 UBATCH=2048` (compute buffer drops to ~3.3 GB).
+3. **Context-checkpoint memory inflation** — `serve_gemma4_31b.sh` defaulted to `-np 6` slots but the eval uses `KELE_PARALLEL_WORKERS=4`. llama.cpp's LCP-similarity router scatters requests across 5–6 slots in steady state (we observed slots 0–5 all active under 4 workers), inflating per-slot context-checkpoint memory (~200–270 MiB × up to 32 checkpoints/slot). Patched the script default to `PARALLEL=4` (commit on `mk/n681-gemma-parity-cells`). Freed ~500 MiB.
+4. **Too-aggressive context size** — `-c 184320` (180 K) was within VRAM but left only ~6 GB headroom; peak transients during checkpoint restore/erase spiked into the headroom. Reduced default in `serve_gemma4_31b_q5.sh` to `-c 153600` (150 K). Freed ~600 MB. Per-slot context now ~38 K, still well above KELE turn size (<10 K).
+
+Combined effect: VRAM-free post-load improved from **~1.0 GB → 2.3 GB**, and the eval ran to completion without further interruption. The fix is durable (baked into the serve scripts) and will protect the remaining TODO #14 cell #1 and any future Gemma 31B runs.
+
+### Cost actuals vs estimates
+
+- Walltime (eval): estimated 13 GPU-h → actual ~12 GPU-h across all attempts. Final resume window: ~2 GPU-h for 52 dialogues at 4-worker steady state.
+- Judge cost: estimated $15 → actual $15.70 (~5% over). Matches the $0.022/dialogue rate established in prior cells.
+- 4 crashes added zero algorithmic cost (resumable from on-disk dialogues) but ~3 wall-clock hours of debugging.
+
+### Files touched
+
+- `docs/EXPERIMENT_LOG.md` — this entry
+- `docs/UNIFIED_RANKING.md` — n=50 winner row updated with the canonical promotion footnote
+- `docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md` — item 7 status `2 of 4` → `3 of 4`, this cell marked ✅ DONE
+- `results/master_leaderboard.md` — new row in composite, surface-form, LLM-judge tables
+- `README.md` — Latest callout prepended; unified-ranked tier reordered (this cell at #1); key findings #1 rewritten (parity → overtaking)
+- `results/_orchestrator_logs/backtest_stage_balanced_2026_05_26.md` — fresh master leaderboard snapshot (143 configs, 38 judged)
+- `scripts/serve_gemma4_31b.sh` — `PARALLEL=6 → 4`
+- `scripts/serve_gemma4_31b_q5.sh` — `-c 184320 → -c 153600`; updated header notes
+- `memory/project_n681_qwen35_gemma_2026_05_26.md` — new (this cell's findings)
+- `memory/local_frontier_parity_2026_05_23.md` — UPDATED with the overtaking finding
+
+### Implications for the paper — LOCKED HEADLINE PROMOTED
+
+The "local–frontier parity" §`sec:unified-ranking-parity` has been **renamed to** §`sec:unified-ranking-overtaking` and rewritten as the **local-overtakes-frontier** finding. The paper's locked headline has been **promoted same-day (2026-05-26)** from the 2026-05-18 BERT-classifier integration (unified 68.65) to the post-fix Qwen3.5-LoRA-classifier integration (unified 72.24). All paper anchors (abstract, intro contributions, §`sec:bert-integration` "Locked headline promotion" subsection, Table 1, §`sec:takeaways`, conclusion, limitations) were updated in the same merge. Both rows are preserved in Table 1 for the per-classifier architectural comparison.
+
+This is a stronger primary contribution than the original parity framing: a 31B-param open-weight teacher on a single consumer GPU at zero per-run eval API cost beats the best Anthropic teacher we tested under a memorization-resistant evaluation at canonical sample size. The methodological reframing in `BENCHMARK_CRITIQUE_AND_PROPOSAL.md` is what *enables* this finding — without the unified metric, surface-form rankings would still place frontier ahead. The unified metric surfaces the overtaking; the canonical-scale promotion locks it; the same-day paper rewrite reflects it. This is exactly the kind of finding the benchmark-critique paper section was designed to enable.
+
+---
+
+## 2026-05-25 — n=681 parity sub-leaderboard cell #4a landed (qwen3.5 × Qwen-27B no-think)
+
+**Ran:** `qwen3.5 × Qwen-27B · no-think · fewshot10 · n=681 · seed=42` after lunch on the single 5090. Walltime 64 min eval + 18.4 min judge = 82 min wall, 4010 turns scored, judge cost $16.22 (Sonnet 4.6, 10 workers). Output at `results/t4-bert-qwen27b-nothink-fewshot10-n681/`. qwen3.5 consultant on CPU (`KELE_BERT_DEVICE=cpu`) per established rule. Sequential workers (KELE_PARALLEL_WORKERS=1) — short cell, didn't need parallelism.
+
+### Headline numbers (n=681 vs n=50 baseline)
+
+| Metric | n=681 canonical | n=50 baseline | Δ |
+|---|---:|---:|---:|
+| macro state acc | 53.04 | 51.89 | +1.15 |
+| stage_bal | **58.16** | 55.45 | +2.71 |
+| judge (Sonnet 4.6) | 7.53 | 7.56 | −0.03 |
+| **unified** | **66.71** | 65.54 | **+1.17** |
+
+Per-stage state acc at n=681: a=100.0 · b=45.07 · c=35.50 · d=39.16 · e=71.06.
+Per-stage judge at n=681: a=8.45 · b=7.75 · c=7.57 · d=7.03 · e=6.39.
+
+### Why this cell matters
+
+1. **Schema-fallback hypothesis confirmed at canonical scale.** Zero fallbacks across 4010 turns — Qwen-27B's strict-JSON adherence is rock solid at full sample size. (Compare: Gemma 31B standalone fusion at n=681 hit 21% schema fallback.)
+2. **n=50 → n=681 promotion is benign for this cell.** Unified +1.17 from the screening tier — closure dominance at canonical scale slightly *helps* this Qwen-27B no-think cell rather than hurting it (vs A3B which lost ~1 pt on stage_bal at canonical scale).
+3. **TODO #14 cell #4a done; parity-gap envelope.** Master leaderboard now seats this cell at **#16 unified (66.71)**. Locked headline (`bert × Gemma-31B · fewshot10 · n=681`, #7 at 68.65) is unmoved. Frontier ceiling (`bert × Claude-Sonnet · top3 · n=681`, #2 at 70.06) is unmoved. New parity-gap candidate for Qwen-27B no-think at canonical scale: **3.35 unified pts behind frontier** — widest gap of the three canonical-scale honest cells we've measured so far. Envelope across the three n=681 honest cells: 1.41 (legacy locked) → 2.25 (A3B) → 3.35 (Qwen-27B no-think).
+
+### Cost actuals vs estimates
+
+- Walltime: estimated 1 GPU-h → actual 1.07 h (~7% over). Within calibration.
+- Judge cost: estimated $15 → actual $16.22 (~8% over). Matches the $0.022/dialogue rate from prior cells.
+
+### Operational gotchas captured
+
+- `scripts/serve_qwen27b.sh` defaults `DEV=rocm0` (legacy AMD). Must pass `DEV=CUDA0`.
+- `scripts/serve_qwen27b.sh` defaults `UBATCH=4096 BATCH=4096`. Current llama.cpp needs ~6.7 GB compute buffer at that size + 19 GB model + 4.5 GB KV → OOM on 32 GB. Must pass `UBATCH=2048 BATCH=2048` (compute buffer drops to ~3.3 GB).
+- Both gotchas captured in `memory/feedback_serve_qwen27b_gotchas.md`.
+
+### Forward path
+
+- **TODO #14 (remaining):** 2 of 4 cells. `bert-fixed × Gemma-31B · n=681` (~12 h, ~$15), `qwen3.5 × Gemma-31B · n=681` (~13 h, ~$15). Both should use `KELE_PARALLEL_WORKERS=4` to halve walltime.
+- Cheapest-first ordering exhausted on the Qwen side. Remaining cells are the matched-consultant Gemma 31B variants — these directly tighten the local-frontier parity claim since current honest cross-teacher winner is `qwen3.5 × Gemma-31B` at n=50 (#6).
+
+---
+
+## 2026-05-25 — n=681 parity sub-leaderboard cell #3 landed (qwen3.5 × A3B-35B think)
+
+**Ran:** `qwen3.5 × A3B-35B · think · fewshot10 · n=681 · seed=42` overnight on the single 5090. Walltime 9h41m (34878 s), 3968 turns scored, judge cost $16.53 (Sonnet 4.6, 10 workers, 19 min API). Output at `results/t4-bert-a3b-fewshot10-n681/`. qwen3.5 consultant on CPU (`KELE_BERT_DEVICE=cpu`) per the rule established by the bilingual canonical n=400.
+
+### Headline numbers (n=681 vs n=50 baseline)
+
+| Metric | n=681 canonical | n=50 baseline | Δ |
+|---|---:|---:|---:|
+| macro state acc | 53.40 | 54.86 | **−1.46** |
+| stage_bal | **60.02** | 58.62 | **+1.40** |
+| judge (Sonnet 4.6) | 7.56 | 7.52 | +0.04 |
+| **unified** | **67.81** | 66.91 | **+0.90** |
+| stage a (questioning) | 100.00 | 100.00 | 0.00 |
+| stage b (anchoring) | 43.89 | 50.85 | −6.96 |
+| stage c (induction) | 32.38 | 39.58 | −7.20 |
+| stage d (extension) | 43.54 | 36.00 | +7.54 |
+| stage e (closure) | **80.27** | 66.67 | **+13.60** |
+
+### Three findings
+
+1. **Per-stage profile shifts substantially at canonical scale.** Closure jumped +13.60 pp, b/c each dropped ~7 pp. The n=50 sample was misleadingly low on closure — A3B's true closure strength only surfaces with full-scale measurement. Stage-balanced rises (+1.40) even as macro falls (−1.46) because the closure gain outweighs the b/c losses under equal-weight macro.
+2. **Stage_bal beats macro at canonical scale on this cell.** Demonstrates the metric-switch motivation in real-time: macro hides A3B's closure dominance under frequency-weighting. Unified climbs +0.90 pts thanks to stage_bal recovery plus a small judge bump.
+3. **TODO #14 cell #3 done; parity-gap update.** Master leaderboard now seats this cell at **#11 unified (67.81)**. Locked headline (`bert × Gemma-31B · fewshot10 · n=681`, #7 at 68.65) is unmoved. Frontier ceiling (`bert × Claude-Sonnet · top3 · n=681`, #2 at 70.06) is unmoved. New parity-gap candidate for qwen3.5 × A3B at canonical scale: **2.25 unified pts behind frontier** — wider than the screening-tier 1.12-pt gap because the n=50 → n=681 promotion costs ~1 pt on stage_bal as the closure profile re-balances. Honest open-weight winner at canonical scale remains the legacy `bert × Gemma-31B · fewshot10 · n=681` until cells #1, #2, #4a of TODO #14 land.
+
+### One operational lesson (saved to memory)
+
+`kele.py:81` defaults `hf_repo` to a list that concatenates `SocratDataset-EN` + `SocratDataset` (~1362 dialogues). First launch attempt used the default and was about to do 1362 dialogues (~18 h, double the budget); killed at dialogue 0 within 3 min via the first progress.log line. Parked as `results/t4-bert-a3b-fewshot10-n681-ABORTED-DUAL-REPO-DEFAULT/`. Captured in `memory/feedback_dataset_path_required_n681.md`. **Going forward**: always pass `DATASET_PATH=references/KELE/SocratDataset.json` for canonical Chinese-only n=681; the launcher scripts forward this to `--dataset-path`.
+
+### Cost actuals vs estimates
+
+- Walltime: estimated 8.8 GPU-h (from n=50 throughput) → actual 9.7 GPU-h. ~10% over budget. Root cause: ~1-in-15 to 1-in-20 outlier rate of ~10-minute think-mode dialogues at canonical scale; n=50 sample under-sampled the outlier frequency.
+- Judge cost: estimated $15 → actual $16.53 (~10% over). Calibrated against the n=400 bilingual ($8.81 / 400 dialogues = $0.022/dialogue; n=681 extrapolation $15 matched within 10%).
+
+### What's still on the wall
+
+- **TODO #14 (remaining):** 3 of 4 cells. `bert-fixed × Gemma-31B · n=681` (~12 h, ~$15), `qwen3.5 × Gemma-31B · n=681` (~13 h, ~$15), `qwen3.5 × Qwen-27B · no-think · n=681` (~1 h, ~$15). Cheapest-first ordering: 27B-no-think → bert-fixed × Gemma → qwen3.5 × Gemma.
+- **TODO #24:** paper STL contamination Limitations § + appendix table (writing only).
+- **Paper hygiene cleanup** from canonical retraction (drop the "Sonnet judges English more leniently" sentence if it landed in draft).
+
+---
+
+## 2026-05-24 — Bilingual probe promoted to canonical scale (n=400) — Stage 1 SUCCESS confirmed 🎯
+
+**Ran:** `qwen3.5 × Gemma-31B · fewshot10 · EN · canonical · n=400 · seed=42` overnight on the single 5090. Walltime 7h47m (28011 s), 2324 turns scored, judge cost $8.81 (Sonnet 4.6, 10 workers). Output at `results/bilingual-probe-t4-en-canonical-n400-seed42/`.
+
+### Headline numbers (canonical vs screening vs ZH baseline)
+
+| Metric | EN n=400 canonical | EN n=100 (screening) | ZH baseline (n=50) | Δ canonical vs ZH |
+|---|---:|---:|---:|---:|
+| macro state acc | **42.34** | 46.58 | 51.58 | **−9.24** (under 10-pp Stage 1 gate) |
+| stage_bal | **49.12** | 52.10 | 56.13 | **−7.01** |
+| judge (Sonnet 4.6) | **8.11** | 8.30 | 8.18 | **−0.07** |
+| **unified** | **65.11** | 67.30 | 68.94 | **−3.83** |
+| stage b (anchoring) | 9.73 | 10.4 | 42.4 | −32.67 |
+| stage d (extension) | 43.04 | 48.0 | 38.3 | +4.74 |
+| stage e (closure) | 72.69 | 75.0 | 66.7 | +6.00 |
+
+### Three findings (canonical scale corrects two n=100 over-claims, confirms one)
+
+1. **The "EN judge bonus" at n=100 was sampling noise** — disappears at canonical scale (+0.12 → −0.07). The Limitations sentence around "Sonnet judges English more leniently" was built on this n=100 measurement; it does not survive promotion. The qualitative claim of judge non-symmetry still holds from the STL bilingual arm (which shows a sharp EN judge drop), but it should not be evidenced by the Gemma probe.
+2. **The bimodal stage pattern survives but magnitudes shrink.** Stage-d/e cross-lingual gains halve (+9.7/+8.3 → +4.74/+6.00). Both still positive — multilingual base-model structural representations do transfer — but the n=100 numbers over-stated the effect. Stage-b collapse confirms at full magnitude (−32.67 pp). The qualitative pattern is paper-grade; the magnitudes should always cite n=400.
+3. **Stage c partially joins the b/c collapse cluster** at canonical scale (Δ −3.2 at n=100 → Δ −10.17 at n=400). Consistent with lexical-anchoring vs structural-reasoning split — stage c routing is more Chinese-specific than n=100 suggested.
+
+### Operational change — qwen3.5 consultant on CPU is now the default rule
+
+The n=400 first attempt OOM'd at dialogue 0 with the same config that made the n=100 retry run squeak through on GPU. Root cause: post-cast trap (gotcha #3) leaves <3 GB free with Gemma 31B at 180K context resident, and the consultant's fp32→bf16 cast needs ~4.5 GB peak. Re-launched with `KELE_BERT_DEVICE=cpu` (qwen3.5 LoRA on CPU adds ~0.5–1 s/turn classifier latency — invisible against Gemma decode time, zero VRAM contention). Recorded in `memory/feedback_consultant_load_gotchas.md` as the new default for qwen3.5-LoRA under heavy teachers.
+
+### Position in the master ranked list (132 configs)
+
+The canonical-n=400 EN cell lands at **unified #20** with score 65.11. The mid-pack position is consistent — cross-lingual transfer costs ~4 unified pts vs the ZH baseline (#6, 68.94). The locked headline (`bert × Gemma-31B · fewshot10 · n=681`, #7 at 68.65) is unmoved by this run.
+
+### What's still on the wall
+
+- **TODO #14 — full n=681 local sub-leaderboard** (4 cells, ~35 GPU-h + $0.40 API). Now the only forward GPU experiment in the queue. Carries the CUDA-launch-timeout risk on the Qwen 27B think cell; mitigation still not in place.
+- **TODO #24 — paper STL contamination Limitations § and appendix table.** Writing-only.
+- The two over-claims this canonical run identified should be edited out of `deliverables/overleaf/latex/acl_latex.tex` if they made it in: the "Sonnet English judge bonus" Limitations sentence, and any cross-lingual stage-d/e gain magnitudes that cite the n=100 numbers.
+
+---
+
 ## 2026-05-23 — Qwen 27B grid + LLM-judge cross-teacher matrix + unified ranking + closure-dominance finding 🎯
 
 **Ran:** Four-cell Qwen 27B grid (2 consultants × 2 reasoning modes) at n=50 fixed format, plus LLM-judge re-evaluation across all eight current cross-teacher cells (Gemma 31B / A3B 35B / Qwen 27B × bge-small / T4, with Qwen at both think and no-think). Total ~6h wall clock for the grid (think-mode bottlenecked) + ~$0.80 in Claude Sonnet 4.6 rubric judging. Introduced `docs/UNIFIED_RANKING.md` and a `unified` column on the backtest leaderboard.

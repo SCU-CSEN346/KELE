@@ -68,7 +68,7 @@ All 8 cells now judged. Cell labels follow `docs/NAMING_CONVENTION.md`:
 | 1 | 4 | `qwen3.5 × Qwen-27B · think · fewshot10 · n=50` | 53.19 | 58.68 | 7.51 | **66.89** |
 | 2 | 3 | `qwen3.5 × A3B-35B · fewshot10 · n=50` | 54.86 | 58.62 | 7.52 | **66.91** |
 | 3 | 5 | `bert-fixed × Qwen-27B · think · fewshot10 · n=50` | 49.08 | 57.15 | 7.41 | **65.65** |
-| 4 | 🥇 1 | **`qwen3.5 × Gemma-31B · fewshot10 · n=50`** | 51.58 | 56.13 | **8.18** | **68.94** |
+| 4 | 🥇 1 | **`qwen3.5 × Gemma-31B · fewshot10 · n=50`** † | 51.58 | 56.13 | **8.18** | **68.94** |
 | 5 | 6 | `qwen3.5 × Qwen-27B · no-think · fewshot10 · n=50` | 51.89 | 55.45 | 7.56 | **65.54** |
 | 6 | 🥈 2 | **`bert-fixed × Gemma-31B · fewshot10 · n=50`** | 45.94 | 52.73 | **8.26** | **67.65** |
 | 7 | 7 | `bert-fixed × Qwen-27B · no-think · fewshot10 · n=50` | 46.85 | 52.62 | 7.59 | **64.25** |
@@ -77,6 +77,8 @@ All 8 cells now judged. Cell labels follow `docs/NAMING_CONVENTION.md`:
 **The headline shifts.** Under stage_bal alone, T4 × Qwen 27B-think narrowly wins (58.68); under unified, **qwen3.5 × Gemma 31B wins decisively** (68.94 vs Qwen-think's 66.89 — a 2.05-point margin, well outside n=50 noise on the judge axis). Even bert-fixed × Gemma 31B (67.65) beats both Qwen-think configurations on unified.
 
 The driver is judge score: Gemma sits at **8.18–8.26** across both consultants while Qwen sits at **7.41–7.59**. That ~0.65-point judge gap (×10 = 6.5 unified-pp) more than swallows the stage_bal advantage Qwen had on closure.
+
+† **Canonical-scale promotion landed AND promoted to locked headline 2026-05-26.** `qwen3.5 × Gemma-31B · fewshot10 · n=681` lands at unified **72.24** (stage_bal 61.32, judge 8.32) — **#1 on the full master leaderboard AND the paper's current locked headline**, beating the prior #1 frontier ceiling (`bert × Claude-Sonnet · top3 · n=681` at 70.06) by +2.18 unified pts. Positive scaling +3.30 vs the n=50 baseline of this same cell. The screening-tier "1.12-pt parity gap" claim has been **inverted to overtaking** — a single 32 GB consumer GPU running a 31B-param open-weight teacher with prompt engineering beats the best frontier configuration on a memorization-resistant evaluation at canonical sample size. The prior 2026-05-18 BERT-classifier locked headline (unified 68.65) is preserved as the BERT-classifier-axis architectural result. See `docs/EXPERIMENT_LOG.md` 2026-05-26 entry and paper §`sec:unified-ranking-overtaking` for the full breakdown.
 
 **Three honest readings of the same data:**
 
@@ -92,11 +94,13 @@ The think-vs-no-think tension we flagged is now quantified: T4 × Qwen 27B-think
 
 For interpretation reference:
 
-- **Locked headline (BERT + Gemma 31B + 10-shot, n=681):** stage_bal 55.42, no judge yet — would need to be judged to land on the unified scale. Estimated at ~62-64 unified based on current judged-cell distribution.
-- **Frontier ceiling (BERT + Claude Opus + top3, n=681):** stage_bal 58.63, judge 8.01 — unified ≈ **69.46**.
+- **Locked headline (BERT + Gemma 31B + 10-shot, n=681):** stage_bal 55.42, judge 8.19 — unified **68.65** (#7 master, 🏆). Judged after this doc was first written; replaces the prior ~62-64 estimate.
+- **Frontier ceiling (BERT + Claude Sonnet + top3, n=681):** stage_bal 58.17, judge 8.19 — unified **70.06** (#2 master, 🥈). The Opus n=681 cell is at unified 69.37 (#4).
+- **First canonical-scale local parity cell (BERT + Qwen 35B-A3B + 10-shot, n=681):** stage_bal 60.02, judge 7.56 — unified **67.81** (#11 master, TODO #14 cell #3, landed 2026-05-25). Locks the canonical-scale parity gap at 2.25 unified pts behind frontier (1.41 pts via the legacy locked-headline anchor).
+- **Second canonical-scale local parity cell (BERT + Qwen 27B no-think + 10-shot, n=681):** stage_bal 58.16, judge 7.53 — unified **66.71** (#16 master, TODO #14 cell #4a, landed 2026-05-25). Widens the canonical-scale parity gap envelope to 3.35 unified pts behind frontier. Zero schema fallbacks across 4010 turns — strict-JSON adherence rock solid at canonical scale.
 - **SocratTeachLLM at its peak surface form (R-1 = 55.85 on EN translation):** stage_bal 22.55, judge would be low (closure is broken at 16-25%) — unified would be in the 30s. This is exactly the desired property: the worst-pedagogy / best-surface model gets ranked at the bottom.
 
-A unified score above **65** is, as of 2026-05-23, a serious paper headline candidate. Above **70** would shift the locked headline. Below **55** is a memorization-dominated configuration that the rubric correctly punishes.
+A unified score above **65** is a serious paper headline candidate. Above **70** would shift the locked headline. Below **55** is a memorization-dominated configuration that the rubric correctly punishes.
 
 ## Implementation
 
