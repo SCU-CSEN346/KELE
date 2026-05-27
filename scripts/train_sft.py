@@ -406,8 +406,22 @@ def main() -> None:
         processing_class=tokenizer,
     )
 
+    # Auto-resume from latest checkpoint if one exists in output_dir.
+    # HF Trainer scans for `checkpoint-*` dirs and picks the highest step,
+    # so a crashed/killed run can be relaunched with the same command and
+    # pick up where it left off. Worst-case rollback = TRAIN_SAVE_STEPS
+    # × step_time (default 200 × 19s = ~63 min on Gemma 4 31B QLoRA).
+    # To start over from scratch, rm -rf the checkpoint-* dirs first.
+    from pathlib import Path
+
+    has_checkpoint = any(Path(sft_cfg.output_dir).glob("checkpoint-*"))
+
     print("\nStarting training...")
-    trainer.train()
+    if has_checkpoint:
+        print(f"  (resuming from latest checkpoint in {sft_cfg.output_dir})")
+        trainer.train(resume_from_checkpoint=True)
+    else:
+        trainer.train()
 
     output_dir = sft_cfg.output_dir
     print(f"\nSaving final adapter to {output_dir}/final")
