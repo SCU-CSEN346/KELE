@@ -1,3 +1,8 @@
+# Training outputs — checkpoints, logs, and eval results can be multi-GB
+outputs/
+results/
+logs/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -17,41 +22,32 @@ coverage.xml
 
 # Virtual envs
 .venv/
-venv/
+*.egg-info/
+dist/
+.eggs/
 
-# Editor / tooling
-.claude/
-.vscode/
-.idea/
-*.swp
-.DS_Store
+# HuggingFace cache (if symlinked here)
+.cache/
 
-# Secrets
+# Coverage
+.coverage
+htmlcov/
+
+# Data — generated / large files not suited for git
+data/SocratDataset-EN.json
+data/translate.log
+data/translate_checkpoint.json
+data/archive/
+
+# Secrets and local tooling
 .env
-.env.local
+.claude/
+.railguard/
 
-# Logs (vLLM server, eval runs, nohup dumps)
-logs/
-*.log
-*.nohup
-
-# Large per-dialogue outputs — reproducible from inputs + code
-# Keep metrics_summary.json, run_config.json, progress.log tracked
-results/**/dialogues/
-
-# Model weights / HF cache / optimizer state
-hf_models/
-*.bin
-*.safetensors
-*.gguf
-*.pt
-
-# Translation job outputs (large, uploaded to HuggingFace — not committed)
-data/
-
-# Misc
-*.tmp
-
+# Editor
+.idea/
+.vscode/
+*.swp
 # BERT/Qwen classifier artifacts — too large for git; regenerate via
 # scripts/train_state_classifier_34way.py (or train_stage_classifier.py).
 # Wildcard pattern covers all current + future state-classifier output dirs.

@@ -14,6 +14,10 @@
         serve-socratteachllm serve-teacher-online \
         setup-l40s start-local-tl-server \
         test-gpu-stack test-vllm \
+        patch-fla-rocm patch-fla-rocm-restore patch-fla-rocm-dry-run \
+        download-gemma4-31b \
+        prequant-gemma4-31b-l40s transfer-gemma4-31b-nf4 \
+        train-gemma4-31b-dry-run train-gemma4-31b-stage2 train-gemma4-31b-stage2-preq \
         tournament tournament-think tournament-warmup tournament-warmup-think tournament-status tournament-eliminate \
         tournament-finalize tournament-archive tournament-restore tournament-reset \
         tournament-download tournament-help
@@ -28,6 +32,11 @@ help:
 	@echo "  GPU stack tests:"
 	@echo "  test-gpu-stack        Full ML stack: ROCm, torch, bitsandbytes 8/4-bit, transformers, PEFT, TRL, flash-attn"
 	@echo "  test-vllm             vLLM ROCm engine probe (no model weights)"
+	@echo ""
+	@echo "  RDNA4 / gfx1201 training workarounds:"
+	@echo "  patch-fla-rocm        Patch flash-linear-attention num_stages>=2 → 1 (Triton 3.6.0 RDNA4 fix)"
+	@echo "  patch-fla-rocm-dry-run  Count refs without modifying"
+	@echo "  patch-fla-rocm-restore  Roll back from .bak files"
 	@echo ""
 	@echo "  Scripts (scripts/):"
 	@echo "  post-eval-shutdown    Run scripts/post_eval_shutdown.sh"
@@ -55,6 +64,10 @@ help:
 	@echo "  eval-qwen35b-a3b-smoke Run scripts/eval_qwen35b_a3b.sh smoke (n=5,   ~2 min projected)"
 	@echo "  eval-qwen35b-a3b-mini  Run scripts/eval_qwen35b_a3b.sh mini  (n=25,  ~5 min projected)"
 	@echo "  eval-qwen35b-a3b-full  Run scripts/eval_qwen35b_a3b.sh full  (n=681, ~20-30 h projected)"
+	@echo "  download-gemma4-31b         Download google/gemma-4-31b-it weights to HF cache (~60 GB)"
+	@echo "  prequant-gemma4-31b-l40s    Print instructions for pre-quantizing to NF4 on L40S"
+	@echo "  transfer-gemma4-31b-nf4     rsync NF4 checkpoint from L40S (HOST=user@host)"
+	@echo "  train-gemma4-31b-stage2-preq  Train Stage 2b from pre-quantized NF4 checkpoint"
 	@echo "  eval-gemma4-31b-smoke  Run scripts/eval_gemma4_31b.sh smoke  (n=5)"
 	@echo "  eval-gemma4-31b-mini   Run scripts/eval_gemma4_31b.sh mini   (n=25)"
 	@echo "  eval-gemma4-31b-full   Run scripts/eval_gemma4_31b.sh full   (n=681)"
@@ -135,7 +148,7 @@ run:
 pre-commit:
 	uvx ruff format .
 	uvx ruff check --fix .
-	uv run pytest -rs
+	uv run --no-sync pytest -rs
 
 # ── Torch install ────────────────────────────────────────────────────────────
 # torch is not declared in pyproject.toml because uv cannot resolve the
@@ -174,14 +187,28 @@ install-cuda:
 _install-torch-rocm:
 	uv pip install --force-reinstall \
 	  --index-url https://download.pytorch.org/whl/rocm7.2 \
-	  torch torchvision torchaudio
-	@echo "✓ torch+rocm7.2 installed"
+	  "torch==2.11.0" "torchaudio==2.11.0"
+	uv pip uninstall torchvision 2>/dev/null || true
+	@echo "✓ torch+rocm7.2 installed (torchvision excluded — ABI mismatch on gfx1201)"
 
 _install-torch-cuda:
 	uv pip install --force-reinstall \
 	  --index-url https://download.pytorch.org/whl/cu126 \
 	  torch torchvision torchaudio
 	@echo "✓ torch+cu126 installed"
+
+# ── RDNA4 / gfx1201 FLA Triton workaround ────────────────────────────────────
+# Patches flash-linear-attention autotune configs: num_stages>=2→1, num_warps>4→4.
+# Addresses Triton tritonamdgpu-pipeline UAF + RDNA4 wave-32 scheduling issues.
+# Re-run after every `uv sync` or `make install-rocm`. See PR #79 thread.
+patch-fla-rocm:
+	bash scripts/patch_fla_rocm.sh
+
+patch-fla-rocm-dry-run:
+	bash scripts/patch_fla_rocm.sh --dry-run
+
+patch-fla-rocm-restore:
+	bash scripts/patch_fla_rocm.sh --restore
 
 # ── Developer setup ──────────────────────────────────────────────────────────
 
@@ -310,6 +337,48 @@ eval-qwen35b-a3b-fusion-nothink-smoke:
 # Gemma 4 has no thinking-mode equivalent, so only the --unified variant exists.
 eval-gemma4-31b-fusion-smoke:
 	bash scripts/eval_gemma4_31b.sh smoke --unified
+
+# ── Gemma 4 31B SFT training (Stage 2b) ──────────────────────────────────────
+# No patch-fla-rocm needed — Gemma 4 uses standard softmax attention (no FLA).
+# ROCm env vars (TORCH_USE_HIPBLASLT=0, garbage_collection_threshold:0.8) are
+# gfx1201 workarounds that apply to all training targets.
+
+download-gemma4-31b:
+	uv run hf download google/gemma-4-31b-it
+
+train-gemma4-31b-dry-run:
+	uv run python scripts/train_sft.py --config configs/train-sft-gemma4-31b-qlora.env --dry-run
+
+train-gemma4-31b-stage2:
+	mkdir -p outputs/sft-stage2-gemma4-31b
+	nohup env TORCH_USE_HIPBLASLT=0 \
+	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8,expandable_segments:True \
+	  uv run --no-sync python scripts/train_sft.py \
+	  --config configs/train-sft-stage2-gemma4-31b.env \
+	  > outputs/sft-stage2-gemma4-31b/train.log 2>&1 &
+	@echo "Training started. Monitor: tail -f outputs/sft-stage2-gemma4-31b/train.log"
+
+prequant-gemma4-31b-l40s:
+	@echo "Run on the L40S machine (needs 96GB+ RAM, CUDA GPU):"
+	@echo "  python scripts/prequant_gemma4.py --output gemma-4-31b-nf4"
+	@echo ""
+	@echo "Then transfer back:"
+	@echo "  make transfer-gemma4-31b-nf4 HOST=user@l40s-host"
+
+transfer-gemma4-31b-nf4:
+	mkdir -p models/gemma-4-31b-nf4
+	rsync -avP "$(HOST):gemma-4-31b-nf4/" models/gemma-4-31b-nf4/
+
+train-gemma4-31b-stage2-preq:
+	mkdir -p outputs/sft-stage2-gemma4-31b
+	nohup env TORCH_USE_HIPBLASLT=0 \
+	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8,expandable_segments:True \
+	  TRAIN_BASE_MODEL=models/gemma-4-31b-nf4 \
+	  TRAIN_PREQ=true \
+	  uv run --no-sync python scripts/train_sft.py \
+	  --config configs/train-sft-stage2-gemma4-31b.env \
+	  > outputs/sft-stage2-gemma4-31b/train.log 2>&1 &
+	@echo "Training started. Monitor: tail -f outputs/sft-stage2-gemma4-31b/train.log"
 
 # ── Tournament ────────────────────────────────────────────────────────────────
 

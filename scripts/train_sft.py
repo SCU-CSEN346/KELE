@@ -29,6 +29,7 @@ Environment variables (see configs/train-sft-qwen25-7b-lora.env for defaults):
     TRAIN_MAX_SEQ_LEN       Max token length per record (default 2048)
     TRAIN_BF16              true | false (default true)
     TRAIN_GRAD_CKPT         true | false; enable for 14B or tight VRAM (default false)
+    TRAIN_PREQ              true | false; load from pre-quantized NF4 checkpoint (default false)
     TRAIN_SOURCES           Comma-separated source keys (default socrat-zh,socrat-en)
     TRAIN_OUTPUT_DIR        Output directory for checkpoints (default outputs/sft)
     TRAIN_LOGGING_STEPS     Log every N steps (default 10)
@@ -120,8 +121,9 @@ def build_model_and_tokenizer():
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
 
+    preq = _bool(_get("TRAIN_PREQ", "false"))
     bnb_config = None
-    if method == "qlora":
+    if method == "qlora" and not preq:
         from transformers import BitsAndBytesConfig
 
         bnb_config = BitsAndBytesConfig(
@@ -131,26 +133,47 @@ def build_model_and_tokenizer():
             bnb_4bit_use_double_quant=True,
         )
         print(f"  QLoRA: 4-bit NF4, double-quant, {'bf16' if use_bf16 else 'fp16'} compute")
+    elif method == "qlora":
+        print("  QLoRA: loading pre-quantized NF4 checkpoint — skipping BF16 staging")
 
     torch_dtype: torch.dtype | None = None
     if method == "lora" and use_bf16:
         torch_dtype = torch.bfloat16
 
     print(f"  Loading weights  method={method}  dtype={torch_dtype or 'auto'}")
+
+    import os as _os
+
+    _offload_dir = "offload_weights"
+    _os.makedirs(_offload_dir, exist_ok=True)
     model = AutoModelForCausalLM.from_pretrained(
         base_model,
         quantization_config=bnb_config,
         torch_dtype=torch_dtype,
+        attn_implementation="sdpa",
         device_map="auto",
+        low_cpu_mem_usage=True,
+        offload_folder=_offload_dir,
+        offload_state_dict=True,
         trust_remote_code=True,
     )
+
+    for _vision_attr in ("visual", "vision_tower"):
+        if hasattr(model, _vision_attr):
+            import torch as _torch
+
+            delattr(model, _vision_attr)
+            _torch.cuda.empty_cache()
+            print(f"  Dropped {_vision_attr!r} vision encoder to free VRAM")
+
+    torch.cuda.empty_cache()
 
     if method == "qlora":
         from peft import prepare_model_for_kbit_training
 
         model = prepare_model_for_kbit_training(
             model,
-            use_gradient_checkpointing=_bool(_get("TRAIN_GRAD_CKPT", "false")),
+            use_gradient_checkpointing=False,
         )
 
     return model, tokenizer
@@ -230,6 +253,7 @@ def build_sft_config(output_dir: str | None = None) -> SFTConfig:
         max_length=max_seq_len,
         bf16=use_bf16,
         gradient_checkpointing=grad_ckpt,
+        gradient_checkpointing_kwargs={"use_reentrant": False} if grad_ckpt else None,
         logging_steps=logging_steps,
         save_steps=save_steps,
         eval_steps=eval_steps,
@@ -261,7 +285,15 @@ def dry_run() -> None:
     # Use a temp dir so the SFTConfig constructor (TrainingArguments) doesn't
     # create the real output_dir on disk as a side-effect of the dry run.
     with tempfile.TemporaryDirectory() as tmp:
-        build_sft_config(output_dir=tmp)
+        _prev_bf16 = os.environ.get("TRAIN_BF16")
+        os.environ["TRAIN_BF16"] = "false"
+        try:
+            build_sft_config(output_dir=tmp)
+        finally:
+            if _prev_bf16 is None:
+                del os.environ["TRAIN_BF16"]
+            else:
+                os.environ["TRAIN_BF16"] = _prev_bf16
 
     print("\nLoading training data (HF download required)...")
     from src.project.dataset import load_split_pair

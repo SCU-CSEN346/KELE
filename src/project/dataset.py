@@ -114,13 +114,16 @@ def _socrat_zh_to_messages(record: dict) -> dict:
     states: list[str] = []
 
     for turn in record.get("dialogue", []):
-        messages.append({"role": "user", "content": turn["student"]})
         state = _strip_quotes(turn.get("state", ""))
         action = _strip_quotes(turn.get("action", ""))
-        teacher_content = turn["teacher"]
+        user_content = turn["student"]
         if state and action:
-            teacher_content = f"[State: {state}] [Action: {action}]\n" + teacher_content
-        messages.append({"role": "assistant", "content": teacher_content})
+            user_content += (
+                f"\n\n苏格拉底教学顾问评估结果: 学生处于 {state} 状态\n"
+                f"苏格拉底教学顾问建议的操作: {action}"
+            )
+        messages.append({"role": "user", "content": user_content})
+        messages.append({"role": "assistant", "content": turn["teacher"]})
         if state:
             states.append(state)
 
@@ -176,15 +179,18 @@ def _socrat_en_to_messages(record: dict) -> dict:
     states: list[str] = []
 
     for turn in record.get("dialogue", []):
-        messages.append({"role": "user", "content": turn["student"]})
         # HF upload of SocratDataset-EN is pre-cleaned — no surrounding quotes in
         # state/action. If testing against raw local JSON, apply _strip_quotes here too.
         state = turn.get("state", "")
         action = turn.get("action", "")
-        teacher_content = turn["teacher"]
+        user_content = turn["student"]
         if state and action:
-            teacher_content = f"[State: {state}] [Action: {action}]\n" + teacher_content
-        messages.append({"role": "assistant", "content": teacher_content})
+            user_content += (
+                f"\n\n苏格拉底教学顾问评估结果: 学生处于 {state} 状态\n"
+                f"苏格拉底教学顾问建议的操作: {action}"
+            )
+        messages.append({"role": "user", "content": user_content})
+        messages.append({"role": "assistant", "content": turn["teacher"]})
         if state:
             states.append(state)
 

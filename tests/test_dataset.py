@@ -48,6 +48,37 @@ def _socrat_record(id_: int) -> dict:
     }
 
 
+def _socrat_synthetic_record(id_: int) -> dict:
+    """Minimal SocratDataset-SYNTHETIC record (no `action`, no top-level meta)."""
+    return {
+        "id": id_,
+        "question": f"Synthetic Q{id_}",
+        "answer": "synthetic answer",
+        "dialogue": [
+            {"student": "synthetic student 1", "teacher": "synthetic teacher 1", "state": "a1"},
+            {"student": "synthetic student 2", "teacher": "synthetic teacher 2", "state": "b3"},
+        ],
+    }
+
+
+def _socraticmath_record(id_: int) -> dict:
+    """Minimal SocraticMATH HF record.
+
+    Empirical schema: conversations[0] = problem (from=assistant), [1] = teacher
+    opening (from=assistant), [2..] alternating user/assistant.
+    """
+    return {
+        "id": id_,
+        "conversations": [
+            {"from": "assistant", "value": f"Problem {id_}: solve for x."},
+            {"from": "assistant", "value": "What is the first step you would take?"},
+            {"from": "user", "value": "I'd isolate x."},
+            {"from": "assistant", "value": "Good — show me how."},
+            {"from": "user", "value": "Subtract 3 from both sides."},
+        ],
+    }
+
+
 def _socrateach_multi_record() -> dict:
     """Minimal SocraTeach_Multi record (one problem with one dialogue)."""
     return {
@@ -126,8 +157,32 @@ def test_load_socrat_en_schema():
     assert records[0]["ground_truth_states"] == ["a1", "b2"]
 
 
-def test_load_socrat_en_state_prefix_in_assistant_turn():
-    """Each assistant turn must be prefixed with [State: ...] [Action: ...]."""
+def test_load_socrat_en_user_turn_contains_consultant_markers():
+    """Per TRAINING_PLAN §0.2: state/action live on the user turn with the
+    inference-matching long labels (苏格拉底教学顾问评估结果 / 苏格拉底教学顾问建议的操作),
+    never as a bracketed prefix on the assistant target."""
+    from src.project.dataset import load_socrat_en
+
+    raw = [_socrat_record(1)]
+    with patch("datasets.load_dataset", return_value=_mock_hf(raw)):
+        records = load_socrat_en(split="all")
+
+    user_turns = [m for m in records[0]["messages"] if m["role"] == "user"]
+    assert len(user_turns) == 2
+    assert "苏格拉底教学顾问评估结果: 学生处于 a1 状态" in user_turns[0]["content"]
+    assert "苏格拉底教学顾问建议的操作: give_example" in user_turns[0]["content"]
+    assert "苏格拉底教学顾问评估结果: 学生处于 b2 状态" in user_turns[1]["content"]
+    assert "苏格拉底教学顾问建议的操作: heuristic_question" in user_turns[1]["content"]
+    # Student utterance is preserved verbatim, with the marker appended after it.
+    assert user_turns[0]["content"].startswith("student turn 1")
+    assert user_turns[1]["content"].startswith("student turn 2")
+
+
+def test_load_socrat_en_assistant_turn_has_no_state_prefix():
+    """Assistant target is the clean teacher response — never the bracketed
+    prefix that was the original bug. Loss only fires on assistant turns
+    (SFTConfig.assistant_only_loss=True), so any leakage here would teach
+    the model to emit literal [State:..] strings."""
     from src.project.dataset import load_socrat_en
 
     raw = [_socrat_record(1)]
@@ -136,8 +191,28 @@ def test_load_socrat_en_state_prefix_in_assistant_turn():
 
     assistant_turns = [m for m in records[0]["messages"] if m["role"] == "assistant"]
     assert len(assistant_turns) == 2
-    assert assistant_turns[0]["content"].startswith("[State: a1] [Action: give_example]")
-    assert assistant_turns[1]["content"].startswith("[State: b2] [Action: heuristic_question]")
+    for at in assistant_turns:
+        assert not at["content"].startswith("[State:"), f"leaked: {at['content']!r}"
+        assert "[Action:" not in at["content"], f"leaked: {at['content']!r}"
+    assert assistant_turns[0]["content"] == "teacher turn 1"
+    assert assistant_turns[1]["content"] == "teacher turn 2"
+
+
+def test_load_socrat_zh_user_turn_contains_consultant_markers():
+    """Mirror coverage for socrat-zh — same long labels, since the BERT
+    consultant emits Chinese markers regardless of dialogue language."""
+    from src.project.dataset import load_socrat_zh
+
+    raw = [_socrat_record(1)]
+    with patch("datasets.load_dataset", return_value=_mock_hf(raw)):
+        records = load_socrat_zh(split="all")
+
+    user_turns = [m for m in records[0]["messages"] if m["role"] == "user"]
+    assistant_turns = [m for m in records[0]["messages"] if m["role"] == "assistant"]
+    assert "苏格拉底教学顾问评估结果: 学生处于 a1 状态" in user_turns[0]["content"]
+    assert "苏格拉底教学顾问建议的操作: give_example" in user_turns[0]["content"]
+    for at in assistant_turns:
+        assert not at["content"].startswith("[State:"), f"leaked: {at['content']!r}"
 
 
 def test_load_socrat_en_train_test_split():
@@ -171,6 +246,27 @@ def test_load_socrat_zh_schema():
     for r in records:
         _assert_record_schema(r, "socrat-zh")
     assert records[0]["ground_truth_states"] is not None
+
+
+# ---------------------------------------------------------------------------
+# socrat-synthetic
+# ---------------------------------------------------------------------------
+
+
+def test_load_socrat_synthetic_no_consultant_marker():
+    """Synthetic records have no `action` field, so the Pattern A marker
+    cannot be constructed. User turns are clean student utterances; the
+    BERT consultant supplies markers at inference."""
+    from src.project.dataset import load_socrat_synthetic
+
+    raw = [_socrat_synthetic_record(1)]
+    with patch("datasets.load_dataset", return_value=_mock_hf(raw)):
+        records = load_socrat_synthetic(split="all")
+
+    user_turns = [m for m in records[0]["messages"] if m["role"] == "user"]
+    assert user_turns[0]["content"] == "synthetic student 1"
+    assert "苏格拉底教学顾问" not in user_turns[0]["content"]
+    assert "苏格拉底教学顾问" not in user_turns[1]["content"]
 
 
 # ---------------------------------------------------------------------------
