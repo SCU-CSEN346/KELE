@@ -277,14 +277,25 @@ def build_sft_config(output_dir: str | None = None) -> SFTConfig:
     logging_steps = int(_get("TRAIN_LOGGING_STEPS", "10"))
     save_steps = int(_get("TRAIN_SAVE_STEPS", "200"))
     eval_steps = int(_get("TRAIN_EVAL_STEPS", "200"))
+    # In-training eval can OOM on memory-constrained setups: the eval forward
+    # casts logits to fp32 for the loss (transformers/loss/loss_utils.py:58),
+    # doubling the logits tensor briefly. On Gemma 4 31B QLoRA with 256K vocab
+    # and seq_len=1280, that's an 8.6 GB transient — fits in train (where we
+    # have grad_ckpt) but not in eval. Set TRAIN_EVAL_STRATEGY=no to skip
+    # in-training eval entirely; the downstream eval pipeline produces
+    # paper-grade numbers anyway.
+    eval_strategy = _get("TRAIN_EVAL_STRATEGY", "steps").lower()
 
     effective_batch = batch * grad_accum
     print(
         f"\nSFT config  output={output_dir}\n"
         f"  epochs={epochs}  lr={lr}  batch={batch}×{grad_accum}={effective_batch}"
         f"  max_length={max_seq_len}  bf16={use_bf16}  grad_ckpt={grad_ckpt}"
+        f"  eval_strategy={eval_strategy}"
     )
 
+    # load_best_model_at_end requires eval to function — auto-disable it when
+    # eval is off, otherwise SFTConfig raises at construction time.
     return SFTConfig(
         output_dir=output_dir,
         num_train_epochs=epochs,
@@ -298,9 +309,9 @@ def build_sft_config(output_dir: str | None = None) -> SFTConfig:
         logging_steps=logging_steps,
         save_steps=save_steps,
         eval_steps=eval_steps,
-        eval_strategy="steps",
+        eval_strategy=eval_strategy,
         save_total_limit=2,
-        load_best_model_at_end=True,
+        load_best_model_at_end=(eval_strategy != "no"),
         report_to="none",
         assistant_only_loss=True,
     )
