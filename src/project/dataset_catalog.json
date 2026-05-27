@@ -8,7 +8,7 @@
       "goal": "Conversational fluency and instruction following",
       "datasets": [
         {
-          "id": "openhermes-2.5",
+          "id": "openhermes",
           "repo": "teknium/OpenHermes-2.5",
           "description": "High-quality instruction-following dataset (1M entries, supersedes openhermes)",
           "language": "en",
@@ -16,7 +16,7 @@
           "math": false
         },
         {
-          "id": "ultrachat_200k",
+          "id": "ultrachat",
           "repo": "HuggingFaceH4/ultrachat_200k",
           "description": "Diverse multi-turn chat interactions",
           "language": "en",
@@ -24,7 +24,7 @@
           "math": false
         },
         {
-          "id": "slimorca-dedup",
+          "id": "slimorca",
           "repo": "Open-Orca/slimorca-deduped-cleaned-corrected",
           "description": "Deduplicated Orca-style reasoning traces (182k, cleaner than SlimOrca)",
           "language": "en",
