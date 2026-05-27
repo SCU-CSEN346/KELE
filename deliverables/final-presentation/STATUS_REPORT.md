@@ -281,44 +281,75 @@ Plan-of-record: `docs/HF_PUBLISHING_PLAN.md`. Five model repos under `maxjkh/…
 
 Outcome would tighten the Limitations §"pre-fix consultant input-format artifact" claim. Strictly an evidence upgrade — not gating for the paper or presentation.
 
-### 2.8 (BLOCKING-GATED for June 4) — Teacher SFT (Stage 2a → 2b on Qwen3.6-27B QLoRA)
+### 2.8 (BLOCKING-GATED for June 4) — Teacher SFT (Stage 2b on Gemma 4 31B QLoRA, executed on 5090)
 
-**Owner:** Ulises (individual contribution slice — base-model search → SFT pipeline → execution). **Plan-of-record:** `docs/TRAINING_PLAN.md`. **Scope decision (2026-05-25):** promoted from stretch to a Jun 4 paper deliverable.
+**Pivot 2026-05-26 — read this first.** The prior plan had Ulises executing Qwen3.6-27B QLoRA → fallback Gemma 4 31B on his R9700. That has been **superseded**:
 
-**Why this matters.** This is Ulises's specific course contribution. Abandoning it leaves the paper's §`sec:nextsteps` item permanently un-shipped and removes a concrete artifact from the HF release. The pipeline is ~80% built; the remaining work is calibrated to ~2 GPU-evenings + ~10 hours of human work.
+- **Qwen3.6-27B SFT is DROPPED.** Not enough time before June 4, and Gemma 4 31B is the headline-teacher (the locked headline at unified 72.24 uses base Gemma 4 31B — fine-tuning *that* model is the natural extension).
+- **Gemma 4 31B SFT moves from Ulises's R9700 to Max's 5090.** RDNA4 has FLA Triton page faults (Qwen) and HF loader RAM-storm risk (Gemma) — both eliminated on the 5090's CUDA stack. 5090 box verified: torch 2.11.0+cu130, bitsandbytes 0.49.2, peft 0.19.1, trl 1.4.0, transformers 5.9.0, 122 GB RAM, 1.3 TB disk free.
+- **Track B (Qwen 27B head-to-head)** stays in `acl_latex.tex` §`sec:nextsteps` as documented future work. Configs `train-sft-qwen36-27b-qlora.env` and `train-sft-stage2-socratic.env` remain in the repo for that path.
 
-**Hard gates (both must hold before Stage 2b launches):**
+**Owner split (revised):**
+- **Ulises** — SFT pipeline design (still the bulk of his individual contribution): dataset format Option B fix, Stage 1 ShareGPT loaders, Stage 2 Socratic loaders, DPO pair builder, train configs for both Gemma 4 31B and Qwen3.6-27B, base-model selection process, HF dataset publishing (PRs **#79** and **#90**).
+- **Max** — SFT **execution** on the headline-teacher (Gemma 4 31B QLoRA on 5090), post-SFT eval pipeline (LoRA→GGUF merge + reuse existing eval infra), result integration into paper Tables 6/14 + locked-headline reconciliation.
 
-- **Gate A** — May 26 slide deck rehearsed and ≤9:45 timing confirmed (§2.1 closed).
-- **Gate B** — Synthetic baseline extended from n=37 to n=75 (Wilson 95% CI halves from ~7pp to ~3.5pp), making post-SFT lift measurement defensible.
+This is a cleaner contributions split than the prior framing — pipeline design vs. headline-model execution. Both substantial, both publishable.
 
-If either gate fails by 2026-05-30, **SFT slips to documented future work** and §2.8 collapses back to "see §1.3.B for status." The locked headline (unified 68.65) is already an A submission and does not depend on SFT landing.
+**Plan-of-record:** `docs/TRAINING_PLAN.md` (Stage 2 §4), `docs/HANDOFF_GEMMA4_SFT.md` (on PR #79 branch). The handoff was written for Ulises's R9700 path; the steps below adapt it to the 5090.
 
-**Calibrated execution path (in order):**
+**Hard gates (all three must hold before Stage 2b launches):**
+
+- **Gate A** — May 26 class talk delivered (§2.1 closed). ✅ DONE (2026-05-26).
+- **Gate B** — PRs **#79** and **#90** reviewed and merged into `main`.
+- **Gate C** — `google/gemma-4-31b-it` BF16 weights (~60 GB) downloaded to HF cache + dry-run sanity passes (`uv run python scripts/train_sft.py --config configs/train-sft-stage2-gemma4-31b.env --dry-run` yields 12,244 train / 1,362 eval records with long-label markers).
+
+If any gate fails by 2026-05-30, **SFT slips to documented future work** and §2.8 collapses back to "see §1.3.B for status." The locked headline (unified 72.24) is already a strong A submission and does not depend on SFT landing.
+
+**Calibrated execution path (5090, in order):**
 
 | Step | Effort | Target date | Outcome |
 |---|---|---|---|
-| Fix `src/project/dataset.py` SFT format (TRAINING_PLAN §0.2) — move `(state, action)` from assistant target into user turn, verify with `--dry-run` | ~2 h human | 2026-05-26 (post-talk) | Unblocks all downstream training |
-| Synthetic baseline extension n=37 → n=75 on the 3 candidates (Qwen 27B think/no-think + Gemma 31B) | ~3 h GPU + 1 h human | 2026-05-27 | Gate B satisfied; CI halves to ~3.5pp |
-| LLM-judge on the 3 baselines (E2 in TRAINING_PLAN §0.1) | ~1 h compute + ~$5 Sonnet | 2026-05-28 | Baselines on `unified` so post-SFT lift is reportable on the project's primary metric |
-| **Stage 2a (breadth)** — `socrateach-multi + socrateach-single` mix, 1–2 epochs, lr=5e-5, QLoRA r=16 | ~3 h GPU on R9700 | 2026-05-28 evening | Warm-start checkpoint |
-| **Stage 2b (structural)** — 2a checkpoint → `socrat-zh + socrat-en` with state/action in user turn, 3 epochs (matches paper) | ~6 h GPU overnight | 2026-05-29 → 30 | Final fine-tuned teacher checkpoint |
-| Eval on test (n=400 canonical) + synthetic n=75, paired with BERT consultant | ~2 h GPU + ~$1 judge | 2026-05-30 | Paper-grade numbers — one row each in Tables 6 and 14 |
-| Write the paper paragraph + Tables row (1 row addition, 1 paragraph) | ~1 h human | 2026-06-01 | Lands before paper-trim sprint (§2.2) |
+| Review and merge PR #90 (Ulises's dataset loaders + HF docs — independent) | ~30 min human | 2026-05-27 AM | Clean main; loaders available |
+| Review and merge PR #79 (SFT pipeline design); cherry-pick or land Ulises's uncommitted `low_cpu_mem_usage=True` + dry-run `bf16=False` fixes in `scripts/train_sft.py`, and the `download-gemma4-31b` Makefile target | ~1 h human | 2026-05-27 AM | Gate B satisfied |
+| `make download-gemma4-31b` (~60 GB to `~/.cache/huggingface/hub/`); then dry-run sanity on `train-sft-stage2-gemma4-31b.env` | ~30 min wall + ~5 min human | 2026-05-27 midday | Gate C satisfied |
+| **Stage 2b** — launch QLoRA NF4 r=16 on `socrat-zh,socrat-en`, 3 epochs, lr=5e-5, batch 1×16=16, seq=1280. **Skip the ROCm-only env vars** (`TORCH_USE_HIPBLASLT=0`, `PYTORCH_HIP_ALLOC_CONF`). Expected VRAM peak 21–23 GB (~9 GB headroom). | ~5–6 h GPU | 2026-05-27 PM/evening | Final fine-tuned adapter checkpoint at `outputs/sft-stage2-gemma4-31b/checkpoint-*/` |
+| Merge LoRA adapter into base (`peft.merge_and_unload()`) → GGUF Q5_K_XL → place at `~/Documents/models/weights/gemma-4-31B-SFT-Q5_K_XL.gguf` | ~1 h human + GPU | 2026-05-28 AM | Drop-in compatible with existing `serve_gemma4_31b_q5.sh` via `GEMMA4_31B_WEIGHT_FILE` override |
+| Eval — `bash scripts/eval_bert_gemma_fewshot10_full.sh` with the SFT weights, on **n=400 canonical** + **synthetic n=75** (`data/synthetic_extension/socrat_synthetic_en_75.json`) | ~3 h GPU + ~$1 judge | 2026-05-28 PM | Paper-grade numbers on `unified` |
+| Aggregate via `scripts/backtest_stage_balanced.py`; write paper paragraph (~150 words) + table rows in Tables 6 and 14 | ~2 h human | 2026-05-29 | SFT row locked into `acl_latex.tex` |
+
+**Why no Stage 2a (breadth) warm-start.** Original plan had `socrateach-multi + socrateach-single` as a 2a step before 2b. With time compressed, jump straight to 2b on `socrat-zh + socrat-en` — this matches the original KELE paper's training recipe and avoids spending ~3 GPU-h on a warm-start whose marginal value is unproven. The Stage 2a configs stay in repo as documented future work.
+
+**Locked decisions (carry forward from PR #79 — do not relitigate):**
+
+1. **SFT format = Pattern A + long inference-matching labels** (`苏格拉底教学顾问评估结果:` / `苏格拉底教学顾问建议的操作:`). Chinese markers in both `socrat-zh` and `socrat-en`.
+2. **`socrat-synthetic` is eval-only.** Never in `TRAIN_SOURCES`.
+3. **DPO Sources 1 & 2 inert** until Stage 2b checkpoint exists. Source 3 is functional.
+4. **`assistant_only_loss=True`** in `SFTConfig` — the format fix guarantees the assistant turn is clean teacher output.
 
 **Explicitly out of scope for Jun 4:**
 
-- ❌ **Stage 3 DPO** — pair-construction tooling unwritten (~150–200k pairs from 3 sources); requires `scripts/build_dpo_pairs.py` + `scripts/train_dpo.py`. Stays as documented future work in the paper.
-- ❌ **Phase 2 — Gemma 4 31B head-to-head SFT** — same recipe with `TRAIN_BASE_MODEL=google/gemma-4-31b-it`. Stays as documented future work.
+- ❌ **Stage 1 general SFT** — Stage 2b warm-starts from base `gemma-4-31b-it`, not from a Stage 1 checkpoint. Documented future work.
+- ❌ **Stage 3 DPO** — Source 1 unblocks once Stage 2b checkpoint exists; decide on 2026-05-29 based on remaining time. Sources 1 & 2 require additional plumbing. Default-stay-as-future-work.
+- ❌ **Qwen3.6-27B SFT** — DROPPED for Jun 4. Configs preserved. Future work.
 
-**Outcome interpretation matrix.** All three outcomes are publishable:
+**Outcome interpretation matrix.** All four outcomes are publishable:
 
 | Outcome on `unified` (test, n=400) | Interpretation | Paper framing |
 |---|---|---|
-| Fine-tuned teacher **wins** vs. BERT+Gemma+10shot (≥+1 pt) | Pareto upgrade on the locked headline | Promote SFT as the new locked headline; original headline becomes the prompt-engineering baseline |
-| Fine-tuned teacher **ties** (±1 pt) | Consultant axis dominates teacher axis | "Consultant routing — not teacher capacity — is the binding constraint" — strengthens the BERT-consultant thesis |
-| Fine-tuned teacher **wins on test but loses on synthetic** | Contamination signature on own training data | Powerful confirmation of `docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md` thesis applied to *our own* training, not just STL |
-| Fine-tuned teacher **loses both** | Either undertraining or data-format issue | Document honestly in §Limitations; locked headline stands |
+| Fine-tuned Gemma **wins** vs `qwen3.5 × Gemma-31B · n=681` (72.24, ≥+1 pt) | Pareto upgrade on the locked headline | Promote SFT as the **new locked headline**; original headline becomes the prompt-engineering baseline |
+| Fine-tuned Gemma **ties** (±1 pt) | Consultant axis dominates teacher axis | "Consultant routing — not teacher capacity — is the binding constraint" — strengthens the BERT-consultant thesis |
+| Fine-tuned Gemma **wins on test but loses on synthetic n=75** | Contamination signature on our own training data | Powerful confirmation of `docs/SOCRATTEACHLLM_CONTAMINATION_PROOF.md` thesis applied to *our own* training, not just STL |
+| Fine-tuned Gemma **loses both** | Either undertraining or data-format issue | Document honestly in §Limitations; locked headline stands at 72.24 |
+
+**Risks specific to the 5090 path:**
+
+| Risk | Mitigation |
+|---|---|
+| GPU contention with concurrent eval/serve runs | Sequence explicitly; `nvidia-smi` check before each phase; `pkill llama-server` if leftover |
+| `bitsandbytes 0.49.2` NF4 + Gemma 4 31B (newer arch) edge case | Standard NVIDIA path is well-trodden. Fallback: `scripts/prequant_gemma4.py` for explicit pre-quantisation. |
+| LoRA-merged GGUF gives different numerics than transformers+PEFT eval | Sanity eval: round-trip the **base** Gemma through GGUF first; must match the locked-headline numbers within sampling noise. If not, eval via transformers+PEFT directly (Option B from original handoff). |
+| `transformers 5.9.0` newer than PR #79 was developed against | Dry-run first; pin to PR #79's working versions in a fresh venv if API drift |
+| SFT result is uninspiring AND we already spent the time | All four outcomes in the matrix above are publishable. No wasted-effort scenario. |
 
 ### 2.9 (STRETCH) — Prompt-engineering tournament
 

@@ -4,6 +4,78 @@ Engineering decisions, what we've tried, and what's next. Each entry is dated an
 
 ---
 
+## 2026-05-27 — TODO #14 cell #1 landed: bert-fixed × Gemma-31B · fewshot10 · n=681 (4/4 complete, locked headline unchanged)
+
+**Ran:** `bert-fixed × Gemma-31B · fewshot10 · n=681 · seed=42` on the single 5090. Walltime ~2h 37m eval (resumed across 3 attempts after a clean-exit overnight stall and a `rocm0` server boot crash; see operational notes below) + 11.9 min judge = ~2.8 h wall, 3889 turns scored (judge: 3886), judge cost $15.31 (Sonnet 4.6, 16 workers). Output at `results/t4-bert-fixed-gemma-fewshot10-n681/`. Post-fix BERT classifier consultant (`results/state_classifier_v1/final`, `BertForSequenceClassification`) on CPU.
+
+### Headline numbers (n=681 canonical vs prior cells)
+
+| Metric | This cell (n=681) | Same cell n=50 (#14) | Legacy bert × Gemma n=681 (#9) | Locked headline qwen3.5 × Gemma n=681 (#1) |
+|---|---:|---:|---:|---:|
+| macro state acc | 48.73 | 45.94 | 48.15 | 55.39 |
+| stage_bal | **55.38** | 52.73 | 55.42 | **61.32** |
+| judge (Sonnet 4.6) | 8.25 | 8.26 | 8.19 | 8.32 |
+| **unified** | **68.94** | 67.65 | 68.65 | **72.24** |
+| ROUGE-1 | 36.94 | 38.69 | 36.78 | 37.65 |
+
+Per-stage state acc: a=100.00 · b=28.12 · c=29.44 · d=42.32 · e=77.01.
+Per-stage judge: a=9.40 · b=8.89 · c=8.06 · d=7.35 · e=7.19.
+Per-axis judge: socratic_validity=2.30/3 · advancement=2.50/3 · age_appropriateness=1.97/2 · question_form=1.48/2.
+
+### The publishable finding — negative result, sharpens contribution story
+
+This cell lands **+0.29 unified pts** over the legacy 2026-05-18 BERT-classifier headline (`bert × Gemma · n=681`, unified 68.65). **The BERT input-format fix moved nothing measurable at canonical scale.** All four judge axes are within noise (≤0.04 from the legacy cell), per-stage judge is statistically indistinguishable, and ROUGE-1 moved +0.16. The +0.29 unified delta is well inside per-run variance for n=681.
+
+This is **publishable as a negative result.** It sharpens the paper's contribution attribution: the +3.59 unified jump from the legacy headline (68.65) to the new locked headline (72.24) is **entirely** due to the consultant-axis upgrade (BERT → qwen3.5-LoRA), **not** any improvement on the BERT-classifier branch. The input-format fix is a correctness improvement that the metrics do not reward at canonical scale — consistent with the consultant being the binding constraint, not the BERT classifier's surface-form artifacts.
+
+The gap to the locked headline decomposes cleanly: −5.94 stage_bal (consultant doing real state-classification work the BERT classifier can't match) and −0.07 judge (essentially zero — pedagogical form is preserved by the teacher's 10-shot prompt regardless of consultant). The 4-axis judge breakdown is **virtually identical** to the locked headline (validity 2.30 vs 2.34, advancement 2.50 vs 2.52, age 1.97 vs 1.97, q-form 1.48 vs 1.48), confirming the teacher's pedagogical surface is unchanged across consultant swaps.
+
+### TODO #14 status: 4 of 4 cells DONE
+
+All four canonical-n parity sub-leaderboard cells now landed:
+
+| # | Cell | Unified (master rank) |
+|---|---|---:|
+| 1 | bert-fixed × Gemma-31B · fewshot10 · n=681 (this run) | 68.94 (#8) |
+| 2 | qwen3.5 × Gemma-31B · fewshot10 · n=681 (locked headline) | **72.24** (#1) |
+| 3 | qwen3.5 × A3B-35B · fewshot10 · n=681 | 67.81 (#13) |
+| 4 | qwen3.5 × Qwen-27B · no-think · fewshot10 · n=681 | 66.71 (#18) |
+
+The sub-leaderboard is complete. The local-overtakes-frontier claim (+2.18 unified vs prior #1 frontier ceiling) stands locked by cell #2.
+
+### Operational notes — two new failure modes resolved
+
+**Overnight stall (2026-05-26 21:21 PDT → 2026-05-27 00:20 PDT):** The first resume attempt ran cleanly for 3 hours and 400/681 dialogues at ~134 dlg/hr, then the eval process exited without warning around midnight PDT. No CUDA error, no OOM, no `kill` signal in either log — server and eval both stopped writing mid-task. Most likely cause: terminal/session loss orphaning a foreground process. **Mitigation for the 2026-05-27 resume**: launched via `setsid nohup ... </dev/null >log 2>&1 & disown` so the process cannot be reaped by parent-session termination. Survived cleanly through the remaining 2.6h.
+
+**Server boot crash on `rocm0` (2026-05-27 08:22 PDT):** First resume attempt this morning died at server-boot with `error while handling argument "-dev": invalid device: rocm0`. The `scripts/serve_gemma4_31b{,_q5}.sh` scripts still default `DEV=rocm0` despite the 2026-05-26 entry's "fixes baked into scripts" claim — only the `PARALLEL` and `-c` defaults were actually baked in. The `feedback_serve_qwen27b_gotchas` memory was correct all along: `DEV=CUDA0 BATCH=2048 UBATCH=2048` env overrides are still mandatory. Updated `memory/MEMORY.md` to correct the misleading 2026-05-26 summary.
+
+### Parser bug fix — display-name mislabeling for `t4-bert-fixed-*` dirs
+
+The initial backtest mislabeled this cell as `qwen3.5 × Gemma-31B · fixed · fewshot10 · n=681` because `scripts/backtest_stage_balanced.py`'s `_CONSULTANT_MAP` had `("t4-bert-", "qwen3.5")` matching `t4-bert-fixed-gemma-...` before any bert-fixed rule could intercept. Patched by inserting `("t4-bert-fixed-", "bert-fixed")` immediately before the `t4-bert-` rule (longest-prefix-wins by insertion order). Re-ran backtest; label now correct. The fix is durable for any future `t4-bert-fixed-*` directories at canonical scale. The n=50 sibling (`bge-small-bert-gemma-fewshot10-n50-fixed`, #14) was already correctly labeled — only the n=681 dir-name convention had drifted.
+
+### Cost actuals vs estimates
+
+- Walltime (eval): estimated ~11 GPU-h → actual ~5.6 GPU-h across both resume attempts (warm prompt cache on the 2026-05-27 resume drove sustained ~110 dlg/hr).
+- Judge cost: estimated $15 → actual $15.31. Matches the $0.022/dialogue rate established in prior TODO #14 cells.
+- Judge wall: estimated ~22 min (per 2026-05-26 entry) → actual 11.9 min at 16 workers (vs 10 workers for the prior cell). Worth keeping `--workers 16` as the default going forward.
+
+### Files touched
+
+- `docs/EXPERIMENT_LOG.md` — this entry
+- `scripts/backtest_stage_balanced.py` — `_CONSULTANT_MAP` patched (new `t4-bert-fixed-` rule before `t4-bert-`)
+- `results/_orchestrator_logs/backtest_stage_balanced_2026_05_27.md` — fresh master leaderboard snapshot (144 configs, 39 judged)
+- `memory/MEMORY.md` — corrected the 2026-05-26 entry's misleading "fixes baked into scripts" summary
+
+### Pending follow-ups (not blocking)
+
+- `docs/BENCHMARK_CRITIQUE_AND_PROPOSAL.md` — flip item 7 status `3 of 4` → `4 of 4`
+- `docs/UNIFIED_RANKING.md` — note canonical promotion for this cell
+- `results/master_leaderboard.md` — regenerate from the new backtest snapshot
+- `scripts/serve_gemma4_31b{,_q5}.sh` — actually bake in `DEV=CUDA0` and `BATCH/UBATCH=2048` defaults so future runs don't trip the same crash
+- Paper §`sec:bert-integration` — could optionally cite this cell as the negative-result confirmation that the consultant axis (not classifier fixes) drives the headline jump
+
+---
+
 ## 2026-05-26 — NEW LOCKED HEADLINE: qwen3.5 × Gemma-31B · fewshot10 · n=681 (promoted same-day, frontier overtaken)
 
 **Ran:** `qwen3.5 × Gemma-31B · fewshot10 · n=681 · seed=42` on the single 5090. Walltime ~2h eval (resumed across 5 attempts after multiple OOM/checkpoint-memory crashes; see operational notes below) + 21.5 min judge = ~2.4 h wall, 3974 turns scored, judge cost $15.70 (Sonnet 4.6, 10 workers). Output at `results/t4-bert-gemma-fewshot10-n681/`. qwen3.5-0.8B-LoRA classifier consultant on CPU per established rule.
