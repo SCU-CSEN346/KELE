@@ -4,6 +4,75 @@ Engineering decisions, what we've tried, and what's next. Each entry is dated an
 
 ---
 
+## 2026-05-28 (PM) — Stage 2b eval BLOCKED by train/serve schema mismatch (SFT model healthy, eval pipeline shape incompatible — moved to documented future work)
+
+**Symptom.** Launched eval `t4-bert-gemma-sft-fewshot10-n681` with the freshly-quantized KELE Socratic-SFT GGUF at `~/Documents/models/weights/gemma-4-31B-kele-socratic-sft-Q5_K_M.gguf`. After 17 minutes of wall clock, **zero dialogues completed**, only 11 LLM calls processed across 4 workers (vs ~0.87 calls/sec sustained in the bert-fixed × Gemma run). 5 tasks were cancelled by eval clients (HTTP timeout). Compared to 0 cancels across all server logs of the bert-fixed run, this asymmetry was the first quantitative signal that something specific to the SFT model was at fault.
+
+**Root cause.** The training data preparation (`src/project/dataset.py` `load_socrat_zh` / `load_socrat_en`, lines 122–126 and 189–193) emits **multi-turn** records — each dialogue turn becomes an alternating `user`/`assistant` message pair, where each user message is the raw student utterance with Pattern-A markers appended:
+
+```
+user:      {student_text}\n\n苏格拉底教学顾问评估结果: 学生处于 {state} 状态\n苏格拉底教学顾问建议的操作: {action}
+assistant: {teacher_text}   ← short Socratic question, typically <60 chars
+```
+
+The inference pipeline (`src/project/socratic_teaching_system.py:445–453`) emits a **single-turn** prompt with dialogue history flattened into a labeled string block:
+
+```
+历史对话记录:
+{formatted_history}
+
+当前学生输入: {student_input}
+
+苏格拉底教学顾问评估结果: {evaluation_text}   ← free-form, e.g. "学生提出问题，进入阶段a，状态为a1。"
+苏格拉底教学顾问建议的操作: {action}
+```
+
+Three concrete divergences: (1) multi-turn vs single-turn conversation shape; (2) the inference labels `历史对话记录:` and `当前学生输入:` were never seen in training; (3) the inference `evaluation` field carries free-form text (`"学生提出问题，进入阶段a，状态为a1。"`) while training carried the templated string (`"学生处于 a1 状态"`). The SFT model is fully out-of-distribution on every turn of the eval.
+
+**Diagnostic evidence (decisive).** Same model checkpoint, same server, same sampler. Two prompts:
+
+| Prompt shape | finish_reason | completion tokens | wall | output |
+|---|---|---:|---:|---|
+| **Inference shape** (no Pattern-A markers, no multi-turn) | length (cap) | 2048 | 38 s | `"这样可以帮助他建立更强的数学基础。"` × 70+ repetitions |
+| **Training shape** (verbatim from record 1 turn 1) | **stop (EOS)** | **20** | **0.5 s** | `"种子通常是在植物的哪个部分形成的呢？你能想象一下花朵的变化过程吗？"` ← coherent Socratic question |
+
+The model is healthy. The eval pipeline is sending it OOD prompts.
+
+**Why this slipped past Stage 2b.** TRL's `assistant_only_loss=True` correctly masked the user turns during training, so cross-entropy was only ever computed on the short teacher targets. The model learned the teacher distribution faithfully but only conditioned on the **training** prompt structure. There was no validation step that exercised the model under the **eval-pipeline** prompt structure before Stage 2b launched. The `train_loss → 0.4359` and `mean_token_accuracy → 0.86` numbers in the morning's writeup were consistent with healthy training; they cannot diagnose train/serve schema drift by construction.
+
+**Per the §2.8 outcome matrix (line 342):**
+> `Fine-tuned Gemma loses both | Either undertraining or data-format issue | Document honestly in §Limitations; locked headline stands at 72.24`
+
+This is the "data-format issue" branch. The locked headline at unified 72.24 stands as the A-grade submission.
+
+### Fix path — moved to documented future work
+
+Two clean options (the team should pick one when the SFT track is revisited):
+
+**Option A — match training data to inference pipeline (recommended).** Edit `dataset.py` `load_socrat_zh` / `load_socrat_en` to emit single-turn records whose user content is a verbatim copy of the inference-pipeline format (system prompt + `历史对话记录:` + `当前学生输入:` + Pattern-A block) and whose assistant target is the teacher response. Re-run Stage 2b with the same hyperparameters. Cost: ~11 h of GPU on the 5090; no other code change required.
+
+**Option B — match inference pipeline to training data.** Edit `socratic_teaching_system.py:socrates_teacher` to assemble messages as proper alternating `user`/`assistant` pairs (one pair per prior dialogue turn) followed by the current-turn user message with Pattern-A markers. The SFT model can be served as-is. Risk: this is a single shared code path for every teacher LLM in the eval suite — changing it would shift the prompts seen by all other cells in Tables 6 and 14 (qwen3.5×Gemma locked headline, qwen3.5×A3B, qwen3.5×Qwen-27B, bert-fixed×Gemma, etc.). Their numbers would need to be re-baselined to remain comparable. Substantial scope.
+
+Option A is the right call: it isolates the change to the SFT track and preserves every existing cell's reported number.
+
+### Operational artifact preserved on disk (gitignored)
+
+| Path | Size | Status |
+|---|---:|---|
+| `outputs/sft-stage2-gemma4-31b/final/adapter_model.safetensors` | 468 MB | ✅ Stage 2b LoRA adapter |
+| `outputs/sft-stage2-gemma4-31b/merged/` | 62.6 GB | ✅ BF16 merged HF checkpoint |
+| `outputs/sft-stage2-gemma4-31b/gemma-4-31B-kele-socratic-sft-f16.gguf` | 58 GB | ✅ Intermediate (delete to reclaim) |
+| `outputs/sft-stage2-gemma4-31b/gemma-4-31B-kele-socratic-sft-Q5_K_M.gguf` | 21 GB | ✅ Servable quantized GGUF |
+| `~/Documents/models/weights/gemma-4-31B-kele-socratic-sft-Q5_K_M.gguf` | 21 GB | ✅ Drop-in for `serve_gemma4_31b_q5.sh` (coexists with base) |
+
+The full merge+convert+serve pipeline is reproducible from scratch via the two scripts shipped in `feat(sft): GGUF merge+convert pipeline for KELE Socratic-SFT product` (commit `8268e95`). Whenever Option A above is executed and a corrected adapter is produced, the same pipeline re-runs end-to-end.
+
+### Adjacent commits and patches
+
+- `src/project/tournament_utilizations.py` — added `_TEACHER_MAX_TOKENS = int(os.environ.get("TEACHER_MAX_TOKENS", "2048"))` module-level constant and applied it to the 5 previously-uncapped teacher `chat.completions.create` call sites (default, format-retry main + retry, CoT pass 2, n-best candidate, n-best fallback). Without this cap, the eval client's default HTTP timeout fires on any teacher model that doesn't emit EOS within the implicit budget — the SFT model just made the failure mode observable. Even the base Gemma cells benefit from the cap as a defense-in-depth measure (no behavioral change measured, since base Gemma never approached 2048 tokens on a Socratic turn).
+
+---
+
 ## 2026-05-28 — Stage 2b SFT completed: Gemma-4-31B QLoRA on socrat-zh + socrat-en (final adapter saved, eval pending)
 
 **Ran:** Stage 2b QLoRA NF4 (r=16, α=32, dropout=0.05) on `socrat-zh + socrat-en` (12,244 train / 1,362 eval), 3 epochs × 766 grad-accum steps = **2,298 total steps**, on the single 5090. **Total wall time 10h49m** (final clock 2026-05-28 04:44 PDT). Final adapter saved to `outputs/sft-stage2-gemma4-31b/final/` (468 MB safetensors, 122 M trainable params = 0.39% of 31.4 B). Last checkpoint at step 2298. Branch `mk/sft-gemma4-multimodal-lora-fix`.
