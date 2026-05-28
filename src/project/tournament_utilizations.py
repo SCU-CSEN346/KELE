@@ -32,6 +32,15 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+# Generic safety cap on teacher LLM generation length. Base Gemma 4 31B emits
+# EOS quickly on Socratic prompts and never approached this in prior cells.
+# Required for SFT-trained teacher checkpoints (e.g. the KELE Socratic-SFT
+# product), which can emit Pattern-A formatted output (评估结果: ... 建议的操作: ...)
+# of 500–2000+ tokens and don't always emit EOS reliably on out-of-distribution
+# prompts. Without this cap, the eval client's HTTP timeout fires and tasks
+# get cancelled in a stuck retry loop. Override with TEACHER_MAX_TOKENS env var.
+_TEACHER_MAX_TOKENS = int(os.environ.get("TEACHER_MAX_TOKENS", "2048"))
+
 # ─── Stage length budget (§3.2 in plan) ──────────────────────────────────────
 # Per-stage char distribution measured from SocratDataset.json (43,892 teacher
 # turns, see docs/PROMPT_ENGINEERING_PLAN.md table). Values are (p10, median, p90).
@@ -427,13 +436,14 @@ def call_teacher_wrapped(
             teacher_client, teacher_model_name, system_prompt, user_input, predicted_state
         )
 
-    # Default: single call (unchanged behavior)
+    # Default: single call (unchanged behavior aside from generic safety cap)
     response = teacher_client.chat.completions.create(
         model=teacher_model_name,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_input},
         ],
+        max_tokens=_TEACHER_MAX_TOKENS,
     )
     return response.choices[0].message.content or ""
 
@@ -448,6 +458,7 @@ def _call_with_format_retry(
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_input},
         ],
+        max_tokens=_TEACHER_MAX_TOKENS,
     )
     text = response.choices[0].message.content or ""
     valid, reason = _validate_teacher_output(text, predicted_state)
@@ -465,6 +476,7 @@ def _call_with_format_retry(
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": retry_prompt},
             ],
+            max_tokens=_TEACHER_MAX_TOKENS,
         )
         retry_text = response.choices[0].message.content or ""
         # Accept the retry even if it still fails validation (best-effort)
@@ -511,6 +523,7 @@ def _call_cot_two_pass(
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": final_user},
         ],
+        max_tokens=_TEACHER_MAX_TOKENS,
     )
     return response.choices[0].message.content or ""
 
@@ -534,6 +547,7 @@ def _call_nbest_rerank(
                     {"role": "user", "content": user_input},
                 ],
                 temperature=0.8,
+                max_tokens=_TEACHER_MAX_TOKENS,
             )
             text = response.choices[0].message.content or ""
             if text.strip():
@@ -549,6 +563,7 @@ def _call_nbest_rerank(
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_input},
             ],
+            max_tokens=_TEACHER_MAX_TOKENS,
         )
         return response.choices[0].message.content or ""
 
