@@ -4,6 +4,54 @@ Engineering decisions, what we've tried, and what's next. Each entry is dated an
 
 ---
 
+## 2026-05-28 — Stage 2b SFT completed: Gemma-4-31B QLoRA on socrat-zh + socrat-en (final adapter saved, eval pending)
+
+**Ran:** Stage 2b QLoRA NF4 (r=16, α=32, dropout=0.05) on `socrat-zh + socrat-en` (12,244 train / 1,362 eval), 3 epochs × 766 grad-accum steps = **2,298 total steps**, on the single 5090. **Total wall time 10h49m** (final clock 2026-05-28 04:44 PDT). Final adapter saved to `outputs/sft-stage2-gemma4-31b/final/` (468 MB safetensors, 122 M trainable params = 0.39% of 31.4 B). Last checkpoint at step 2298. Branch `mk/sft-gemma4-multimodal-lora-fix`.
+
+### Training trajectory
+
+| Metric | Step 310 (first logged) | Step ~1300 (mid) | Step 2298 (final) |
+|---|---:|---:|---:|
+| `loss` | 0.6478 | ~0.53 | **0.4120** (per-batch) / **0.4359** (epoch-mean) |
+| `mean_token_accuracy` | 0.7899 | ~0.84 | **0.8555** |
+| `entropy` | 0.6405 | ~0.52 | **0.4223** |
+| `grad_norm` | 0.8223 | ~1.7 | 1.516 |
+
+Loss descended smoothly from 0.65 → 0.43 (~32% reduction) with no spikes, no divergence, no eval-set crash. Final-epoch mean_token_accuracy of 0.85 indicates the adapter has learned the Pattern-A long-label format (`苏格拉底教学顾问评估结果:` / `苏格拉底教学顾问建议的操作:`). 20.46M tokens seen.
+
+### Locked configuration (required for relaunch on 5090)
+
+```
+PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True TRAIN_MAX_SEQ_LEN=1024 \
+  ./.venv/bin/python scripts/train_sft.py --config configs/train-sft-stage2-gemma4-31b.env
+```
+
+`max_seq_len=1024` is **hardware-forced down from the documented 1280**, see "Operational notes" below. All other hyperparameters per `configs/train-sft-stage2-gemma4-31b.env` (TRAIN_LR=5e-5, TRAIN_BATCH_SIZE=1, TRAIN_GRAD_ACCUM=16, TRAIN_EVAL_STRATEGY=no).
+
+### Operational notes — three new failure modes resolved
+
+The run took **eight launches** to land. Every failure is preserved as `outputs/sft-stage2-gemma4-31b/train_FAILED_*.log` (gitignored). Two of the three new failure modes are documented in `memory/feedback_sft_resume_oom_fragmentation.md` because they will recur on any future Gemma-4-31B QLoRA launch on this hardware.
+
+**Failure 1 — System reboot at step 208 (2026-05-27 16:31 PDT).** Pre-reboot run was healthy; the host machine itself rebooted (journalctl shows fresh sddm/bluetoothd init at 16:33). No application-level error. **Resolution:** auto-resume from `checkpoint-200` (commit `4bfff19` shipped earlier in the day) picked up cleanly on relaunch, losing only ~8 steps. Crash-recovery path is proven.
+
+**Failure 2 — Resume-time fragmentation OOM at step 202 (2026-05-27 17:08 PDT).** First relaunch into `outputs/sft-stage2-gemma4-31b/` OOM'd in `fixed_cross_entropy` needing 1.13 GiB contiguous with 1.29 GiB reserved-but-unallocated. Cause: HF Trainer fast-forwards through 200 skipped batches (forward-only) before real training resumes, fragmenting the CUDA allocator's free-list. **Resolution:** `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`. PyTorch's own suggestion in the OOM message; defragments without code change.
+
+**Failure 3 — Steady-state ceiling OOM at step 319 (2026-05-27 17:50 PDT).** After the fragmentation fix, ran through step 319 then OOM'd in cross-entropy needing 1.12 GiB with only 505 MiB reserved-unallocated (fragmentation already resolved — this was a true memory ceiling, not fragmentation). Cause: at vocab=256K, the fp32 logits tensor for cross-entropy is `1 × seq × 256000 × 4B`. At seq=1280 = 1.31 GB transient; the 5090 cannot guarantee this when weights+optimizer+activations already occupy ~30 GB. **Resolution:** drop `TRAIN_MAX_SEQ_LEN` to 1024 → 1.05 GB transient → fits with headroom. The original config's seq=1280 is feasible on the R9700 / H100 but not the 5090's 32 GB.
+
+After failure 3 was resolved, the run completed all remaining 1,998 steps without a single further OOM, checkpoint write failure, or memory pressure event. GPU sat at 31.7 GB / 100% util / 68°C steady-state for 10 hours.
+
+### Outstanding follow-ups (per STATUS_REPORT.md §2.8)
+
+| Step | Effort | Outcome target |
+|---|---|---|
+| Merge LoRA adapter into base (`peft.merge_and_unload()`) → GGUF Q5_K_XL → `~/Documents/models/weights/gemma-4-31B-SFT-Q5_K_XL.gguf` | ~1 h human + GPU | Drop-in compatible with `serve_gemma4_31b_q5.sh` via `GEMMA4_31B_WEIGHT_FILE` override |
+| Eval — `bash scripts/eval_bert_gemma_fewshot10_full.sh` with SFT weights, on **n=400 canonical** + **synthetic n=75** | ~3 h GPU + ~$1 judge | Paper-grade numbers on `unified` |
+| Aggregate via `scripts/backtest_stage_balanced.py`; paper paragraph (~150 words) + Tables 6/14 rows | ~2 h human | SFT row locked into `acl_latex.tex` |
+
+The four-outcome interpretation matrix in STATUS_REPORT.md §2.8 (lines 337-342) governs how the eval numbers map to paper framing. Locked headline at unified 72.24 remains the floor regardless.
+
+---
+
 ## 2026-05-27 — TODO #14 cell #1 landed: bert-fixed × Gemma-31B · fewshot10 · n=681 (4/4 complete, locked headline unchanged)
 
 **Ran:** `bert-fixed × Gemma-31B · fewshot10 · n=681 · seed=42` on the single 5090. Walltime ~2h 37m eval (resumed across 3 attempts after a clean-exit overnight stall and a `rocm0` server boot crash; see operational notes below) + 11.9 min judge = ~2.8 h wall, 3889 turns scored (judge: 3886), judge cost $15.31 (Sonnet 4.6, 16 workers). Output at `results/t4-bert-fixed-gemma-fewshot10-n681/`. Post-fix BERT classifier consultant (`results/state_classifier_v1/final`, `BertForSequenceClassification`) on CPU.
