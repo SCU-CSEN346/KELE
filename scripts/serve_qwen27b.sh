@@ -39,15 +39,16 @@ GPU_LAYERS=99
 PARALLEL=6
 HOST="0.0.0.0"
 PORT=8080
-# ROCm0 is ~6% faster than Vulkan0 on TG for gfx1201 (llama-bench 2026-05-24).
-# Override: DEV=Vulkan0 ./scripts/serve_qwen27b.sh ...
-DEV="${DEV:-rocm0}"
-# Larger micro-batch fills the GPU compute pipeline better. 4096 is the max
-# useful value on 32 GB VRAM with Qwen Q4 (~16 GB model, ~16 GB headroom).
-# Requires matching -b 4096; both are set here. Default 512 leaves significant
-# PP throughput on the table, especially for fine-tuning workloads.
-UBATCH="${UBATCH:-4096}"
-BATCH="${BATCH:-4096}"
+# CUDA0 is the canonical device on the RTX 5090. The legacy rocm0 default was
+# from Ulises's R9700 (gfx1201, ROCm). This project runs on the NVIDIA + CUDA
+# platform only. Override: DEV=Vulkan0 ./scripts/serve_qwen27b.sh ...
+DEV="${DEV:-CUDA0}"
+# 2048 is the safe default on 32 GB VRAM. The earlier 4096 default triggered
+# OOM on Gemma 4 31B Q5 (compute buffer at 4096 is ~6.7 GB, not the 1.3 GB
+# the prior comment cited). Qwen 27B Q4 has more headroom but 2048 is
+# uniformly safe and matches serve_gemma4_31b.sh.
+UBATCH="${UBATCH:-2048}"
+BATCH="${BATCH:-2048}"
 
 EXTRA_ARGS=()
 while [[ $# -gt 0 ]]; do
