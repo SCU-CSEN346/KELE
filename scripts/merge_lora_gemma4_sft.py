@@ -12,6 +12,7 @@ Usage:
     ./.venv/bin/python scripts/merge_lora_gemma4_sft.py
     ./.venv/bin/python scripts/merge_lora_gemma4_sft.py --adapter /path/to/checkpoint-2298
 """
+
 from __future__ import annotations
 
 import argparse
@@ -25,12 +26,21 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 def main() -> int:
     p = argparse.ArgumentParser(description="Merge Gemma-4-31B SFT LoRA → BF16 HF checkpoint")
-    p.add_argument("--base", default="google/gemma-4-31b-it",
-                   help="HF hub id or local path to the base Gemma 4 31B IT model.")
-    p.add_argument("--adapter", default="outputs/sft-stage2-gemma4-31b/final",
-                   help="Path to the trained LoRA adapter directory.")
-    p.add_argument("--out", default="outputs/sft-stage2-gemma4-31b/merged",
-                   help="Output dir for the merged BF16 HF checkpoint.")
+    p.add_argument(
+        "--base",
+        default="google/gemma-4-31b-it",
+        help="HF hub id or local path to the base Gemma 4 31B IT model.",
+    )
+    p.add_argument(
+        "--adapter",
+        default="outputs/sft-stage2-gemma4-31b/final",
+        help="Path to the trained LoRA adapter directory.",
+    )
+    p.add_argument(
+        "--out",
+        default="outputs/sft-stage2-gemma4-31b/merged",
+        help="Output dir for the merged BF16 HF checkpoint.",
+    )
     args = p.parse_args()
 
     adapter_path = Path(args.adapter)
