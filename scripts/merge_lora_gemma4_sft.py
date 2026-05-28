@@ -85,7 +85,7 @@ def main() -> int:
 
     size_gb = sum(f.stat().st_size for f in out_path.rglob("*") if f.is_file()) / 1e9
     print(f"\nDone. Merged checkpoint: {size_gb:.1f} GB at {out_path}")
-    print(f"Next: bash scripts/convert_gemma4_sft_to_gguf.sh")
+    print("Next: bash scripts/convert_gemma4_sft_to_gguf.sh")
     return 0
 
 
