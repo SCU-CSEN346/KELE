@@ -105,6 +105,26 @@ def build_hf_datasets():
 # Model + tokenizer
 # ---------------------------------------------------------------------------
 
+# Gemma 4 training-compatible chat template. Renders byte-identical to the
+# stock google/gemma-4-31b-it template (turn markers <|turn>...<turn|>, native
+# system role) but wraps assistant content in {% generation %} so TRL's
+# assistant_only_loss can find the assistant-token boundary. No tool-calling
+# macros — not needed for SFT on Socratic dialogues.
+_GEMMA4_TRAINING_CHAT_TEMPLATE = """{{- bos_token -}}
+{%- for message in messages -%}
+{%- set role = 'model' if message['role'] == 'assistant' else message['role'] -%}
+{{- '<|turn>' + role + '\n' -}}
+{%- if role == 'model' -%}
+{% generation %}{{ message['content'] | trim }}{% endgeneration %}
+{%- else -%}
+{{- message['content'] | trim -}}
+{%- endif -%}
+{{- '<turn|>\n' -}}
+{%- endfor -%}
+{%- if add_generation_prompt -%}
+{{- '<|turn>model\n' -}}
+{%- endif -%}"""
+
 
 def build_model_and_tokenizer():
     """Load base model and tokenizer.  Returns (model, tokenizer)."""
@@ -120,6 +140,18 @@ def build_model_and_tokenizer():
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
+
+    # Gemma 4 ships a 17K-char chat template (tool-calling macros) without
+    # {% generation %} markers, so TRL 1.4+'s SFTTrainer rejects it under
+    # assistant_only_loss=True. TRL has hardcoded training-compatible templates
+    # for Gemma/Gemma2/Gemma3 but NOT yet for Gemma 4. Swap in a minimal
+    # training-compatible template that renders byte-identical to the original
+    # (verified for system/user/assistant messages) but adds the generation
+    # block markers around assistant content. No tool-calling support — not
+    # needed for SFT on Socratic dialogues.
+    if "gemma-4" in base_model.lower():
+        tokenizer.chat_template = _GEMMA4_TRAINING_CHAT_TEMPLATE
+        print("  Patched tokenizer.chat_template for Gemma 4 (added {% generation %} markers)")
 
     preq = _bool(_get("TRAIN_PREQ", "false"))
     bnb_config = None
@@ -195,7 +227,16 @@ def build_lora_config():
         "LORA_TARGET_MODULES",
         "q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj",
     )
-    target_modules = [t.strip() for t in targets_raw.split(",") if t.strip()]
+    # PEFT treats target_modules as a regex when it's a single string (anchored).
+    # Use this to scope LoRA to text-only paths on multimodal models like
+    # google/gemma-4-31b-it, where vision_tower's Gemma4ClippableLinear wrappers
+    # crash get_peft_model with "Target module ... is not supported".
+    # Convention: if the value starts with "^" treat it as a regex; otherwise
+    # split on comma as a suffix-match list.
+    if targets_raw.lstrip().startswith("^"):
+        target_modules = targets_raw.strip()
+    else:
+        target_modules = [t.strip() for t in targets_raw.split(",") if t.strip()]
 
     print(f"\nLoRA config  r={r}  alpha={alpha}  dropout={dropout}\n  targets: {target_modules}")
 
@@ -236,14 +277,25 @@ def build_sft_config(output_dir: str | None = None) -> SFTConfig:
     logging_steps = int(_get("TRAIN_LOGGING_STEPS", "10"))
     save_steps = int(_get("TRAIN_SAVE_STEPS", "200"))
     eval_steps = int(_get("TRAIN_EVAL_STEPS", "200"))
+    # In-training eval can OOM on memory-constrained setups: the eval forward
+    # casts logits to fp32 for the loss (transformers/loss/loss_utils.py:58),
+    # doubling the logits tensor briefly. On Gemma 4 31B QLoRA with 256K vocab
+    # and seq_len=1280, that's an 8.6 GB transient — fits in train (where we
+    # have grad_ckpt) but not in eval. Set TRAIN_EVAL_STRATEGY=no to skip
+    # in-training eval entirely; the downstream eval pipeline produces
+    # paper-grade numbers anyway.
+    eval_strategy = _get("TRAIN_EVAL_STRATEGY", "steps").lower()
 
     effective_batch = batch * grad_accum
     print(
         f"\nSFT config  output={output_dir}\n"
         f"  epochs={epochs}  lr={lr}  batch={batch}×{grad_accum}={effective_batch}"
         f"  max_length={max_seq_len}  bf16={use_bf16}  grad_ckpt={grad_ckpt}"
+        f"  eval_strategy={eval_strategy}"
     )
 
+    # load_best_model_at_end requires eval to function — auto-disable it when
+    # eval is off, otherwise SFTConfig raises at construction time.
     return SFTConfig(
         output_dir=output_dir,
         num_train_epochs=epochs,
@@ -257,9 +309,9 @@ def build_sft_config(output_dir: str | None = None) -> SFTConfig:
         logging_steps=logging_steps,
         save_steps=save_steps,
         eval_steps=eval_steps,
-        eval_strategy="steps",
+        eval_strategy=eval_strategy,
         save_total_limit=2,
-        load_best_model_at_end=True,
+        load_best_model_at_end=(eval_strategy != "no"),
         report_to="none",
         assistant_only_loss=True,
     )
@@ -365,8 +417,20 @@ def main() -> None:
         processing_class=tokenizer,
     )
 
+    # Auto-resume from latest checkpoint if one exists in output_dir.
+    # HF Trainer scans for `checkpoint-*` dirs and picks the highest step,
+    # so a crashed/killed run can be relaunched with the same command and
+    # pick up where it left off. Worst-case rollback = TRAIN_SAVE_STEPS
+    # × step_time (default 200 × 19s = ~63 min on Gemma 4 31B QLoRA).
+    # To start over from scratch, rm -rf the checkpoint-* dirs first.
+    has_checkpoint = any(Path(sft_cfg.output_dir).glob("checkpoint-*"))
+
     print("\nStarting training...")
-    trainer.train()
+    if has_checkpoint:
+        print(f"  (resuming from latest checkpoint in {sft_cfg.output_dir})")
+        trainer.train(resume_from_checkpoint=True)
+    else:
+        trainer.train()
 
     output_dir = sft_cfg.output_dir
     print(f"\nSaving final adapter to {output_dir}/final")
