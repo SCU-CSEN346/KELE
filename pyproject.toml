@@ -28,6 +28,12 @@ dependencies = [
     "pyspellchecker>=0.9.0",
 ]
 
+[project.optional-dependencies]
+# Experiment tracking for the state-classifier training scripts. Optional so the
+# core install and the no-tracking code path stay dependency-free; opt in with
+# `uv sync --extra wandb` (or `pip install -e ".[wandb]"`).
+wandb = ["wandb>=0.18.0"]
+
 [project.scripts]
 kele = "src.project.kele:main"
 kele-eval = "src.project.evaluate:main"

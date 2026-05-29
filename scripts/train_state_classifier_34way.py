@@ -199,6 +199,38 @@ def _apply_lora(
     return peft_model
 
 
+def _init_wandb(args: argparse.Namespace, model_type: str):
+    """Start a Weights & Biases run when tracking is enabled (--wandb flag or a
+    WANDB_PROJECT env var). Returns the run handle, or None when disabled — every
+    call site guards on None, so the no-tracking path is byte-identical to before.
+    The import is local so the script runs without wandb installed."""
+    if not (args.wandb or os.environ.get("WANDB_PROJECT")):
+        return None
+    import wandb
+
+    method = "lora" if args.lora else ("frozen" if args.freeze_backbone else "full-ft")
+    return wandb.init(
+        project=os.environ.get("WANDB_PROJECT", "csen346-state-classifier"),
+        name=os.environ.get("WANDB_RUN_NAME") or args.out_dir.name,
+        config={
+            "model_id": args.model_id,
+            "model_type": model_type,
+            "method": method,
+            "lora_r": args.lora_r,
+            "lora_alpha": args.lora_alpha,
+            "lora_target_modules": args.lora_target_modules,
+            "epochs": args.epochs,
+            "batch_size": args.batch_size,
+            "lr": args.lr,
+            "max_length": args.max_length,
+            "seed": args.seed,
+            "num_labels": len(ALL_STATES),
+            "gradient_checkpointing": args.gradient_checkpointing,
+            "bf16_autocast": args.bf16_autocast,
+        },
+    )
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument(
@@ -259,6 +291,15 @@ def main() -> None:
     )
     p.add_argument("--max_length", type=int, default=512)
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument(
+        "--wandb",
+        action="store_true",
+        help="Log loss/grad_norm/lr (per step), eval acc (per epoch), and final "
+        "test metrics to Weights & Biases. Also auto-enabled if WANDB_PROJECT is "
+        "set. Project/run names come from WANDB_PROJECT/WANDB_RUN_NAME (defaults: "
+        "'csen346-state-classifier' / the --out-dir basename). Requires `wandb` "
+        "(install via the 'wandb' extra) and `wandb login` for online logging.",
+    )
     args = p.parse_args()
 
     if args.freeze_backbone and args.lora:
@@ -395,6 +436,12 @@ def main() -> None:
         num_training_steps=total_steps,
     )
 
+    wb = _init_wandb(args, model_type)
+
+    def wb_log(metrics: dict, step: int | None = None) -> None:
+        if wb is not None:
+            wb.log(metrics, step=step)
+
     print(
         f"\nTraining ({total_steps} steps over {args.epochs} epochs, "
         f"{len(trainable_params)} trainable tensors) ..."
@@ -436,6 +483,14 @@ def main() -> None:
             optimizer.zero_grad()
             epoch_loss_sum += float(loss.item())
             epoch_steps += 1
+            wb_log(
+                {
+                    "train/loss": float(loss.item()),
+                    "train/grad_norm": grad_norm,
+                    "train/lr": scheduler.get_last_lr()[0],
+                },
+                step=global_step,
+            )
             if global_step < 5 or global_step % 200 == 0:
                 print(
                     f"  step {global_step:5d}: loss={loss.item():.4f}  "
@@ -463,6 +518,15 @@ def main() -> None:
             f"train_loss={epoch_loss_sum / max(1, epoch_steps):.4f}  "
             f"eval_loss={eval_loss_sum / max(1, eval_steps):.4f}  "
             f"eval_acc={100 * eval_correct / max(1, eval_total):.2f}%"
+        )
+        wb_log(
+            {
+                "epoch": epoch + 1,
+                "train/epoch_loss": epoch_loss_sum / max(1, epoch_steps),
+                "eval/loss": eval_loss_sum / max(1, eval_steps),
+                "eval/acc": eval_correct / max(1, eval_total),
+            },
+            step=global_step,
         )
 
     # Test-split eval
@@ -530,6 +594,13 @@ def main() -> None:
     per_stage_acc = {
         s: (correct_stage[s] / total_stage[s] if total_stage[s] else 0.0) for s in "abcde"
     }
+    wb_log(
+        {
+            "test/state_accuracy": test_overall,
+            "test/loss": test_metrics["test_loss"],
+            **{f"test/stage_{s}": per_stage_acc[s] for s in "abcde"},
+        }
+    )
     out = {
         "n_test_turns": len(test_examples),
         "test_state_accuracy": test_overall,
@@ -562,6 +633,8 @@ def main() -> None:
         model.save_pretrained(str(final_dir))
     tokenizer.save_pretrained(str(final_dir))
     print(f"\nSaved to {final_dir}")
+    if wb is not None:
+        wb.finish()
     print("Done.")
 
 

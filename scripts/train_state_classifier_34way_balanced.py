@@ -101,7 +101,19 @@ def main() -> None:
         default=0.5,
         help="Power for inverse-freq weights (0=none, 1=fully balanced)",
     )
+    p.add_argument(
+        "--wandb",
+        action="store_true",
+        help="Report training/eval metrics to Weights & Biases via the HF Trainer. "
+        "Also auto-enabled if WANDB_PROJECT is set. Run name comes from "
+        "WANDB_RUN_NAME (default: the output-dir basename). Requires `wandb` "
+        "(install via the 'wandb' extra) and `wandb login` for online logging.",
+    )
     args = p.parse_args()
+
+    use_wandb = args.wandb or bool(os.environ.get("WANDB_PROJECT"))
+    if use_wandb:
+        os.environ.setdefault("WANDB_PROJECT", "csen346-state-classifier")
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     print(f"Loading {MODEL_ID} ...")
@@ -164,7 +176,8 @@ def main() -> None:
         save_strategy="epoch",
         save_total_limit=1,
         logging_steps=200,
-        report_to=[],
+        report_to=["wandb"] if use_wandb else [],
+        run_name=(os.environ.get("WANDB_RUN_NAME") or OUT_DIR.name) if use_wandb else None,
         seed=args.seed,
         fp16=torch.cuda.is_available(),
     )
