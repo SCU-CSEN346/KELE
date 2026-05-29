@@ -178,12 +178,25 @@ def build_model_and_tokenizer():
 
     _offload_dir = "offload_weights"
     _os.makedirs(_offload_dir, exist_ok=True)
+    # QLoRA with live quantization: force all layers to GPU so bitsandbytes can
+    # quantize them. device_map="auto" estimates placement from BF16 size and
+    # tries to offload layers to CPU when the BF16 model exceeds VRAM; bnb then
+    # rejects CPU-dispatched modules. NF4 fits in VRAM so {"": 0} is safe.
+    _device_map = {"": 0} if (method == "qlora" and not preq) else "auto"
+    # caching_allocator_warmup is an NVIDIA-specific optimisation added in recent
+    # transformers. It calls torch.cuda.cudart() which has no ROCm equivalent and
+    # raises "Found no NVIDIA driver." Patch it out on HIP/ROCm — the warmup is
+    # not required for correctness, only for CUDA allocator pre-heating.
+    if torch.version.hip is not None:
+        import transformers.modeling_utils as _mu
+
+        _mu.caching_allocator_warmup = lambda *_a, **_kw: None
     model = AutoModelForCausalLM.from_pretrained(
         base_model,
         quantization_config=bnb_config,
         torch_dtype=torch_dtype,
         attn_implementation="sdpa",
-        device_map="auto",
+        device_map=_device_map,
         low_cpu_mem_usage=True,
         offload_folder=_offload_dir,
         offload_state_dict=True,
