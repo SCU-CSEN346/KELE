@@ -362,13 +362,20 @@ def main() -> None:
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
     # Always propagate pad_token_id to model.config. Qwen3ForSequenceClassification's
-    # pooling logic pulls the last-non-pad-token hidden state; if model.config.pad_token_id
-    # is None it falls back to a degenerate path that yields NaN logits → NaN loss
-    # → NaN head weights within epoch 1 (the T1 v1/v2 failure mode). The tokenizer
-    # already having a pad_token_id is NOT sufficient; the model config needs it too.
-    if model.config.pad_token_id is None:
+    # pooling logic pulls the last-non-pad-token hidden state; if pad_token_id is None
+    # it falls back to a degenerate path that yields NaN logits → NaN loss → NaN head
+    # weights within epoch 1 (the T1 v1/v2 failure mode). The tokenizer already having
+    # a pad_token_id is NOT sufficient; the model config needs it too.
+    # transformers 5.9.0 drift: the multimodal Qwen3_5Config no longer exposes
+    # pad_token_id as a top-level attribute (5.8.1 carried it as None); it now lives
+    # on the nested text config. Read via getattr to avoid AttributeError, and set it
+    # on both the outer config and the text sub-config the SeqCls head reads from.
+    # For BERT/Qwen3 there is no text_config, so this collapses to the original path.
+    text_config = getattr(model.config, "text_config", model.config)
+    if getattr(text_config, "pad_token_id", None) is None:
         model.config.pad_token_id = tokenizer.pad_token_id
-        print(f"  set model.config.pad_token_id = {tokenizer.pad_token_id}")
+        text_config.pad_token_id = tokenizer.pad_token_id
+        print(f"  set pad_token_id = {tokenizer.pad_token_id} (config + text_config)")
 
     print("Building examples ...")
     train_examples = build_examples("train")
