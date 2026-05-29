@@ -1,6 +1,6 @@
 \documentclass[11pt]{article}
 
-\usepackage[final]{acl}
+\usepackage[preprint]{acl}
 
 \usepackage{times}
 \usepackage{latexsym}
@@ -28,18 +28,18 @@
 \maketitle
 
 \begin{abstract}
-We reproduce and extend KELE \citep{peng2025kele}, a multi-agent Socratic teaching framework. Our four contributions are: (i)~a \emph{fusion} architecture collapsing consultant and teacher onto one open-weight backbone via a JSON-schema-constrained structured-output call; (ii)~a supervised classifier replacing the LLM consultant ($\sim$800M-parameter Qwen3.5-0.8B-LoRA, $67.57\%$ test state accuracy) paired with a Gemma~4 31B teacher and 10-shot stage-balanced exemplars --- our locked $n{=}681$ headline at $\mathbf{55.39\%}$ state accuracy / unified $\mathbf{72.24}$, a $\mathbf{2.14\times}$ lift over the GPT-4o + SocratTeachLLM baseline; (iii)~\textbf{a benchmark critique showing surface-form metrics systematically reward training-data memorization over teaching capability} (rankings invert; gap widens monotonically with $n$-gram length; English translation reproduces the published headline within $1.5$~R-1 points; on a held-out synthetic test set the baseline collapses from $63.40$ to $32.86$ stage-balanced macro); and (iv)~under a memorization-resistant unified score, our open-weight system overtakes the best frontier teacher we measured by $\mathbf{+2.18}$ unified points at canonical sample size, on a single 32~GB consumer GPU at zero per-run eval API cost. We also release SocratDataset-EN and SocratDataset-SYNTHETIC. Code, datasets, and reproduction scripts are public.
+We reproduce and extend KELE \citep{peng2025kele}, a multi-agent Socratic teaching framework. Our three contributions are: (i)~a supervised classifier that replaces the LLM consultant (an $\sim$800M-parameter Qwen3.5-0.8B-LoRA model reaching $67.57\%$ test state accuracy), paired with a Gemma~4 31B teacher and 10-shot stage-balanced exemplars. Our locked $n{=}681$ headline reaches $\mathbf{55.39\%}$ state accuracy and unified $\mathbf{72.24}$, a $\mathbf{2.14\times}$ lift over the GPT-4o + SocratTeachLLM baseline. (ii)~\textbf{A benchmark critique showing surface-form metrics systematically reward training-data memorization over teaching capability}: rankings invert; the gap widens monotonically with $n$-gram length; an English translation reproduces the published headline within $1.5$~R-1 points; on a held-out synthetic test set the baseline collapses from $63.40$ to $32.86$ on stage-balanced macro. (iii)~Under a memorization-resistant unified score, our open-weight system overtakes the best frontier teacher we measured by $\mathbf{+2.18}$ unified points at canonical sample size, on a single 32~GB consumer GPU. We also release SocratDataset-EN and SocratDataset-SYNTHETIC. Code, datasets, and reproduction scripts are public.
 \end{abstract}
 
 %% ============================================================
 \section{Introduction}
 \label{sec:intro}
 
-\paragraph{Problem and relevance.} Socratic teaching is a pedagogy in which the teacher elicits answers through structured questioning rather than direct instruction \citep{seeskin1987socratic,chang1998socratic}. Research consistently shows it produces deeper learning outcomes than passive knowledge-imparting instruction \citep{johnston1994teaching,knezic2010socratic}, but it requires highly skilled instructors and does not scale --- a one-to-many bottleneck that the educational use of large language models (LLMs) could in principle relieve \citep{kasneci2023chatgpt,gan2023llmedu,sonkar2023class}. Yet existing LLM tutoring systems treat Socratic dialogue mostly as turn-level heuristic questioning \citep{alhossami2024socratic,shridhar2022mathword,zhang2024spl,dan2023educhat,liu2024socraticLM,ding2024socraticmath,macina2023mathdial}; very few enforce the coherent multi-stage pedagogical progression a skilled human Socratic tutor follows. This is precisely the gap KELE \citep{peng2025kele} targets, and that we examine in this work.
+\paragraph{Problem and relevance.} Socratic teaching is a pedagogy in which the teacher elicits answers through structured questioning rather than direct instruction \citep{seeskin1987socratic,chang1998socratic}. Research consistently shows it produces deeper learning outcomes than passive knowledge-imparting instruction \citep{johnston1994teaching,knezic2010socratic}, but it requires highly skilled instructors and does not scale: a one-to-many bottleneck that the educational use of large language models (LLMs) could in principle relieve \citep{kasneci2023chatgpt,gan2023llmedu,sonkar2023class}. Yet existing LLM tutoring systems treat Socratic dialogue mostly as turn-level heuristic questioning \citep{alhossami2024socratic,shridhar2022mathword,zhang2024spl,dan2023educhat,liu2024socraticLM,ding2024socraticmath,macina2023mathdial}; very few enforce the coherent multi-stage pedagogical progression a skilled human Socratic tutor follows. This is precisely the gap KELE \citep{peng2025kele} targets, and that we examine in this work.
 
-\paragraph{The KELE framework.} KELE decomposes Socratic teaching into five strictly-ordered stages (Student Questioning, Concept Probing, Inductive Reasoning, Rule Construction, Teacher Summary) governed by a rule system called SocRule containing $34$ teaching strategies. A \emph{consultant} agent classifies the student's cognitive state and selects a strategy; a \emph{teacher} agent then generates the dialogue response that implements it. KELE fine-tunes GLM4-9B \citep{glm2024chatglm} via LoRA \citep{hu2022lora} on the SocratDataset training split to produce \textbf{SocratTeachLLM}, a teacher model the authors report outperforms GPT-4o \citep{openai2024gpt4o} across all nine Socratic-teaching evaluation dimensions despite being much smaller. The architectural insight --- separation of teaching \emph{planning} from teaching \emph{execution} --- mirrors real-world co-teaching practice \citep{nevin2009collaborative}, where single-agent approaches conflate the two roles \citep{ge2023openagi,an2024llmcontext}.
+\paragraph{The KELE framework.} KELE decomposes Socratic teaching into five strictly-ordered stages (Student Questioning, Concept Probing, Inductive Reasoning, Rule Construction, Teacher Summary) governed by a rule system called SocRule containing $34$ teaching strategies. A \emph{consultant} agent classifies the student's cognitive state and selects a strategy; a \emph{teacher} agent then generates the dialogue response that implements it. KELE fine-tunes GLM4-9B \citep{glm2024chatglm} via LoRA \citep{hu2022lora} on the SocratDataset training split to produce \textbf{SocratTeachLLM}, a teacher model the authors report outperforms GPT-4o \citep{openai2024gpt4o} across all nine Socratic-teaching evaluation dimensions despite being much smaller. The architectural insight (separation of teaching \emph{planning} from teaching \emph{execution}) mirrors real-world co-teaching practice \citep{nevin2009collaborative}, where single-agent approaches conflate the two roles \citep{ge2023openagi,an2024llmcontext}.
 
-\paragraph{Motivation and goals.} The published KELE result rests on surface-form text-overlap metrics (ROUGE \citep{lin2004rouge}, BLEU \citep{papineni2002bleu}) — metrics designed for translation/summarization where the valid-output space is small. Socratic teaching has a much larger space of pedagogically equivalent responses (paraphrases of the same teaching move), so surface-form metrics conflate phrasing memorization with teaching quality. We set out to (1)~reproduce KELE end-to-end, (2)~extend it on a single-GPU consumer budget that forecloses the canonical two-model stack, and (3)~test whether the published surface-form rankings hold up against memorization-resistant evaluation. Our open-weight integration architecture (\S\ref{sec:method}) lifts overall state accuracy by $\mathbf{+29.45}$ percentage points (a $\mathbf{2.14\times}$ multiplier) over the GPT-4o + SocratTeachLLM baseline, at $0$ per-run API cost; the benchmark critique (\S\ref{sec:results}) provides four converging lines of evidence that the published $9$B specialist's surface-form advantage is language-bound memorization rather than transferable pedagogical capability.
+\paragraph{Motivation and goals.} The published KELE result rests on surface-form text-overlap metrics (ROUGE \citep{lin2004rouge}, BLEU \citep{papineni2002bleu}) — metrics designed for translation/summarization where the valid-output space is small. Socratic teaching has a much larger space of pedagogically equivalent responses (paraphrases of the same teaching move), so surface-form metrics conflate phrasing memorization with teaching quality. We set out to (1)~reproduce KELE end-to-end, (2)~extend it on a single-GPU consumer budget that forecloses the canonical two-model stack, and (3)~test whether the published surface-form rankings hold up against memorization-resistant evaluation. Our open-weight integration architecture (\S\ref{sec:method}) lifts overall state accuracy by $\mathbf{+29.45}$ percentage points (a $\mathbf{2.14\times}$ multiplier) over the GPT-4o + SocratTeachLLM baseline; the benchmark critique (\S\ref{sec:results}) provides four converging lines of evidence that the published $9$B specialist's surface-form advantage is language-bound memorization rather than transferable pedagogical capability.
 
 %% ============================================================
 \section{Proposed Method and Implementation}
@@ -71,15 +71,17 @@ We reproduce and extend KELE \citep{peng2025kele}, a multi-agent Socratic teachi
 
 \subsection{Single-GPU budget forces an architectural pivot}
 
-All open-weight runs use a single NVIDIA RTX~5090 ($32$\,GB VRAM). The canonical KELE stack co-locating SocratTeachLLM ($\approx 19$\,GB) with a separately served frontier consultant does not fit. We respond with two design choices: (i)~a \emph{fusion} variant in which both consultant and teacher are emitted by a single JSON-schema-constrained LLM call with fields $\{$\texttt{evaluation, state\_code, teacher\_response}$\}$, enforced server-side by \texttt{llama.cpp}'s strict \texttt{json\_schema} grammar; and (ii)~the deterministic-classifier integration described below, which replaces the consultant LLM with a supervised classifier and \emph{removes the JSON-schema dependency from the consultant path entirely}. The schema dependency matters: at full $n{=}681$ scale, Qwen 35B-A3B's fusion fallback rate is $0.91\%$ ($38/4{,}171$ turns), but Gemma~4 31B's standalone fusion fallback rate is $21.0\%$ ($890/4{,}246$ turns) --- a $23\times$ degradation that crushed Gemma standalone's state accuracy to $31.39\%$ (vs.\ a smoke--mini-projected $46.71\%$) and motivated retracting Gemma as a standalone candidate. The integration architecturally bypasses the issue. Reproduction of the canonical KELE stack uses GPT-4o \citep{openai2024gpt4o} as consultant and SocratTeachLLM served via vLLM \citep{kwon2023vllm}.
+All open-weight runs use a single NVIDIA RTX~5090 ($32$\,GB VRAM). The canonical KELE stack co-locating SocratTeachLLM ($\approx 19$\,GB) with a separately served frontier consultant does not fit. We first explored a \emph{fusion} variant in which both consultant and teacher are emitted by a single JSON-schema-constrained LLM call with fields $\{$\texttt{evaluation, state\_code, teacher\_response}$\}$, enforced server-side by \texttt{llama.cpp}'s strict \texttt{json\_schema} grammar. Fusion improved state accuracy at small scale, but the schema-fallback rate proved too architecture-dependent to scale reliably: at full $n{=}681$, Qwen 35B-A3B's fusion fallback rate is $0.91\%$ ($38/4{,}171$ turns), but Gemma~4 31B's standalone fusion fallback rate is $21.0\%$ ($890/4{,}246$ turns), a $23\times$ degradation that crushed Gemma standalone's state accuracy to $31.39\%$ (vs.\ a smoke-and-mini-projected $46.71\%$) and forced us to retract Gemma as a standalone candidate. This motivated our final design: the \textbf{deterministic-classifier integration} described below, which replaces the consultant LLM with a supervised classifier and removes the JSON-schema dependency from the consultant path entirely. Reproduction of the canonical KELE stack uses GPT-4o \citep{openai2024gpt4o} as consultant and SocratTeachLLM served via vLLM \citep{kwon2023vllm}.
 
 \subsection{Integration architecture}
 
-The integration replaces the consultant LLM call with a supervised state classifier predicting the $34$-state SocRule label directly from formatted dialogue history. We evaluate two classifier architectures on SocratDataset's $42$K labeled turns.
+The integration replaces the consultant LLM call with a supervised state classifier predicting the $34$-state SocRule label directly from formatted dialogue history. We evaluated three classifier architectures in sequence on SocratDataset's $42$K labeled turns; each subsequent variant superseded the previous on stage~c (the binding constraint, since stages a, b, d, and e are already at or above $90\%$ across all three).
 
-\noindent\textbf{(1)~24M-parameter Chinese BERT} (\texttt{BAAI/bge-small-zh-v1.5}, $\sim$$95$\,MB resident): the $34$-state head fine-tunes in $148$~s and reaches $\mathbf{61.64\%}$ test state accuracy. A complementary $5$-way stage-classification head from the same backbone trains in only $92$~s to $\mathbf{86.55\%}$ stage accuracy --- $\mathbf{+75}$~percentage points over GPT-4o on stage~c (the $22$-way inductive-reasoning classification), and the strongest result on the hardest single task in the benchmark on a per-parameter, per-compute-second basis ($0.07\%$ of the LLM consultant's parameter count, $0.15\%$ of one full evaluation's wall-clock).
+\noindent\textbf{(1)~24M-parameter Chinese BERT} (\texttt{BAAI/bge-small-zh-v1.5}, $\sim$$95$\,MB resident): the $34$-state head fine-tunes in $148$~s and reaches $\mathbf{61.64\%}$ test state accuracy ($76.16\%$ on stage c). A complementary $5$-way stage-classification head from the same backbone trains in only $92$~s to $\mathbf{86.55\%}$ stage accuracy, which is $\mathbf{+75}$ percentage points over GPT-4o on stage~c (the $22$-way inductive-reasoning classification) and the strongest result on the hardest single task in the benchmark on a per-parameter, per-compute-second basis ($0.07\%$ of the LLM consultant's parameter count, $0.15\%$ of one full evaluation's wall-clock).
 
-\noindent\textbf{(2)~$\sim$800M-parameter Qwen3.5-0.8B + LoRA} (the consultant-upgrade funnel winner and our locked configuration): $\mathbf{67.57\%}$ exact $34$-state accuracy, with a $\mathbf{+8.98}$~percentage-point lift over the BERT 34-state head specifically on stage~c --- the load-bearing driver of the locked-headline jump (\S\ref{sec:results}).
+\noindent\textbf{(2)~$\sim$600M-parameter Qwen3-Embedding-0.6B + LoRA} (intermediate winner of the consultant-upgrade funnel): the architectural pivot from a sentence-embedding backbone with a classification head to a transformer-decoder backbone with LoRA fine-tuning. Reaches $\mathbf{66.66\%}$ test state accuracy and $\mathbf{84.87\%}$ on stage~c, a $+8.71$~percentage-point stage-c lift over the BERT 34-state head. This was the first variant to crack the 22-way within-stage classification, validating that decoder-with-LoRA dominates head-only fine-tuning on this task and motivating the larger Qwen3.5 base below.
+
+\noindent\textbf{(3)~$\sim$800M-parameter Qwen3.5-0.8B + LoRA} (the consultant-upgrade funnel winner and our locked configuration): $\mathbf{67.57\%}$ exact $34$-state accuracy and $\mathbf{85.14\%}$ on stage~c, a $\mathbf{+8.98}$~percentage-point lift over the BERT 34-state head and $+0.27$ over the Qwen3-Embedding variant. This is the load-bearing driver of the locked-headline jump (\S\ref{sec:results}).
 
 \noindent Algorithm~\ref{alg:integration} formalizes the per-turn loop.
 
@@ -101,7 +103,7 @@ The integration replaces the consultant LLM call with a supervised state classif
 \end{algorithmic}
 \end{algorithm}
 
-Line~1 replaces the canonical LLM-consultant call: a single forward pass through the classifier, $\sim$$95$\,MB resident (BERT) or $\sim$$1.6$\,GB (Qwen3.5-LoRA), on CPU. Line~5 is the deterministic SocRule lookup --- pedagogical routing is now classifier-driven and traceable, not subject to LLM sampling variance. Lines~6--7 generate the response using only a plain text-generation request to the teacher LLM (no JSON schema), with $10$ stage-balanced exemplars drawn from the train split to control surface phrasing.
+Line~1 replaces the canonical LLM-consultant call: a single forward pass through the classifier, $\sim$$95$\,MB resident (BERT) or $\sim$$1.6$\,GB (Qwen3.5-LoRA), on CPU. Line~5 is the deterministic SocRule lookup; pedagogical routing is now classifier-driven and traceable, not subject to LLM sampling variance. Lines~6--7 generate the response using only a plain text-generation request to the teacher LLM (no JSON schema), with $10$ stage-balanced exemplars drawn from the train split to control surface phrasing.
 
 \subsection{Memorization-resistant evaluation panel}
 
@@ -118,7 +120,7 @@ where $\mathrm{stage\_bal} = (1/5)\sum_s p_s$ is the equal-stage macro state acc
 
 \subsection{Reproduction}
 
-Table~\ref{tab:reproduction} reports our reproduction of the canonical KELE stack (GPT-4o consultant + SocratTeachLLM teacher) on the $681$-dialogue test split. Our ROUGE-L ($38.02$) closely matches the paper's GPT-4o teacher baseline ($38.27$), confirming infrastructure correctness; the R-1 gap ($-12.79$) is attributable to our running the consultant from scratch (no ground-truth state leakage), while \citet{peng2025kele} feed ground-truth labels to the teacher --- this is a known methodological asymmetry that \S\ref{sec:results-critique} ultimately re-frames.
+Table~\ref{tab:reproduction} reports our reproduction of the canonical KELE stack (GPT-4o consultant + SocratTeachLLM teacher) on the $681$-dialogue test split. Our ROUGE-L ($38.02$) closely matches the paper's GPT-4o teacher baseline ($38.27$), confirming infrastructure correctness; the R-1 gap ($-12.79$) is attributable to our running the consultant from scratch (no ground-truth state leakage), while \citet{peng2025kele} feed ground-truth labels to the teacher. This is a known methodological asymmetry that \S\ref{sec:results-critique} ultimately re-frames.
 
 \begin{table}[t]
   \centering
@@ -128,7 +130,7 @@ Table~\ref{tab:reproduction} reports our reproduction of the canonical KELE stac
     \toprule
     \textbf{System} & \textbf{R-1} & \textbf{R-2} & \textbf{R-L} & \textbf{BLEU-4} \\
     \midrule
-    \multicolumn{5}{@{}l}{\emph{Peng et al.\ (2025) --- original}} \\
+    \multicolumn{5}{@{}l}{\emph{Peng et al.\ (2025), original results}} \\
     \;\; GPT-4o (teacher) & 48.25 & 22.55 & 38.27 & 29.93 \\
     \;\; SocratTeachLLM   & \textbf{57.40} & \textbf{33.63} & \textbf{50.77} & \textbf{41.96} \\
     \midrule
@@ -145,7 +147,7 @@ Table~\ref{tab:reproduction} reports our reproduction of the canonical KELE stac
 
 \subsection{Locked headline: integration overtakes the frontier}
 
-On the same test split with no ground-truth leakage, the locked Qwen3.5-LoRA + Gemma~4 31B + $10$-shot integration scores $\mathbf{55.39\%}$ state accuracy / $\mathbf{37.65}$ R-1 / unified $\mathbf{72.24}$ ($n{=}681$, $3{,}974$ turns, $\approx 12$~GPU-hours, $0$~USD eval API spend). Table~\ref{tab:perstage} reports the per-stage breakdown vs.\ the published GPT-4o baseline; multipliers reach $\mathbf{7.5\times}$ on stage~c (the 22-state inductive-reasoning classification), $\mathbf{9.2\times}$ on stage~d (rule construction), and $\mathbf{6.6\times}$ on stage~e (closure), exactly the cognitively hard middle/closure stages where general-purpose LLMs collapse.
+On the same test split with no ground-truth leakage, the locked Qwen3.5-LoRA + Gemma~4 31B + $10$-shot integration scores $\mathbf{55.39\%}$ state accuracy / $\mathbf{37.65}$ R-1 / unified $\mathbf{72.24}$ ($n{=}681$, $3{,}974$ turns, $\approx 12$~GPU-hours). Table~\ref{tab:perstage} reports the per-stage breakdown vs.\ the published GPT-4o baseline; multipliers reach $\mathbf{7.5\times}$ on stage~c (the 22-state inductive-reasoning classification), $\mathbf{9.2\times}$ on stage~d (rule construction), and $\mathbf{6.6\times}$ on stage~e (closure), exactly the cognitively hard middle/closure stages where general-purpose LLMs collapse.
 
 \begin{table}[t]
   \centering
@@ -193,14 +195,14 @@ On the same test split with no ground-truth leakage, the locked Qwen3.5-LoRA + G
   \label{tab:headline}
 \end{table}
 
-\paragraph{Consultant-axis attribution.} The Qwen3.5-LoRA classifier achieves $67.57\%$ test state accuracy on the $4{,}304$-turn split with per-stage profile $a{=}100.0$, $b{=}90.93$, $c{=}\mathbf{85.14}$, $d{=}75.89$, $e{=}96.77$ --- the $+8.98$~pp stage-c lift over BERT's $76.16\%$ is the load-bearing driver of the locked-headline jump. We verified this attribution with a matched-classifier control: a post-fix BERT variant at $n{=}681$ (\texttt{bert-fixed $\times$ Gemma}) lands at unified $68.94$, just $+0.29$ over the legacy BERT cell, well within sampling variance. The classifier input-format fix moves nothing measurable at canonical scale; the $+3.59$ unified jump from the prior locked headline ($68.65$) to the current one ($72.24$) is \emph{entirely} due to the consultant-architecture upgrade, not classifier-level correctness fixes.
+\paragraph{Consultant-axis attribution.} The Qwen3.5-LoRA classifier achieves $67.57\%$ test state accuracy on the $4{,}304$-turn split with per-stage profile $a{=}100.0$, $b{=}90.93$, $c{=}\mathbf{85.14}$, $d{=}75.89$, $e{=}96.77$. The $+8.98$~pp stage-c lift over BERT's $76.16\%$ is the load-bearing driver of the locked-headline jump. We verified this attribution with a matched-classifier control: a post-fix BERT variant at $n{=}681$ (\texttt{bert-fixed $\times$ Gemma}) lands at unified $68.94$, just $+0.29$ over the legacy BERT cell, well within sampling variance. The classifier input-format fix moves nothing measurable at canonical scale; the $+3.59$ unified jump from the prior locked headline ($68.65$) to the current one ($72.24$) is \emph{entirely} due to the consultant-architecture upgrade, not classifier-level correctness fixes.
 
-\paragraph{Local overtakes frontier.} The best frontier-teacher configuration we tested (\texttt{BERT$\times$Claude-Sonnet$\cdot$top-3$\cdot$n=681}, unified $70.06$, using a $10$-utilization prompt-engineering stack) sits $\mathbf{2.18}$ unified points below our locked open-weight headline at the same canonical $n{=}681$. A $32$~GB consumer GPU running a $31$B-parameter open-weight teacher with prompt engineering beats Anthropic's best Sonnet/Opus configuration we measured, on a memorization-resistant evaluation, at zero per-run eval API cost. The closure-aware unified metric is responsible: it credits per-stage routing including the closure stage where our system reaches $78.45\%$ (Claude variants stay $\leq 72\%$), while penalizing surface-form mimicry that frontier models may have absorbed during pre-training.
+\paragraph{Local overtakes frontier.} The best frontier-teacher configuration we tested (\texttt{BERT$\times$Claude-Sonnet$\cdot$top-3$\cdot$n=681}, unified $70.06$, using a $10$-utilization prompt-engineering stack) sits $\mathbf{2.18}$ unified points below our locked open-weight headline at the same canonical $n{=}681$. A $32$~GB consumer GPU running a $31$B-parameter open-weight teacher with prompt engineering beats Anthropic's best Sonnet/Opus configuration we measured, on a memorization-resistant evaluation. The closure-aware unified metric is responsible: it credits per-stage routing including the closure stage where our system reaches $78.45\%$ (Claude variants stay $\leq 72\%$), while penalizing surface-form mimicry that frontier models may have absorbed during pre-training.
 
 \subsection{Benchmark critique: surface-form metrics reward memorization}
 \label{sec:results-critique}
 
-When the same $10$ configurations are ranked by surface-form sum ($\text{R-1}+\text{R-2}+\text{BLEU-4}$) versus by pedagogical state accuracy, \textbf{the orderings invert} (Fig.~\ref{fig:inversion}, Table~\ref{tab:inversion}). SocratTeachLLM tops the surface-form leaderboard by $+10.83$ over the next-best configuration (Opus 4.6 with carefully-tuned prompt engineering) while producing the \emph{worst} state accuracy of any system tested ($25.94\%$, below even raw Opus at $39.75\%$). The gap widens monotonically with $n$-gram length ($+1.59$~R-1 $\to$ $+4.92$~R-2 $\to$ $+4.07$~BLEU-4) --- the strongest possible memorization signature, since higher-order $n$-gram overlap captures phrase-level fingerprinting.
+When the same $10$ configurations are ranked by surface-form sum ($\text{R-1}+\text{R-2}+\text{BLEU-4}$) versus by pedagogical state accuracy, \textbf{the orderings invert} (Fig.~\ref{fig:inversion}, Table~\ref{tab:inversion}). SocratTeachLLM tops the surface-form leaderboard by $+10.83$ over the next-best configuration (Opus 4.6 with carefully-tuned prompt engineering) while producing the \emph{worst} state accuracy of any system tested ($25.94\%$, below even raw Opus at $39.75\%$). The gap widens monotonically with $n$-gram length ($+1.59$~R-1, $+4.92$~R-2, $+4.07$~BLEU-4), which is the strongest possible memorization signature, since higher-order $n$-gram overlap captures phrase-level fingerprinting.
 
 \begin{figure}[t]
   \centering
@@ -231,11 +233,11 @@ When the same $10$ configurations are ranked by surface-form sum ($\text{R-1}+\t
   \label{tab:inversion}
 \end{table}
 
-\paragraph{Cross-lingual translation reproduces the published headline.} If SocratTeachLLM's $n$-gram advantage is phrase-level memorization, translating the dataset should preserve low-order overlap (translation respects lexical content) but destroy 4-gram overlap. \textbf{Running SocratTeachLLM against SocratDataset-EN with a Sonnet 4.6 consultant produces R-1 $=55.85$ and R-2 $=33.79$ --- nearly identical to the published headline R-1 $=57.40$, R-2 $=33.63$.} The flagship surface-form number is reproducible by translating the dataset into the paper's reporting language. The R-2/BLEU-4 ratio simultaneously jumps from $\approx 1.3$ on Chinese to $\approx 9$ on English under the identical teacher --- the textbook signature of phrase-level memorization at exactly the $n$-gram length predicted.
+\paragraph{Cross-lingual translation reproduces the published headline.} If SocratTeachLLM's $n$-gram advantage is phrase-level memorization, translating the dataset should preserve low-order overlap (translation respects lexical content) but destroy 4-gram overlap. \textbf{Running SocratTeachLLM against SocratDataset-EN with a Sonnet 4.6 consultant produces R-1 $=55.85$ and R-2 $=33.79$, nearly identical to the published headline of R-1 $=57.40$, R-2 $=33.63$.} The flagship surface-form number is reproducible by translating the dataset into the paper's reporting language. The R-2/BLEU-4 ratio simultaneously jumps from $\approx 1.3$ on Chinese to $\approx 9$ on English under the identical teacher, which is the textbook signature of phrase-level memorization at exactly the $n$-gram length predicted.
 
-\paragraph{Clean-probe collapse on a held-out synthetic test set.} On SocratDataset-SYNTHETIC ($75$ Sonnet-4.6-generated Chinese dialogues, verifiably disjoint from SocratDataset's published splits), SocratTeachLLM's stage-balanced macro state accuracy collapses from $\mathbf{63.40\%}$ on the published test split to $\mathbf{32.86\%}$ on synthetic data; R-1 drops $48.07\to35.72$. On the same synthetic test set, baseline Gemma~4 31B + 10-shot (no SocratDataset fine-tuning) scores stage-balanced $56.13$ / R-1 $38.76$ --- \textbf{SocratTeachLLM under-performs baseline Gemma on truly held-out data, despite outperforming it by $\sim$$13$ stage-balanced points on the published test split.} The within-model delta ($-30.54$~pp stage-balanced) is the textbook signature of catastrophic out-of-distribution generalization. Together with the surface-form inversion, the monotonic $n$-gram widening, and the translation-pipeline reproduction, the most parsimonious account is that SocratTeachLLM was trained on test-set surface forms (by direct contamination or insufficient train/test distributional separation).
+\paragraph{Clean-probe collapse on a held-out synthetic test set.} On SocratDataset-SYNTHETIC ($75$ Sonnet-4.6-generated Chinese dialogues, verifiably disjoint from SocratDataset's published splits), SocratTeachLLM's stage-balanced macro state accuracy collapses from $\mathbf{63.40\%}$ on the published test split to $\mathbf{32.86\%}$ on synthetic data; R-1 drops $48.07\to35.72$. On the same synthetic test set, baseline Gemma~4 31B + 10-shot (no SocratDataset fine-tuning) scores stage-balanced $56.13$ / R-1 $38.76$. \textbf{SocratTeachLLM under-performs baseline Gemma on truly held-out data, despite outperforming it by $\sim$$13$ stage-balanced points on the published test split.} The within-model delta ($-30.54$~pp stage-balanced) is the textbook signature of catastrophic out-of-distribution generalization. Together with the surface-form inversion, the monotonic $n$-gram widening, and the translation-pipeline reproduction, the most parsimonious account is that SocratTeachLLM was trained on test-set surface forms, either by direct contamination or by insufficient train/test distributional separation.
 
-\paragraph{LLM-judge cross-lingual transfer confirms.} On the four-axis Sonnet 4.6 rubric across $15$ judged configurations, our locked integration tops the leaderboard at $8.32/10$. Cross-lingual judge deltas decide the case: Opus + top-3 transfers Chinese$\to$English at only $-0.07$ judge loss, while Sonnet/Opus + SocratTeachLLM lose $-1.01$ and $-1.03$ --- $14\times$ more --- on a paraphrase-invariant metric.
+\paragraph{LLM-judge cross-lingual transfer confirms.} On the four-axis Sonnet 4.6 rubric across $15$ judged configurations, our locked integration tops the leaderboard at $8.32/10$. Cross-lingual judge deltas decide the case: Opus + top-3 transfers Chinese$\to$English at only $-0.07$ judge loss, while Sonnet/Opus + SocratTeachLLM lose $-1.01$ and $-1.03$ ($14\times$ more) on a paraphrase-invariant metric.
 
 \subsection{Sample-size calibration}
 
@@ -257,9 +259,9 @@ Across the campaign we evaluated $\mathbf{143}$ model variants (cross-teacher gr
 \section{Conclusion and Future Work}
 \label{sec:conclusion}
 
-\paragraph{Summary of findings.} We reproduced KELE on a single-GPU budget and extended it on four axes: a fusion structured-output architecture, a deterministic-classifier consultant integration, a memorization-resistant evaluation panel including the unified score of Eq.~\ref{eq:unified}, and a clean-probe contamination diagnostic against a public synthetic dataset we release. Our locked headline scores $\mathbf{55.39\%}$ state accuracy / unified $\mathbf{72.24}$ at $n{=}681$ --- a $\mathbf{2.14\times}$ lift over the GPT-4o + SocratTeachLLM baseline, with $6.6$--$9.2\times$ multipliers on the cognitively hard middle and closure stages, and a $\mathbf{+2.18}$-unified-point lead over the best frontier-teacher configuration we measured, at zero per-run eval API cost on a $32$~GB consumer GPU. Methodologically, we show that surface-form metrics on this benchmark systematically reward training-data memorization over teaching capability; that the published surface-form headline is reproducible by translating the dataset into English; that on truly held-out synthetic data the published baseline collapses below baseline Gemma; and that the published $n{=}681$ test split can be replaced by $n{=}400$ for $41\%$ compute savings without loss of decision precision.
+\paragraph{Summary of findings.} We reproduced KELE on a single-GPU budget and extended it on three axes: a deterministic-classifier consultant integration, a memorization-resistant evaluation panel including the unified score of Eq.~\ref{eq:unified}, and a clean-probe contamination diagnostic against a public synthetic dataset we release. Our locked headline scores $\mathbf{55.39\%}$ state accuracy / unified $\mathbf{72.24}$ at $n{=}681$, a $\mathbf{2.14\times}$ lift over the GPT-4o + SocratTeachLLM baseline, with $6.6$--$9.2\times$ multipliers on the cognitively hard middle and closure stages, and a $\mathbf{+2.18}$-unified-point lead over the best frontier-teacher configuration we measured on a single $32$~GB consumer GPU. Methodologically, we show that surface-form metrics on this benchmark systematically reward training-data memorization over teaching capability; that the published surface-form headline is reproducible by translating the dataset into English; that on truly held-out synthetic data the published baseline collapses below baseline Gemma; and that the published $n{=}681$ test split can be replaced by $n{=}400$ for $41\%$ compute savings without loss of decision precision. An intermediate \emph{fusion} variant (consultant and teacher emitted by a single JSON-schema-constrained call) yielded an early small-scale lift but its schema-fallback rate proved architecture-dependent at full scale, motivating the deterministic-classifier integration that carries the locked result.
 
-\paragraph{Contributions.} (i)~Fusion structured-output architecture for KELE on consumer hardware; (ii)~deterministic-classifier consultant integration (BERT $\to$ Qwen3.5-LoRA) and the architectural thesis that the consultant axis is the binding constraint on canonical-scale performance, validated by an independent matched-classifier negative-result control; (iii)~memorization-resistant evaluation panel and the unified score; (iv)~four converging contamination diagnostics culminating in the SocratDataset-SYNTHETIC clean-probe; (v)~open release of code, datasets, classifier checkpoints, and reproduction scripts.
+\paragraph{Contributions.} (i)~Deterministic-classifier consultant integration with a three-step architectural evolution (Chinese BERT $\to$ Qwen3-Embedding-LoRA $\to$ Qwen3.5-LoRA), and the architectural thesis that the consultant axis is the binding constraint on canonical-scale performance, validated by an independent matched-classifier negative-result control; (ii)~memorization-resistant evaluation panel and the unified score; (iii)~four converging contamination diagnostics culminating in the SocratDataset-SYNTHETIC clean-probe; plus open release of code, datasets, classifier checkpoints, and reproduction scripts.
 
 \paragraph{Limitations.} The $+2.18$-point local-overtakes-frontier result is teacher-, prompt-, and consultant-specific (Gemma~4 31B, 10-shot stage-balanced, Qwen3.5-0.8B-LoRA); two adjacent matched-consultant cells (A3B-35B, Qwen-27B no-think) sit $2.25$ and $3.35$ points behind frontier. The $\leq 2$-pp $n{=}400$ variance budget is comparable to the $+2.18$ margin, so the claim is well-supported but bounded. Surface-form scores on our open-weight teacher remain $\approx 14$~R-1 points below the published baseline; we argue this is the wrong primary metric, but readers who weight reproducible phrasing highly should interpret R-1/BLEU-4 as adequacy-on-imitation rather than instructional quality. Primary experiments are in Chinese; the cross-lingual probe via SocratDataset-EN provides a partial English-side check, but full English-domain pedagogical evaluation remains future work.
 
@@ -275,5 +277,183 @@ The intended use of the system is automated Socratic-style scaffolding for eleme
 All code, configurations, and trained checkpoints are openly released at \url{https://github.com/ulises-c/csen-346} to enable reproduction, scrutiny, and downstream improvement.
 
 \bibliography{custom}
+
+%% ============================================================
+%% APPENDIX
+%% ============================================================
+\appendix
+
+\section{Classifier Evolution: Per-Stage Detail}
+\label{app:classifier}
+
+Table~\ref{tab:app-classifier} reports the full per-stage breakdown for the three classifier architectures evaluated in \S\ref{sec:method} on the held-out $4{,}304$-turn test split. Each column shows implied stage-level accuracy when the $34$-state predictions are aggregated up to the parent stage. The progression is concentrated almost entirely on stage~c (the $22$-way inductive-reasoning classification): the other four stages saturate near ceiling for all three classifiers. The Chinese BERT 5-way head, included for reference, was used only in the early reproduction phase to verify the feasibility of the supervised-classifier approach before the 34-state pipeline classifier was trained.
+
+\begin{table}[h]
+  \centering
+  \small
+  \begin{tabular}{@{}lrrr@{}}
+    \toprule
+    \textbf{Stage} & \textbf{BERT} & \textbf{Qwen3-Emb} & \textbf{Qwen3.5} \\
+                   & ($24$M) & + LoRA ($\sim$600M) & + LoRA ($\sim$800M) \\
+    \midrule
+    a & $100.0$ & $100.0$ & $100.0$ \\
+    b & $90.28$ & $90.67$ & $90.93$ \\
+    c & $76.16$ & $84.87$ & $\mathbf{85.14}$ \\
+    d & $76.98$ & $74.93$ & $75.89$ \\
+    e & $95.45$ & $96.48$ & $96.77$ \\
+    \midrule
+    \textbf{Overall (34-state)} & $61.64$ & $66.66$ & $\mathbf{67.57}$ \\
+    \bottomrule
+  \end{tabular}
+  \caption{Per-stage and overall accuracy (\%) of the three deterministic-classifier consultants on the $4{,}304$-turn test split. The architectural progression is concentrated on stage~c (the binding constraint).}
+  \label{tab:app-classifier}
+\end{table}
+
+\paragraph{Training compute.} BERT (5-way head): $92$~s on a single 5090. BERT (34-state head): $148$~s. Qwen3-Embedding-0.6B + LoRA: $\approx 37$~min at batch size $8$, with merged-weight checkpoint at $\approx 2.3$~GB. Qwen3.5-0.8B + LoRA r=8: $\approx 50$~min at batch size $16$ with bf16 autocast and gradient checkpointing, after a small hyperparameter sweep ($\text{bs}\in\{4, 16, 32, 48\}$). Per-state breakdowns and full confusion matrices for all three classifiers are shipped in the repository at \texttt{results/state-clf-*/test\_eval.json}.
+
+\section{LLM-Judge Four-Axis Breakdown}
+\label{app:judge}
+
+The unified score's judge component (\S\ref{sec:method}, Eq.~\ref{eq:unified}) decomposes into four memorization-resistant axes scored independently by Claude Sonnet 4.6: \emph{Socratic validity} (max $3$), \emph{learning advancement} (max $3$), \emph{age-appropriateness} (max $2$), and \emph{question-form fidelity} (max $2$). Table~\ref{tab:app-judge} reports the per-axis breakdown for the locked headline plus three reference cells.
+
+\begin{table}[h]
+  \centering
+  \small
+  \resizebox{\columnwidth}{!}{%
+  \begin{tabular}{@{}lcccc|c@{}}
+    \toprule
+    \textbf{Configuration} ($n{=}681$) & \textbf{Val.} & \textbf{Adv.} & \textbf{Age} & \textbf{Q-form} & \textbf{Total} \\
+    & (/3) & (/3) & (/2) & (/2) & (/10) \\
+    \midrule
+    \textbf{Locked: Qwen3.5-LoRA + Gemma} & $\mathbf{2.34}$ & $\mathbf{2.52}$ & $1.97$ & $1.48$ & $\mathbf{8.32}$ \\
+    BERT-fixed + Gemma                    & $2.30$ & $2.50$ & $1.97$ & $1.48$ & $8.25$ \\
+    Legacy BERT + Gemma                   & $2.27$ & $2.49$ & $1.97$ & $1.46$ & $8.19$ \\
+    BERT + Claude-Sonnet + top-3          & $2.27$ & $2.48$ & $1.98$ & $1.46$ & $8.19$ \\
+    \bottomrule
+  \end{tabular}%
+  }
+  \caption{Per-axis judge scores for the locked headline and three control cells at $n{=}681$. All cells score nearly identically on the age-appropriateness and question-form axes (the teacher's surface behavior is consistent across consultant swaps). The headline's advantage concentrates on Socratic validity and learning advancement, the two axes that reward correct pedagogical routing.}
+  \label{tab:app-judge}
+\end{table}
+
+\paragraph{Per-stage judge.} For the locked headline at $n{=}681$, per-stage judge averages are $a{=}9.38$, $b{=}8.82$, $c{=}8.32$, $d{=}7.43$, $e{=}7.14$. Closure (stage e) is the most demanding axis for the LLM judge across all configurations, reflecting the difficulty of producing pedagogically tight summarization rather than a routing failure.
+
+\paragraph{Cost.} The full memorization-resistant judge sweep across all $15$ judged configurations cost \$59.86 in total Anthropic API spend; each $n{=}681$ judge pass is approximately \$15.30 at $16$ parallel workers, completing in $\approx 12$ minutes.
+
+\section{Cross-Lingual Translation and Clean-Probe Full Data}
+\label{app:critique}
+
+Table~\ref{tab:app-crosslingual} extends the cross-lingual translation finding from \S\ref{sec:results-critique}: running SocratTeachLLM as teacher against the SocratDataset-EN translation with frontier Claude consultants produces surface-form scores nearly identical to the published Chinese headline. The R-2/BLEU-4 ratio jumps from $\approx 1.3$ (Chinese) to $\approx 9$ (English) under the identical teacher, isolating phrase-level memorization at the 4-gram length.
+
+\begin{table}[h]
+  \centering
+  \small
+  \resizebox{\columnwidth}{!}{%
+  \begin{tabular}{@{}lcccc@{}}
+    \toprule
+    \textbf{Configuration} & \textbf{R-1} & \textbf{R-2} & \textbf{BLEU-4} & \textbf{R-2/B-4} \\
+    \midrule
+    Peng et al.\ (2025) STL headline (ZH) & $57.40$ & $33.63$ & $41.96$ & $\approx 1.3$ \\
+    Sonnet + STL (ZH, clean rerun)        & $45.61$ & --- & --- & $\approx 1.3$ \\
+    \midrule
+    \textbf{Sonnet + STL (EN)}            & $\mathbf{55.85}$ & $\mathbf{33.79}$ & $3.56$ & $\mathbf{\approx 9}$ \\
+    Opus + STL (EN)                       & $44.22$ & $26.20$ & $2.96$ & $\approx 9$ \\
+    \bottomrule
+  \end{tabular}%
+  }
+  \caption{Cross-lingual translation experiment. Sonnet + SocratTeachLLM on SocratDataset-EN reproduces the published headline of R-1 $=57.40$, R-2 $=33.63$ within $1.55$ R-1 points and $0.16$ R-2 points; the R-2/B-4 ratio simultaneously inflates to $\approx 9$, isolating the loss of Chinese 4-gram fingerprints under translation.}
+  \label{tab:app-crosslingual}
+\end{table}
+
+\paragraph{Clean-probe details.} SocratDataset-SYNTHETIC contains $75$ Chinese Socratic dialogues generated end-to-end by Claude Sonnet 4.6 on the same elementary-school science topic distribution as SocratDataset. The generation prompt enforces the SocRule $5$-stage progression and $34$-state label set; we ran the generated dialogues through a SocRule-compliance validator before release. SocratTeachLLM scored stage-balanced macro $63.40\%$ / R-1 $48.07$ on the published test split versus $32.86\%$ / $35.72$ on SocratDataset-SYNTHETIC, an absolute drop of $30.54$~pp stage-balanced and $12.35$~R-1. Baseline Gemma~4 31B + 10-shot (no SocratDataset fine-tuning) scored $56.13$ / $38.76$ on the same synthetic test set: an upper bound on what a non-contaminated model achieves on the clean-probe distribution.
+
+\section{Bootstrap Convergence Analysis}
+\label{app:convergence}
+
+\S\ref{sec:results} reports our $n{=}400$ canonical-sample-size recommendation derived from a bootstrap convergence analysis across all seven of our full-scale $n{=}681$ configurations. Table~\ref{tab:app-eps} shows the cross-configuration plateau (the smallest $n$ at which the $95$th-percentile bootstrap deviation from the full-$n$ truth stays under tolerance~$\varepsilon$, simultaneously for every metric and every configuration). Figure~\ref{fig:convergence} plots the convergence curves themselves; the state-accuracy curve dominates the convergence rate.
+
+\begin{table}[h]
+  \centering
+  \small
+  \begin{tabular}{r|rrrr}
+    \toprule
+    $\varepsilon$ (pp) & state-acc & R-1 & R-2 & sent-BLEU-4 \\
+    \midrule
+    $0.50$ & $600$ & $500$ & $500$ & $400$ \\
+    $1.00$ & $600$ & $200$ & $200$ & $175$ \\
+    $2.00$ & $\mathbf{400}$ & $\phantom{0}75$ & $\phantom{0}75$ & $\phantom{0}75$ \\
+    \bottomrule
+  \end{tabular}
+  \caption{Cross-configuration convergence plateaus across all seven full-scale runs in our campaign. The recommended canonical $n{=}400$ holds all four metrics within $\leq 2$~pp of the full-$n$ truth.}
+  \label{tab:app-eps}
+\end{table}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\columnwidth]{convergence_curves.pdf}
+  \caption{Bootstrap convergence curves ($B{=}500$ subsamples without replacement) at a $13$-point grid from $n{=}25$ to $n{=}600$ for state accuracy, ROUGE-1, ROUGE-2, and sentence-BLEU-4 across our seven $n{=}681$ configurations. State accuracy converges $3$--$4\times$ slower than the surface-form metrics because the per-turn $34$-class indicator has higher per-dialogue variance than the continuous, tightly-distributed surface-form F1s.}
+  \label{fig:convergence}
+\end{figure}
+
+\paragraph{Stratified-sampling extension.} A stage-stratified subsample (balanced over stage and topic) may reach the same $\leq 2$-pp precision at $n{=}200$--$300$, but we did not measure this; it is flagged as future work in \S\ref{sec:conclusion}.
+
+\section{Schema-Fallback Analysis at Full Scale}
+\label{app:fallback}
+
+The fusion-architecture retraction described in \S\ref{sec:method} rests on a single concrete failure: Gemma~4 31B's strict-JSON schema-fallback rate at full scale.
+
+\begin{table}[h]
+  \centering
+  \small
+  \begin{tabular}{@{}lrrr@{}}
+    \toprule
+    \textbf{Backbone} & \textbf{Turns} & \textbf{Fallback turns} & \textbf{Rate} \\
+    \midrule
+    Qwen 35B-A3B (fusion) & $4{,}171$ & $\phantom{00}38$ & $0.91\%$ \\
+    Gemma~4 31B (fusion)  & $4{,}246$ & $890$            & $\mathbf{21.0\%}$ \\
+    \midrule
+    Integration (any teacher) & $\geq 3{,}762$ & $0$ (by construction) & $0.0\%$ \\
+    \bottomrule
+  \end{tabular}
+  \caption{Schema-fallback rate at full $n{=}681$ scale by architecture. Qwen 35B-A3B handles strict-JSON grammar within tolerance; Gemma~4 31B in fusion mode collapses on $21\%$ of turns. The deterministic-classifier integration removes the JSON-schema constraint from the consultant path entirely, structurally bypassing the failure mode.}
+  \label{tab:app-fallback}
+\end{table}
+
+\paragraph{Predictive value of schema-fallback rate.} The Gemma standalone smoke--mini-average prediction (\S\ref{sec:method}) was $46.71\%$ state accuracy; the realized full-run number was $31.39\%$, a $15.32$-pt overshoot. The mini sample ($n{=}25$ dialogues) showed $0/148$ fallback turns and did not surface the issue. We treat the lesson as methodological: \emph{cross-architecture scaling-prediction protocols must triangulate schema-fallback rates at full scale}, not just at the mini-tier sample.
+
+\section{Stage 2b QLoRA SFT Training Details}
+\label{app:sft}
+
+Future-work item (a) in \S\ref{sec:conclusion} references a Stage~2b QLoRA adapter on Gemma~4 31B that trained successfully but whose end-to-end evaluation is currently blocked by a train/serve prompt-format mismatch. Training-side details are summarized in Table~\ref{tab:app-sft}; loss descended monotonically from $0.65$ to $0.44$ over $2{,}298$ steps with no spikes, no divergence, and a final mean-token-accuracy of $0.86$.
+
+\begin{table}[h]
+  \centering
+  \small
+  \begin{tabular}{@{}lr@{}}
+    \toprule
+    \textbf{Setting} & \textbf{Value} \\
+    \midrule
+    Base model            & \texttt{google/gemma-4-31b-it} \\
+    Method                & QLoRA 4-bit NF4, $r{=}16$, $\alpha{=}32$ \\
+    Targets               & q/k/v/o + gate/up/down proj. \\
+    Learning rate         & $5\times 10^{-5}$ \\
+    Batch / grad-accum    & $1 \times 16 = 16$ \\
+    Sequence length       & $1024$ (forced from $1280$ by VRAM) \\
+    Epochs / steps        & $3$ / $2{,}298$ \\
+    Trainable params      & $122$\,M ($0.39\%$ of $31.4$\,B) \\
+    Final train loss      & $0.4359$ \\
+    Final tok-acc         & $0.8555$ \\
+    Wall clock            & $10$\,h $49$\,m on a single 5090 \\
+    Adapter size          & $468$\,MB safetensors \\
+    Merged GGUF (Q5\_K\_M) & $21$\,GB \\
+    \bottomrule
+  \end{tabular}
+  \caption{Stage 2b QLoRA SFT training configuration and outcomes.}
+  \label{tab:app-sft}
+\end{table}
+
+\paragraph{Train/serve schema drift (the eval-blocking failure).} The training data pipeline emits multi-turn user/assistant message pairs whose user role carries the raw student utterance plus two Chinese-language ``Pattern-A'' marker prefixes (English gloss: \emph{``Socratic-consultant evaluation result''} and \emph{``Socratic-consultant suggested action''}). The inference pipeline emits a single-turn message with stringified dialogue history under two different Chinese-language prefixes (gloss: \emph{``Dialogue history''} and \emph{``Current student input''}) that the SFT model never saw during training. On the same checkpoint and server, training-format input produces a clean Socratic question ($20$ tokens, $\text{finish\_reason}{=}\text{stop}$, $0.5$\,s); inference-format input produces a $2{,}048$-token repetition loop ($\text{finish\_reason}{=}\text{length}$). The model is healthy; the eval pipeline is sending it out-of-distribution prompts.
+
+\paragraph{Fix paths.} \textbf{Option A (preferred, scope-isolated):} re-prep the training data such that each user message matches the inference pipeline's stringified-history shape verbatim, then re-run Stage~2b with identical hyperparameters ($\approx 11$~GPU-h on the 5090, no other code change). \textbf{Option B:} modify the inference pipeline to emit alternating user/assistant message pairs, but this would shift the prompts seen by every other teacher LLM in the evaluation suite and require re-baselining the locked-headline-adjacent cells. We prefer Option~A. The training artifacts (adapter, merged GGUF) and the merge+quantize pipeline ship in the repository so a future session can land the eval without re-deriving infrastructure.
 
 \end{document}
