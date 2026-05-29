@@ -39,7 +39,7 @@ We reproduce and extend KELE \citep{peng2025kele}, a multi-agent Socratic teachi
 
 \paragraph{The KELE framework.} KELE decomposes Socratic teaching into five strictly-ordered stages (Student Questioning, Concept Probing, Inductive Reasoning, Rule Construction, Teacher Summary) governed by a rule system called SocRule containing $34$ teaching strategies. A \emph{consultant} agent classifies the student's cognitive state and selects a strategy; a \emph{teacher} agent then generates the dialogue response that implements it. KELE fine-tunes GLM4-9B \citep{glm2024chatglm} via LoRA \citep{hu2022lora} on the SocratDataset training split to produce \textbf{SocratTeachLLM}, a teacher model the authors report outperforms GPT-4o \citep{openai2024gpt4o} across all nine Socratic-teaching evaluation dimensions despite being much smaller. The architectural insight (separation of teaching \emph{planning} from teaching \emph{execution}) mirrors real-world co-teaching practice \citep{nevin2009collaborative}, where single-agent approaches conflate the two roles \citep{ge2023openagi,an2024llmcontext}.
 
-\paragraph{Motivation and goals.} The published KELE result rests on surface-form text-overlap metrics (ROUGE \citep{lin2004rouge}, BLEU \citep{papineni2002bleu}) — metrics designed for translation/summarization where the valid-output space is small. Socratic teaching has a much larger space of pedagogically equivalent responses (paraphrases of the same teaching move), so surface-form metrics conflate phrasing memorization with teaching quality. We set out to (1)~reproduce KELE end-to-end, (2)~extend it on a single-GPU consumer budget that forecloses the canonical two-model stack, and (3)~test whether the published surface-form rankings hold up against memorization-resistant evaluation. Our open-weight integration architecture (\S\ref{sec:method}) lifts overall state accuracy by $\mathbf{+29.45}$ percentage points (a $\mathbf{2.14\times}$ multiplier) over the GPT-4o + SocratTeachLLM baseline; the benchmark critique (\S\ref{sec:results}) provides four converging lines of evidence that the published $9$B specialist's surface-form advantage is language-bound memorization rather than transferable pedagogical capability.
+\paragraph{Motivation and goals.} The published KELE result rests on surface-form text-overlap metrics (ROUGE \citep{lin2004rouge}, BLEU \citep{papineni2002bleu}) — metrics designed for translation/summarization where the valid-output space is small. Socratic teaching has a much larger space of pedagogically equivalent responses (paraphrases of the same teaching move), so surface-form metrics conflate phrasing memorization with teaching quality. We set out to (1)~reproduce KELE end-to-end, (2)~extend it on a single-GPU consumer budget that forecloses the canonical two-model stack, and (3)~test whether the published surface-form rankings hold up against memorization-resistant evaluation. Our open-weight integration architecture (\S\ref{sec:method}), built around a classifier we fine-tuned ourselves on the SocratDataset training split, lifts overall state accuracy by $\mathbf{+29.45}$ percentage points (a $\mathbf{2.14\times}$ multiplier) over the GPT-4o + SocratTeachLLM baseline; the benchmark critique (\S\ref{sec:results}) provides four converging lines of evidence that the published $9$B specialist's surface-form advantage is language-bound memorization rather than transferable pedagogical capability.
 
 %% ============================================================
 \section{Proposed Method and Implementation}
@@ -246,7 +246,7 @@ A bootstrap convergence analysis across all seven of our full-scale $n{=}681$ co
 \subsection{Code, datasets, and reproducibility demo}
 \label{sec:demo}
 
-Across the campaign we evaluated $\mathbf{143}$ model variants (cross-teacher grids, prompt-engineering tournaments, multiple full $n{=}681$ runs, frontier-model comparisons, bilingual and contamination probes); the complete master leaderboard, per-run logs, and per-dialogue traces ship in the repository. The locked headline is reproducible end-to-end via \texttt{scripts/eval\_bert\_gemma\_fewshot10\_full.sh}, which bootstraps the Gemma~4 31B server, the Qwen3.5-LoRA consultant on CPU, and the $n{=}681$ evaluation loop.
+Across the campaign we evaluated $\mathbf{143}$ model variants (cross-teacher grids, prompt-engineering tournaments, multiple full $n{=}681$ runs, frontier-model comparisons, bilingual and contamination probes); the complete master leaderboard, per-run logs, and per-dialogue traces ship in the repository. The locked headline is reproducible end-to-end via the \texttt{scripts/\allowbreak eval\_\allowbreak bert\_\allowbreak gemma\_\allowbreak fewshot10\_\allowbreak full.sh} entry point, which bootstraps the Gemma~4 31B server, the Qwen3.5-LoRA consultant on CPU, and the $n{=}681$ evaluation loop.
 
 \begin{itemize}\itemsep0pt
   \item \textbf{Code + reproduction scripts:} \url{https://github.com/ulises-c/csen-346}
@@ -291,6 +291,7 @@ Table~\ref{tab:app-classifier} reports the full per-stage breakdown for the thre
 \begin{table}[h]
   \centering
   \small
+  \resizebox{\columnwidth}{!}{%
   \begin{tabular}{@{}lrrr@{}}
     \toprule
     \textbf{Stage} & \textbf{BERT} & \textbf{Qwen3-Emb} & \textbf{Qwen3.5} \\
@@ -304,7 +305,8 @@ Table~\ref{tab:app-classifier} reports the full per-stage breakdown for the thre
     \midrule
     \textbf{Overall (34-state)} & $61.64$ & $66.66$ & $\mathbf{67.57}$ \\
     \bottomrule
-  \end{tabular}
+  \end{tabular}%
+  }
   \caption{Per-stage and overall accuracy (\%) of the three deterministic-classifier consultants on the $4{,}304$-turn test split. The architectural progression is concentrated on stage~c (the binding constraint).}
   \label{tab:app-classifier}
 \end{table}
@@ -405,6 +407,7 @@ The fusion-architecture retraction described in \S\ref{sec:method} rests on a si
 \begin{table}[h]
   \centering
   \small
+  \resizebox{\columnwidth}{!}{%
   \begin{tabular}{@{}lrrr@{}}
     \toprule
     \textbf{Backbone} & \textbf{Turns} & \textbf{Fallback turns} & \textbf{Rate} \\
@@ -414,7 +417,8 @@ The fusion-architecture retraction described in \S\ref{sec:method} rests on a si
     \midrule
     Integration (any teacher) & $\geq 3{,}762$ & $0$ (by construction) & $0.0\%$ \\
     \bottomrule
-  \end{tabular}
+  \end{tabular}%
+  }
   \caption{Schema-fallback rate at full $n{=}681$ scale by architecture. Qwen 35B-A3B handles strict-JSON grammar within tolerance; Gemma~4 31B in fusion mode collapses on $21\%$ of turns. The deterministic-classifier integration removes the JSON-schema constraint from the consultant path entirely, structurally bypassing the failure mode.}
   \label{tab:app-fallback}
 \end{table}
@@ -429,6 +433,7 @@ Future-work item (a) in \S\ref{sec:conclusion} references a Stage~2b QLoRA adapt
 \begin{table}[h]
   \centering
   \small
+  \resizebox{\columnwidth}{!}{%
   \begin{tabular}{@{}lr@{}}
     \toprule
     \textbf{Setting} & \textbf{Value} \\
@@ -447,7 +452,8 @@ Future-work item (a) in \S\ref{sec:conclusion} references a Stage~2b QLoRA adapt
     Adapter size          & $468$\,MB safetensors \\
     Merged GGUF (Q5\_K\_M) & $21$\,GB \\
     \bottomrule
-  \end{tabular}
+  \end{tabular}%
+  }
   \caption{Stage 2b QLoRA SFT training configuration and outcomes.}
   \label{tab:app-sft}
 \end{table}
