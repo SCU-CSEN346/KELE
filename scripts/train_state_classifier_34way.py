@@ -199,11 +199,13 @@ def _apply_lora(
     return peft_model
 
 
-def _init_wandb(args: argparse.Namespace, model_type: str):
+def _init_wandb(args: argparse.Namespace, model_type: str, resume_id: str | None = None):
     """Start a Weights & Biases run when tracking is enabled (--wandb flag or a
     WANDB_PROJECT env var). Returns the run handle, or None when disabled — every
     call site guards on None, so the no-tracking path is byte-identical to before.
-    The import is local so the script runs without wandb installed."""
+    The import is local so the script runs without wandb installed. When resume_id
+    is given (resuming from a checkpoint), the same run is continued so the report
+    stays a single uninterrupted curve rather than a fresh run per attempt."""
     if not (args.wandb or os.environ.get("WANDB_PROJECT")):
         return None
     import wandb
@@ -212,6 +214,8 @@ def _init_wandb(args: argparse.Namespace, model_type: str):
     return wandb.init(
         project=os.environ.get("WANDB_PROJECT", "csen346-state-classifier"),
         name=os.environ.get("WANDB_RUN_NAME") or args.out_dir.name,
+        id=resume_id,
+        resume="allow" if resume_id else None,
         config={
             "model_id": args.model_id,
             "model_type": model_type,
@@ -299,6 +303,13 @@ def main() -> None:
         "set. Project/run names come from WANDB_PROJECT/WANDB_RUN_NAME (defaults: "
         "'csen346-state-classifier' / the --out-dir basename). Requires `wandb` "
         "(install via the 'wandb' extra) and `wandb login` for online logging.",
+    )
+    p.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume from <out-dir>/checkpoint.pt if it exists (model + optimizer + "
+        "scheduler + epoch + global_step + wandb run id), continuing the same W&B "
+        "run. A checkpoint is written at every epoch boundary regardless of this flag.",
     )
     args = p.parse_args()
 
@@ -443,7 +454,24 @@ def main() -> None:
         num_training_steps=total_steps,
     )
 
-    wb = _init_wandb(args, model_type)
+    # Resume state (model/optimizer/scheduler/epoch/step/wandb id) if requested.
+    ckpt_path = out_dir / "checkpoint.pt"
+    start_epoch = 0
+    global_step = 0
+    resume_wandb_id = None
+    if args.resume and ckpt_path.exists():
+        print(f"Resuming from {ckpt_path} ...")
+        ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
+        model.load_state_dict(ckpt["model"])
+        optimizer.load_state_dict(ckpt["optimizer"])
+        scheduler.load_state_dict(ckpt["scheduler"])
+        start_epoch = ckpt["epoch"]
+        global_step = ckpt["global_step"]
+        resume_wandb_id = ckpt.get("wandb_id")
+        print(f"  resumed at epoch {start_epoch + 1}/{args.epochs}, global_step {global_step}")
+
+    wb = _init_wandb(args, model_type, resume_id=resume_wandb_id)
+    wandb_id = wb.id if wb is not None else None
 
     def wb_log(metrics: dict, step: int | None = None) -> None:
         if wb is not None:
@@ -473,8 +501,7 @@ def main() -> None:
         )
 
     torch.manual_seed(args.seed)
-    global_step = 0
-    for epoch in range(args.epochs):
+    for epoch in range(start_epoch, args.epochs):
         model.train()
         epoch_loss_sum = 0.0
         epoch_steps = 0
@@ -535,6 +562,20 @@ def main() -> None:
             },
             step=global_step,
         )
+
+        # Checkpoint at the epoch boundary so a crash resumes here instead of step 0.
+        torch.save(
+            {
+                "model": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "scheduler": scheduler.state_dict(),
+                "epoch": epoch + 1,
+                "global_step": global_step,
+                "wandb_id": wandb_id,
+            },
+            ckpt_path,
+        )
+        print(f"  checkpoint saved → {ckpt_path} (resume point: epoch {epoch + 1})")
 
     # Test-split eval
     print("\nEvaluating on test split ...")
