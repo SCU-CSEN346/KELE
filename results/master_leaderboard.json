@@ -552,10 +552,106 @@
         "d": 26.19,
         "e": 52.0
       }
+    },
+    {
+      "name": "bert-fixed × GLM-4-9B-Chat-base · fewshot10 · n=681 [STL base — true ceiling]",
+      "available": true,
+      "results_dir": "results/bert-fixed-bert-glm49b-chat-fewshot10-n681-fixed",
+      "state": 43.71,
+      "r1": 32.3,
+      "r2": 15.83,
+      "rl": 24.58,
+      "b4": 7.62,
+      "n_turns": 3651,
+      "n_dialogues": 608,
+      "surface_sum": 55.74999999999999,
+      "composite_state_r1": 59.86,
+      "semantic_r1": null,
+      "judge_overall": null,
+      "judge_axis_avgs": null,
+      "per_stage": {
+        "a": 100.0,
+        "b": 25.23,
+        "c": 19.78,
+        "d": 41.19,
+        "e": 77.63
+      }
+    },
+    {
+      "name": "qwen3.5 × GLM-4-9B-Chat-base · fewshot10 · n=681 [STL base — true ceiling]",
+      "available": true,
+      "results_dir": "results/t4-bert-glm49b-chat-fewshot10-n681-fixed",
+      "state": 48.72,
+      "r1": 33.03,
+      "r2": 15.9,
+      "rl": 24.84,
+      "b4": 7.93,
+      "n_turns": 4220,
+      "n_dialogues": 703,
+      "surface_sum": 56.86,
+      "composite_state_r1": 65.235,
+      "semantic_r1": null,
+      "judge_overall": null,
+      "judge_axis_avgs": null,
+      "per_stage": {
+        "a": 100.0,
+        "b": 43.1,
+        "c": 28.46,
+        "d": 48.11,
+        "e": 47.17
+      }
+    },
+    {
+      "name": "bert-fixed × SocratTeachLLM · fewshot10 · n=681 [contaminated]",
+      "available": true,
+      "results_dir": "results/bert-fixed-bert-socratteachllm-fewshot10-n681-fixed",
+      "state": 52.66,
+      "r1": 47.3,
+      "r2": 28.7,
+      "rl": 40.17,
+      "b4": 19.41,
+      "n_turns": 3870,
+      "n_dialogues": 645,
+      "surface_sum": 95.41,
+      "composite_state_r1": 76.31,
+      "semantic_r1": null,
+      "judge_overall": null,
+      "judge_axis_avgs": null,
+      "per_stage": {
+        "a": 100.0,
+        "b": 41.52,
+        "c": 29.92,
+        "d": 46.55,
+        "e": 82.51
+      }
+    },
+    {
+      "name": "qwen3.5 × SocratTeachLLM · fewshot10 · n=681 [contaminated]",
+      "available": true,
+      "results_dir": "results/t4-bert-socratteachllm-fewshot10-n681-fixed",
+      "state": 56.5,
+      "r1": 47.45,
+      "r2": 28.7,
+      "rl": 40.33,
+      "b4": 19.9,
+      "n_turns": 3993,
+      "n_dialogues": 665,
+      "surface_sum": 96.05000000000001,
+      "composite_state_r1": 80.225,
+      "semantic_r1": null,
+      "judge_overall": null,
+      "judge_axis_avgs": null,
+      "per_stage": {
+        "a": 100.0,
+        "b": 49.93,
+        "c": 37.5,
+        "d": 48.3,
+        "e": 73.15
+      }
     }
   ],
   "summary": {
-    "n_configs_available": 20,
-    "n_configs_total": 21
+    "n_configs_available": 24,
+    "n_configs_total": 25
   }
 }
