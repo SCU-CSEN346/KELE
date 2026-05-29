@@ -18,6 +18,7 @@
         download-gemma4-31b \
         prequant-gemma4-31b-l40s transfer-gemma4-31b-nf4 \
         train-gemma4-31b-dry-run train-gemma4-31b-stage2 train-gemma4-31b-stage2-preq \
+        train-gemma4-31b-stage2-unsloth \
         tournament tournament-think tournament-warmup tournament-warmup-think tournament-status tournament-eliminate \
         tournament-finalize tournament-archive tournament-restore tournament-reset \
         tournament-download tournament-help
@@ -67,7 +68,8 @@ help:
 	@echo "  download-gemma4-31b         Download google/gemma-4-31b-it weights to HF cache (~60 GB)"
 	@echo "  prequant-gemma4-31b-l40s    Print instructions for pre-quantizing to NF4 on L40S"
 	@echo "  transfer-gemma4-31b-nf4     rsync NF4 checkpoint from L40S (HOST=user@host)"
-	@echo "  train-gemma4-31b-stage2-preq  Train Stage 2b from pre-quantized NF4 checkpoint"
+	@echo "  train-gemma4-31b-stage2-preq  Train Stage 2b from local pre-quantized NF4 checkpoint"
+	@echo "  train-gemma4-31b-stage2-unsloth  Train Stage 2b from unsloth bnb-4bit Gemma 4 31B (no local prequant)"
 	@echo "  eval-gemma4-31b-smoke  Run scripts/eval_gemma4_31b.sh smoke  (n=5)"
 	@echo "  eval-gemma4-31b-mini   Run scripts/eval_gemma4_31b.sh mini   (n=25)"
 	@echo "  eval-gemma4-31b-full   Run scripts/eval_gemma4_31b.sh full   (n=681)"
@@ -374,6 +376,23 @@ train-gemma4-31b-stage2-preq:
 	nohup env TORCH_USE_HIPBLASLT=0 \
 	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8,expandable_segments:True \
 	  TRAIN_BASE_MODEL=models/gemma-4-31b-nf4 \
+	  TRAIN_PREQ=true \
+	  uv run --no-sync python scripts/train_sft.py \
+	  --config configs/train-sft-stage2-gemma4-31b.env \
+	  > outputs/sft-stage2-gemma4-31b/train.log 2>&1 &
+	@echo "Training started. Monitor: tail -f outputs/sft-stage2-gemma4-31b/train.log"
+
+# Train from the community pre-quantized unsloth bnb-4bit checkpoint (~19 GB NF4).
+# Skips the L40S prequant + rsync step entirely: weights download already 4-bit,
+# so there is no ~62 GB BF16 CPU staging at load (the R9700's actual blocker).
+# TRAIN_PREQ=true is required — it tells train_sft.py to read the embedded
+# quantization_config instead of building a live BitsAndBytesConfig (which would
+# double-quantize the already-quantized checkpoint).
+train-gemma4-31b-stage2-unsloth:
+	mkdir -p outputs/sft-stage2-gemma4-31b
+	nohup env TORCH_USE_HIPBLASLT=0 \
+	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8,expandable_segments:True \
+	  TRAIN_BASE_MODEL=unsloth/gemma-4-31B-it-unsloth-bnb-4bit \
 	  TRAIN_PREQ=true \
 	  uv run --no-sync python scripts/train_sft.py \
 	  --config configs/train-sft-stage2-gemma4-31b.env \
