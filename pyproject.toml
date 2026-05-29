@@ -88,7 +88,7 @@ skip = "uv.lock,*references*,*deliverables*,*results*,.venv,*data*,*logs*,*.pdf,
 #   rouge   — ROUGE (NLP metric: Recall-Oriented Understudy for Gisting Evaluation)
 #   nothink — Qwen model inference mode flag (think / nothink)
 #   re-use  — hyphenated form is valid; codespell prefers the unhyphenated reuse
-ignore-words-list = "rouge,nothink,re-use"
+ignore-words-list = "rouge,nothink,re-use,hsa"
 
 [build-system]
 requires = ["hatchling"]
@@ -124,10 +124,14 @@ ignore = [
 
 # ---------------------------------------------------------------------------
 # NOTE: torch is intentionally NOT declared here.
-# uv cannot resolve the +cu126 local-version CUDA wheel alongside
-# PyPI's CPU wheel (transitive dep from transformers) for Python 3.14.
-# Install torch after `uv sync` with:
-#   uv run pip install --index-url https://download.pytorch.org/whl/cu126 \
-#     "torch>=2.10.0"
-# See scripts/*_SETUP.md for the full install sequence for your hardware.
+# triton-rocm (a dep of the ROCm wheel) is not on PyPI, so uv's resolver
+# cannot satisfy it as a direct-URL dep. Install torch AFTER `uv sync`
+# with the hardware-appropriate command below, then use `uv run --no-sync`
+# (or set UV_NO_SYNC=1) so uv does not revert to the PyPI CUDA wheel.
+#
+# NVIDIA (CUDA 12.6):
+#   uv pip install --index-url https://download.pytorch.org/whl/cu126 "torch>=2.10.0"
+#
+# AMD ROCm 7.2 (gfx1201 / R9700 AI PRO — natively supported, no HSA override):
+#   uv pip install --index-url https://download.pytorch.org/whl/rocm7.2 "torch==2.11.0+rocm7.2"
 # ---------------------------------------------------------------------------
