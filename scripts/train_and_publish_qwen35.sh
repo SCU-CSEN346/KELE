@@ -10,12 +10,36 @@ REPO_ROOT="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
 # ---------------------------------------------------------------------------
-# GPU pre-check: verify the device is visible and kernels execute before
-# committing to the run. Runs under --no-sync so the manually-installed
-# ROCm/CUDA torch wheel is not reverted by uv.
+# Backend detection: this branch runs on two machines — the AMD ROCm R9700
+# (gfx1201) and the NVIDIA CUDA RTX 4000 Ada. They need different pre-checks,
+# precision, and memory strategy:
+#   - gfx1201 page-faults under hipBLASLt and is 5× slower in bf16, so it trains
+#     pure fp32, and OOMs in the linear-attn layers without grad-checkpointing —
+#     it keeps --gradient-checkpointing.
+#   - Ada has native bf16 tensor cores (--bf16-autocast) and, with the
+#     flash-linear-attention GDN kernels engaged, is compute-bound at bs=8: the
+#     run fits in 12.6/20 GB WITHOUT grad-checkpointing, and dropping it removes
+#     ~35% recompute overhead (measured 174→235 steps/min, 4.4h→3.3h).
+# Detect once and branch.
 # ---------------------------------------------------------------------------
-printf '[pre-check] verifying GPU stack ...\n'
-TORCH_USE_HIPBLASLT=0 uv run --no-sync python scripts/test_training_gpu.py
+BACKEND=$(uv run --no-sync python -c \
+  'import torch; print("rocm" if torch.version.hip else "cuda")')
+if [[ "$BACKEND" == "rocm" ]]; then
+  GPU_TEST=scripts/test_training_gpu_amd.py
+  PRECISION_FLAG=()
+  GRADCKPT_FLAG=(--gradient-checkpointing)
+  export TORCH_USE_HIPBLASLT=0
+else
+  GPU_TEST=scripts/test_training_gpu_nvidia.py
+  PRECISION_FLAG=(--bf16-autocast)
+  GRADCKPT_FLAG=()
+  export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+fi
+printf '[pre-check] backend=%s  verifying GPU stack via %s ...\n' "$BACKEND" "$GPU_TEST"
+
+# Runs under --no-sync so the manually-installed ROCm/CUDA torch wheel is not
+# reverted by uv.
+uv run --no-sync python "$GPU_TEST"
 printf '[pre-check] GPU OK\n\n'
 
 OUT=results/state-clf-qwen3.5-0.8b-lora-wandb
@@ -36,16 +60,16 @@ for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
   if (( attempt > 1 )); then
     resume_flag=(--resume)
   fi
-  log "training attempt ${attempt}/${MAX_ATTEMPTS} starting ${resume_flag[*]}"
+  log "training attempt ${attempt}/${MAX_ATTEMPTS} starting ${resume_flag[*]} ${PRECISION_FLAG[*]}"
   set +e
   WANDB_PROJECT=csen346-state-classifier \
-  TORCH_USE_HIPBLASLT=0 \
   uv run --no-sync python -u scripts/train_state_classifier_34way.py \
     --model-id "$BASE_MODEL" \
     --lora --lora-r 8 --lora-alpha 16 \
     --batch_size 8 \
-    --gradient-checkpointing \
+    "${GRADCKPT_FLAG[@]}" \
     --wandb \
+    "${PRECISION_FLAG[@]}" \
     "${resume_flag[@]}" \
     --out-dir "$OUT" \
     >"$OUT/train.log" 2>&1

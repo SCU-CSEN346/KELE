@@ -296,6 +296,13 @@ def main() -> None:
     p.add_argument("--max_length", type=int, default=512)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument(
+        "--max-steps",
+        type=int,
+        default=0,
+        help="Benchmark/smoke cap: stop after this many optimizer steps and report "
+        "steps/min + peak VRAM, skipping eval/save/publish. 0 (default) = full run.",
+    )
+    p.add_argument(
         "--wandb",
         action="store_true",
         help="Log loss/grad_norm/lr (per step), eval acc (per epoch), and final "
@@ -501,11 +508,18 @@ def main() -> None:
         )
 
     torch.manual_seed(args.seed)
+    import time as _time
+
+    bench_t0 = None
     for epoch in range(start_epoch, args.epochs):
         model.train()
         epoch_loss_sum = 0.0
         epoch_steps = 0
         for batch in train_loader:
+            # Start the benchmark clock after the first step warms up CUDA/JIT kernels.
+            if args.max_steps and global_step == 1:
+                torch.cuda.synchronize()
+                bench_t0 = _time.perf_counter()
             batch = {k: v.to(device) for k, v in batch.items()}
             with amp_ctx():
                 out = model(**batch)
@@ -531,6 +545,21 @@ def main() -> None:
                     f"grad_norm={grad_norm:.4f}  lr={scheduler.get_last_lr()[0]:.2e}"
                 )
             global_step += 1
+
+            if args.max_steps and global_step >= args.max_steps:
+                torch.cuda.synchronize()
+                measured = global_step - 1  # exclude the warmup step before bench_t0
+                dt = _time.perf_counter() - bench_t0
+                spm = measured / dt * 60
+                peak = torch.cuda.max_memory_allocated() / 1e9
+                full_steps = len(train_loader) * args.epochs
+                print(
+                    f"\n[bench] {measured} steps in {dt:.1f}s = {spm:.1f} steps/min  "
+                    f"| peak VRAM {peak:.1f} GB  | bs={args.batch_size} "
+                    f"grad_ckpt={args.gradient_checkpointing} bf16={args.bf16_autocast}\n"
+                    f"[bench] full run {full_steps} steps → ETA {full_steps / spm / 60:.1f} h"
+                )
+                return
 
         # End-of-epoch eval on held-out 5%
         model.eval()
