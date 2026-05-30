@@ -64,3 +64,6 @@ references/KELE-EN/.cache/
 
 # Railguard
 .railguard/*
+
+# W&B local run artifacts
+wandb/

@@ -35,6 +35,9 @@ Environment variables (see configs/train-sft-qwen25-7b-lora.env for defaults):
     TRAIN_LOGGING_STEPS     Log every N steps (default 10)
     TRAIN_SAVE_STEPS        Save checkpoint every N steps (default 200)
     TRAIN_EVAL_STEPS        Evaluate every N steps (default 200)
+    WANDB_PROJECT           W&B project name (default: csen346-sft)
+    WANDB_RUN_NAME          W&B run name (default: TRAIN_OUTPUT_DIR basename)
+    WANDB_API_KEY           W&B API key (or run `wandb login` once)
 """
 
 from __future__ import annotations
@@ -194,17 +197,24 @@ def build_model_and_tokenizer():
         import transformers.modeling_utils as _mu
 
         _mu.caching_allocator_warmup = lambda *_a, **_kw: None
-    model = AutoModelForCausalLM.from_pretrained(
-        base_model,
-        quantization_config=bnb_config,
-        torch_dtype=torch_dtype,
-        attn_implementation="sdpa",
-        device_map=_device_map,
-        low_cpu_mem_usage=True,
-        offload_folder=_offload_dir,
-        offload_state_dict=True,
-        trust_remote_code=True,
-    )
+    # Only pass quantization_config when it is not None. When None is passed
+    # explicitly, auto_factory forwards it to AutoConfig.from_pretrained which
+    # calls from_dict(..., quantization_config=None), overwriting the
+    # checkpoint's valid config.json quantization_config with None — causing
+    # supports_quant_method to crash on the pre-quantized (TRAIN_PREQ) path.
+    _load_kwargs: dict = {
+        "attn_implementation": "sdpa",
+        "device_map": _device_map,
+        "low_cpu_mem_usage": True,
+        "offload_folder": _offload_dir,
+        "offload_state_dict": True,
+        "trust_remote_code": True,
+    }
+    if bnb_config is not None:
+        _load_kwargs["quantization_config"] = bnb_config
+    if torch_dtype is not None:
+        _load_kwargs["dtype"] = torch_dtype
+    model = AutoModelForCausalLM.from_pretrained(base_model, **_load_kwargs)
 
     for _vision_attr in ("visual", "vision_tower"):
         if hasattr(model, _vision_attr):
@@ -271,13 +281,14 @@ def build_lora_config():
 # ---------------------------------------------------------------------------
 
 
-def build_sft_config(output_dir: str | None = None) -> SFTConfig:
+def build_sft_config(output_dir: str | None = None, use_wandb: bool = False) -> SFTConfig:
     """Build TRL SFTConfig from env vars.
 
     Args:
         output_dir: Override the output directory. Defaults to TRAIN_OUTPUT_DIR env var.
                     Pass a temp dir in dry_run() to avoid creating the real output_dir
                     as a side-effect of the SFTConfig (TrainingArguments) constructor.
+        use_wandb: Enable W&B logging via report_to=["wandb"].
     """
     from trl import SFTConfig
 
@@ -302,12 +313,19 @@ def build_sft_config(output_dir: str | None = None) -> SFTConfig:
     # paper-grade numbers anyway.
     eval_strategy = _get("TRAIN_EVAL_STRATEGY", "steps").lower()
 
+    run_name = (os.environ.get("WANDB_RUN_NAME") or Path(output_dir).name) if use_wandb else None
+
     effective_batch = batch * grad_accum
     print(
         f"\nSFT config  output={output_dir}\n"
         f"  epochs={epochs}  lr={lr}  batch={batch}×{grad_accum}={effective_batch}"
         f"  max_length={max_seq_len}  bf16={use_bf16}  grad_ckpt={grad_ckpt}"
         f"  eval_strategy={eval_strategy}"
+        + (
+            f"  wandb_project={os.environ.get('WANDB_PROJECT')}  run={run_name}"
+            if use_wandb
+            else ""
+        )
     )
 
     # load_best_model_at_end requires eval to function — auto-disable it when
@@ -328,7 +346,8 @@ def build_sft_config(output_dir: str | None = None) -> SFTConfig:
         eval_strategy=eval_strategy,
         save_total_limit=2,
         load_best_model_at_end=(eval_strategy != "no"),
-        report_to="none",
+        report_to=["wandb"] if use_wandb else "none",
+        run_name=run_name,
         assistant_only_loss=True,
     )
 
@@ -386,6 +405,36 @@ def dry_run() -> None:
 
 
 # ---------------------------------------------------------------------------
+# W&B auth check
+# ---------------------------------------------------------------------------
+
+
+def _check_wandb() -> bool:
+    """Return True if wandb is installed and has a usable API key.
+
+    relogin=False avoids interactive prompts in nohup runs.
+    Guards against the local wandb/ run-artifacts directory shadowing the package.
+    """
+    try:
+        import wandb
+
+        if not callable(getattr(wandb, "login", None)):
+            raise ImportError("wandb package not importable (shadowed by local wandb/ dir?)")
+        ok = wandb.login(relogin=False)
+        if ok:
+            os.environ.setdefault("WANDB_PROJECT", "csen346-sft")
+            return True
+    except Exception:
+        pass
+    print(
+        "WARNING: W&B not authenticated — tracking disabled. "
+        "Run `wandb login` or set WANDB_API_KEY to enable.",
+        file=sys.stderr,
+    )
+    return False
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -413,6 +462,8 @@ def main() -> None:
         dry_run()
         return
 
+    use_wandb = _check_wandb()
+
     # ── Full training run ────────────────────────────────────────────────────
     from peft import get_peft_model
     from trl import SFTTrainer
@@ -420,7 +471,7 @@ def main() -> None:
     train_ds, eval_ds = build_hf_datasets()
     model, tokenizer = build_model_and_tokenizer()
     lora_cfg = build_lora_config()
-    sft_cfg = build_sft_config()
+    sft_cfg = build_sft_config(use_wandb=use_wandb)
 
     model = get_peft_model(model, lora_cfg)
     model.print_trainable_parameters()
