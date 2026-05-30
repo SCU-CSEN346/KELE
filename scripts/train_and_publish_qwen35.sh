@@ -15,39 +15,7 @@ cd "$REPO_ROOT"
 # ROCm/CUDA torch wheel is not reverted by uv.
 # ---------------------------------------------------------------------------
 printf '[pre-check] verifying GPU stack ...\n'
-uv run --no-sync python - <<'GPUCHECK'
-import os, sys, time, torch
-
-if not torch.cuda.is_available():
-    print("ERROR: no GPU device visible (torch.cuda.is_available() == False)", file=sys.stderr)
-    sys.exit(1)
-
-name    = torch.cuda.get_device_name(0)
-vram    = torch.cuda.get_device_properties(0).total_memory / 1e9
-backend = f"ROCm {torch.version.hip}" if torch.version.hip else f"CUDA {torch.version.cuda}"
-print(f"  device  : {name}  ({vram:.1f} GB)")
-print(f"  backend : {backend}  torch {torch.__version__}")
-
-# fp32 + bf16 matmul (basic kernel smoke test)
-x = torch.randn(4096, 4096, device="cuda")
-t0 = time.perf_counter(); _ = (x @ x).sum().item(); ms = (time.perf_counter()-t0)*1000
-xb = x.to(torch.bfloat16)
-t0 = time.perf_counter(); _ = (xb @ xb).sum().item(); ms_bf16 = (time.perf_counter()-t0)*1000
-print(f"  matmul  : fp32 {ms:.0f}ms  bf16 {ms_bf16:.0f}ms")
-
-# Scaled-dot-product attention (exercises the same kernel path as Qwen3.5 RoPE/attention)
-B, H, T, D = 2, 16, 128, 64
-q = torch.randn(B, H, T, D, device="cuda", dtype=torch.bfloat16, requires_grad=True)
-k = torch.randn(B, H, T, D, device="cuda", dtype=torch.bfloat16)
-v = torch.randn(B, H, T, D, device="cuda", dtype=torch.bfloat16)
-t0 = time.perf_counter()
-out = torch.nn.functional.scaled_dot_product_attention(q, k, v)
-out.sum().backward()
-ms_attn = (time.perf_counter()-t0)*1000
-print(f"  sdp-attn: {ms_attn:.0f}ms  backward OK")
-
-print("  PASS")
-GPUCHECK
+TORCH_USE_HIPBLASLT=0 uv run --no-sync python scripts/test_training_gpu.py
 printf '[pre-check] GPU OK\n\n'
 
 OUT=results/state-clf-qwen3.5-0.8b-lora-wandb
@@ -71,12 +39,12 @@ for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
   log "training attempt ${attempt}/${MAX_ATTEMPTS} starting ${resume_flag[*]}"
   set +e
   WANDB_PROJECT=csen346-state-classifier \
+  TORCH_USE_HIPBLASLT=0 \
   uv run --no-sync python -u scripts/train_state_classifier_34way.py \
     --model-id "$BASE_MODEL" \
     --lora --lora-r 8 --lora-alpha 16 \
     --batch_size 8 \
     --gradient-checkpointing \
-    --bf16-autocast \
     --wandb \
     "${resume_flag[@]}" \
     --out-dir "$OUT" \
