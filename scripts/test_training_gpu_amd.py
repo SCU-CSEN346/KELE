@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Training GPU smoke test.
+"""Training GPU smoke test — AMD ROCm (gfx1201 / R9700 AI PRO).
 
 Validates the GPU compute stack required for Qwen3.5-0.8B LoRA training on
-this machine before committing to a multi-hour run. All tests run forward+backward
-through the same kernel paths the actual training uses.
+the AMD ROCm box before committing to a multi-hour run. All tests run
+forward+backward through the same kernel paths the actual training uses.
+For NVIDIA/CUDA hosts use scripts/test_training_gpu_nvidia.py instead.
 
 Usage:
-    uv run --no-sync python scripts/test_training_gpu.py
-    uv run --no-sync python scripts/test_training_gpu.py --hipblaslt   # test with hipBLASLt on
+    uv run --no-sync python scripts/test_training_gpu_amd.py
+    uv run --no-sync python scripts/test_training_gpu_amd.py --hipblaslt   # test with hipBLASLt on
 
 Exit code: 0 = all pass, 1 = any failure.
 """
