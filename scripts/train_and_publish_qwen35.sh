@@ -11,11 +11,11 @@ cd "$REPO_ROOT"
 
 # ---------------------------------------------------------------------------
 # GPU pre-check: verify the device is visible and kernels execute before
-# committing to a 13h run. Runs under --no-sync so the manually-installed
+# committing to the run. Runs under --no-sync so the manually-installed
 # ROCm/CUDA torch wheel is not reverted by uv.
 # ---------------------------------------------------------------------------
 printf '[pre-check] verifying GPU stack ...\n'
-TORCH_USE_HIPBLASLT=0 uv run --no-sync python - <<'GPUCHECK'
+uv run --no-sync python - <<'GPUCHECK'
 import os, sys, time, torch
 
 if not torch.cuda.is_available():
@@ -25,11 +25,8 @@ if not torch.cuda.is_available():
 name    = torch.cuda.get_device_name(0)
 vram    = torch.cuda.get_device_properties(0).total_memory / 1e9
 backend = f"ROCm {torch.version.hip}" if torch.version.hip else f"CUDA {torch.version.cuda}"
-hipblas = os.environ.get("TORCH_USE_HIPBLASLT", "1")
-
 print(f"  device  : {name}  ({vram:.1f} GB)")
 print(f"  backend : {backend}  torch {torch.__version__}")
-print(f"  TORCH_USE_HIPBLASLT={hipblas}")
 
 # fp32 + bf16 matmul (basic kernel smoke test)
 x = torch.randn(4096, 4096, device="cuda")
@@ -74,12 +71,12 @@ for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
   log "training attempt ${attempt}/${MAX_ATTEMPTS} starting ${resume_flag[*]}"
   set +e
   WANDB_PROJECT=csen346-state-classifier \
-  TORCH_USE_HIPBLASLT=0 \
   uv run --no-sync python -u scripts/train_state_classifier_34way.py \
     --model-id "$BASE_MODEL" \
     --lora --lora-r 8 --lora-alpha 16 \
-    --batch_size 4 \
+    --batch_size 8 \
     --gradient-checkpointing \
+    --bf16-autocast \
     --wandb \
     "${resume_flag[@]}" \
     --out-dir "$OUT" \
