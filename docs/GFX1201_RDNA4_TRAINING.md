@@ -4,13 +4,19 @@ A field report on QLoRA / LoRA fine-tuning of modern transformer and hybrid (Mam
 attention) LLMs on **AMD gfx1201 (RDNA 4, Wave32)** under **ROCm 7.2**, framed against the
 NVIDIA/CUDA baseline where most of these capabilities are free.
 
+> **Source repo:** [github.com/ulises-c/csen-346](https://github.com/ulises-c/csen-346) — the
+> canonical home of this report, the companion `docs/GPU_SUPPORT.md`, `scripts/patch_fla_rocm.sh`,
+> and the full investigation history ([#100](https://github.com/ulises-c/csen-346/issues/100) ·
+> [#79](https://github.com/ulises-c/csen-346/pull/79) ·
+> [#109](https://github.com/ulises-c/csen-346/issues/109)).
+
 > **Scope.** This is a *synthesis* of hands-on debugging on a single R9700 box, not a
 > re-derivation from upstream. Every claim carries a confidence marker (below) so an external
 > reader can tell "we ran this on real hardware" from "theorized but untried." Findings are
 > generalizable to gfx1201 training; specific model names (Qwen3.6-27B, Gemma 4 31B,
 > Qwen3.5-0.8B) appear only as concrete architecture examples.
 >
-> Companion doc: [`GPU_SUPPORT.md`](GPU_SUPPORT.md) covers the *serving* side. This doc is
+> Companion doc: [`GPU_SUPPORT.md`](https://github.com/ulises-c/csen-346/blob/main/docs/GPU_SUPPORT.md) covers the *serving* side. This doc is
 > *training*.
 
 ## Confidence legend
@@ -294,7 +300,7 @@ Not training blockers, but part of the gfx1201 picture:
   two-line fix exists, unmerged. Throughput ~halves. Affects FP8 serving, not LoRA training.
 - **vLLM doesn't recognize gfx1201 upstream**
   ([vllm#28649](https://github.com/vllm-project/vllm/issues/28649)) — serve via HF Transformers
-  instead. See [`GPU_SUPPORT.md`](GPU_SUPPORT.md).
+  instead. See [`GPU_SUPPORT.md`](https://github.com/ulises-c/csen-346/blob/main/docs/GPU_SUPPORT.md).
 
 ---
 
@@ -350,8 +356,14 @@ silicon capability.**
 
 ## References
 
+**Source repo:** [github.com/ulises-c/csen-346](https://github.com/ulises-c/csen-346) — canonical
+report, companion `docs/GPU_SUPPORT.md`, `scripts/patch_fla_rocm.sh`, and investigation history
+([#100](https://github.com/ulises-c/csen-346/issues/100) ·
+[#79](https://github.com/ulises-c/csen-346/pull/79) ·
+[#109](https://github.com/ulises-c/csen-346/issues/109)).
+
 **Primary (hands-on):** debugging sessions on the R9700 across the issues/PRs that produced this
-report; `scripts/patch_fla_rocm.sh`; [`GPU_SUPPORT.md`](GPU_SUPPORT.md).
+report; `scripts/patch_fla_rocm.sh`; [`GPU_SUPPORT.md`](https://github.com/ulises-c/csen-346/blob/main/docs/GPU_SUPPORT.md).
 
 **Upstream / community:**
 - Triton `tritonamdgpu-pipeline` UAF (manifests via): [thu-ml/SageAttention#365](https://github.com/thu-ml/SageAttention/pull/365) · [kijai/ComfyUI-WanVideoWrapper#2007](https://github.com/kijai/ComfyUI-WanVideoWrapper/issues/2007)
