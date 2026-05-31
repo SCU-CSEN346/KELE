@@ -258,7 +258,22 @@ deliberately avoids. Confirm which template `serve_gemma4_31b*.sh` /
 - `FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE` (set in Makefile for future use; currently no effect since FA2 is disabled)
 - ~14,478 total steps at ~70 s/step → ~281h wall time
 
-**Confirmed step time: ~70 s/step** (measured at steps 1–9 of Stage 2 with SDPA + HIPBLASLT=1). Hardware ratio alone (R9700 ≈ 54% of 5090 TFLOPS) predicts ~8 s/step; actual is ~9× slower. The gap is explained by the SDPA/CK Wave32 mismatch and bitsandbytes NF4 dequant overhead on ROCm — no further gains are available without patching the Triton backward kernel. HIPBLASLT=1 showed no step-time improvement (SDPA is the bottleneck, not GEMM).
+**Confirmed step time: ~70 s/step** (measured at steps 1–9 of Stage 2 with SDPA + HIPBLASLT=1). Hardware ratio alone (R9700 ≈ 54% of 5090 TFLOPS) predicts ~8 s/step; actual is ~9× slower.
+
+> **CORRECTION (profiled, `scripts/profile_train_step.py`):** the earlier claim
+> "SDPA attention is the bottleneck, not GEMM" was wrong. A real-step `torch.profiler`
+> trace shows the GPU self-time split is:
+> - **`bitsandbytes::dequantize_4bit` (NF4→bf16) ≈ 55%** — the dominant cost;
+> - GEMM (`aten::mm` / rocBLAS `Cijk_*`) ≈ 22%;
+> - **attention (aotriton `attn_fwd` + `bwd_kernel_*`) ≈ 5%**, already on a fast
+>   kernel (~0.5 ms/call fwd) — *not* the slow math path.
+>
+> So the ~70 s/step is **NF4-dequant-bound**, the inherent 4-bit QLoRA tax (every
+> matmul dequantizes its weight), made worse by the RDNA4 dequant kernel being
+> memory-bound. This is also why HIPBLASLT=1 didn't help — GEMM isn't the wall.
+> **FA2 is therefore not worth pursuing for speed** (see below); attention is ~5%.
+> The only real wall-time levers are fewer tokens (epochs 3→1, done) or dropping
+> quantization (needs >32 GB VRAM for a 31B — not available here).
 
 ---
 
@@ -277,7 +292,7 @@ gfx1201 has a 64 KB shared memory hard limit; the Triton backward kernel (`_bwd_
 
 **Implication:** FA2 is usable for **inference** on gfx1201 but **not for training** with the current flash_attn 2.8.3 Triton AMD backward implementation. SDPA remains the correct choice for training.
 
-**Possible future path:** Patch `flash_attn_triton_amd/bwd_prefill_split.py` to cap block sizes at values fitting within 64 KB shared memory (halving BLOCK_N/BLOCK_M). The first gist documents a similar patch for FLA's autotune config (`num_stages=1, num_warps=4`). Not attempted; left as future work.
+**Possible future path (now de-prioritised):** one could patch `flash_attn_triton_amd/bwd_prefill_split.py` to cap block sizes within 64 KB shared memory (halving BLOCK_N/BLOCK_M). **But the profiler above settles it: attention is only ~5% of step time and already runs a fast aotriton kernel, so even a perfectly-patched FA2 backward would shave a few percent at most.** Not worth the spike while the step is NF4-dequant-bound. Revisit only if the dequant cost is ever addressed (fused 4-bit GEMM, or training unquantized on a larger card).
 
 **Note on Vulkan:** Vulkan is available for inference (llama.cpp `GGML_VULKAN=ON`, ~20% TG speedup confirmed). No PyTorch training backend exists for Vulkan on Linux.
 

@@ -116,50 +116,59 @@ def sdpa_backend_probe(torch) -> None:
     )
 
 
+def _self_device_time(e) -> float:
+    # torch 2.11 renamed the per-event attribute to self_device_time_total;
+    # self_cuda_time_total returns 0 on recent builds. Try names in order.
+    for attr in ("self_device_time_total", "self_cuda_time_total", "self_cpu_time_total"):
+        v = getattr(e, attr, 0.0)
+        if v:
+            return float(v)
+    return 0.0
+
+
+def _classify(name: str) -> str:
+    n = name.lower()
+    if "dequant" in n:
+        return "nf4_dequant"
+    if "cijk" in n or "gemm" in n:
+        return "gemm"
+    if "attn_fwd" in n or "attention" in n or n.startswith("bwd_kernel"):
+        return "attention"
+    return "other"
+
+
 def report(prof, torch) -> None:
     has_cuda = torch.cuda.is_available()
     sort_key = "self_cuda_time_total" if has_cuda else "self_cpu_time_total"
-    total_attr = "cuda_time_total" if has_cuda else "cpu_time_total"
-    self_attr = "self_cuda_time_total" if has_cuda else "self_cpu_time_total"
 
-    # key_averages() re-aggregates every raw event — call it ONCE and reuse the
-    # EventList for both the table and the attention-share sum (computing it twice
-    # is what made report() crawl on a large event set).
+    # key_averages() re-aggregates every raw event — call it ONCE and reuse.
     ka = prof.key_averages()
-    events = list(ka)
 
     print("\n" + "=" * 100)
-    print(f"TOP 40 OPS BY {sort_key} (leaf kernel self-time — no double counting)")
+    print(f"TOP 40 OPS BY {sort_key}")
     print("=" * 100)
     print(ka.table(sort_by=sort_key, row_limit=40))
 
-    # Attention's true share: the scaled_dot_product_attention op's *total* time
-    # aggregates its whole subtree (QK^T / softmax / AV bmm kernels). Its self
-    # time is ~0, so it never surfaces in the table above — measure it directly.
-    total_device = sum(float(getattr(e, self_attr, 0.0)) for e in events) or 1.0
-    attn_total = sum(
-        float(getattr(e, total_attr, 0.0))
-        for e in events
-        if "scaled_dot_product_attention" in e.key
-        or ("attention" in e.key.lower() and "backward" in e.key.lower())
-    )
+    # Bucket over LEAF GPU kernels only (names without "::") so an aten op's self
+    # time isn't double-counted against the device kernels it launches. Skip the
+    # ProfilerStep* span marker — it overlaps the whole step and isn't work.
+    buckets = {"nf4_dequant": 0.0, "gemm": 0.0, "attention": 0.0, "other": 0.0}
+    for e in ka:
+        if "::" in e.key or e.key.startswith("ProfilerStep"):
+            continue
+        buckets[_classify(e.key)] += _self_device_time(e)
+    total = sum(buckets.values()) or 1.0
+
     print("\n" + "=" * 100)
-    print("ATTENTION SHARE (scaled_dot_product_attention fwd+bwd subtree / total device time)")
+    print("STEP TIME BY KERNEL CLASS (leaf GPU kernels; aten-op rows & ProfilerStep excluded)")
     print("=" * 100)
-    print(f"  attention subtree total : {attn_total / 1e3:10.1f} ms")
-    print(f"  total device self-time  : {total_device / 1e3:10.1f} ms")
-    print(f"  attention share         : {attn_total / total_device * 100:9.1f}%")
-    if attn_total == 0:
-        print(
-            "  (no scaled_dot_product_attention op captured — the math path may decompose to\n"
-            "   bare aten::bmm + softmax; inspect bmm / Cijk* / softmax rows in the table above.)"
-        )
+    for name, val in sorted(buckets.items(), key=lambda kv: -kv[1]):
+        print(f"  {name:<14} {val / total * 100:5.1f}%   ({val / 1e3:8.1f} ms)")
     print(
         "\nDecision:\n"
-        "  attention share high (say >40%)      → FA2 backward-kernel patch is worth the spike\n"
-        "  gemm/dequant kernels dominate instead → cost is NF4 dequant, not attention; skip FA2\n"
-        "  NB: rocBLAS Cijk* kernels are shared by both linear GEMMs and the math-SDPA bmm —\n"
-        "  use the attention-share number above, not raw kernel names, for the call."
+        "  attention dominant         → FA2 backward-kernel patch worth the spike\n"
+        "  nf4_dequant / gemm dominant → attention isn't the cost; skip FA2\n"
+        "  (nf4_dequant is the inherent 4-bit QLoRA tax: every matmul dequants NF4→bf16.)"
     )
 
 
