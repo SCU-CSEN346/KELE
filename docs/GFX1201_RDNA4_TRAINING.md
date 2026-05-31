@@ -43,7 +43,7 @@ seam where the CUDA assumption leaks through. The headline:
 | **bitsandbytes 4-bit NF4 *runtime*** | works | **works** (stock `bitsandbytes==0.49.2` from PyPI; no source build needed) | — (source build `-DBNB_ROCM_ARCH=gfx1201` only if a future version regresses) | ✅ |
 | **hipBLASLt / cuBLASLt fast matmul** | cuBLASLt, default | **crashes in RoPE** (`HIPBLAS_STATUS_INVALID_VALUE`) on some attention archs | `TORCH_USE_HIPBLASLT=0` → rocBLAS fallback (slower); test per-arch first | ✅ |
 | **QLoRA load (4-bit from a BF16 base)** | needs only post-quant RAM | **stages the *full* BF16 model in CPU RAM before quantizing** — a ~31B model wants ~62 GB transient | load a **pre-quantized** bnb checkpoint (already NF4) | ✅ |
-| **`expandable_segments:True`** allocator | works | **works, and helps** (releases freed BF16 shards from VRAM) | use it | ✅ ↩️ |
+| **`expandable_segments:True`** allocator | works | **contested** — helped in one session; a later run saw it precede GPU page faults at step 16 | latest verdict: **leave it off**; `garbage_collection_threshold:0.8` alone (§6) | ⚠️ ↩️ |
 | **FP8 (E4M3) compute** | works (Hopper/Blackwell) | **silently falls back to FP32** — gfx1201 missing from AITER arch table | none (affects serving, not LoRA training) | 🔭 |
 | **vLLM** | works | **doesn't recognize gfx1201** upstream | serve via HF Transformers instead | ✅ |
 | **`pip install` of CUDA-source extensions** (`causal-conv1d`, `flash-attn`) | works | **"NVCC trap"** — isolated build pulls CUDA torch, injects `-gencode compute_80` | build with `--no-build-isolation` against your ROCm torch (routes through `hipify_torch`) | ✅ |
@@ -194,8 +194,9 @@ matmul speedup (measured ~4.1× on gfx1201: 5.2 ms vs 21.5 ms; rocBLAS fallback 
 linear-attention kernel path (`torch_chunk_gated_delta_rule`) — **not** a general hipBLASLt
 instability. For a pure-softmax model that never touches the delta-rule op,
 **`TORCH_USE_HIPBLASLT=1` may be safe** and worth a 20-step trial before defaulting to the
-rocBLAS fallback. Pair it with `expandable_segments:True` (§6), which is what stabilized
-hipBLASLt past the early crash zone.
+rocBLAS fallback — the latest hands-on Gemma 4 (softmax) launch adopted exactly this. One
+session paired it with `expandable_segments:True` to stabilize past the early crash zone, but
+that allocator knob later proved contested (§6) — keep the two changes independent when testing.
 
 ---
 
@@ -243,17 +244,28 @@ even 32 GB.
 
 ---
 
-## 6. Memory-allocator config — what's true now (with a retraction) ✅ ↩️
+## 6. Memory-allocator config — what's true now (one contested knob) ↩️
 
 | `PYTORCH_HIP_ALLOC_CONF` knob | Verdict on gfx1201 |
 |---|---|
 | `garbage_collection_threshold:0.8` | ✅ use it |
-| `expandable_segments:True` | ✅ **use it** — releases freed BF16 shards from VRAM during load ↩️ |
+| `expandable_segments:True` | ⚠️ **contested — default off** (see below) |
 | `max_split_size_mb:128` | ❌ **remove** — blocks legitimate >128 MB allocations → spurious OOM |
 
-> ↩️ **Retraction.** An early note (and some community advice) called `expandable_segments:True`
-> "unsupported, silently ignored" on gfx1201. A later hands-on session **re-added it and found
-> it works and helps**. The *working* verdict is the resolved state — use it.
+> ⚠️ ↩️ **`expandable_segments:True` flip-flopped three times — current verdict is OFF.**
+> This knob has the least stable story of anything here, so treat it as unsettled rather than
+> a clean ✅:
+> 1. **First pass** — reported "unsupported, silently ignored" on gfx1201 → don't use.
+> 2. **Second pass** — re-added in a later session, appeared to help (released freed BF16 shards
+>    from VRAM during load) → use it. *(Earlier versions of this doc reported this as the
+>    resolved state.)*
+> 3. **Latest hands-on (most recent)** — **removed again**: the HIP allocator's
+>    "not supported" warning **preceded GPU page faults at step 16**, so it was stripped from
+>    all `PYTORCH_HIP_ALLOC_CONF` entries as a precaution.
+>
+> The page-fault correlation is suggestive, not proven causation — but the **latest empirical
+> call is to leave it off** and run `garbage_collection_threshold:0.8` alone. If you try it,
+> watch for a step ~10–20 page fault.
 
 ---
 
@@ -343,7 +355,7 @@ Not training blockers, but part of the gfx1201 picture:
    blocker, not VRAM).
 4. **`device_map`** → force `{"": 0}`; guard the CUDA-only allocator warmup.
 5. **hipBLASLt** → off for delta-rule archs; test-then-keep for pure softmax.
-6. **Allocator** → `garbage_collection_threshold:0.8` + `expandable_segments:True`; never `max_split_size_mb`.
+6. **Allocator** → `garbage_collection_threshold:0.8`; never `max_split_size_mb`; `expandable_segments:True` is contested — default off (§6).
 7. **No HSA override** on ROCm 7.2.
 8. **Build CUDA-source extensions with `--no-build-isolation`** (hipify path); never bare `pip install`.
 9. **`uv run --no-sync`**, `setsid` wrappers, and a GPU-clean pre-flight.
