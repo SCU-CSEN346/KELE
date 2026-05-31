@@ -3,22 +3,31 @@
 
 The gfx1201 ~70 s/step is ~9× above the raw-TFLOPS floor. The handoff attributes
 the gap to "SDPA attention is the bottleneck, not GEMM" — but that was *inferred*
-from hipBLASLt=1 showing no gain, never measured directly. This script settles it:
-it runs a handful of REAL training steps (same model load, LoRA, collator,
-assistant_only_loss, grad-ckpt as scripts/train_sft.py) under torch.profiler and
-prints the kernel self-time breakdown.
+from hipBLASLt=1 showing no gain, never measured directly. This script settles it.
+
+It does two things:
+
+  1. SDPA-backend probe — at Gemma 4's real attention shape (head_dim=256, which
+     ROCm flash/mem-efficient kernels typically cap below at 128), times each SDPA
+     backend's fwd+bwd. If flash is unavailable and the math fallback is what runs,
+     attention is slow *by construction* and FA2 (if its backward fit) would help.
+
+  2. Real-step profile — runs a few REAL training steps (same model load, LoRA,
+     collator, assistant_only_loss, grad-ckpt as scripts/train_sft.py) under
+     torch.profiler and reports the attention subtree's share of device time
+     (via the scaled_dot_product_attention op's *total* cuda time — its self time
+     is ~0, so sorting by self-time hides it), plus the raw top-40 kernel table.
 
 Decision it informs:
-  - If SDPA / attention kernels dominate  → patching the flash-attn Triton AMD
-    backward (bwd_prefill_split.py block sizes → fit 64 KB LDS) could collapse the
-    step time. FA2 is worth the spike.
-  - If bitsandbytes NF4 dequant / GEMM kernels dominate → FA2 buys little even if
-    the backward is made to fit. Don't sink time into the kernel patch.
+  - attention dominant      → patching the flash-attn Triton AMD backward
+    (bwd_prefill_split.py block sizes → fit 64 KB LDS) could collapse the step
+    time. FA2 is worth the spike.
+  - NF4 dequant / GEMM dominant → FA2 buys little even with a fitting backward.
+    Don't sink time into the kernel patch.
 
-Run on the R9700 (this is a HIP/ROCm profile; ProfilerActivity.CUDA captures HIP
-kernels on a ROCm torch build):
+Run on the R9700 (HIP/ROCm profile; ProfilerActivity.CUDA captures HIP kernels):
 
-    make profile-gemma4-31b              # wrapper with the right env
+    make profile-gemma4-31b
     # or directly:
     TORCH_USE_HIPBLASLT=1 PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
       uv run --no-sync python scripts/profile_train_step.py \
@@ -34,6 +43,7 @@ import argparse
 import os
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -45,43 +55,108 @@ from scripts.train_sft import (  # noqa: E402
     build_sft_config,
 )
 
-# Op-name keywords for a coarse attention-vs-gemm/dequant split. Fuzzy on
-# purpose — the authoritative answer is the raw table below; this bucket summary
-# is the at-a-glance decision aid.
-_ATTN_KEYS = (
-    "attention",
-    "sdpa",
-    "scaled_dot_product",
-    "softmax",
-    "flash",
-    "efficient_attention",
-    "mem_eff",
-    "fmha",
-)
-_GEMM_KEYS = (
-    "gemm",
-    "matmul",
-    "addmm",
-    "hipblaslt",
-    "rocblas",
-    "cijk",  # rocBLAS tensile kernel names
-    "dequant",
-    "kgemm",
-    "4bit",
-    "nf4",
-    "bnb",
-    "int4",
-    "cutlass",
-)
+
+def sdpa_backend_probe(torch) -> None:
+    """Time each SDPA backend at Gemma 4 31B's real attention shape.
+
+    Reveals which backend SDPA can actually use for head_dim=256 — the crux of
+    whether attention is slow. rocBLAS-backed math is the slow fallback; flash
+    being unavailable here is the direct evidence FA2 would matter for attention.
+    """
+    import torch.nn.functional as F
+    from torch.nn.attention import SDPBackend, sdpa_kernel
+
+    print("\n" + "=" * 100)
+    print("SDPA BACKEND PROBE — Gemma 4 31B shape: head_dim=256, seq=1280, 32 q / 16 kv heads, bf16, causal")
+    print("=" * 100)
+    print(
+        f"  allowed: flash={torch.backends.cuda.flash_sdp_enabled()}  "
+        f"mem_efficient={torch.backends.cuda.mem_efficient_sdp_enabled()}  "
+        f"math={torch.backends.cuda.math_sdp_enabled()}"
+    )
+    if not torch.cuda.is_available():
+        print("  (no GPU — skipping timing)")
+        return
+
+    b, hq, hkv, s, d = 1, 32, 16, 1280, 256
+    for name, backend in (
+        ("flash", SDPBackend.FLASH_ATTENTION),
+        ("mem_efficient", SDPBackend.EFFICIENT_ATTENTION),
+        ("math", SDPBackend.MATH),
+    ):
+        q = k = v = None
+        try:
+            q = torch.randn(b, hq, s, d, device="cuda", dtype=torch.bfloat16, requires_grad=True)
+            k = torch.randn(b, hkv, s, d, device="cuda", dtype=torch.bfloat16, requires_grad=True)
+            v = torch.randn(b, hkv, s, d, device="cuda", dtype=torch.bfloat16, requires_grad=True)
+
+            def run(q, k, v):
+                out = F.scaled_dot_product_attention(q, k, v, is_causal=True, enable_gqa=True)
+                out.sum().backward()
+
+            with sdpa_kernel([backend]):
+                for _ in range(2):
+                    run(q, k, v)
+                torch.cuda.synchronize()
+                t0 = time.perf_counter()
+                iters = 5
+                for _ in range(iters):
+                    run(q, k, v)
+                torch.cuda.synchronize()
+                ms = (time.perf_counter() - t0) / iters * 1000
+            print(f"  {name:<14} OK      fwd+bwd {ms:7.2f} ms/call")
+        except Exception as e:  # noqa: BLE001 — probe: any failure means "backend unusable here"
+            print(f"  {name:<14} FAILED  {str(e).splitlines()[0][:88]}")
+        finally:
+            del q, k, v
+            torch.cuda.empty_cache()
+    print(
+        "\n  Read: if flash FAILED (head_dim=256 unsupported) and math is what runs, attention is\n"
+        "  on the slow rocBLAS path — FA2 would help it *if* its backward could fit 64 KB LDS."
+    )
 
 
-def _bucket(name: str) -> str:
-    low = name.lower()
-    if any(k in low for k in _ATTN_KEYS):
-        return "attention"
-    if any(k in low for k in _GEMM_KEYS):
-        return "gemm/dequant"
-    return "other"
+def report(prof, torch) -> None:
+    has_cuda = torch.cuda.is_available()
+    sort_key = "self_cuda_time_total" if has_cuda else "self_cpu_time_total"
+    total_attr = "cuda_time_total" if has_cuda else "cpu_time_total"
+    self_attr = "self_cuda_time_total" if has_cuda else "self_cpu_time_total"
+
+    events = list(prof.key_averages())
+
+    print("\n" + "=" * 100)
+    print(f"TOP 40 OPS BY {sort_key} (leaf kernel self-time — no double counting)")
+    print("=" * 100)
+    print(prof.key_averages().table(sort_by=sort_key, row_limit=40))
+
+    # Attention's true share: the scaled_dot_product_attention op's *total* time
+    # aggregates its whole subtree (QK^T / softmax / AV bmm kernels). Its self
+    # time is ~0, so it never surfaces in the table above — measure it directly.
+    total_device = sum(float(getattr(e, self_attr, 0.0)) for e in events) or 1.0
+    attn_total = sum(
+        float(getattr(e, total_attr, 0.0))
+        for e in events
+        if "scaled_dot_product_attention" in e.key
+        or ("attention" in e.key.lower() and "backward" in e.key.lower())
+    )
+    print("\n" + "=" * 100)
+    print("ATTENTION SHARE (scaled_dot_product_attention fwd+bwd subtree / total device time)")
+    print("=" * 100)
+    print(f"  attention subtree total : {attn_total / 1e3:10.1f} ms")
+    print(f"  total device self-time  : {total_device / 1e3:10.1f} ms")
+    print(f"  attention share         : {attn_total / total_device * 100:9.1f}%")
+    if attn_total == 0:
+        print(
+            "  (no scaled_dot_product_attention op captured — the math path may decompose to\n"
+            "   bare aten::bmm + softmax; inspect bmm / Cijk* / softmax rows in the table above.)"
+        )
+    print(
+        "\nDecision:\n"
+        "  attention share high (say >40%)      → FA2 backward-kernel patch is worth the spike\n"
+        "  gemm/dequant kernels dominate instead → cost is NF4 dequant, not attention; skip FA2\n"
+        "  NB: rocBLAS Cijk* kernels are shared by both linear GEMMs and the math-SDPA bmm —\n"
+        "  use the attention-share number above, not raw kernel names, for the call."
+    )
 
 
 def main() -> None:
@@ -106,6 +181,8 @@ def main() -> None:
 
     out_dir = "outputs/profile-gemma4-31b"
     Path(out_dir).mkdir(parents=True, exist_ok=True)
+
+    sdpa_backend_probe(torch)
 
     train_ds, eval_ds = build_hf_datasets()
     model, tokenizer = build_model_and_tokenizer()
@@ -146,30 +223,7 @@ def main() -> None:
             trainer.add_callback(ProfStep(prof))
             trainer.train()
 
-    sort_key = "self_cuda_time_total" if torch.cuda.is_available() else "self_cpu_time_total"
-    table = prof.key_averages().table(sort_by=sort_key, row_limit=40)
-    print("\n" + "=" * 100)
-    print(f"TOP 40 OPS BY {sort_key}")
-    print("=" * 100)
-    print(table)
-
-    # Coarse bucket summary over the device self-time.
-    buckets: dict[str, float] = {"attention": 0.0, "gemm/dequant": 0.0, "other": 0.0}
-    attr = "self_cuda_time_total" if torch.cuda.is_available() else "self_cpu_time_total"
-    for evt in prof.key_averages():
-        buckets[_bucket(evt.key)] += float(getattr(evt, attr, 0.0))
-    total = sum(buckets.values()) or 1.0
-    print("\n" + "=" * 100)
-    print(f"COARSE BUCKET SUMMARY ({attr}) — heuristic by op name, see raw table for ground truth")
-    print("=" * 100)
-    for name, val in sorted(buckets.items(), key=lambda kv: -kv[1]):
-        print(f"  {name:<14} {val / total * 100:5.1f}%   ({val / 1e3:.1f} ms self-time)")
-    print(
-        "\nDecision:\n"
-        "  attention dominant    → FA2 backward-kernel patch is worth the spike\n"
-        "  gemm/dequant dominant → FA2 buys little; the cost is NF4 dequant, not attention"
-    )
-
+    report(prof, torch)
     trace_path = f"{out_dir}/trace.json"
     prof.export_chrome_trace(trace_path)
     print(f"\nChrome trace: {trace_path}  (open in chrome://tracing or perfetto.dev)")
