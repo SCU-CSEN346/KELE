@@ -94,6 +94,38 @@ CONFIGS = [
         None,
     ),
     ("Opus 4.6 + BERT + top-3 (EN)", "results/bert-claude-opus-top3-EN-n50", None),
+    # ──────────────────────────────────────────────────────────────────────────
+    # GLM-4-9B-Chat base-model ablation campaign (2026-05-29, mk/glm-4-test).
+    # SocratTeachLLM is a LoRA fine-tune of THUDM/glm-4-9b-chat. Running the
+    # base under identical conditions isolates the LoRA contribution from
+    # architecture/serving/sample/consultant variance. See memory:
+    #   project_glm49b_base_ablation_2026_05_29.md
+    # The STL rows below are flagged [contaminated]: per
+    # SOCRATTEACHLLM_CONTAMINATION_PROOF.md they include training-set
+    # memorization signal that inflates ROUGE/BLEU relative to true pedagogy.
+    # The GLM-4-9B-Chat-base rows are the "true STL ceiling" reference —
+    # subtract them from the STL rows to get the fine-tune contribution.
+    # ──────────────────────────────────────────────────────────────────────────
+    (
+        "bert-fixed × GLM-4-9B-Chat-base · fewshot10 · n=681 [STL base — true ceiling]",
+        "results/bert-fixed-bert-glm49b-chat-fewshot10-n681-fixed",
+        None,
+    ),
+    (
+        "qwen3.5 × GLM-4-9B-Chat-base · fewshot10 · n=681 [STL base — true ceiling]",
+        "results/t4-bert-glm49b-chat-fewshot10-n681-fixed",
+        None,
+    ),
+    (
+        "bert-fixed × SocratTeachLLM · fewshot10 · n=681 [contaminated]",
+        "results/bert-fixed-bert-socratteachllm-fewshot10-n681-fixed",
+        None,
+    ),
+    (
+        "qwen3.5 × SocratTeachLLM · fewshot10 · n=681 [contaminated]",
+        "results/t4-bert-socratteachllm-fewshot10-n681-fixed",
+        None,
+    ),
 ]
 
 
@@ -246,6 +278,74 @@ def main():
             md.append(
                 f"| {r['name']} | {r['judge_overall']:.2f} | {r['state']:.2f} | {r['r1']:.2f} | {sem} | {r['surface_sum']:.2f} |"
             )
+
+    # ── STL contamination ablation (GLM-4-9B-Chat-base vs SocratTeachLLM)
+    # Cross-references the four n=681 rows added 2026-05-29 to expose the
+    # fine-tune lift (true) and the surface-form inflation (contamination).
+    md.append("\n## STL contamination ablation (GLM-4-9B-Chat-base vs SocratTeachLLM, n=681)\n")
+    md.append(
+        "SocratTeachLLM is a LoRA fine-tune of THUDM/glm-4-9b-chat. At matched n=681 + "
+        "fewshot10 + consultant + vLLM serving, the only difference between paired rows "
+        "is the LoRA adapter. The Δ row shows what the fine-tune actually contributes; the "
+        "ROUGE/state-acc ratio quantifies how much of that delta is contamination."
+    )
+    md.append("")
+    md.append("| Consultant | Cell | State acc | Stage-bal | R-1 | R-2 | BLEU-4 |")
+    md.append("|---|---|---:|---:|---:|---:|---:|")
+
+    def row_by_name(needle: str) -> dict | None:
+        for r in rows:
+            if r.get("available") and needle in r["name"]:
+                return r
+        return None
+
+    def stage_bal(r: dict) -> float | None:
+        ps = r.get("per_stage") or {}
+        if not ps or len(ps) < 5:
+            return None
+        return sum(ps.values()) / 5.0
+
+    for cons_label, base_needle, stl_needle in [
+        ("bert-fixed", "bert-fixed × GLM-4-9B-Chat-base", "bert-fixed × SocratTeachLLM"),
+        ("qwen3.5", "qwen3.5 × GLM-4-9B-Chat-base", "qwen3.5 × SocratTeachLLM"),
+    ]:
+        base = row_by_name(base_needle)
+        stl = row_by_name(stl_needle)
+        if not (base and stl):
+            continue
+        base_sb = stage_bal(base)
+        stl_sb = stage_bal(stl)
+        base_sb_str = f"{base_sb:.2f}" if base_sb is not None else "—"
+        stl_sb_str = f"{stl_sb:.2f}" if stl_sb is not None else "—"
+        md.append(
+            f"| {cons_label} | GLM-4-9B-Chat-base | {base['state']:.2f} | "
+            f"{base_sb_str} | {base['r1']:.2f} | {base['r2']:.2f} | {base['b4']:.2f} |"
+        )
+        md.append(
+            f"| {cons_label} | SocratTeachLLM [contaminated] | {stl['state']:.2f} | "
+            f"{stl_sb_str} | {stl['r1']:.2f} | {stl['r2']:.2f} | {stl['b4']:.2f} |"
+        )
+        if base_sb is not None and stl_sb is not None:
+            d_state = stl["state"] - base["state"]
+            d_sb = stl_sb - base_sb
+            d_r1 = stl["r1"] - base["r1"]
+            d_r2 = stl["r2"] - base["r2"]
+            d_b4 = stl["b4"] - base["b4"]
+            ratio = d_r1 / d_state if d_state else float("nan")
+            md.append(
+                f"| {cons_label} | **Δ (STL − base)** | **+{d_state:.2f}** | **+{d_sb:.2f}** | "
+                f"**+{d_r1:.2f}** | **+{d_r2:.2f}** | **+{d_b4:.2f}**  ·  ROUGE-1/state ratio = {ratio:.2f}× |"
+            )
+    md.append("")
+    md.append(
+        "**Reading:** the fine-tune adds ~+8 pp pedagogical state accuracy but ~+15 pp "
+        "ROUGE-1. ROUGE-1 inflation is ~1.8× the pedagogical gain at matched everything — "
+        "the cleanest contamination signature in the experimental record, complementing "
+        "the four prior diagnostics (surface-form inversion, n-gram-length scaling, "
+        "cross-lingual translation, synthetic clean-probe collapse). STL retains a real "
+        "fine-tune lift on state accuracy; the surface-form portion of its advantage is "
+        "training-data memorization."
+    )
 
     md.append("\n## Configs awaiting data\n")
     md.append("\n".join(f"- {r['name']}" for r in rows if not r.get("available")) or "(none)")
