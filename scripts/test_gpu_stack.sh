@@ -336,7 +336,7 @@ fi
 
 # ── 9. Efficient attention (PyTorch SDPA + optional flash-attn) ───────────────
 step 9 "Efficient attention — PyTorch SDPA + flash-attn if installed"
-SDPA_OUT=$(.venv/bin/python - 2>&1 <<'PY'
+SDPA_OUT=$(FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE .venv/bin/python - 2>&1 <<'PY'
 import sys, warnings
 warnings.filterwarnings("ignore")
 try:
@@ -544,10 +544,9 @@ if [[ "$FAILURES" -eq 0 ]]; then
     echo "  LoRA fine-tuning:             step 7 passing = PEFT/LoRA is ready."
     echo "  SFT trainer:                  step 8 passing = TRL SFTTrainer is ready."
     echo "  Efficient attention (torch):  step 9 = PyTorch SDPA + flash-attn (if installed)"
-    echo "    flash_attn install note: PyPI wheel fails on gfx1201 (CK-tile ISA bug)."
-    echo "    Use ROCm fork with Triton backend:"
-    echo "      git clone --recurse-submodules https://github.com/ROCm/flash-attention /tmp/fa"
-    echo "      FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE uv pip install /tmp/fa --no-build-isolation"
+    echo "    flash_attn install note: PyPI flash-attn 2.8.3+ works on gfx1201 via Triton JIT."
+    echo "    Install (once): FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE uv pip install flash-attn --no-build-isolation"
+    echo "    Set FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE at training time too (Triton JIT selects AMD path)."
     echo ""
     echo "  llama-server build:           step 10 = ROCm/HIP flags verified."
     echo "  Flash attention (llama.cpp):  step 11 = FA compiled in; check runtime logs for 'flash attn = 1'."
