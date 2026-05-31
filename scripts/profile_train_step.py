@@ -162,7 +162,12 @@ def report(prof, torch) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Profile a real Stage 2 training step")
     parser.add_argument("--config", metavar="PATH", required=True, help="env config file")
-    parser.add_argument("--steps", type=int, default=6, help="optimizer steps to run")
+    parser.add_argument("--steps", type=int, default=4, help="optimizer steps to run")
+    parser.add_argument(
+        "--trace",
+        action="store_true",
+        help="also export a chrome trace (slow JSON serialization; the printed table is enough)",
+    )
     args = parser.parse_args()
 
     from src.project.config import load_env_file
@@ -172,6 +177,10 @@ def main() -> None:
     # Cap the run to a few steps and keep eval off, regardless of the config.
     os.environ["TRAIN_MAX_STEPS"] = str(args.steps)
     os.environ["TRAIN_EVAL_STRATEGY"] = "no"
+    # Force grad-accum=1 for profiling. The attention-vs-GEMM *ratio* is identical
+    # regardless of accumulation, but ga=16 records 16× the kernel events per step —
+    # which is what makes key_averages() + chrome-trace export crawl for minutes.
+    os.environ["TRAIN_GRAD_ACCUM"] = "1"
 
     import torch
     from peft import get_peft_model
@@ -231,9 +240,11 @@ def main() -> None:
             trainer.train()
 
     report(prof, torch)
-    trace_path = f"{out_dir}/trace.json"
-    prof.export_chrome_trace(trace_path)
-    print(f"\nChrome trace: {trace_path}  (open in chrome://tracing or perfetto.dev)")
+    if args.trace:
+        trace_path = f"{out_dir}/trace.json"
+        print(f"\nExporting chrome trace to {trace_path} (slow — serializes every event)...")
+        prof.export_chrome_trace(trace_path)
+        print(f"Chrome trace: {trace_path}  (open in chrome://tracing or perfetto.dev)")
 
 
 if __name__ == "__main__":
