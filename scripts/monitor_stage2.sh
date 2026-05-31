@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# This script builds GitHub-markdown PR comments via printf; the format strings
+# are single-quoted on purpose (%s positional args + literal backticks/newlines),
+# so SC2016 ("expressions don't expand in single quotes") is a false positive.
+# shellcheck disable=SC2016
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

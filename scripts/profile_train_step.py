@@ -33,8 +33,11 @@ Run on the R9700 (HIP/ROCm profile; ProfilerActivity.CUDA captures HIP kernels):
       uv run --no-sync python scripts/profile_train_step.py \
       --config configs/train-sft-stage2-gemma4-31b.env
 
-Profiles 6 optimizer steps (schedule wait=1/warmup=2/active=3) → ~6 min at 70 s/step.
-Writes a Chrome trace to outputs/profile-gemma4-31b/trace.json for offline viewing.
+Profiles 4 optimizer steps (schedule wait=1/warmup=2/active=3) with grad-accum
+forced to 1 (the attention-vs-GEMM ratio is invariant to accumulation, but ga=1
+cuts recorded events ~16× so post-processing finishes in seconds). Pass --trace
+to also write outputs/profile-gemma4-31b/trace.json (slow; the printed table is
+the deliverable, and on a headless box there's no browser to open it anyway).
 """
 
 from __future__ import annotations
