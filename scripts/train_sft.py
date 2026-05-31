@@ -322,6 +322,13 @@ def build_sft_config(output_dir: str | None = None, use_wandb: bool = False) -> 
     save_steps = int(_get("TRAIN_SAVE_STEPS", "200"))
     eval_steps = int(_get("TRAIN_EVAL_STEPS", "200"))
     max_steps = int(_get("TRAIN_MAX_STEPS", "-1"))
+    # CPU-side parallelism. dataset_num_proc fans the one-time chat-template +
+    # tokenization map across processes (it is single-process by default and
+    # pegs one core on the 77k-record split at startup). dataloader workers
+    # prefetch/collate batches off the main process during training. Neither
+    # touches the GPU-bound ~70s/step — they only cut startup + feed latency.
+    dataset_num_proc = int(_get("TRAIN_DATASET_NUM_PROC", "1"))
+    dataloader_workers = int(_get("TRAIN_DATALOADER_WORKERS", "0"))
     # In-training eval can OOM on memory-constrained setups: the eval forward
     # casts logits to fp32 for the loss (transformers/loss/loss_utils.py:58),
     # doubling the logits tensor briefly. On Gemma 4 31B QLoRA with 256K vocab
@@ -338,7 +345,8 @@ def build_sft_config(output_dir: str | None = None, use_wandb: bool = False) -> 
         f"\nSFT config  output={output_dir}\n"
         f"  epochs={epochs}  lr={lr}  batch={batch}×{grad_accum}={effective_batch}"
         f"  max_length={max_seq_len}  bf16={use_bf16}  grad_ckpt={grad_ckpt}"
-        f"  eval_strategy={eval_strategy}"
+        f"  eval_strategy={eval_strategy}  dataset_num_proc={dataset_num_proc}"
+        f"  dataloader_workers={dataloader_workers}"
         + (
             f"  wandb_project={os.environ.get('WANDB_PROJECT')}  run={run_name}"
             if use_wandb
@@ -364,6 +372,8 @@ def build_sft_config(output_dir: str | None = None, use_wandb: bool = False) -> 
         eval_steps=eval_steps,
         eval_strategy=eval_strategy,
         save_total_limit=2,
+        dataset_num_proc=dataset_num_proc,
+        dataloader_num_workers=dataloader_workers,
         load_best_model_at_end=(eval_strategy != "no"),
         report_to=["wandb"] if use_wandb else "none",
         run_name=run_name,
