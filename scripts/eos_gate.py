@@ -57,8 +57,13 @@ def _generate(
     import torch  # noqa: PLC0415
 
     stop = _stop_ids(tokenizer)
-    input_ids = tokenizer.apply_chat_template(
+    enc = tokenizer.apply_chat_template(
         messages, add_generation_prompt=True, tokenize=True, return_tensors="pt"
+    )
+    input_ids = (
+        enc["input_ids"]
+        if hasattr(enc, "__getitem__") and not isinstance(enc, torch.Tensor)
+        else enc
     ).to(model.device)
     with torch.no_grad():
         out = model.generate(

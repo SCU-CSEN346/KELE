@@ -95,7 +95,7 @@ dev = [
 # Binary image formats (PDF/PNG/JPG) match false positives against compressed
 # byte sequences inside the file streams; runtime logs are noise. Skip them
 # outright — none are human-edited source content.
-skip = "uv.lock,*references*,*deliverables*,*results*,.venv,*data*,*logs*,*.pdf,*.png,*.jpg,*.jpeg,*.gif"
+skip = "uv.lock,*references*,*deliverables*,*results*,.venv,*data*,*logs*,*.pdf,*.png,*.jpg,*.jpeg,*.gif,*outputs*"
 # Terms that are not typos:
 #   rouge   — ROUGE (NLP metric: Recall-Oriented Understudy for Gisting Evaluation)
 #   nothink — Qwen model inference mode flag (think / nothink)
