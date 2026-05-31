@@ -405,7 +405,7 @@ train-gemma4-31b-stage2-unsloth:
 # for the EOS gate. Uses a separate output dir so it never collides with the real run.
 train-gemma4-31b-eos-gate:
 	mkdir -p outputs/eos-gate-gemma4-31b
-	setsid env TORCH_USE_HIPBLASLT=1 \
+	setsid env TORCH_USE_HIPBLASLT=0 \
 	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
 	  TRAIN_BASE_MODEL=unsloth/gemma-4-31B-it-unsloth-bnb-4bit \
 	  TRAIN_PREQ=true \
