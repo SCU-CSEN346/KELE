@@ -52,6 +52,7 @@ def _dialogue_record(id_: int, n_turns: int = 2) -> dict:
                 "teacher": f"老师回复{t}",
                 "state": ("a1", "b2", "c8", "d33")[t % 4],
                 "action": f"action_{t}",
+                "evaluation": f"评估{t}",
             }
             for t in range(n_turns)
         ],
@@ -170,11 +171,13 @@ def test_sft_user_message_structure_and_history_accumulation():
     first_user = records[0]["messages"][1]["content"]
     second_user = records[1]["messages"][1]["content"]
 
-    # Required inference labels, in order.
+    # Required inference labels, in order. Post Phase-0 the eval line carries the
+    # dataset's free-form `evaluation` field and the action line carries the
+    # canonical map output get_action_for_state("a1") — NOT the raw dataset action.
     assert "历史对话记录:" in first_user
     assert "当前学生输入: 学生输入0" in first_user
-    assert "苏格拉底教学顾问评估结果: 学生处于 a1 状态" in first_user
-    assert "苏格拉底教学顾问建议的操作: action_0" in first_user
+    assert "苏格拉底教学顾问评估结果: 评估0" in first_user
+    assert "苏格拉底教学顾问建议的操作: 生成一个与解题相关的子问题" in first_user
 
     # Turn 0 has empty history; turn 1 carries turn 0's student+teacher verbatim.
     assert "学生: 学生输入0" not in first_user
@@ -255,17 +258,37 @@ def test_sft_sources_registered_in_unified_entry_point():
 def test_sft_record_renders_identically_to_inference_prompt():
     """The core fix: an SFT training record must render byte-for-byte identically
     (under the chat template's per-message trim) to the prompt socrates_teacher()
-    sends at inference, when the consultant fields match."""
+    sends at inference, when the consultant fields match.
+
+    Post Phase-0 (PR #101) the action dimension is un-rigged: the loader sources
+    the action from get_action_for_state(state) — exactly what process_student_input
+    feeds socrates_teacher — instead of the raw dataset action. So when the dataset
+    `evaluation` matches the live consultant eval, parity is total: system AND user
+    render-equal, action line included, zero drift."""
     import src.project.dataset as ds
+    from src.project.socratic_teaching_system import get_action_for_state
 
     s0, t0 = "学生输入0", "老师回复0"
-    s1, state, action = "学生输入1", "b2", "action_1"
+    s1, state = "学生输入1", "b2"
+    eval1 = "学生展示了部分理解，但需要进一步引导其推理。"
 
     record = {
         "id": 99,
         "dialogue": [
-            {"student": s0, "teacher": t0, "state": "a1", "action": "action_0"},
-            {"student": s1, "teacher": "老师回复1", "state": state, "action": action},
+            {
+                "student": s0,
+                "teacher": t0,
+                "state": "a1",
+                "action": "action_0",
+                "evaluation": "学生刚刚提出了问题。",
+            },
+            {
+                "student": s1,
+                "teacher": "老师回复1",
+                "state": state,
+                "action": "action_1",
+                "evaluation": eval1,
+            },
         ],
     }
     with patch("datasets.load_dataset", return_value=_mock_hf([record])):
@@ -275,14 +298,15 @@ def test_sft_record_renders_identically_to_inference_prompt():
     sft_system = sft_msgs[0]["content"]
     sft_user = sft_msgs[1]["content"]
 
-    # Match the one non-deterministic field (evaluation) to the templated form
-    # the loader emits, isolating the *structural* parity claim.
+    # Inference sends the canonical action for the state and the live consultant's
+    # free-form eval. Feed the same eval text the dataset carries so the only thing
+    # under test is structural parity — including the now-matched action line.
     inf = _capture_inference_prompt(
         history_pairs=[(s0, t0)],
         student_input=s1,
-        evaluation=f"学生处于 {state} 状态",
+        evaluation=eval1,
         state=state,
-        action=action,
+        action=get_action_for_state(state),
     )
 
     assert _render_eq(sft_system, inf["system"]), (
@@ -313,22 +337,38 @@ def test_inference_system_block_is_trim_equivalent_despite_raw_whitespace():
 
 
 def test_evaluation_line_is_the_only_residual_drift_under_freeform_consultant():
-    """Known, deferred residual (PR #101): training emits the templated
-    `学生处于 {state} 状态`, but at inference the consultant supplies free-form
-    prose on that line. This test pins the residual to *exactly one line* — if a
-    future change introduces drift on any OTHER line, this breaks, distinguishing
-    a new regression from the already-accepted evaluation-line gap.
+    """The sole remaining residual after Phase 0 (PR #101): training carries the
+    dataset's *stored* `evaluation` annotation, but at inference the live consultant
+    regenerates free-form prose on that line, so the two seldom match token-for-token.
+    The action line no longer drifts (both sides use get_action_for_state). This test
+    pins the residual to *exactly one line* — if a future change reintroduces drift on
+    any OTHER line (e.g. the action line), this breaks, distinguishing a new regression
+    from the already-accepted, irreducible evaluation-line gap.
     """
     import src.project.dataset as ds
+    from src.project.socratic_teaching_system import get_action_for_state
 
     s0, t0 = "学生输入0", "老师回复0"
-    s1, state, action = "学生输入1", "b2", "action_1"
+    s1, state = "学生输入1", "b2"
+    stored_eval = "数据集中标注的评估文本。"
 
     record = {
         "id": 99,
         "dialogue": [
-            {"student": s0, "teacher": t0, "state": "a1", "action": "action_0"},
-            {"student": s1, "teacher": "老师回复1", "state": state, "action": action},
+            {
+                "student": s0,
+                "teacher": t0,
+                "state": "a1",
+                "action": "action_0",
+                "evaluation": "学生刚刚提出了问题。",
+            },
+            {
+                "student": s1,
+                "teacher": "老师回复1",
+                "state": state,
+                "action": "action_1",
+                "evaluation": stored_eval,
+            },
         ],
     }
     with patch("datasets.load_dataset", return_value=_mock_hf([record])):
@@ -341,7 +381,7 @@ def test_evaluation_line_is_the_only_residual_drift_under_freeform_consultant():
         student_input=s1,
         evaluation=freeform_eval,
         state=state,
-        action=action,
+        action=get_action_for_state(state),
     )
 
     sft_lines = sft_user.strip().splitlines()
@@ -351,5 +391,5 @@ def test_evaluation_line_is_the_only_residual_drift_under_freeform_consultant():
     diffs = [(a, b) for a, b in zip(sft_lines, inf_lines, strict=True) if a != b]
     assert len(diffs) == 1, f"expected exactly one drifting line, got {diffs}"
     sft_line, inf_line = diffs[0]
-    assert sft_line == "苏格拉底教学顾问评估结果: 学生处于 b2 状态"
+    assert sft_line == f"苏格拉底教学顾问评估结果: {stored_eval}"
     assert inf_line == f"苏格拉底教学顾问评估结果: {freeform_eval}"

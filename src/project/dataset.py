@@ -621,12 +621,14 @@ _TEACHER_INFERENCE_SYSTEM = """\
 def _build_inference_user_message(
     history_turns: list[tuple[str, str]],
     student_input: str,
-    state: str,
+    evaluation: str,
     action: str,
 ) -> str:
     """Build the user message exactly as socrates_teacher() does at inference.
 
     history_turns: list of (student, teacher) pairs for completed turns before this one.
+    evaluation/action are the consultant fields as inference sends them: the
+    free-form consultant prose and get_action_for_state(state) respectively.
     """
     if history_turns:
         history_lines = []
@@ -640,25 +642,28 @@ def _build_inference_user_message(
     return (
         f"\n历史对话记录:\n{formatted_history}\n\n"
         f"当前学生输入: {student_input}\n\n"
-        f"苏格拉底教学顾问评估结果: 学生处于 {state} 状态\n"
+        f"苏格拉底教学顾问评估结果: {evaluation}\n"
         f"苏格拉底教学顾问建议的操作: {action}\n"
     )
 
 
 def _socrat_zh_to_sft_records(record: dict) -> list[dict]:
     """One SocratDataset-ZH dialogue → N per-turn SFT records in inference format."""
+    from src.project.socratic_teaching_system import get_action_for_state
+
     dialogue = record.get("dialogue", [])
     records = []
     history: list[tuple[str, str]] = []
 
     for i, turn in enumerate(dialogue):
         state = _strip_quotes(turn.get("state", ""))
-        action = _strip_quotes(turn.get("action", ""))
-        if not (state and action):
+        if not (state and _strip_quotes(turn.get("action", ""))):
             history.append((turn["student"], turn["teacher"]))
             continue
 
-        user_msg = _build_inference_user_message(history, turn["student"], state, action)
+        action = get_action_for_state(state)
+        evaluation = _strip_quotes(turn.get("evaluation", "")) or f"学生处于 {state} 状态"
+        user_msg = _build_inference_user_message(history, turn["student"], evaluation, action)
         records.append(
             {
                 "id": f"{record['id']}_{i}",
@@ -678,18 +683,21 @@ def _socrat_zh_to_sft_records(record: dict) -> list[dict]:
 
 def _socrat_en_to_sft_records(record: dict) -> list[dict]:
     """One SocratDataset-EN dialogue → N per-turn SFT records in inference format."""
+    from src.project.socratic_teaching_system import get_action_for_state
+
     dialogue = record.get("dialogue", [])
     records = []
     history: list[tuple[str, str]] = []
 
     for i, turn in enumerate(dialogue):
         state = turn.get("state", "")
-        action = turn.get("action", "")
-        if not (state and action):
+        if not (state and turn.get("action", "")):
             history.append((turn["student"], turn["teacher"]))
             continue
 
-        user_msg = _build_inference_user_message(history, turn["student"], state, action)
+        action = get_action_for_state(state)
+        evaluation = turn.get("evaluation", "") or f"学生处于 {state} 状态"
+        user_msg = _build_inference_user_message(history, turn["student"], evaluation, action)
         records.append(
             {
                 "id": f"{record['id']}_{i}",
