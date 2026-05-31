@@ -24,11 +24,6 @@ dependencies = [
     "google-genai>=2.6.0",
     "peft>=0.19.1",
     "trl>=1.4.0",
-    # Triton GDN kernels for Qwen3.5's 18 gated-delta-rule layers. Without it
-    # transformers falls back to a pure-PyTorch chunk_gated_delta_rule (~2.8×
-    # slower fwd+bwd on CUDA). causal-conv1d is intentionally NOT required: it
-    # only fuses the cheap depthwise conv and needs nvcc to build.
-    "flash-linear-attention>=0.5.0",
     "tiktoken>=0.7.0",
     "pyspellchecker>=0.9.0",
 ]
@@ -38,6 +33,17 @@ dependencies = [
 # core install and the no-tracking code path stay dependency-free; opt in with
 # `uv sync --extra wandb` (or `pip install -e ".[wandb]"`).
 wandb = ["wandb>=0.18.0"]
+
+# CUDA-only training acceleration. flash-linear-attention engages Qwen3.5's
+# Triton gated-delta-rule kernels (~2.8x fwd+bwd over the pure-PyTorch fallback;
+# the 18 GDN layers are 75% of the model). Opt in on NVIDIA with
+# `uv sync --extra cuda`. NOT a core dep on purpose: ROCm torch reports
+# torch.cuda.is_available()==True, so if `fla` is merely installed on the AMD
+# gfx1201 box, transformers routes GDN through FLA's Triton kernels — which need
+# the issue #100 gfx1201 patch and otherwise page-fault. Keeping it CUDA-opt-in
+# means the AMD path keeps its known-good pure-PyTorch fallback. causal-conv1d is
+# intentionally excluded (only fuses the cheap conv; needs nvcc to build).
+cuda = ["flash-linear-attention>=0.5.0"]
 
 [project.scripts]
 kele = "src.project.kele:main"

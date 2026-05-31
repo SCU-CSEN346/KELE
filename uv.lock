@@ -581,7 +581,6 @@ dependencies = [
     { name = "bitsandbytes" },
     { name = "datasets" },
     { name = "fastapi" },
-    { name = "flash-linear-attention" },
     { name = "google-genai" },
     { name = "huggingface-hub" },
     { name = "openai" },
@@ -601,6 +600,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+cuda = [
+    { name = "flash-linear-attention" },
+]
 wandb = [
     { name = "wandb" },
 ]
@@ -621,7 +623,7 @@ requires-dist = [
     { name = "bitsandbytes", specifier = ">=0.45.0" },
     { name = "datasets", specifier = ">=3.2.0" },
     { name = "fastapi", specifier = ">=0.115.0" },
-    { name = "flash-linear-attention", specifier = ">=0.5.0" },
+    { name = "flash-linear-attention", marker = "extra == 'cuda'", specifier = ">=0.5.0" },
     { name = "google-genai", specifier = ">=2.6.0" },
     { name = "huggingface-hub", specifier = ">=1.16.1" },
     { name = "openai", specifier = ">=2.37.0,<3.0.0" },
@@ -640,7 +642,7 @@ requires-dist = [
     { name = "uvicorn", specifier = ">=0.47.0" },
     { name = "wandb", marker = "extra == 'wandb'", specifier = ">=0.18.0" },
 ]
-provides-extras = ["wandb"]
+provides-extras = ["wandb", "cuda"]
 
 [package.metadata.requires-dev]
 dev = [

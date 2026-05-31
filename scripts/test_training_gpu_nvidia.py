@@ -89,6 +89,26 @@ def main() -> None:
     else:
         warn("bf16 not supported on this device — fall back to fp32")
 
+    # ── flash-linear-attention (GDN fast path) ───────────────────────────────────
+    # Qwen3.5-0.8B is 75% gated-DeltaNet linear attention. With FLA installed,
+    # transformers routes those 18 layers through its Triton kernels (~2.8× fwd+bwd
+    # over the pure-PyTorch fallback). It's a CUDA-only extra: `uv sync --extra cuda`.
+    step("flash-linear-attention (Qwen3.5 GDN Triton kernels)")
+    try:
+        from transformers.utils.import_utils import is_flash_linear_attention_available
+
+        if is_flash_linear_attention_available():
+            import fla
+
+            ok(f"fla {fla.__version__} active — GDN fast path engaged (~2.8× vs fallback)")
+        else:
+            warn(
+                "flash-linear-attention NOT active — the 18 GDN layers will use the "
+                "pure-PyTorch fallback (~2.8× slower). Install with: uv sync --extra cuda"
+            )
+    except Exception as e:
+        warn(f"FLA probe failed: {e}")
+
     # ── 2. fp32 matmul + backward ────────────────────────────────────────────────
     step("fp32 matmul + backward  (baseline kernel path)")
     fp32_ms = None
@@ -117,16 +137,18 @@ def main() -> None:
     except Exception as e:
         fail(f"bf16 matmul: {e}")
 
-    # On Ada, bf16 should be at least as fast as fp32 (the inverse of gfx1201, where
-    # bf16 bmm was 5× slower). If bf16 is slower here something is wrong with the
-    # tensor-core path and --bf16-autocast would be a pessimization.
+    # A single large matmul is memory-bandwidth-bound, so bf16 ≈ fp32 here is
+    # expected and fine — bf16's real training win is lower memory + the GDN bf16
+    # path (validated end-to-end at ~3.3h). Only a GROSS regression matters: this
+    # guards against the gfx1201 pathology where bf16 bmm ran 5× slower than fp32.
     if fp32_ms and bf16_ms:
-        if bf16_ms <= fp32_ms * 1.1:
-            ok(f"bf16/fp32 speed ratio {bf16_ms / fp32_ms:.2f}× — bf16 is the fast path")
+        ratio = bf16_ms / fp32_ms
+        if ratio <= 1.5:
+            ok(f"bf16/fp32 single-matmul ratio {ratio:.2f}× (near parity expected — memory-bound op)")
         else:
             warn(
-                f"bf16 is {bf16_ms / fp32_ms:.2f}× SLOWER than fp32 — "
-                "tensor-core path may be misconfigured; reconsider --bf16-autocast"
+                f"bf16 is {ratio:.2f}× slower than fp32 — a gross regression suggests a broken "
+                "tensor-core path; investigate before trusting --bf16-autocast"
             )
 
     # ── 4. scaled-dot-product attention ─────────────────────────────────────────

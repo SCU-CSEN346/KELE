@@ -89,6 +89,28 @@ def main() -> None:
     ok(f"device: {name}  ({vram:.1f} GB)")
     ok(f"TORCH_USE_HIPBLASLT={hipblas_val}")
 
+    # ── flash-linear-attention must NOT be active on gfx1201 ─────────────────────
+    # ROCm torch reports torch.cuda.is_available()==True, so if `fla` is installed
+    # transformers routes Qwen3.5's GDN layers through FLA's Triton kernels — which
+    # need the issue #100 gfx1201 patch and otherwise page-fault. FLA is a CUDA-only
+    # extra; the AMD path must keep the pure-PyTorch fallback. Block the run here
+    # rather than waste hours, unless the operator confirms the patch via env var.
+    step("flash-linear-attention guard (gfx1201 page-fault risk)")
+    from transformers.utils.import_utils import is_flash_linear_attention_available
+
+    if is_flash_linear_attention_available():
+        if os.environ.get("FLA_ON_ROCM_OK") == "1":
+            warn("FLA active but FLA_ON_ROCM_OK=1 — assuming the issue #100 gfx1201 patch is applied")
+        else:
+            fail(
+                "flash-linear-attention is active on this ROCm/gfx1201 box — transformers will "
+                "route Qwen3.5's GDN layers through FLA Triton kernels that page-fault on gfx1201 "
+                "without the issue #100 patch. Uninstall it (`uv pip uninstall flash-linear-attention`; "
+                "it is a CUDA-only extra), or set FLA_ON_ROCM_OK=1 if you have applied the patch."
+            )
+    else:
+        ok("FLA not active — GDN uses the known-good pure-PyTorch fallback")
+
     # ── 2. fp32 matmul + backward ────────────────────────────────────────────────
     step("fp32 matmul + backward  (baseline kernel path)")
     try:
