@@ -2,7 +2,13 @@
 
 **Branch:** `feat/gfx1201-rdna4-qlora-fla-training`  
 **Date:** 2026-05-31  
-**Last commit:** `860fc5f`
+**Last commit:** `dbc61a2`
+
+> **STATUS: root cause FOUND and FIXED (commit `dbc61a2`).** The EOS collapse was
+> not undertraining and not the consultant eval-line residual — it was the
+> training chat template masking the turn terminator out of the loss. See
+> **§ Root cause identified & fixed** below. Next action is a single confirmation
+> retrain on the R9700, not a multi-hour bet.
 
 ---
 
@@ -100,12 +106,16 @@ After all environment fixes, the 100-step checkpoint trained successfully:
 
 ---
 
-## EOS gate result: FAILED
+## EOS gate result: FAILED (pre-fix) — root cause since found & fixed (`dbc61a2`)
 
 ```
 STEP 1  warm-up (trivial prompt)    → PASS   (terminates after 1 sentence)
 STEP 2  EOS gate (realistic prompt) → FAILED (hits max_new_tokens, repetition loop)
 ```
+
+> This was the failing run *before* the terminator-masking fix. Jump to
+> **§ Root cause identified & fixed** for the resolution; the section below is the
+> observed failure that led there.
 
 ### Failure output (truncated)
 
@@ -118,73 +128,108 @@ STEP 2  EOS gate (realistic prompt) → FAILED (hits max_new_tokens, repetition 
 The first sentence is correct Socratic output. Repetition begins at token 2.
 This is the same failure mode as the 5090 run documented in PR #94.
 
-### Root cause (as diagnosed in PR #94 / PR #101)
+### Initial (incorrect) hypothesis — recorded for the trail
 
-**Train/serve schema mismatch.** The training data uses structured consultant
-annotations (`学生处于 {state} 状态`). The EOS gate — and real inference — uses
-live free-form consultant prose. The model learned to depend on the structural
-markers for termination; without them it enters a repetition loop.
+The first reading, carried from PR #94 / PR #101, was a *consultant
+evaluation-field residual*: training stores a discretized annotation, inference
+sends live free-form prose, so the model supposedly never learned to terminate
+on the unseen prose shape. This was **wrong** — see below.
 
-The PR #101 / PR #94 fixes corrected the *action/eval drift* (the teacher turn
-format at training time now matches inference), but the *consultant evaluation
-field* is still the irreducible residual: training stores discretized state labels,
-inference sends multi-sentence prose from the live consultant.
+---
 
-### This is expected behavior for a 100-step gate checkpoint
+## Root cause identified & fixed (commit `dbc61a2`)
 
-100 steps is ~0.13% of one epoch over the 77K training records. The gate is not
-meant to produce a working model — it is meant to catch whether the
-format/schema is correct enough that termination is at least possible. A gate
-FAIL at 100 steps could mean:
+**The turn terminator `<turn|>` was masked out of the training loss.**
 
-1. **Insufficient training** — the model hasn't seen enough data to generalize
-   termination to free-form prompts (most likely at 100 steps)
-2. **Residual schema drift** — the consultant evaluation field still differs
-   enough between training and inference to destabilize generation
+The decisive fact: **the 5090 *full* run also collapsed**, not just the 100-step
+gate. That rules out undertraining — more steps cannot teach a token that is
+never in the labels.
+
+`scripts/train_sft.py`'s Gemma 4 training chat template rendered the model-turn
+terminator `<turn|>\n` **after** `{% endgeneration %}`:
+
+```jinja
+{% generation %}{{ message['content'] | trim }}{% endgeneration %}
+...
+{{- '<turn|>\n' -}}        # OUTSIDE the generation block
+```
+
+With `assistant_only_loss=True`, TRL builds the loss mask from the
+`{% generation %}…{% endgeneration %}` span (via `return_assistant_tokens_mask`);
+everything outside it becomes `-100`. So the terminator received **zero gradient
+every step** — the model was trained to produce content but never taught to stop.
+This is the exact failure TRL's own `chat_templates/gemma3_training.jinja` avoids
+by keeping `<end_of_turn>` *inside* the generation block. TRL's guard only checks
+that `{% generation %}` is *present*, not that it is placed correctly, so the
+broken template passed silently.
+
+This explains every symptom:
+- **Full run collapsed too** → structural, not data-quantity.
+- **Warm-up passed, gate failed** → the base `-it` model already knows `<turn|>`;
+  on a short trivial prompt that prior survives, on the long SFT-distribution
+  prompt the adapter dominates and there is no learned stop.
+- **First sentence correct, then loops** → content was trained (inside the span),
+  termination never was (outside).
+
+### The fix
+
+Move the terminator inside the generation block for the model role:
+
+```jinja
+{% generation %}{{ message['content'] | trim }}{{ '<turn|>\n' }}{% endgeneration %}
+```
+
+Rendered **text is byte-identical** (verified for both `add_generation_prompt`
+values and multi-turn) — only the loss-mask boundary moves, so the locked
+headline / Tables are untouched. Added
+`test_model_turn_terminator_is_inside_the_loss_mask` (no model download) that
+renders the real template through transformers' jinja machinery and asserts the
+assistant span is exactly `content + <turn|>\n`.
+
+### Verified against the real `unsloth/gemma-4-31B-it-unsloth-bnb-4bit` tokenizer
+
+(Tokenizer is public — pulls without HF auth; weights not needed.)
+
+- `<turn|>` is a **single registered special token (id 106)**, distinct from
+  `<eos>` (id 1). `eos_gate.py:_stop_ids` picks it up correctly. (`<start_of_turn>`
+  / `<end_of_turn>` are *absent* from the vocab — this Gemma 4 genuinely uses
+  `<|turn>` / `<turn|>`.)
+- Custom training template renders **byte-identical message bodies** to the stock
+  template. The *only* divergence is the generation primer: stock appends a
+  `<|channel>thought\n<channel|>` reasoning primer (Gemma 4 is a thinking model);
+  the training template omits it, training the teacher to answer directly.
+- The gate reproduced the collapse using the **custom** template (no primer), so
+  the masking bug is the cause of the *reproduced* failure — the fix is necessary
+  and the gate is a coherent test of it.
 
 ---
 
 ## What to do next
 
-### Option A — Launch the full Stage 2 run
+### 1 — Confirmation retrain on the R9700 (the only GPU step)
 
-If the assessment is that 100 steps is just too few and the schema fixes are
-correct, launch the full run:
+Re-run the same 100-step gate; it uses the fixed training template:
 
+```bash
+rocm-smi --showpids | grep python || echo "GPU clean"   # KFD must be clean
+make train-gemma4-31b-eos-gate        # ~115 min, now with the terminator trained
+make eos-gate-gemma4-31b              # expect STEP 2 to PASS
+```
+
+If the gate **passes**, launch the full Stage 2 run:
 ```bash
 make train-gemma4-31b-stage2-unsloth
-```
-
-After the full run, re-run the EOS gate:
-```bash
-make eos-gate-gemma4-31b   # swap adapter path to outputs/sft-stage2-gemma4-31b/final
-```
-
-The full run is ~hours on the R9700. Monitor with:
-```bash
 tail -f outputs/sft-stage2-gemma4-31b/train.log
 ```
 
-### Option B — Investigate consultant field drift first
+### 2 — Before the downstream eval: check the serving generation primer
 
-Audit what the training records actually put in the consultant evaluation slot vs
-what `_capture_prompt` in `eos_gate.py` sends. If the training data has
-structured `学生处于 b2 状态` but the inference path always sends 128-char prose,
-that's the residual drift to fix before the full run.
-
-Quick diagnostic: grep a few training records for the evaluation field content:
-```python
-from src.project.dataset import load_socrat_zh_sft
-records = load_socrat_zh_sft()
-# inspect records[0]["messages"][1]["content"] for the consultant eval format
-```
-
-### Option C — Report the negative result (per PR #94 §2.8 outcome matrix)
-
-The PR #94 notes already anticipate this outcome:
-> "We sit somewhere in STATUS_REPORT §2.8 outcome matrix's 'fine-tuned Gemma
-> loses both' cell. Negative result is still a paper contribution: documents
-> that Pattern-A SFT on this size dataset caused output collapse."
+Separate, pre-existing concern (not the masking bug): production serving
+(llama.cpp / GGUF for the 72.24 eval) must prime generation with plain
+`<|turn>model\n`, **not** the stock `<|channel>thought\n<channel|>` thinking
+primer — otherwise it reintroduces a train/serve mismatch this template
+deliberately avoids. Confirm which template `serve_gemma4_31b*.sh` /
+`serve_teacher` use before trusting eval numbers.
 
 ---
 
@@ -193,8 +238,9 @@ The PR #94 notes already anticipate this outcome:
 | File | Change |
 |------|--------|
 | `Makefile` | Strip `expandable_segments:True`; add EOS gate targets; `setsid`; `TORCH_USE_HIPBLASLT=1` |
-| `scripts/train_sft.py` | Add `VRAMLogCallback` (logs alloc/reserved/total at each logging step) |
+| `scripts/train_sft.py` | **Root-cause fix (`dbc61a2`): move `<turn|>` terminator inside `{% generation %}` so it is trained.** Also `VRAMLogCallback` (logs alloc/reserved/total per logging step) |
 | `scripts/eos_gate.py` | Fix `apply_chat_template` → extract `input_ids` from `BatchEncoding` |
+| `tests/test_sft_inference_format.py` | **`dbc61a2`: `test_model_turn_terminator_is_inside_the_loss_mask` — pins the terminator inside the loss span.** |
 | `docs/HANDOFF_SFT_SCHEMA_DRIFT_FIX.md` | Pre-existing handoff from prior session |
 
 ---
