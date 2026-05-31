@@ -216,12 +216,9 @@ def build_model_and_tokenizer():
     # calls from_dict(..., quantization_config=None), overwriting the
     # checkpoint's valid config.json quantization_config with None — causing
     # supports_quant_method to crash on the pre-quantized (TRAIN_PREQ) path.
-    try:
-        import flash_attn  # noqa: F401
-
-        _attn_impl = "flash_attention_2"
-    except ImportError:
-        _attn_impl = "sdpa"
+    # FA2 Triton backward OOMs on gfx1201: kernel needs 128 KB shared memory,
+    # hardware cap is 64 KB. SDPA is stable and uses PyTorch's built-in path.
+    _attn_impl = "sdpa"
     _load_kwargs: dict = {
         "attn_implementation": _attn_impl,
         "device_map": _device_map,

@@ -237,11 +237,49 @@ deliberately avoids. Confirm which template `serve_gemma4_31b*.sh` /
 
 | File | Change |
 |------|--------|
-| `Makefile` | Strip `expandable_segments:True`; add EOS gate targets; `setsid`; `TORCH_USE_HIPBLASLT=1` |
-| `scripts/train_sft.py` | **Root-cause fix (`dbc61a2`): move `<turn|>` terminator inside `{% generation %}` so it is trained.** Also `VRAMLogCallback` (logs alloc/reserved/total per logging step) |
+| `Makefile` | Strip `expandable_segments:True`; add EOS gate targets; `setsid`; `TORCH_USE_HIPBLASLT=1` for eos-gate + stage2 |
+| `scripts/train_sft.py` | **Root-cause fix (`dbc61a2`): move `<turn|>` terminator inside `{% generation %}` so it is trained.** `attn_implementation` hardcoded to `"sdpa"` (see FA2 finding below) |
 | `scripts/eos_gate.py` | Fix `apply_chat_template` → extract `input_ids` from `BatchEncoding` |
 | `tests/test_sft_inference_format.py` | **`dbc61a2`: `test_model_turn_terminator_is_inside_the_loss_mask` — pins the terminator inside the loss span.** |
+| `scripts/monitor_eos_gate.sh` | Autonomous EOS gate crash monitor + eval runner + Stage 2 launcher |
+| `scripts/monitor_stage2.sh` | Autonomous Stage 2 crash monitor with PR notifications |
+| `scripts/test_gpu_stack.sh` | Step 9: set `FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE`; update FA2 install note |
 | `docs/HANDOFF_SFT_SCHEMA_DRIFT_FIX.md` | Pre-existing handoff from prior session |
+
+---
+
+## Stage 2 status (2026-05-31)
+
+**EOS gate: PASSED** at 02:56 — fix confirmed. Stage 2 running since ~03:45.
+
+**Current training config:**
+- `TORCH_USE_HIPBLASLT=1` (hipBLASLt for GEMM — restored after confirming the step-0 page fault was a dirty KFD, not hipBLASLt itself)
+- `attn_implementation="sdpa"` (see FA2 finding below)
+- `FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE` (set in Makefile for future use; currently no effect since FA2 is disabled)
+- ~14,478 total steps at ~70 s/step → ~281h wall time
+
+**Expected step time vs hardware:** ~70 s/step on R9700 vs ~4.5 s/step on partner RTX 5090. Hardware ratio alone (R9700 ≈ 54% of 5090 TFLOPS) predicts ~8 s/step. The 9× gap is fully explained by the SDPA/CK Wave32 mismatch (see below) — no further gains are available without patching the Triton backward kernel.
+
+---
+
+## FA2 investigation and gfx1201 shared memory limit
+
+**Findings from this session (commit `e755aa9`, reverted in follow-up):**
+
+`flash_attn 2.8.3` was installed via `FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE` (Triton JIT path, Wave32-aware). The **forward pass** benchmarked at **0.2 ms/call** for Gemma 4 attention shape (seq=1280, 8 heads, dim=128). However, the **backward pass (training step) immediately OOMed**:
+
+```
+triton.runtime.errors.OutOfResources: out of resource: shared memory,
+Required: 131072, Hardware limit: 65536.
+```
+
+gfx1201 has a 64 KB shared memory hard limit; the Triton backward kernel (`_bwd_kernel_dkdv_causal`) requires 128 KB. This is a fundamental hardware constraint, not a configuration issue.
+
+**Implication:** FA2 is usable for **inference** on gfx1201 but **not for training** with the current flash_attn 2.8.3 Triton AMD backward implementation. SDPA remains the correct choice for training.
+
+**Possible future path:** Patch `flash_attn_triton_amd/bwd_prefill_split.py` to cap block sizes at values fitting within 64 KB shared memory (halving BLOCK_N/BLOCK_M). The first gist documents a similar patch for FLA's autotune config (`num_stages=1, num_warps=4`). Not attempted; left as future work.
+
+**Note on Vulkan:** Vulkan is available for inference (llama.cpp `GGML_VULKAN=ON`, ~20% TG speedup confirmed). No PyTorch training backend exists for Vulkan on Linux.
 
 ---
 
@@ -251,7 +289,7 @@ deliberately avoids. Confirm which template `serve_gemma4_31b*.sh` /
 # Check GPU state before any run
 rocm-smi --showpids | grep python || echo "GPU clean"
 
-# GPU stack smoke test (all 13 steps should pass)
+# GPU stack smoke test (all 13 steps should pass, including flash_attn 2.8.3)
 make test-gpu-stack
 
 # EOS gate full sequence
@@ -260,5 +298,11 @@ tail -f outputs/eos-gate-gemma4-31b/train.log
 make eos-gate-gemma4-31b              # ~10 min (loads model + generates)
 
 # Full Stage 2 run (only after EOS gate PASS)
+# Uses TORCH_USE_HIPBLASLT=1 + FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE + sdpa
 make train-gemma4-31b-stage2-unsloth
+tail -f outputs/sft-stage2-gemma4-31b/train.log
+
+# Autonomous monitors (started automatically by monitor_eos_gate.sh on EOS PASS)
+tail -f outputs/monitor_eos_gate.log
+tail -f outputs/monitor_stage2.log
 ```
