@@ -19,6 +19,7 @@
         prequant-gemma4-31b-l40s transfer-gemma4-31b-nf4 \
         train-gemma4-31b-dry-run train-gemma4-31b-stage2 train-gemma4-31b-stage2-preq \
         train-gemma4-31b-stage2-unsloth train-gemma4-31b-eos-gate eos-gate-gemma4-31b \
+        profile-gemma4-31b \
         tournament tournament-think tournament-warmup tournament-warmup-think tournament-status tournament-eliminate \
         tournament-finalize tournament-archive tournament-restore tournament-reset \
         tournament-download tournament-help
@@ -72,6 +73,7 @@ help:
 	@echo "  train-gemma4-31b-stage2-unsloth  Train Stage 2b from unsloth bnb-4bit Gemma 4 31B (no local prequant)"
 	@echo "  train-gemma4-31b-eos-gate    100-step checkpoint for EOS gate (unsloth path, ~30 min)"
 	@echo "  eos-gate-gemma4-31b          Run EOS gate against outputs/eos-gate-gemma4-31b/final"
+	@echo "  profile-gemma4-31b           Profile a real Stage 2 step (attention vs NF4-dequant; FA2 de-risk)"
 	@echo "  eval-gemma4-31b-smoke  Run scripts/eval_gemma4_31b.sh smoke  (n=5)"
 	@echo "  eval-gemma4-31b-mini   Run scripts/eval_gemma4_31b.sh mini   (n=25)"
 	@echo "  eval-gemma4-31b-full   Run scripts/eval_gemma4_31b.sh full   (n=681)"
@@ -430,6 +432,19 @@ eos-gate-gemma4-31b:
 	  uv run --no-sync python scripts/eos_gate.py \
 	  --config configs/train-sft-stage2-gemma4-31b.env \
 	  --adapter outputs/eos-gate-gemma4-31b/final
+
+# De-risk the FA2 bet: profile where the real Stage 2 step spends its ~70s.
+# Mirrors the stage2-unsloth env so the profiled step matches the real run.
+# Prints a kernel self-time table + attention-vs-gemm/dequant bucket summary.
+# If attention dominates → patching the flash-attn Triton backward is worth it;
+# if NF4 dequant/GEMM dominates → FA2 buys little. ~6 min (6 steps).
+profile-gemma4-31b:
+	env TORCH_USE_HIPBLASLT=1 \
+	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
+	  TRAIN_BASE_MODEL=unsloth/gemma-4-31B-it-unsloth-bnb-4bit \
+	  TRAIN_PREQ=true \
+	  uv run --no-sync python scripts/profile_train_step.py \
+	  --config configs/train-sft-stage2-gemma4-31b.env
 
 # ── Tournament ────────────────────────────────────────────────────────────────
 
