@@ -100,7 +100,9 @@ def main() -> None:
 
     if is_flash_linear_attention_available():
         if os.environ.get("FLA_ON_ROCM_OK") == "1":
-            warn("FLA active but FLA_ON_ROCM_OK=1 — assuming the issue #100 gfx1201 patch is applied")
+            warn(
+                "FLA active but FLA_ON_ROCM_OK=1 — assuming the issue #100 gfx1201 patch is applied"
+            )
         else:
             fail(
                 "flash-linear-attention is active on this ROCm/gfx1201 box — transformers will "

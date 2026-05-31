@@ -87,7 +87,8 @@ def build_model_card(repo: str, base_model: str, eval_data: dict, training_cmd: 
     n_active = sum(1 for n in eval_data["test_per_state_n"].values() if n > 0)
     stage_rows = "\n".join(f"| {s} | {per_stage[s] * 100:.2f}% |" for s in "abcde")
 
-    head = f"""---
+    head = (
+        f"""---
 language: zh
 license: apache-2.0
 library_name: transformers
@@ -252,7 +253,11 @@ uv run python kele.py --bert-consultant {repo}   # ... + your usual eval flags
 
 If you use this model, cite the original KELE paper and this checkpoint:
 
-""" + _CITATIONS + "\n---\n\n" + _RELATED_RESOURCES + """
+"""
+        + _CITATIONS
+        + "\n---\n\n"
+        + _RELATED_RESOURCES
+        + """
 ---
 
 ## License
@@ -260,12 +265,14 @@ If you use this model, cite the original KELE paper and this checkpoint:
 Apache-2.0, inherited from the [`{base_model}`](https://huggingface.co/{base_model})
 base. Use must also cite the KELE paper, whose SocRule schema defines the label space.
 """.replace("{base_model}", base_model)
+    )
 
     return head
 
 
 def build_attribution(repo: str, base_model: str, training_cmd: str) -> str:
-    prose = f"""# Attribution — {repo.split("/")[-1]}
+    prose = (
+        f"""# Attribution — {repo.split("/")[-1]}
 
 ## Original Work
 
@@ -321,12 +328,17 @@ forward pass.
 
 Cite both the KELE paper and this checkpoint:
 
-""" + _CITATIONS + "\n" + _RELATED_RESOURCES + """
+"""
+        + _CITATIONS
+        + "\n"
+        + _RELATED_RESOURCES
+        + """
 ## License
 
 Released under **Apache-2.0**, inherited from the base model. Use of this model must
 cite the original KELE paper, whose SocRule schema defines the predicted label space.
 """
+    )
     return prose
 
 

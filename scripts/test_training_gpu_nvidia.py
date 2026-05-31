@@ -144,7 +144,9 @@ def main() -> None:
     if fp32_ms and bf16_ms:
         ratio = bf16_ms / fp32_ms
         if ratio <= 1.5:
-            ok(f"bf16/fp32 single-matmul ratio {ratio:.2f}× (near parity expected — memory-bound op)")
+            ok(
+                f"bf16/fp32 single-matmul ratio {ratio:.2f}× (near parity expected — memory-bound op)"
+            )
         else:
             warn(
                 f"bf16 is {ratio:.2f}× slower than fp32 — a gross regression suggests a broken "
