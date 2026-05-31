@@ -122,12 +122,16 @@ def report(prof, torch) -> None:
     total_attr = "cuda_time_total" if has_cuda else "cpu_time_total"
     self_attr = "self_cuda_time_total" if has_cuda else "self_cpu_time_total"
 
-    events = list(prof.key_averages())
+    # key_averages() re-aggregates every raw event — call it ONCE and reuse the
+    # EventList for both the table and the attention-share sum (computing it twice
+    # is what made report() crawl on a large event set).
+    ka = prof.key_averages()
+    events = list(ka)
 
     print("\n" + "=" * 100)
     print(f"TOP 40 OPS BY {sort_key} (leaf kernel self-time — no double counting)")
     print("=" * 100)
-    print(prof.key_averages().table(sort_by=sort_key, row_limit=40))
+    print(ka.table(sort_by=sort_key, row_limit=40))
 
     # Attention's true share: the scaled_dot_product_attention op's *total* time
     # aggregates its whole subtree (QK^T / softmax / AV bmm kernels). Its self
