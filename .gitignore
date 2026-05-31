@@ -2,6 +2,7 @@
 outputs/
 results/
 logs/
+wandb/
 
 # Python
 __pycache__/

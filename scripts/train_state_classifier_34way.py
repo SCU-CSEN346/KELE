@@ -199,6 +199,42 @@ def _apply_lora(
     return peft_model
 
 
+def _init_wandb(args: argparse.Namespace, model_type: str, resume_id: str | None = None):
+    """Start a Weights & Biases run when tracking is enabled (--wandb flag or a
+    WANDB_PROJECT env var). Returns the run handle, or None when disabled — every
+    call site guards on None, so the no-tracking path is byte-identical to before.
+    The import is local so the script runs without wandb installed. When resume_id
+    is given (resuming from a checkpoint), the same run is continued so the report
+    stays a single uninterrupted curve rather than a fresh run per attempt."""
+    if not (args.wandb or os.environ.get("WANDB_PROJECT")):
+        return None
+    import wandb
+
+    method = "lora" if args.lora else ("frozen" if args.freeze_backbone else "full-ft")
+    return wandb.init(
+        project=os.environ.get("WANDB_PROJECT", "csen346-state-classifier"),
+        name=os.environ.get("WANDB_RUN_NAME") or args.out_dir.name,
+        id=resume_id,
+        resume="allow" if resume_id else None,
+        config={
+            "model_id": args.model_id,
+            "model_type": model_type,
+            "method": method,
+            "lora_r": args.lora_r,
+            "lora_alpha": args.lora_alpha,
+            "lora_target_modules": args.lora_target_modules,
+            "epochs": args.epochs,
+            "batch_size": args.batch_size,
+            "lr": args.lr,
+            "max_length": args.max_length,
+            "seed": args.seed,
+            "num_labels": len(ALL_STATES),
+            "gradient_checkpointing": args.gradient_checkpointing,
+            "bf16_autocast": args.bf16_autocast,
+        },
+    )
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument(
@@ -259,6 +295,29 @@ def main() -> None:
     )
     p.add_argument("--max_length", type=int, default=512)
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument(
+        "--max-steps",
+        type=int,
+        default=0,
+        help="Benchmark/smoke cap: stop after this many optimizer steps and report "
+        "steps/min + peak VRAM, skipping eval/save/publish. 0 (default) = full run.",
+    )
+    p.add_argument(
+        "--wandb",
+        action="store_true",
+        help="Log loss/grad_norm/lr (per step), eval acc (per epoch), and final "
+        "test metrics to Weights & Biases. Also auto-enabled if WANDB_PROJECT is "
+        "set. Project/run names come from WANDB_PROJECT/WANDB_RUN_NAME (defaults: "
+        "'csen346-state-classifier' / the --out-dir basename). Requires `wandb` "
+        "(install via the 'wandb' extra) and `wandb login` for online logging.",
+    )
+    p.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume from <out-dir>/checkpoint.pt if it exists (model + optimizer + "
+        "scheduler + epoch + global_step + wandb run id), continuing the same W&B "
+        "run. A checkpoint is written at every epoch boundary regardless of this flag.",
+    )
     args = p.parse_args()
 
     if args.freeze_backbone and args.lora:
@@ -321,13 +380,20 @@ def main() -> None:
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
     # Always propagate pad_token_id to model.config. Qwen3ForSequenceClassification's
-    # pooling logic pulls the last-non-pad-token hidden state; if model.config.pad_token_id
-    # is None it falls back to a degenerate path that yields NaN logits → NaN loss
-    # → NaN head weights within epoch 1 (the T1 v1/v2 failure mode). The tokenizer
-    # already having a pad_token_id is NOT sufficient; the model config needs it too.
-    if model.config.pad_token_id is None:
+    # pooling logic pulls the last-non-pad-token hidden state; if pad_token_id is None
+    # it falls back to a degenerate path that yields NaN logits → NaN loss → NaN head
+    # weights within epoch 1 (the T1 v1/v2 failure mode). The tokenizer already having
+    # a pad_token_id is NOT sufficient; the model config needs it too.
+    # transformers 5.9.0 drift: the multimodal Qwen3_5Config no longer exposes
+    # pad_token_id as a top-level attribute (5.8.1 carried it as None); it now lives
+    # on the nested text config. Read via getattr to avoid AttributeError, and set it
+    # on both the outer config and the text sub-config the SeqCls head reads from.
+    # For BERT/Qwen3 there is no text_config, so this collapses to the original path.
+    text_config = getattr(model.config, "text_config", model.config)
+    if getattr(text_config, "pad_token_id", None) is None:
         model.config.pad_token_id = tokenizer.pad_token_id
-        print(f"  set model.config.pad_token_id = {tokenizer.pad_token_id}")
+        text_config.pad_token_id = tokenizer.pad_token_id
+        print(f"  set pad_token_id = {tokenizer.pad_token_id} (config + text_config)")
 
     print("Building examples ...")
     train_examples = build_examples("train")
@@ -395,6 +461,29 @@ def main() -> None:
         num_training_steps=total_steps,
     )
 
+    # Resume state (model/optimizer/scheduler/epoch/step/wandb id) if requested.
+    ckpt_path = out_dir / "checkpoint.pt"
+    start_epoch = 0
+    global_step = 0
+    resume_wandb_id = None
+    if args.resume and ckpt_path.exists():
+        print(f"Resuming from {ckpt_path} ...")
+        ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
+        model.load_state_dict(ckpt["model"])
+        optimizer.load_state_dict(ckpt["optimizer"])
+        scheduler.load_state_dict(ckpt["scheduler"])
+        start_epoch = ckpt["epoch"]
+        global_step = ckpt["global_step"]
+        resume_wandb_id = ckpt.get("wandb_id")
+        print(f"  resumed at epoch {start_epoch + 1}/{args.epochs}, global_step {global_step}")
+
+    wb = _init_wandb(args, model_type, resume_id=resume_wandb_id)
+    wandb_id = wb.id if wb is not None else None
+
+    def wb_log(metrics: dict, step: int | None = None) -> None:
+        if wb is not None:
+            wb.log(metrics, step=step)
+
     print(
         f"\nTraining ({total_steps} steps over {args.epochs} epochs, "
         f"{len(trainable_params)} trainable tensors) ..."
@@ -419,12 +508,18 @@ def main() -> None:
         )
 
     torch.manual_seed(args.seed)
-    global_step = 0
-    for epoch in range(args.epochs):
+    import time as _time
+
+    bench_t0 = None
+    for epoch in range(start_epoch, args.epochs):
         model.train()
         epoch_loss_sum = 0.0
         epoch_steps = 0
         for batch in train_loader:
+            # Start the benchmark clock after the first step warms up CUDA/JIT kernels.
+            if args.max_steps and global_step == 1:
+                torch.cuda.synchronize()
+                bench_t0 = _time.perf_counter()
             batch = {k: v.to(device) for k, v in batch.items()}
             with amp_ctx():
                 out = model(**batch)
@@ -436,12 +531,35 @@ def main() -> None:
             optimizer.zero_grad()
             epoch_loss_sum += float(loss.item())
             epoch_steps += 1
+            wb_log(
+                {
+                    "train/loss": float(loss.item()),
+                    "train/grad_norm": grad_norm,
+                    "train/lr": scheduler.get_last_lr()[0],
+                },
+                step=global_step,
+            )
             if global_step < 5 or global_step % 200 == 0:
                 print(
                     f"  step {global_step:5d}: loss={loss.item():.4f}  "
                     f"grad_norm={grad_norm:.4f}  lr={scheduler.get_last_lr()[0]:.2e}"
                 )
             global_step += 1
+
+            if args.max_steps and global_step >= args.max_steps:
+                torch.cuda.synchronize()
+                measured = global_step - 1  # exclude the warmup step before bench_t0
+                dt = _time.perf_counter() - bench_t0
+                spm = measured / dt * 60
+                peak = torch.cuda.max_memory_allocated() / 1e9
+                full_steps = len(train_loader) * args.epochs
+                print(
+                    f"\n[bench] {measured} steps in {dt:.1f}s = {spm:.1f} steps/min  "
+                    f"| peak VRAM {peak:.1f} GB  | bs={args.batch_size} "
+                    f"grad_ckpt={args.gradient_checkpointing} bf16={args.bf16_autocast}\n"
+                    f"[bench] full run {full_steps} steps → ETA {full_steps / spm / 60:.1f} h"
+                )
+                return
 
         # End-of-epoch eval on held-out 5%
         model.eval()
@@ -464,6 +582,29 @@ def main() -> None:
             f"eval_loss={eval_loss_sum / max(1, eval_steps):.4f}  "
             f"eval_acc={100 * eval_correct / max(1, eval_total):.2f}%"
         )
+        wb_log(
+            {
+                "epoch": epoch + 1,
+                "train/epoch_loss": epoch_loss_sum / max(1, epoch_steps),
+                "eval/loss": eval_loss_sum / max(1, eval_steps),
+                "eval/acc": eval_correct / max(1, eval_total),
+            },
+            step=global_step,
+        )
+
+        # Checkpoint at the epoch boundary so a crash resumes here instead of step 0.
+        torch.save(
+            {
+                "model": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "scheduler": scheduler.state_dict(),
+                "epoch": epoch + 1,
+                "global_step": global_step,
+                "wandb_id": wandb_id,
+            },
+            ckpt_path,
+        )
+        print(f"  checkpoint saved → {ckpt_path} (resume point: epoch {epoch + 1})")
 
     # Test-split eval
     print("\nEvaluating on test split ...")
@@ -530,6 +671,13 @@ def main() -> None:
     per_stage_acc = {
         s: (correct_stage[s] / total_stage[s] if total_stage[s] else 0.0) for s in "abcde"
     }
+    wb_log(
+        {
+            "test/state_accuracy": test_overall,
+            "test/loss": test_metrics["test_loss"],
+            **{f"test/stage_{s}": per_stage_acc[s] for s in "abcde"},
+        }
+    )
     out = {
         "n_test_turns": len(test_examples),
         "test_state_accuracy": test_overall,
@@ -562,6 +710,8 @@ def main() -> None:
         model.save_pretrained(str(final_dir))
     tokenizer.save_pretrained(str(final_dir))
     print(f"\nSaved to {final_dir}")
+    if wb is not None:
+        wb.finish()
     print("Done.")
 
 

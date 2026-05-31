@@ -304,6 +304,7 @@ def build_sft_config(output_dir: str | None = None, use_wandb: bool = False) -> 
     logging_steps = int(_get("TRAIN_LOGGING_STEPS", "10"))
     save_steps = int(_get("TRAIN_SAVE_STEPS", "200"))
     eval_steps = int(_get("TRAIN_EVAL_STEPS", "200"))
+    max_steps = int(_get("TRAIN_MAX_STEPS", "-1"))
     # In-training eval can OOM on memory-constrained setups: the eval forward
     # casts logits to fp32 for the loss (transformers/loss/loss_utils.py:58),
     # doubling the logits tensor briefly. On Gemma 4 31B QLoRA with 256K vocab
@@ -341,6 +342,7 @@ def build_sft_config(output_dir: str | None = None, use_wandb: bool = False) -> 
         gradient_checkpointing=grad_ckpt,
         gradient_checkpointing_kwargs={"use_reentrant": False} if grad_ckpt else None,
         logging_steps=logging_steps,
+        max_steps=max_steps,
         save_steps=save_steps,
         eval_steps=eval_steps,
         eval_strategy=eval_strategy,
@@ -476,12 +478,35 @@ def main() -> None:
     model = get_peft_model(model, lora_cfg)
     model.print_trainable_parameters()
 
+    import torch
+    from transformers import TrainerCallback, TrainerControl, TrainerState, TrainingArguments
+
+    class VRAMLogCallback(TrainerCallback):
+        def on_log(
+            self,
+            args: TrainingArguments,
+            state: TrainerState,
+            control: TrainerControl,
+            logs=None,
+            **kwargs,
+        ):
+            if not torch.cuda.is_available():
+                return
+            alloc = torch.cuda.memory_allocated() / 1024**3
+            reserved = torch.cuda.memory_reserved() / 1024**3
+            total = torch.cuda.get_device_properties(0).total_memory / 1024**3
+            print(
+                f"  VRAM  alloc={alloc:.1f}GB  reserved={reserved:.1f}GB  total={total:.1f}GB",
+                flush=True,
+            )
+
     trainer = SFTTrainer(
         model=model,
         args=sft_cfg,
         train_dataset=train_ds,
         eval_dataset=eval_ds,
         processing_class=tokenizer,
+        callbacks=[VRAMLogCallback()],
     )
 
     # Auto-resume from latest checkpoint if one exists in output_dir.
