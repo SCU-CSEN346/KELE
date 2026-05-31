@@ -392,7 +392,8 @@ train-gemma4-31b-stage2-preq:
 # double-quantize the already-quantized checkpoint).
 train-gemma4-31b-stage2-unsloth:
 	mkdir -p outputs/sft-stage2-gemma4-31b
-	nohup env TORCH_USE_HIPBLASLT=0 \
+	nohup env TORCH_USE_HIPBLASLT=1 \
+	  FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE \
 	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
 	  TRAIN_BASE_MODEL=unsloth/gemma-4-31B-it-unsloth-bnb-4bit \
 	  TRAIN_PREQ=true \

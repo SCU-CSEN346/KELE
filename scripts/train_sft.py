@@ -216,8 +216,14 @@ def build_model_and_tokenizer():
     # calls from_dict(..., quantization_config=None), overwriting the
     # checkpoint's valid config.json quantization_config with None — causing
     # supports_quant_method to crash on the pre-quantized (TRAIN_PREQ) path.
+    try:
+        import flash_attn  # noqa: F401
+
+        _attn_impl = "flash_attention_2"
+    except ImportError:
+        _attn_impl = "sdpa"
     _load_kwargs: dict = {
-        "attn_implementation": "sdpa",
+        "attn_implementation": _attn_impl,
         "device_map": _device_map,
         "low_cpu_mem_usage": True,
         "offload_folder": _offload_dir,
