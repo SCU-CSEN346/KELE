@@ -43,7 +43,6 @@ import argparse
 import os
 import sys
 import tempfile
-import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -55,65 +54,75 @@ from scripts.train_sft import (  # noqa: E402
     build_sft_config,
 )
 
+_PROBE_CODE = """
+import os, sys, time, warnings
+warnings.filterwarnings("ignore")
+import torch
+import torch.nn.functional as F
+from torch.nn.attention import SDPBackend, sdpa_kernel
 
-def sdpa_backend_probe(torch) -> None:
+print("\\n" + "=" * 100)
+print("SDPA BACKEND PROBE — Gemma 4 31B shape: head_dim=256, seq=1280, 32 q / 16 kv heads, bf16, causal")
+print("=" * 100)
+print(
+    f"  allowed: flash={torch.backends.cuda.flash_sdp_enabled()}  "
+    f"mem_efficient={torch.backends.cuda.mem_efficient_sdp_enabled()}  "
+    f"math={torch.backends.cuda.math_sdp_enabled()}"
+)
+
+b, hq, hkv, s, d = 1, 32, 16, 1280, 256
+for name, backend in (
+    ("flash", SDPBackend.FLASH_ATTENTION),
+    ("mem_efficient", SDPBackend.EFFICIENT_ATTENTION),
+    ("math", SDPBackend.MATH),
+):
+    q = k = v = None
+    try:
+        q = torch.randn(b, hq, s, d, device="cuda", dtype=torch.bfloat16, requires_grad=True)
+        k = torch.randn(b, hkv, s, d, device="cuda", dtype=torch.bfloat16, requires_grad=True)
+        v = torch.randn(b, hkv, s, d, device="cuda", dtype=torch.bfloat16, requires_grad=True)
+
+        def run(q, k, v):
+            out = F.scaled_dot_product_attention(q, k, v, is_causal=True, enable_gqa=True)
+            out.sum().backward()
+
+        with sdpa_kernel([backend]):
+            for _ in range(2):
+                run(q, k, v)
+            torch.cuda.synchronize()
+            t0 = time.perf_counter()
+            iters = 5
+            for _ in range(iters):
+                run(q, k, v)
+            torch.cuda.synchronize()
+            ms = (time.perf_counter() - t0) / iters * 1000
+        print(f"  {name:<14} OK      fwd+bwd {ms:7.2f} ms/call")
+    except Exception as e:
+        print(f"  {name:<14} FAILED  {str(e).splitlines()[0][:88]}")
+    finally:
+        del q, k, v
+        torch.cuda.empty_cache()
+print(
+    "\\n  Read: if flash FAILED (head_dim=256 unsupported) and math is what runs, attention is"
+    "\\n  on the slow rocBLAS path — FA2 would help it *if* its backward could fit 64 KB LDS."
+)
+"""
+
+
+def sdpa_backend_probe() -> None:
     """Time each SDPA backend at Gemma 4 31B's real attention shape.
 
-    Reveals which backend SDPA can actually use for head_dim=256 — the crux of
-    whether attention is slow. rocBLAS-backed math is the slow fallback; flash
-    being unavailable here is the direct evidence FA2 would matter for attention.
+    Runs in a subprocess so Triton/HIP allocations (outside PyTorch's caching
+    allocator) are fully released before the model loads in the parent process.
     """
-    import torch.nn.functional as F
-    from torch.nn.attention import SDPBackend, sdpa_kernel
+    import subprocess
 
-    print("\n" + "=" * 100)
-    print("SDPA BACKEND PROBE — Gemma 4 31B shape: head_dim=256, seq=1280, 32 q / 16 kv heads, bf16, causal")
-    print("=" * 100)
-    print(
-        f"  allowed: flash={torch.backends.cuda.flash_sdp_enabled()}  "
-        f"mem_efficient={torch.backends.cuda.mem_efficient_sdp_enabled()}  "
-        f"math={torch.backends.cuda.math_sdp_enabled()}"
+    result = subprocess.run(
+        [sys.executable, "-c", _PROBE_CODE],
+        env=os.environ.copy(),
     )
-    if not torch.cuda.is_available():
-        print("  (no GPU — skipping timing)")
-        return
-
-    b, hq, hkv, s, d = 1, 32, 16, 1280, 256
-    for name, backend in (
-        ("flash", SDPBackend.FLASH_ATTENTION),
-        ("mem_efficient", SDPBackend.EFFICIENT_ATTENTION),
-        ("math", SDPBackend.MATH),
-    ):
-        q = k = v = None
-        try:
-            q = torch.randn(b, hq, s, d, device="cuda", dtype=torch.bfloat16, requires_grad=True)
-            k = torch.randn(b, hkv, s, d, device="cuda", dtype=torch.bfloat16, requires_grad=True)
-            v = torch.randn(b, hkv, s, d, device="cuda", dtype=torch.bfloat16, requires_grad=True)
-
-            def run(q, k, v):
-                out = F.scaled_dot_product_attention(q, k, v, is_causal=True, enable_gqa=True)
-                out.sum().backward()
-
-            with sdpa_kernel([backend]):
-                for _ in range(2):
-                    run(q, k, v)
-                torch.cuda.synchronize()
-                t0 = time.perf_counter()
-                iters = 5
-                for _ in range(iters):
-                    run(q, k, v)
-                torch.cuda.synchronize()
-                ms = (time.perf_counter() - t0) / iters * 1000
-            print(f"  {name:<14} OK      fwd+bwd {ms:7.2f} ms/call")
-        except Exception as e:  # noqa: BLE001 — probe: any failure means "backend unusable here"
-            print(f"  {name:<14} FAILED  {str(e).splitlines()[0][:88]}")
-        finally:
-            del q, k, v
-            torch.cuda.empty_cache()
-    print(
-        "\n  Read: if flash FAILED (head_dim=256 unsupported) and math is what runs, attention is\n"
-        "  on the slow rocBLAS path — FA2 would help it *if* its backward could fit 64 KB LDS."
-    )
+    if result.returncode != 0:
+        print("  (probe subprocess failed — continuing to real-step profile)")
 
 
 def _self_device_time(e) -> float:
@@ -204,7 +213,7 @@ def main() -> None:
     out_dir = "outputs/profile-gemma4-31b"
     Path(out_dir).mkdir(parents=True, exist_ok=True)
 
-    sdpa_backend_probe(torch)
+    sdpa_backend_probe()
 
     train_ds, _ = build_hf_datasets()
     # SFTTrainer tokenizes the WHOLE train split single-threaded at construction
@@ -214,7 +223,9 @@ def main() -> None:
     ga = int(os.environ.get("TRAIN_GRAD_ACCUM", "16"))
     n_records = bs * ga * (args.steps + 2)
     train_ds = train_ds.select(range(min(n_records, len(train_ds))))
-    print(f"\nProfiling on a {len(train_ds)}-record slice (full split skipped — only {args.steps} steps run)")
+    print(
+        f"\nProfiling on a {len(train_ds)}-record slice (full split skipped — only {args.steps} steps run)"
+    )
     model, tokenizer = build_model_and_tokenizer()
     lora_cfg = build_lora_config()
     with tempfile.TemporaryDirectory() as tmp:
