@@ -108,21 +108,35 @@ def build_hf_datasets():
 # Model + tokenizer
 # ---------------------------------------------------------------------------
 
-# Gemma 4 training-compatible chat template. Renders byte-identical to the
-# stock google/gemma-4-31b-it template (turn markers <|turn>...<turn|>, native
-# system role) but wraps assistant content in {% generation %} so TRL's
+# Gemma 4 training-compatible chat template. For rendered message bodies it is
+# byte-identical to the stock google/gemma-4-31b-it template (verified: turn
+# markers <|turn>...<turn|> — token id 105/106, NOT <start/end_of_turn> — and a
+# native system role), but wraps assistant content in {% generation %} so TRL's
 # assistant_only_loss can find the assistant-token boundary. No tool-calling
 # macros — not needed for SFT on Socratic dialogues.
+#
+# Intentional divergence: the stock template's generation prompt appends a
+# `<|channel>thought\n<channel|>` reasoning primer (Gemma 4 is a thinking model);
+# this template omits it, training the teacher to answer directly with no thought
+# channel. Production serving must prime generation the same way (plain
+# `<|turn>model\n`), or it reintroduces a train/serve mismatch this template avoids.
+#
+# The model-role terminator <turn|> MUST sit INSIDE the {% generation %} block:
+# assistant_only_loss masks everything outside it to -100, so a terminator left
+# outside gets zero gradient and the model never learns to stop (non-terminating
+# repetition collapse — see TRL chat_templates/README.md and gemma3_training.jinja,
+# which keep <end_of_turn> inside the block for the same reason). The <|turn>model
+# header stays outside (it is a prompt cue, not generated).
 _GEMMA4_TRAINING_CHAT_TEMPLATE = """{{- bos_token -}}
 {%- for message in messages -%}
 {%- set role = 'model' if message['role'] == 'assistant' else message['role'] -%}
 {{- '<|turn>' + role + '\n' -}}
 {%- if role == 'model' -%}
-{% generation %}{{ message['content'] | trim }}{% endgeneration %}
+{% generation %}{{ message['content'] | trim }}{{ '<turn|>\n' }}{% endgeneration %}
 {%- else -%}
 {{- message['content'] | trim -}}
-{%- endif -%}
 {{- '<turn|>\n' -}}
+{%- endif -%}
 {%- endfor -%}
 {%- if add_generation_prompt -%}
 {{- '<|turn>model\n' -}}
