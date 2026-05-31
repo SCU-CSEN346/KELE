@@ -258,7 +258,7 @@ deliberately avoids. Confirm which template `serve_gemma4_31b*.sh` /
 - `FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE` (set in Makefile for future use; currently no effect since FA2 is disabled)
 - ~14,478 total steps at ~70 s/step → ~281h wall time
 
-**Expected step time vs hardware:** ~70 s/step on R9700 vs ~4.5 s/step on partner RTX 5090. Hardware ratio alone (R9700 ≈ 54% of 5090 TFLOPS) predicts ~8 s/step. The 9× gap is fully explained by the SDPA/CK Wave32 mismatch (see below) — no further gains are available without patching the Triton backward kernel.
+**Confirmed step time: ~70 s/step** (measured at steps 1–9 of Stage 2 with SDPA + HIPBLASLT=1). Hardware ratio alone (R9700 ≈ 54% of 5090 TFLOPS) predicts ~8 s/step; actual is ~9× slower. The gap is explained by the SDPA/CK Wave32 mismatch and bitsandbytes NF4 dequant overhead on ROCm — no further gains are available without patching the Triton backward kernel. HIPBLASLT=1 showed no step-time improvement (SDPA is the bottleneck, not GEMM).
 
 ---
 
