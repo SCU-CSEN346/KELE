@@ -18,7 +18,7 @@
         download-gemma4-31b \
         prequant-gemma4-31b-l40s transfer-gemma4-31b-nf4 \
         train-gemma4-31b-dry-run train-gemma4-31b-stage2 train-gemma4-31b-stage2-preq \
-        train-gemma4-31b-stage2-unsloth \
+        train-gemma4-31b-stage2-unsloth train-gemma4-31b-eos-gate eos-gate-gemma4-31b \
         tournament tournament-think tournament-warmup tournament-warmup-think tournament-status tournament-eliminate \
         tournament-finalize tournament-archive tournament-restore tournament-reset \
         tournament-download tournament-help
@@ -70,6 +70,8 @@ help:
 	@echo "  transfer-gemma4-31b-nf4     rsync NF4 checkpoint from L40S (HOST=user@host)"
 	@echo "  train-gemma4-31b-stage2-preq  Train Stage 2b from local pre-quantized NF4 checkpoint"
 	@echo "  train-gemma4-31b-stage2-unsloth  Train Stage 2b from unsloth bnb-4bit Gemma 4 31B (no local prequant)"
+	@echo "  train-gemma4-31b-eos-gate    100-step checkpoint for EOS gate (unsloth path, ~30 min)"
+	@echo "  eos-gate-gemma4-31b          Run EOS gate against outputs/eos-gate-gemma4-31b/final"
 	@echo "  eval-gemma4-31b-smoke  Run scripts/eval_gemma4_31b.sh smoke  (n=5)"
 	@echo "  eval-gemma4-31b-mini   Run scripts/eval_gemma4_31b.sh mini   (n=25)"
 	@echo "  eval-gemma4-31b-full   Run scripts/eval_gemma4_31b.sh full   (n=681)"
@@ -354,7 +356,7 @@ train-gemma4-31b-dry-run:
 train-gemma4-31b-stage2:
 	mkdir -p outputs/sft-stage2-gemma4-31b
 	nohup env TORCH_USE_HIPBLASLT=0 \
-	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8,expandable_segments:True \
+	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
 	  uv run --no-sync python scripts/train_sft.py \
 	  --config configs/train-sft-stage2-gemma4-31b.env \
 	  > outputs/sft-stage2-gemma4-31b/train.log 2>&1 &
@@ -374,7 +376,7 @@ transfer-gemma4-31b-nf4:
 train-gemma4-31b-stage2-preq:
 	mkdir -p outputs/sft-stage2-gemma4-31b
 	nohup env TORCH_USE_HIPBLASLT=0 \
-	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8,expandable_segments:True \
+	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
 	  TRAIN_BASE_MODEL=models/gemma-4-31b-nf4 \
 	  TRAIN_PREQ=true \
 	  uv run --no-sync python scripts/train_sft.py \
@@ -391,13 +393,42 @@ train-gemma4-31b-stage2-preq:
 train-gemma4-31b-stage2-unsloth:
 	mkdir -p outputs/sft-stage2-gemma4-31b
 	nohup env TORCH_USE_HIPBLASLT=0 \
-	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8,expandable_segments:True \
+	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
 	  TRAIN_BASE_MODEL=unsloth/gemma-4-31B-it-unsloth-bnb-4bit \
 	  TRAIN_PREQ=true \
 	  uv run --no-sync python scripts/train_sft.py \
 	  --config configs/train-sft-stage2-gemma4-31b.env \
 	  > outputs/sft-stage2-gemma4-31b/train.log 2>&1 &
 	@echo "Training started. Monitor: tail -f outputs/sft-stage2-gemma4-31b/train.log"
+
+# Train 100 steps on the same unsloth path as the real run to produce an adapter
+# for the EOS gate. Uses a separate output dir so it never collides with the real run.
+train-gemma4-31b-eos-gate:
+	mkdir -p outputs/eos-gate-gemma4-31b
+	setsid env TORCH_USE_HIPBLASLT=1 \
+	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
+	  TRAIN_BASE_MODEL=unsloth/gemma-4-31B-it-unsloth-bnb-4bit \
+	  TRAIN_PREQ=true \
+	  TRAIN_MAX_STEPS=100 \
+	  TRAIN_SAVE_STEPS=100 \
+	  TRAIN_OUTPUT_DIR=outputs/eos-gate-gemma4-31b \
+	  uv run --no-sync python scripts/train_sft.py \
+	  --config configs/train-sft-stage2-gemma4-31b.env \
+	  > outputs/eos-gate-gemma4-31b/train.log 2>&1 &
+	@echo "EOS-gate checkpoint training started (~30 min)."
+	@echo "Monitor: tail -f outputs/eos-gate-gemma4-31b/train.log"
+	@echo "When done, run: make eos-gate-gemma4-31b"
+
+eos-gate-gemma4-31b:
+	env TORCH_USE_HIPBLASLT=0 \
+	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
+	  TRAIN_BASE_MODEL=unsloth/gemma-4-31B-it-unsloth-bnb-4bit \
+	  TRAIN_PREQ=true \
+	  TRAIN_METHOD=qlora \
+	  TRAIN_BF16=true \
+	  uv run --no-sync python scripts/eos_gate.py \
+	  --config configs/train-sft-stage2-gemma4-31b.env \
+	  --adapter outputs/eos-gate-gemma4-31b/final
 
 # ── Tournament ────────────────────────────────────────────────────────────────
 
