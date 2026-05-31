@@ -184,7 +184,15 @@ def main() -> None:
 
     sdpa_backend_probe(torch)
 
-    train_ds, eval_ds = build_hf_datasets()
+    train_ds, _ = build_hf_datasets()
+    # SFTTrainer tokenizes the WHOLE train split single-threaded at construction
+    # (dataset_num_proc=1) before step 1. Profiling only needs a few steps' worth
+    # of records — slice to avoid minutes of pointless full-dataset preprocessing.
+    bs = int(os.environ.get("TRAIN_BATCH_SIZE", "1"))
+    ga = int(os.environ.get("TRAIN_GRAD_ACCUM", "16"))
+    n_records = bs * ga * (args.steps + 2)
+    train_ds = train_ds.select(range(min(n_records, len(train_ds))))
+    print(f"\nProfiling on a {len(train_ds)}-record slice (full split skipped — only {args.steps} steps run)")
     model, tokenizer = build_model_and_tokenizer()
     lora_cfg = build_lora_config()
     with tempfile.TemporaryDirectory() as tmp:
@@ -204,7 +212,6 @@ def main() -> None:
             model=model,
             args=sft_cfg,
             train_dataset=train_ds,
-            eval_dataset=eval_ds,
             processing_class=tokenizer,
         )
 
