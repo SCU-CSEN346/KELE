@@ -597,6 +597,7 @@ dependencies = [
     { name = "transformers" },
     { name = "trl" },
     { name = "uvicorn" },
+    { name = "wandb" },
 ]
 
 [package.optional-dependencies]
@@ -640,6 +641,7 @@ requires-dist = [
     { name = "transformers", specifier = ">=5.9.0" },
     { name = "trl", specifier = ">=1.5.1" },
     { name = "uvicorn", specifier = ">=0.48.0" },
+    { name = "wandb", specifier = ">=0.18.0" },
     { name = "wandb", marker = "extra == 'wandb'", specifier = ">=0.18.0" },
 ]
 provides-extras = ["wandb", "cuda"]
