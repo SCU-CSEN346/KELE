@@ -46,9 +46,11 @@ DMESG_PID=""
     > "$DMESG_LOG" ) &
 DMESG_PID=$!
 
-# shellcheck disable=SC2329  # invoked indirectly via trap
+# shellcheck disable=SC2317,SC2329  # body is invoked indirectly via trap
 cleanup() {
-    [[ -n "$DMESG_PID" ]] && kill "$DMESG_PID" 2>/dev/null || true
+    if [[ -n "$DMESG_PID" ]]; then
+        kill "$DMESG_PID" 2>/dev/null || true
+    fi
 }
 trap cleanup EXIT INT TERM
 
