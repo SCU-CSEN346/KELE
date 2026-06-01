@@ -6,11 +6,17 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-STAGE2_LOG="$REPO_DIR/outputs/sft-stage2-gemma4-31b/train.log"
-FINAL_DIR="$REPO_DIR/outputs/sft-stage2-gemma4-31b/final"
+OUTPUT_DIR="$REPO_DIR/outputs/sft-stage2-gemma4-31b"
+STAGE2_LOG="$OUTPUT_DIR/train.log"
+FINAL_DIR="$OUTPUT_DIR/final"
 SELF_LOG="$REPO_DIR/outputs/monitor_stage2.log"
 PR_NUMBER=101
-MAX_RETRIES=2
+# The gfx1201 fault is non-deterministic, so the run advances by crashing and
+# resuming from the latest checkpoint (save_steps=10). MAX_RETRIES bounds
+# CONSECUTIVE retries that make NO forward progress — a run that keeps advancing
+# never exhausts it; only a genuinely stuck GPU (no new checkpoint across this
+# many tries) stops the monitor. Crawl-forward needs a high bound, not 2.
+MAX_RETRIES=8
 POLL_SECONDS=300
 
 log() {
@@ -46,13 +52,52 @@ kill_and_clean() {
     while pgrep -f "train_sft\.py" > /dev/null 2>&1 && [[ $waited -lt 30 ]]; do
         sleep 2; (( waited += 2 ))
     done
-    log "KFD settle wait (20s)"
-    sleep 20
+    # A gfx1201 fault leaves the amdkfd dirty (orphaned HIP context + stale VRAM);
+    # relaunching into that state faults early on stale PTEs (the cascade that
+    # turned a single crash into a permanent loop). Verify the GPU is ACTUALLY
+    # clean before relaunch instead of a blind sleep (GFX1201_RDNA4_TRAINING.md §10).
+    if ! bash "$REPO_DIR/scripts/test_gpu_stack.sh" --wait-clean 180 >> "$SELF_LOG" 2>&1; then
+        log "WARNING: GPU still dirty after 180s — relaunch will likely fault on stale PTEs"
+    fi
+}
+
+latest_ckpt_step() {
+    local d max=-1 n
+    for d in "$OUTPUT_DIR"/checkpoint-*; do
+        [[ -d "$d" ]] || continue
+        n="${d##*checkpoint-}"
+        [[ "$n" =~ ^[0-9]+$ ]] && (( n > max )) && max="$n"
+    done
+    printf '%s' "$max"
+}
+
+# A crash landing during a checkpoint write leaves an incomplete checkpoint-N.
+# HF resume always picks the highest-numbered dir, so a partial one makes every
+# resume fail to load and loop on the same bad checkpoint. trainer_state.json is
+# written last in _save_checkpoint, so a valid one implies the rest is complete;
+# if it's missing or unparsable, quarantine the dir so resume falls back to N-1.
+quarantine_bad_checkpoint() {
+    local step latest
+    step="$(latest_ckpt_step)"
+    [[ "$step" -lt 0 ]] && { log "No checkpoint yet — resume will start from step 0"; return 0; }
+    latest="$OUTPUT_DIR/checkpoint-$step"
+    if [[ -f "$latest/trainer_state.json" ]] \
+        && python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$latest/trainer_state.json" 2>/dev/null; then
+        log "Latest checkpoint OK: checkpoint-$step (resume target)"
+        return 0
+    fi
+    log "checkpoint-$step is INCOMPLETE (crash mid-save) — quarantining; resume falls back to prior"
+    mv "$latest" "$OUTPUT_DIR/.broken-checkpoint-$step" 2>/dev/null || rm -rf "$latest"
 }
 
 start_stage2() {
-    log "Starting Stage 2 training"
-    cd "$REPO_DIR" && make train-gemma4-31b-stage2-unsloth
+    log "Starting Stage 2 training (gpu-preflight gates the launch)"
+    # Must not let a failing launch trip `set -e` and kill the monitor: the make
+    # target now depends on gpu-preflight, which exits non-zero on a dirty GPU.
+    # Swallow that so it falls through to the retry/stall accounting instead.
+    cd "$REPO_DIR" || return 0
+    make train-gemma4-31b-stage2-unsloth \
+        || log "launch aborted (gpu-preflight failed?) — counts as no forward progress"
     sleep 30
 }
 
@@ -62,6 +107,7 @@ post_pr "**Stage 2 monitoring active** — watching \`outputs/sft-stage2-gemma4-
 sleep 30  # let it get going before first poll
 
 retries=0
+last_progress_step="$(latest_ckpt_step)"
 
 while true; do
     if training_running; then
@@ -79,19 +125,31 @@ while true; do
         exit 0
     fi
 
+    # Forward-progress check: did a new checkpoint land since the last crash? If
+    # so the crawl is advancing — reset the no-progress retry counter. Only
+    # consecutive stalls (no new checkpoint) count toward MAX_RETRIES, so a run
+    # that keeps inching forward across faults never gives up.
+    ckpt_step="$(latest_ckpt_step)"
+    if (( ckpt_step > last_progress_step )); then
+        log "Progress since last crash: checkpoint $last_progress_step → $ckpt_step — resetting retry counter"
+        last_progress_step="$ckpt_step"
+        retries=0
+    fi
+
     hint="$(crash_hint)"
-    log "CRASH DETECTED (retry $retries/$MAX_RETRIES)"
+    log "CRASH DETECTED (consecutive no-progress retries $retries/$MAX_RETRIES, latest ckpt step $ckpt_step)"
     [[ -n "$hint" ]] && log "Log tail:$hint"
 
     if (( retries >= MAX_RETRIES )); then
-        post_pr "$(printf '## Stage 2 Training: CRASHED (max retries)\n\nExceeded %d retries. Manual intervention needed.\n\nCrash hint:\n```\n%s\n```\n\nLog: `outputs/sft-stage2-gemma4-31b/train.log`' "$MAX_RETRIES" "$hint")"
-        log "Max retries exceeded — exiting"
+        post_pr "$(printf '## Stage 2 Training: STALLED (no progress in %d retries)\n\nLatest checkpoint step: %s. The run is not advancing across resumes — manual intervention needed (run `make diagnose-gfx1201-fault`).\n\nCrash hint:\n```\n%s\n```\n\nLog: `outputs/sft-stage2-gemma4-31b/train.log`' "$MAX_RETRIES" "$ckpt_step" "$hint")"
+        log "Stalled — no forward progress in $MAX_RETRIES retries — exiting"
         exit 1
     fi
 
-    post_pr "$(printf '**Stage 2 CRASHED** (retry %d/%d) — restarting.\n\n```\n%s\n```' "$((retries+1))" "$MAX_RETRIES" "$hint")"
+    post_pr "$(printf '**Stage 2 CRASHED** (no-progress retry %d/%d, latest ckpt step %s) — cleaning GPU + resuming.\n\n```\n%s\n```' "$((retries+1))" "$MAX_RETRIES" "$ckpt_step" "$hint")"
 
     retries=$(( retries + 1 ))
     kill_and_clean
+    quarantine_bad_checkpoint
     start_stage2
 done

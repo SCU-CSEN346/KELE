@@ -19,6 +19,7 @@
         prequant-gemma4-31b-l40s transfer-gemma4-31b-nf4 \
         train-gemma4-31b-dry-run train-gemma4-31b-stage2 train-gemma4-31b-stage2-preq \
         train-gemma4-31b-stage2-unsloth train-gemma4-31b-eos-gate eos-gate-gemma4-31b \
+        gpu-preflight diagnose-gfx1201-fault \
         profile-gemma4-31b \
         tournament tournament-think tournament-warmup tournament-warmup-think tournament-status tournament-eliminate \
         tournament-finalize tournament-archive tournament-restore tournament-reset \
@@ -73,6 +74,8 @@ help:
 	@echo "  train-gemma4-31b-stage2-unsloth  Train Stage 2b from unsloth bnb-4bit Gemma 4 31B (no local prequant)"
 	@echo "  train-gemma4-31b-eos-gate    100-step checkpoint for EOS gate (unsloth path, ~30 min)"
 	@echo "  eos-gate-gemma4-31b          Run EOS gate against outputs/eos-gate-gemma4-31b/final"
+	@echo "  gpu-preflight                Fast GPU gate (clean KFD + fwd/bwd) — run before any (re)launch"
+	@echo "  diagnose-gfx1201-fault       Serialized-kernel run to localize the backward page fault"
 	@echo "  profile-gemma4-31b           Profile a real Stage 2 step (attention vs NF4-dequant; FA2 de-risk)"
 	@echo "  eval-gemma4-31b-smoke  Run scripts/eval_gemma4_31b.sh smoke  (n=5)"
 	@echo "  eval-gemma4-31b-mini   Run scripts/eval_gemma4_31b.sh mini   (n=25)"
@@ -346,14 +349,30 @@ eval-gemma4-31b-fusion-smoke:
 
 # ── Gemma 4 31B SFT training (Stage 2b) ──────────────────────────────────────
 # No patch-fla-rocm needed — Gemma 4 uses standard softmax attention (no FLA).
-# ROCm env vars are gfx1201 workarounds. TORCH_USE_HIPBLASLT=0 is required on
-# all training targets: HIPBLASLT=1 causes amdgpu gfxhub TCP page faults during
-# the backward pass (PERMISSION_FAULTS:0x3) at non-deterministic steps (16–84).
-# EOS gate (100 steps, HIPBLASLT=0, same grad-ckpt) passed cleanly; stage2
-# (HIPBLASLT=1) crashed every run — differential proof hipBLASLt is the cause.
-# garbage_collection_threshold:0.8 is safe and useful: it trims reserved VRAM
-# from the 30.2 GB backward peak back to 29.1 GB, preserving headroom on the
-# tight 31.9 GB budget. EOS gate confirmed it does not cause the page fault.
+#
+# The gfx1201 page fault (Memory access fault / page not present,
+# PERMISSION_FAULTS:0x3) during the QLoRA backward is NON-DETERMINISTIC and not
+# yet attributed to any config knob: the SAME config (same git SHA) both finishes
+# 100 steps and crashes at step 10 across repeated runs (wandb-verified — see PR
+# #101 and docs/GFX1201_RDNA4_TRAINING.md §6.1). Four root-cause theories
+# (workers, GC threshold, hipBLASLt, LR) were each published then falsified.
+# Current knobs are PRECAUTIONARY, not proven fixes:
+#   TORCH_USE_HIPBLASLT=0           — rocBLAS fallback (HIPBLASLT=1 still crashed,
+#                                     so this is precaution, not the cure)
+#   PYTORCH_HIP_ALLOC_CONF=gc:0.8   — trims the backward peak; GC-off also crashed
+# The real next step is `make diagnose-gfx1201-fault` (serialized kernels → names
+# the faulting kernel) and the ablation matrix in §6.1 — NOT another knob flip.
+# Every (re)launch is gated on `make gpu-preflight` (clean KFD + working fwd/bwd):
+# a prior fault leaves the GPU dirty and the next run faults early on stale PTEs.
+
+gpu-preflight:
+	bash scripts/test_gpu_stack.sh --preflight
+
+# Localize the backward page fault: run ~120 steps with serialized kernel launches
+# so the async VM fault becomes synchronous and the traceback/dmesg name the exact
+# faulting kernel (bnb NF4 dequant vs grad-ckpt recompute vs allocator).
+diagnose-gfx1201-fault: gpu-preflight
+	bash scripts/diagnose_gfx1201_fault.sh
 
 download-gemma4-31b:
 	uv run hf download google/gemma-4-31b-it
@@ -361,7 +380,7 @@ download-gemma4-31b:
 train-gemma4-31b-dry-run:
 	uv run python scripts/train_sft.py --config configs/train-sft-gemma4-31b-qlora.env --dry-run
 
-train-gemma4-31b-stage2:
+train-gemma4-31b-stage2: gpu-preflight
 	mkdir -p outputs/sft-stage2-gemma4-31b
 	nohup env TORCH_USE_HIPBLASLT=0 \
 	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
@@ -381,7 +400,7 @@ transfer-gemma4-31b-nf4:
 	mkdir -p models/gemma-4-31b-nf4
 	rsync -avP "$(HOST):gemma-4-31b-nf4/" models/gemma-4-31b-nf4/
 
-train-gemma4-31b-stage2-preq:
+train-gemma4-31b-stage2-preq: gpu-preflight
 	mkdir -p outputs/sft-stage2-gemma4-31b
 	nohup env TORCH_USE_HIPBLASLT=0 \
 	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
@@ -398,10 +417,9 @@ train-gemma4-31b-stage2-preq:
 # TRAIN_PREQ=true is required — it tells train_sft.py to read the embedded
 # quantization_config instead of building a live BitsAndBytesConfig (which would
 # double-quantize the already-quantized checkpoint).
-train-gemma4-31b-stage2-unsloth:
+train-gemma4-31b-stage2-unsloth: gpu-preflight
 	mkdir -p outputs/sft-stage2-gemma4-31b
 	nohup env TORCH_USE_HIPBLASLT=0 \
-	  FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE \
 	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
 	  TRAIN_BASE_MODEL=unsloth/gemma-4-31B-it-unsloth-bnb-4bit \
 	  TRAIN_PREQ=true \

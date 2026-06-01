@@ -269,6 +269,102 @@ even 32 GB.
 
 ---
 
+## 6.1 The non-deterministic backward page fault (PR #101) — what we know, and the ablation to settle it ⚠️
+
+Gemma 4 31B QLoRA on the R9700 hits a **non-deterministic GPU page fault during the backward
+pass** and has never completed a full run. This section is the durable record so we stop
+re-deriving it. **Do not "fix" it with another single knob flip** — four have been tried and
+falsified.
+
+```
+Memory access fault by GPU node-1 on address 0x7f.......  Reason: Page not present or
+supervisor privilege.   (amdgpu gfxhub TCP fault; PERMISSION_FAULTS:0x3, WALKER_ERROR:0x0)
+```
+
+**The one fact that reframes everything (wandb-verified):** the fault is *probabilistic, not
+config-determined.* The **same config on the same git SHA both finishes and crashes**:
+
+| git SHA | run | outcome |
+|---|---|---|
+| `c752a2b4` | eos-gate g2df2ifl | **finished 100 steps** |
+| `c752a2b4` | eos-gate gv9fbjac | **crashed < step 10** |
+| `eb12dbd9` | eos-gate 5xd8qt5w | **finished 100 steps** |
+| `eb12dbd9` | eos-gate irgdklt9, jtyyhu4t | **crashed @ step 10** |
+
+Crash steps across all Stage 2 + eos-gate runs: 10, 14, 16, 20, 80, 84, or clears 100 — a
+random draw, not a threshold. So a "good config" cannot be inferred from one clean run.
+
+**What the wandb data rules OUT** (don't re-investigate these):
+- **Not numerical / data / a bad batch.** Loss descends smoothly (2.6→0.8), grad_norm stays
+  1–6, no NaN/Inf; two same-LR runs log *byte-identical* losses per step (deterministic forward).
+- **Not LR / optimizer magnitude.** A `lr=5e-6` run crashed *earlier* (step ~10) than the
+  `lr=5e-5` runs (step ~80) — lower LR should be safer; this inverts the theory.
+- **Not hipBLASLt.** `TORCH_USE_HIPBLASLT=0` runs crash with the identical signature.
+- **Not sequence length.** Measured token lengths (`scripts/determine_max_sequence.py`):
+  **train max = 909, eval max = 892, p99 = 673** over socrat-zh-sft + socrat-en-sft. Nothing
+  exceeds 1024. With `per_device_batch_size=1` + dynamic padding the activation peak is set by
+  the *actual* longest sequence (909), **not** by `max_length`, so lowering the 1280 cap frees
+  no VRAM. `max_length=1280` is non-binding and safe; leave it.
+
+**Still unsettled (do NOT treat as ruled out):** the GC threshold. The `72db9b4` run with
+`garbage_collection_threshold` *removed* also crashed, but its log was lost (wandb 404) so
+page-fault-vs-OOM was never confirmed, and it is n=1. GC-on vs GC-off is therefore not yet a
+clean variable either way — replicate it under the protocol below (arm D).
+
+**Enabling condition:** the run sits at **93–98 % VRAM (~30–31.4 / 32 GB) sustained**. The fault
+is in the backward pass, in the immature **bitsandbytes-NF4 / ROCm 7.2** path — the least-tested
+part of the stack (§3 only smoke-tested bnb a few steps, never 100+ under pressure). The fault
+address has a host-VA `0x7f…` pattern, consistent with a use-after-unmap / bad-buffer access.
+
+**Two failure modes that COMPOUND (operational, not config):**
+1. **Dirty-KFD cascade.** A fault leaves orphaned HIP context + stale VRAM (§10). Relaunching
+   into it faults early on stale PTEs. The resume monitor must verify a clean GPU
+   (`test_gpu_stack.sh --wait-clean`), not blind-sleep, before each relaunch.
+2. **Corrupt checkpoint.** `save_steps=10` (the crawl-forward survival patch) multiplies
+   checkpoint-write windows 10×; a fault mid-write leaves an incomplete `checkpoint-N` that
+   resume loops on. The monitor quarantines an incomplete latest checkpoint (no valid
+   `trainer_state.json`) so resume falls back to `N-1`.
+
+`save_steps=10` + the monitor crawl is a **survival workaround, not a fix** — it makes a faulting
+run inch forward (confirmed: a run crashed at step 16 but left a resumable `checkpoint-10`). The
+fix still has to come from the ablation below.
+
+### Localize first, then ablate — `not guessing`
+
+**Phase 0 — localize (`make diagnose-gfx1201-fault`).** The fault is async, so the kernel
+"running" at fault time is not necessarily the culprit — every theory so far was correlation.
+The diagnostic runs ~120 steps under `AMD_SERIALIZE_KERNEL=3 HIP_LAUNCH_BLOCKING=1
+AMD_LOG_LEVEL=3` + a `dmesg` tail, so the fault becomes synchronous and the traceback/ring-log
+**name the faulting kernel**. If serialization makes it vanish → concurrency/allocator race; if
+it still faults at the same named kernel → kernel bug (bnb dequant vs grad-ckpt recompute vs
+allocator). This decides which arms below matter.
+
+**Phase 1 — ablation matrix.** Because the fault is probabilistic, each cell needs **N=3
+replicates** and a fixed **≥150-step budget** (clears the 14–84 window with margin), each behind
+`make gpu-preflight` (clean GPU) with a fixed seed. Metric per cell: fraction clearing the
+budget + median crash-step. Change exactly **one** factor from baseline (HIPBLASLT=0, GC=0.8,
+grad-ckpt `use_reentrant=False`, bnb 0.49.2, sdpa, seq 1280, bs 1×16):
+
+| Arm | One change | Hypothesis | Note |
+|---|---|---|---|
+| A | bitsandbytes **source build** `-DBNB_ROCM_ARCH=gfx1201` | NF4 backward kernel bug | top suspect if Phase 0 names a bnb kernel |
+| B | `TRAIN_GRAD_CKPT=false` | recompute drives the faulting dequant | likely **OOMs** at 98 % VRAM — diagnostic, not a candidate fix |
+| C | grad-ckpt `use_reentrant=True` | non-reentrant checkpoint hook race | one-line change in `train_sft.py` |
+| D | `PYTORCH_HIP_ALLOC_CONF` unset | allocator GC/unmap race | GC-off already crashed once (n=1) — needs replication |
+| E | `HSA_ENABLE_SDMA=0` | DMA-engine page-fault mitigation | cheap, stackable |
+| F | bump/pin ROCm or torch build | driver/runtime immaturity | last resort; expensive |
+
+Stop-rule: the first arm that is **3/3 clean over 150 steps** becomes the new baseline; keep
+stacking from there. The survival workaround stays on throughout — it is how the run makes
+progress while the ablation finds the real fix.
+
+> Tooling for this section lives in: `make diagnose-gfx1201-fault`
+> (`scripts/diagnose_gfx1201_fault.sh`), `make gpu-preflight`
+> (`scripts/test_gpu_stack.sh --preflight` / `--wait-clean`),
+> `scripts/determine_max_sequence.py`, and the hardened `scripts/monitor_stage2.sh`.
+
+---
+
 ## 7. `HSA_OVERRIDE_GFX_VERSION` — do not set it ↩️
 
 Half the older guides call `HSA_OVERRIDE_GFX_VERSION=11.0.0` "the critical fix." That value is
