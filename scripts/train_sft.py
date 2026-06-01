@@ -544,32 +544,54 @@ def main() -> None:
     # To start over from scratch, rm -rf the checkpoint-* dirs first.
     has_checkpoint = any(Path(sft_cfg.output_dir).glob("checkpoint-*"))
 
-    # DIAGNOSTIC (gfx1201 page fault, PR #101) — BNB_DEQUANT_PROBE=1 logs the
-    # memory descriptor of every NF4 dequantize output. Under HIP_LAUNCH_BLOCKING=1
-    # the last line before the GPU fault names the exact tensor handed to the
-    # faulting Tensile GEMM (MT64x64x64 ISA1201); compare its [ptr, end) against the
-    # fault address to confirm an out-of-bounds read past the dequant buffer. The
-    # backward calls F.dequantize_4bit via module attribute, so patching the module
-    # attribute intercepts it. Remove once the fault is root-caused.
+    # DIAGNOSTIC (gfx1201 page fault, PR #101) — BNB_DEQUANT_PROBE=1 logs the memory
+    # descriptor of BOTH operands of the faulting backward GEMM (MT64x64x64 ISA1201):
+    #   [dequant_probe]  — the dequantized weight (B operand), via F.dequantize_4bit
+    #   [gemm_operandA]  — grad_output (the activation/gradient A operand), via
+    #                      MatMul4Bit.backward, which computes
+    #                      torch.matmul(grad_output, dequantize_4bit(B).t()).
+    # The descriptor probe already ruled out the weight buffer (fault landed ~1.5 GB
+    # from its [ptr,end)). This adds the OTHER operand so the fault address can be
+    # tested against BOTH: if it falls inside a LIVE operand's [ptr,end) → the operand
+    # was freed/recycled before the kernel read it (lifetime bug). If it falls inside
+    # NEITHER and tracks the column-major (stride=(1,N)) operand → the ISA1201 kernel
+    # computes a wild address (Tensile stride bug). Under HIP_LAUNCH_BLOCKING=1 the
+    # last lines before the fault are the operands handed to the faulting GEMM.
+    # Remove once the fault is root-caused.
     if os.environ.get("BNB_DEQUANT_PROBE"):
         import bitsandbytes.functional as _bnbF
+        from bitsandbytes.autograd._functions import MatMul4Bit as _MatMul4Bit
+
+        def _descr(t):
+            ptr = t.data_ptr()
+            end = ptr + t.numel() * t.element_size()
+            return (
+                f"shape={tuple(t.shape)} stride={tuple(t.stride())} "
+                f"contig={t.is_contiguous()} off={t.storage_offset()} "
+                f"dtype={t.dtype} ptr=0x{ptr:x} end=0x{end:x}"
+            )
 
         _orig_dequant = _bnbF.dequantize_4bit
 
         def _dequant_probe(*a, **k):
             out = _orig_dequant(*a, **k)
-            ptr = out.data_ptr()
-            end = ptr + out.numel() * out.element_size()
-            print(
-                f"[dequant_probe] shape={tuple(out.shape)} stride={tuple(out.stride())} "
-                f"contig={out.is_contiguous()} off={out.storage_offset()} "
-                f"dtype={out.dtype} ptr=0x{ptr:x} end=0x{end:x}",
-                flush=True,
-            )
+            print(f"[dequant_probe] {_descr(out)}", flush=True)
             return out
 
         _bnbF.dequantize_4bit = _dequant_probe
-        print("BNB_DEQUANT_PROBE active — logging NF4 dequant output descriptors.", flush=True)
+
+        _orig_backward = _MatMul4Bit.backward
+
+        def _backward_probe(ctx, grad_output):
+            print(f"[gemm_operandA] {_descr(grad_output)}", flush=True)
+            return _orig_backward(ctx, grad_output)
+
+        _MatMul4Bit.backward = staticmethod(_backward_probe)
+        print(
+            "BNB_DEQUANT_PROBE active — logging both backward-GEMM operands "
+            "(dequant weight + grad_output activation).",
+            flush=True,
+        )
 
     print("\nStarting training...")
     if has_checkpoint:
