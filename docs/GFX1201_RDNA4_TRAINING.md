@@ -271,6 +271,13 @@ even 32 GB.
 
 ## 6.1 The non-deterministic backward page fault (PR #101) — what we know, and the ablation to settle it ⚠️
 
+> **Live per-run tracker: [`GFX1201_FAULT_ABLATION_LOG.md`](GFX1201_FAULT_ABLATION_LOG.md)** —
+> the canonical, append-one-row-per-run log (commit hash, variables, fault step, kernel, verdict).
+> It **supersedes** this section where they disagree: the fault is now localized to a **rocBLAS
+> Tensile GEMM (`MT64x64x64 ISA1201`)**, not the bitsandbytes path — so the "bnb-NF4 backward"
+> framing below and **Arm A are retired**, and hipBLASLt is open again as a *fix* (`=1`), having
+> only been ruled out as a *cause* (`=0`).
+
 Gemma 4 31B QLoRA on the R9700 hits a **non-deterministic GPU page fault during the backward
 pass** and has never completed a full run. This section is the durable record so we stop
 re-deriving it. **Do not "fix" it with another single knob flip** — four have been tried and
