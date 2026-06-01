@@ -346,8 +346,11 @@ eval-gemma4-31b-fusion-smoke:
 
 # ── Gemma 4 31B SFT training (Stage 2b) ──────────────────────────────────────
 # No patch-fla-rocm needed — Gemma 4 uses standard softmax attention (no FLA).
-# ROCm env vars (TORCH_USE_HIPBLASLT=0, garbage_collection_threshold:0.8) are
-# gfx1201 workarounds that apply to all training targets.
+# ROCm env vars (TORCH_USE_HIPBLASLT=0) are gfx1201 workarounds.
+# garbage_collection_threshold removed: at 0.8 the HIP caching allocator GC
+# fires mid-backward and races with gradient-checkpoint recomputation, producing
+# amdgpu gfxhub page faults (PERMISSION_FAULTS:0x3, TCP read fault) at steps
+# 16–84. Stable alloc is 21.1 GB against 31.9 GB total; no need for aggressive GC.
 
 download-gemma4-31b:
 	uv run hf download google/gemma-4-31b-it
@@ -358,7 +361,6 @@ train-gemma4-31b-dry-run:
 train-gemma4-31b-stage2:
 	mkdir -p outputs/sft-stage2-gemma4-31b
 	nohup env TORCH_USE_HIPBLASLT=0 \
-	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
 	  uv run --no-sync python scripts/train_sft.py \
 	  --config configs/train-sft-stage2-gemma4-31b.env \
 	  > outputs/sft-stage2-gemma4-31b/train.log 2>&1 &
@@ -378,7 +380,6 @@ transfer-gemma4-31b-nf4:
 train-gemma4-31b-stage2-preq:
 	mkdir -p outputs/sft-stage2-gemma4-31b
 	nohup env TORCH_USE_HIPBLASLT=0 \
-	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
 	  TRAIN_BASE_MODEL=models/gemma-4-31b-nf4 \
 	  TRAIN_PREQ=true \
 	  uv run --no-sync python scripts/train_sft.py \
@@ -396,7 +397,6 @@ train-gemma4-31b-stage2-unsloth:
 	mkdir -p outputs/sft-stage2-gemma4-31b
 	nohup env TORCH_USE_HIPBLASLT=1 \
 	  FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE \
-	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
 	  TRAIN_BASE_MODEL=unsloth/gemma-4-31B-it-unsloth-bnb-4bit \
 	  TRAIN_PREQ=true \
 	  uv run --no-sync python scripts/train_sft.py \
@@ -409,7 +409,6 @@ train-gemma4-31b-stage2-unsloth:
 train-gemma4-31b-eos-gate:
 	mkdir -p outputs/eos-gate-gemma4-31b
 	setsid env TORCH_USE_HIPBLASLT=0 \
-	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
 	  TRAIN_BASE_MODEL=unsloth/gemma-4-31B-it-unsloth-bnb-4bit \
 	  TRAIN_PREQ=true \
 	  TRAIN_MAX_STEPS=100 \
@@ -424,7 +423,6 @@ train-gemma4-31b-eos-gate:
 
 eos-gate-gemma4-31b:
 	env TORCH_USE_HIPBLASLT=0 \
-	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
 	  TRAIN_BASE_MODEL=unsloth/gemma-4-31B-it-unsloth-bnb-4bit \
 	  TRAIN_PREQ=true \
 	  TRAIN_METHOD=qlora \
@@ -440,7 +438,6 @@ eos-gate-gemma4-31b:
 # if NF4 dequant/GEMM dominates → FA2 buys little. ~6 min (6 steps).
 profile-gemma4-31b:
 	env TORCH_USE_HIPBLASLT=1 \
-	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
 	  TRAIN_BASE_MODEL=unsloth/gemma-4-31B-it-unsloth-bnb-4bit \
 	  TRAIN_PREQ=true \
 	  uv run --no-sync python scripts/profile_train_step.py \
