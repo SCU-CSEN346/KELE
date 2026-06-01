@@ -334,8 +334,10 @@ fix still has to come from the ablation below.
 **Phase 0 — localize (`make diagnose-gfx1201-fault`).** The fault is async, so the kernel
 "running" at fault time is not necessarily the culprit — every theory so far was correlation.
 The diagnostic runs ~120 steps under `AMD_SERIALIZE_KERNEL=3 HIP_LAUNCH_BLOCKING=1
-AMD_LOG_LEVEL=3` + a `dmesg` tail, so the fault becomes synchronous and the traceback/ring-log
-**name the faulting kernel**. If serialization makes it vanish → concurrency/allocator race; if
+AMD_LOG_LEVEL=1` + a `dmesg` tail, so the fault becomes synchronous and the traceback/ring-log
+**name the faulting kernel**. (Level 1 = errors only; do NOT use level 3 — it logs every HIP
+call and writes multi-GB `diag.log` that can fill the disk. `LOG_LEVEL=3 make …` opts in.)
+If serialization makes it vanish → concurrency/allocator race; if
 it still faults at the same named kernel → kernel bug (bnb dequant vs grad-ckpt recompute vs
 allocator). This decides which arms below matter.
 
