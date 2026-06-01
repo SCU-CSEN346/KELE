@@ -545,18 +545,16 @@ def main() -> None:
     has_checkpoint = any(Path(sft_cfg.output_dir).glob("checkpoint-*"))
 
     # DIAGNOSTIC (gfx1201 page fault, PR #101) — BNB_DEQUANT_PROBE=1 logs the memory
-    # descriptor of BOTH operands of the faulting backward GEMM (MT64x64x64 ISA1201):
-    #   [dequant_probe]  — the dequantized weight (B operand), via F.dequantize_4bit
-    #   [gemm_operandA]  — grad_output (the activation/gradient A operand), via
-    #                      MatMul4Bit.backward, which computes
-    #                      torch.matmul(grad_output, dequantize_4bit(B).t()).
-    # The descriptor probe already ruled out the weight buffer (fault landed ~1.5 GB
-    # from its [ptr,end)). This adds the OTHER operand so the fault address can be
-    # tested against BOTH: if it falls inside a LIVE operand's [ptr,end) → the operand
-    # was freed/recycled before the kernel read it (lifetime bug). If it falls inside
-    # NEITHER and tracks the column-major (stride=(1,N)) operand → the ISA1201 kernel
-    # computes a wild address (Tensile stride bug). Under HIP_LAUNCH_BLOCKING=1 the
-    # last lines before the fault are the operands handed to the faulting GEMM.
+    # descriptor of all MatMul4Bit operands in both directions:
+    #   [dequant_probe]       — dequantized weight (B), via F.dequantize_4bit
+    #   [gemm_operandA]       — grad_output (backward A), via MatMul4Bit.backward
+    #   [gemm_forward_input]  — activation input (forward A), via MatMul4Bit.forward
+    # probe-2 revealed the faulting GEMM is a grad-checkpoint RECOMPUTED FORWARD pass
+    # (8 unpaired [dequant_probe] lines before the fault, no [gemm_operandA]) — the
+    # backward hook was blind to it. This extends coverage to MatMul4Bit.forward.
+    # Under HIP_LAUNCH_BLOCKING=1 the last pair before the fault ([gemm_forward_input]
+    # then [dequant_probe]) are the faulting GEMM's two operands. Compare both against
+    # the fault address to land in Bucket #1 (freed operand) or #2 (wild address).
     # Remove once the fault is root-caused.
     if os.environ.get("BNB_DEQUANT_PROBE"):
         import bitsandbytes.functional as _bnbF
@@ -580,6 +578,14 @@ def main() -> None:
 
         _bnbF.dequantize_4bit = _dequant_probe
 
+        _orig_forward = _MatMul4Bit.forward
+
+        def _forward_probe(ctx, A, B, out=None, bias=None, quant_state=None):
+            print(f"[gemm_forward_input] {_descr(A)}", flush=True)
+            return _orig_forward(ctx, A, B, out=out, bias=bias, quant_state=quant_state)
+
+        _MatMul4Bit.forward = staticmethod(_forward_probe)
+
         _orig_backward = _MatMul4Bit.backward
 
         def _backward_probe(ctx, grad_output):
@@ -588,8 +594,8 @@ def main() -> None:
 
         _MatMul4Bit.backward = staticmethod(_backward_probe)
         print(
-            "BNB_DEQUANT_PROBE active — logging both backward-GEMM operands "
-            "(dequant weight + grad_output activation).",
+            "BNB_DEQUANT_PROBE active — logging all MatMul4Bit operands "
+            "(forward input, backward grad_output, dequant weight).",
             flush=True,
         )
 
