@@ -54,6 +54,7 @@ dirty‑KFD cascade can fault early and confound the result). All runs use basel
 | 7 | `probe-2.log` | ? | probe v2 `1b752c2` | ckpt | SYNC, `BNB_DEQUANT_PROBE` (+grad_output) | clean | ~mid | `MT64x64x64` | 8 dequants, no `gemm_operandA` → fault is in **forward recompute**; A‑operand not logged → bucket inconclusive |
 | 8 | `probe-3.log` | ? | `dad8f4a` | ckpt‑20 | SYNC, lvl1, `BNB_DEQUANT_PROBE` (+forward input) | clean | ~21 | not named (lvl1) | **Bucket #2 confirmed** — both operands logged & valid, fault 0x7f6459a00000 ≈1 GB from either buffer; col‑major B descriptor → wild address. Bucket #1 **eliminated**. |
 | 9 | `kernel-name.log` | N/A | `b6cb557` | ckpt‑20 | SYNC, **lvl3**, no probe | clean | ~21 | **`MT64x64x64_ISA1201_DTVB1_VWA2_VWB1`** (full name above) | **Forward faulting kernel ShaderName confirmed** — identical to backward (run #5). Both recomputed‑forward and backward GEMMs use same Tensile tile. All info ready for upstream report. |
+| 10 | `expandable-seg.log` | N/A | `a70a2d1` | ckpt‑20 | SYNC, lvl1, `expandable_segments:True` (ignored) | clean | ~21 | `MT64x64x64 ISA1201` (lvl1, inferred) | **Arm D — fault persists**, addr `0x7f29eb600000`. `expandable_segments` unsupported on gfx1201 (silently ignored). Placement change cannot mask fault → placement irrelevant, confirms pure kernel stride bug. |
 
 ---
 
@@ -68,7 +69,7 @@ Change exactly **one** factor from baseline.
 |---|---|---|---|---|---|
 | **HLT1** | `TORCH_USE_HIPBLASLT=1` | #2 (route GEMM off Tensile → hipBLASLt) | | | **pending** — verify it actually changes backend for these shapes |
 | **C** | grad‑ckpt `use_reentrant=True` | #1 (activation lifetime) | | | pending — one‑line, run after probe‑3 if #1 |
-| **D** | `PYTORCH_HIP_ALLOC_CONF` unset / `expandable_segments:True` | placement | | | **in progress** (run #10, `expandable-seg.log`) — asymmetric read: disappearance masks, persistence informs |
+| **D** | `PYTORCH_HIP_ALLOC_CONF=expandable_segments:True` | placement | fault persists (run #10) | N/A | **DONE** — `expandable_segments` silently ignored on gfx1201 (PyTorch warns at startup); fault at ~step 21 addr `0x7f29eb600000`. Confirms: placement irrelevant, fault is kernel stride bug. |
 | **E** | `HSA_ENABLE_SDMA=0` | DMA page‑fault mitigation | | | pending — cheap, stackable |
 | **B** | `TRAIN_GRAD_CKPT=false` | confirms recompute drives it | | | pending — likely **OOMs** at 98 % VRAM (diagnostic, not a fix) |
 | ~~A~~ | ~~bnb source build `-DBNB_ROCM_ARCH=gfx1201`~~ | ~~bnb kernel~~ | — | — | **DROPPED** — probe‑1 ruled out bnb as the faulting op |
