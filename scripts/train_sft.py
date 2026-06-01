@@ -544,6 +544,33 @@ def main() -> None:
     # To start over from scratch, rm -rf the checkpoint-* dirs first.
     has_checkpoint = any(Path(sft_cfg.output_dir).glob("checkpoint-*"))
 
+    # DIAGNOSTIC (gfx1201 page fault, PR #101) — BNB_DEQUANT_PROBE=1 logs the
+    # memory descriptor of every NF4 dequantize output. Under HIP_LAUNCH_BLOCKING=1
+    # the last line before the GPU fault names the exact tensor handed to the
+    # faulting Tensile GEMM (MT64x64x64 ISA1201); compare its [ptr, end) against the
+    # fault address to confirm an out-of-bounds read past the dequant buffer. The
+    # backward calls F.dequantize_4bit via module attribute, so patching the module
+    # attribute intercepts it. Remove once the fault is root-caused.
+    if os.environ.get("BNB_DEQUANT_PROBE"):
+        import bitsandbytes.functional as _bnbF
+
+        _orig_dequant = _bnbF.dequantize_4bit
+
+        def _dequant_probe(*a, **k):
+            out = _orig_dequant(*a, **k)
+            ptr = out.data_ptr()
+            end = ptr + out.numel() * out.element_size()
+            print(
+                f"[dequant_probe] shape={tuple(out.shape)} stride={tuple(out.stride())} "
+                f"contig={out.is_contiguous()} off={out.storage_offset()} "
+                f"dtype={out.dtype} ptr=0x{ptr:x} end=0x{end:x}",
+                flush=True,
+            )
+            return out
+
+        _bnbF.dequantize_4bit = _dequant_probe
+        print("BNB_DEQUANT_PROBE active — logging NF4 dequant output descriptors.", flush=True)
+
     print("\nStarting training...")
     if has_checkpoint:
         print(f"  (resuming from latest checkpoint in {sft_cfg.output_dir})")
