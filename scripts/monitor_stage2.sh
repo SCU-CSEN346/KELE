@@ -45,6 +45,25 @@ crash_hint() {
     fi
 }
 
+# The make target writes train.log with `>` (truncate), so each relaunch would
+# overwrite the crashed run's full traceback. Archive the whole log + a dmesg
+# snapshot per crash BEFORE relaunch so an overnight crawl leaves a reviewable
+# trail of every fault, not just the 3-line hint.
+archive_crash_log() {
+    local ckpt="$1" ts dest crashdir
+    [[ -f "$STAGE2_LOG" ]] || return 0
+    ts="$(date '+%Y%m%d-%H%M%S')"
+    crashdir="$OUTPUT_DIR/crashlogs"
+    mkdir -p "$crashdir"
+    dest="$crashdir/crash-step${ckpt}-${ts}.log"
+    if cp "$STAGE2_LOG" "$dest" 2>/dev/null; then
+        log "Archived full crash log → $dest"
+    fi
+    dmesg 2>/dev/null \
+        | grep -iE "amdgpu|gfxhub|VM_L2|page fault|PERMISSION_FAULTS|WALKER_ERROR" \
+        | tail -40 > "$crashdir/dmesg-step${ckpt}-${ts}.log" 2>/dev/null || true
+}
+
 kill_and_clean() {
     log "Killing stray train_sft.py processes"
     pkill -9 -f "train_sft\.py" 2>/dev/null || true
@@ -139,9 +158,11 @@ while true; do
     hint="$(crash_hint)"
     log "CRASH DETECTED (consecutive no-progress retries $retries/$MAX_RETRIES, latest ckpt step $ckpt_step)"
     [[ -n "$hint" ]] && log "Log tail:$hint"
+    # Preserve the full traceback + dmesg BEFORE relaunch overwrites train.log.
+    archive_crash_log "$ckpt_step"
 
     if (( retries >= MAX_RETRIES )); then
-        post_pr "$(printf '## Stage 2 Training: STALLED (no progress in %d retries)\n\nLatest checkpoint step: %s. The run is not advancing across resumes — manual intervention needed (run `make diagnose-gfx1201-fault`).\n\nCrash hint:\n```\n%s\n```\n\nLog: `outputs/sft-stage2-gemma4-31b/train.log`' "$MAX_RETRIES" "$ckpt_step" "$hint")"
+        post_pr "$(printf '## Stage 2 Training: STALLED (no progress in %d retries)\n\nLatest checkpoint step: %s. The run is not advancing across resumes — manual intervention needed (run `make diagnose-gfx1201-fault`).\n\nCrash hint:\n```\n%s\n```\n\nPer-crash full tracebacks + dmesg: `outputs/sft-stage2-gemma4-31b/crashlogs/`' "$MAX_RETRIES" "$ckpt_step" "$hint")"
         log "Stalled — no forward progress in $MAX_RETRIES retries — exiting"
         exit 1
     fi
