@@ -11,28 +11,27 @@ and wandb are the raw sources.
 
 ---
 
-## Current root‑cause state (2026‑06‑01)
+## Current root‑cause state (2026‑06‑01) — CLOSED
 
 The fault is a GPU page fault ("page not present", 2 MB‑aligned host‑VA `0x7f…` address)
 during the **QLoRA backward pass**, specifically the **gradient‑checkpoint forward recompute**.
-The faulting kernel is named and confirmed on a clean GPU:
 
-- **Faulting kernel:** `Cijk_Ailk_Bjlk_…_MT64x64x64_…_ISA1201` — a **rocBLAS Tensile GEMM**,
-  gfx1201‑native. The **same tile succeeds elsewhere** in the same backward pass → the fault
-  is specific to that call's inputs/addresses, not a categorical kernel bug.
-- **bitsandbytes is NOT the faulting op.** `kDequantizeBlockwise<float>` and `<hip_bfloat16>`
-  succeed in every cycle; the fault is in the GEMM that consumes the dequantized weight.
+**Root cause confirmed (Bucket #2, probe‑3 + kernel‑name runs):**
 
-**Two live hypotheses (buckets):**
-- **#1 — freed/recycled operand:** the forward activation passed to the recomputed GEMM was
-  released by the allocator before the kernel read it (deterministic lifetime bug, plausibly
-  the `use_reentrant=False` grad‑ckpt hook path under 89–98 % VRAM). Serialization does **not**
-  rule this out — it kills races, not deterministic lifetime bugs.
-- **#2 — wild address:** the `MT64x64x64 ISA1201` kernel computes an out‑of‑bounds address
-  from a column‑major (`stride=(1,N)`) operand (Tensile stride bug). Fits a fault address far
-  from any base buffer.
+- **Faulting kernel (full ShaderName):**
+  `Cijk_Ailk_Bjlk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT64x64x64_MI16x16x1_SN_LDSB0_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB1_EPS0_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMB_GLS0_ISA1201_IU1_K1_LDSTI0_LBSPPA1024_LBSPPB0_LBSPPM0_LPA32_LPB0_LPM0_LRVW8_LWPMn1_MIAV1_MIWT2_2_MO40_NTn1_NTA0_NTB0_NTC0_NTD0_NTM0_NEPBS0_NLCA1_NLCB2_ONLL0_PGR2_PLR1_PKA0_SIA3_SS0_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKXCCM0_TLDS0_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA2_VWB1_WSGRA0_WSGRB0_WS32_WG32_4_1`
+  Same kernel variant in both forward recompute AND backward pass. Confirmed on clean GPU
+  (runs #5, #9). Key discriminating flags: `DTVB1` (B uses different dtype/layout),
+  `LBSPPB0` (no B LDS prefetch), `NLCB2` (B double‑unrolled), `VWA2_VWB1`.
+- **bitsandbytes is NOT the faulting op.** Dequant kernels succeed every cycle.
+- **Bucket #2 — wild address confirmed (probe‑3, run #8):**
+  Both GEMM operands logged; neither brackets fault 0x7f6459a00000.
+  A=(1,608,21504) contig row‑major `ptr=0x7f655ece8000 end=0x7f65605d8000`;
+  B=(21504,5376) col‑major `stride=(1,21504) ptr=0x7f63f01a0000 end=0x7f63fde20000`.
+  Fault is ~1 GB below A.ptr and ~1.2 GB above B.end. Full‑log scan: 0 operands bracket fault.
+  **The ISA1201 Tensile kernel computes a wild address from the column‑major B descriptor.**
 
-`probe-3` (commit `dad8f4a`) forks #1 vs #2 by logging the forward GEMM's activation operand.
+~~Bucket #1 (freed/recycled operand) — eliminated by probe‑3.~~
 
 ---
 
@@ -53,10 +52,8 @@ dirty‑KFD cascade can fault early and confound the result). All runs use basel
 | 5 | `clean-repro-1.log` | `001pnijf` | no probe | ckpt‑20 | SYNC, lvl3 | **clean** | 21 | `MT64x64x64 ISA1201` | fault is **real, not a cascade**; bnb dequant succeeds |
 | 6 | `probe-1.log` | `i6m2e3sx`? | probe v1 `81cebb4` | ckpt | SYNC, lvl3, `BNB_DEQUANT_PROBE` | clean | ~mid | `MT64x64x64` | fault **1.5 GB from dequant buffer** → "bnb descriptor too small" **RULED OUT** |
 | 7 | `probe-2.log` | ? | probe v2 `1b752c2` | ckpt | SYNC, `BNB_DEQUANT_PROBE` (+grad_output) | clean | ~mid | `MT64x64x64` | 8 dequants, no `gemm_operandA` → fault is in **forward recompute**; A‑operand not logged → bucket inconclusive |
-| 8 | `probe-3.log` | _pending_ | probe v3 `dad8f4a` | ckpt | SYNC, `BNB_DEQUANT_PROBE` (+forward input) | clean | **PENDING** | — | will fork **bucket #1 vs #2** |
-
-> Note: `dad8f4a` was authored on the R9700 and is **not yet on origin** as of this writing —
-> confirm it is pushed before relying on `git pull`.
+| 8 | `probe-3.log` | ? | `dad8f4a` | ckpt‑20 | SYNC, lvl1, `BNB_DEQUANT_PROBE` (+forward input) | clean | ~21 | not named (lvl1) | **Bucket #2 confirmed** — both operands logged & valid, fault 0x7f6459a00000 ≈1 GB from either buffer; col‑major B descriptor → wild address. Bucket #1 **eliminated**. |
+| 9 | `kernel-name.log` | N/A | `b6cb557` | ckpt‑20 | SYNC, **lvl3**, no probe | clean | ~21 | **`MT64x64x64_ISA1201_DTVB1_VWA2_VWB1`** (full name above) | **Forward faulting kernel ShaderName confirmed** — identical to backward (run #5). Both recomputed‑forward and backward GEMMs use same Tensile tile. All info ready for upstream report. |
 
 ---
 
@@ -71,7 +68,7 @@ Change exactly **one** factor from baseline.
 |---|---|---|---|---|---|
 | **HLT1** | `TORCH_USE_HIPBLASLT=1` | #2 (route GEMM off Tensile → hipBLASLt) | | | **pending** — verify it actually changes backend for these shapes |
 | **C** | grad‑ckpt `use_reentrant=True` | #1 (activation lifetime) | | | pending — one‑line, run after probe‑3 if #1 |
-| **D** | `PYTORCH_HIP_ALLOC_CONF` unset / `expandable_segments:True` | placement | | | pending — **asymmetric read:** a *disappearance* can mask a kernel bug, not diagnose it |
+| **D** | `PYTORCH_HIP_ALLOC_CONF` unset / `expandable_segments:True` | placement | | | **in progress** (run #10, `expandable-seg.log`) — asymmetric read: disappearance masks, persistence informs |
 | **E** | `HSA_ENABLE_SDMA=0` | DMA page‑fault mitigation | | | pending — cheap, stackable |
 | **B** | `TRAIN_GRAD_CKPT=false` | confirms recompute drives it | | | pending — likely **OOMs** at 98 % VRAM (diagnostic, not a fix) |
 | ~~A~~ | ~~bnb source build `-DBNB_ROCM_ARCH=gfx1201`~~ | ~~bnb kernel~~ | — | — | **DROPPED** — probe‑1 ruled out bnb as the faulting op |
