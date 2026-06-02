@@ -6,7 +6,10 @@
 set -uo pipefail
 
 ROCM="${ROCM_PATH:-/opt/rocm}"
-out="gfx1201-report-env-$(date +%Y%m%d-%H%M%S).txt"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+report_dir="$(cd "$script_dir/.." && pwd)/docs/diagnostics"
+mkdir -p "$report_dir"
+out="$report_dir/gfx1201-report-env-$(date +%Y%m%d-%H%M%S).txt"
 exec > >(tee "$out") 2>&1
 
 hr() { printf '\n========== %s ==========\n' "$1"; }
@@ -24,7 +27,8 @@ hr "GPU / driver / firmware / VBIOS"
 rocm-smi --showdriverversion 2>/dev/null || printf '(rocm-smi unavailable)\n'
 rocm-smi --showproductname --showvbios 2>/dev/null || true
 printf '\n-- amdgpu module --\n'
-modinfo amdgpu 2>/dev/null | grep -E '^version|^srcversion|^firmware' || printf '(modinfo amdgpu unavailable)\n'
+modinfo amdgpu 2>/dev/null | grep -E '^version:|^srcversion:|^vermagic:' \
+  || printf '(amdgpu version fields not exported — typical for the in-kernel/inbox driver)\n'
 printf '\n-- rocminfo (gfx target) --\n'
 rocminfo 2>/dev/null | grep -E 'Name:|Marketing Name:|gfx|Compute Unit:' | head -20 || printf '(rocminfo unavailable)\n'
 
@@ -38,8 +42,11 @@ else
 fi
 
 hr "Tensile library files present (issue #7192 lead)"
-ls -la "$ROCM"/lib/rocblas/library/*gfx120[01]* 2>/dev/null \
-  || printf '(no gfx1200/gfx1201 Tensile .dat found under %s/lib/rocblas/library/)\n' "$ROCM"
+# Just the load-bearing files for the wrong-library-lookup question — not the full
+# fallback-kernel .hsaco set (which is ~50 lines of noise).
+ls -la "$ROCM"/lib/rocblas/library/TensileLibrary_lazy_gfx120[01].dat \
+       "$ROCM"/lib/rocblas/library/Kernels.so-*-gfx120[01].hsaco 2>/dev/null \
+  || printf '(no gfx1200/gfx1201 lazy Tensile library / Kernels.so under %s/lib/rocblas/library/)\n' "$ROCM"
 
 hr "Calling stack (torch / hip / bitsandbytes)"
 stack_probe='import torch, bitsandbytes as bnb; print("torch", torch.__version__, "| hip", torch.version.hip, "| bnb", bnb.__version__)'
