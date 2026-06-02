@@ -119,7 +119,7 @@ start_stage2() {
     data_seed="$(date +%s)"
     log "Starting Stage 2 training (data_seed=$data_seed, gpu-preflight gates the launch)"
     cd "$REPO_DIR" || return 0
-    TRAIN_DATA_SEED="$data_seed" make train-gemma4-31b-stage2-unsloth \
+    TRAIN_DATA_SEED="$data_seed" WANDB_PROJECT=csen346-sft make train-gemma4-31b-stage2-unsloth \
         || log "launch aborted (gpu-preflight failed?) — counts as no forward progress"
     sleep 30
 }
