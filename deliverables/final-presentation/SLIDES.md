@@ -218,31 +218,33 @@ Top half: two-column architecture diagram (KELE original on the left, ours on th
 
 ### On-screen
 
-**143 configurations measured. 38 with full unified score. Top of the pedagogical ranking:**
+**148 configurations measured. 42 with full unified score. Top of the pedagogical ranking:**
 
 | Rank | Config | n | Unified | Stage_bal | Judge |
 |---:|---|---:|---:|---:|---:|
 | 🏆🥇 1 | **`qwen3.5 × Gemma-31B · fewshot10 · n=681`** ← **LOCKED HEADLINE (2026-05-26)** | 3974 | **72.24** | 61.32 | 8.32 |
-| 🥈 2 | bert × Gemma-31B · top3 · n=50 | 278 | 70.08 | 58.48 | 8.17 |
 | 🥉 3 | bert × Claude-Sonnet · top3 · n=681 (best frontier we tested) | 3840 | 70.06 | 58.17 | 8.19 |
-| 4 | bert × Claude-Opus · fewshot10 · n=50 | 271 | 69.79 | 58.73 | 8.08 |
-| 8 | bert × Gemma-31B · fewshot10 · n=681 (prior locked headline 2026-05-18) | 3834 | 68.65 | 55.42 | 8.19 |
-| ⚠️ 9 | qwen3.5 × SocratTeachLLM · n=50 | 288 | 68.21 | 63.40 | 7.30 |
-| ⚠️ last (38) | Claude-Sonnet × SocratTeachLLM · EN · n=50 | 303 | 44.36 | 22.55 | 6.62 |
+| 9 | bert × Gemma-31B · fewshot10 · n=681 (prior locked headline 2026-05-18) | 3834 | 68.65 | 55.42 | 8.19 |
+| ⚠️ 15 | qwen3.5 × SocratTeachLLM · fewshot10 · **n=681** | 3993 | 67.54 | 61.78 | 7.33 |
+| ⚠️ 22 | bert-fixed × SocratTeachLLM · fewshot10 · **n=681** | 3870 | 66.02 | 60.10 | 7.19 |
+| 🎯 **38** | **`baseline` = GPT-4o + SocratTeachLLM · n=681** ← **CANONICAL PAPER RUN** | 4294 | **52.99** | **30.75** | 7.52 |
+| ⚠️ last (42) | Claude-Sonnet × SocratTeachLLM · EN · n=50 | 303 | 44.36 | 22.55 | 6.62 |
 
-🏆 = **current locked headline** (full n=681, 2026-05-26) · ⚠️ = SocratTeachLLM, contamination-inflated
+🏆 = **current locked headline** (full n=681, 2026-05-26) · 🎯 = canonical paper implementation · ⚠️ = SocratTeachLLM, contamination-inflated
 
 > **Overtaking:** current locked headline (`qwen3.5 × Gemma-31B · n=681`, unified **72.24**) vs. best frontier we tested (`bert × Claude-Sonnet · top3 · n=681`, 70.06) → **+2.18 unified pts ahead, at the same canonical n=681 sample size**. The 2026-05-23 "parity" framing has inverted into overtaking.
 
+> **Canonical-baseline gap:** locked headline (unified **72.24**) vs. the canonical paper implementation we ourselves reproduced (`GPT-4o + SocratTeachLLM · n=681`, unified **52.99**) → **+19.25 unified pts ahead** (1.36×). The paper's headline configuration sits in the bottom third of the memorization-resistant ranking even with the strongest possible consultant (GPT-4o).
+
 ### Speaker notes
 
-"We ran 143 configurations end-to-end on the SocratDataset test split. 38 of them have the full unified score with both stage-balanced and LLM-judge measurements. Here's the top of the table — and the headline lives in row 1.
+"We ran 148 configurations end-to-end on the SocratDataset test split. 42 of them have the full unified score with both stage-balanced and LLM-judge measurements. Here's the top of the table — and the headline lives in row 1.
 
 The current locked paper headline — landed this morning — is the row at the top: Qwen3.5-LoRA classifier paired with Gemma 31B as the teacher, ten-shot stage-balanced prompting, full 681-dialogue test split. Unified score 72.24. The best frontier configuration we measured under matched consultant infrastructure — BERT classifier with Claude Sonnet 4.6 and the top-3 prompt stack, also at full n=681 — sits in third place at 70.06. Our open-weight cell leads the frontier ceiling by 2.18 unified points at the same canonical sample size.
 
 For context: the row at rank 8, 68.65, is the *prior* locked headline from May 18 — same architecture but with the smaller 24M-param BERT classifier as the consultant. The methodological contribution is the deterministic-classifier-as-consultant pattern; the consultant upgrade from BERT to Qwen3.5-LoRA at the post-fix input format is what closed the remaining gap to the frontier and then overtook it.
 
-The two rows with warning triangles are SocratTeachLLM-based — contamination-inflated, exactly the pattern from slide 4. The very last row — Claude Sonnet teaching with SocratTeachLLM on English — scores 44, dead last. That's the contamination signature flipping the other way when the test data leaves the training distribution.
+The rows with warning triangles are SocratTeachLLM-based — contamination-inflated, exactly the pattern from slide 4. But the **decisive row** is the target-marked one: the *canonical KELE paper implementation* — GPT-4o consultant + SocratTeachLLM teacher at full n=681 — scores **52.99** under the memorization-resistant unified metric. That's the configuration the paper presents as winning. On a metric that doesn't reward phrase-level memorization of the training set, it sits at rank 38 out of 42 — a 19.25 unified-point gap below our open-weight headline. The very last row — Claude Sonnet teaching with SocratTeachLLM on English — scores 44, the absolute bottom. That's the contamination signature flipping the other way when the test data leaves the training distribution.
 
 So the takeaway: open-weight local models on a memorization-resistant benchmark — they don't trail the frontier anymore. They lead. Single 32 GB consumer GPU. Zero dollars per inference run on the eval pipeline."
 

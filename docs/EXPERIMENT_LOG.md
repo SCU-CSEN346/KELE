@@ -4,6 +4,50 @@ Engineering decisions, what we've tried, and what's next. Each entry is dated an
 
 ---
 
+## 2026-06-02 — Canonical-baseline unified score landed (`GPT-4o + SocratTeachLLM · n=681` at unified 52.99) + n=681 STL leaderboard rows
+
+**Ran:** Three LLM-judge passes against previously un-judged n=681 cells, on branch `mk/unified-for-gpt4o-stl`. Sonnet 4.6 judge, 10 workers. Total wall-clock ≈ 33 min × 3 in parallel, total cost ≈ $66.
+
+| Cell | n_turns | judge | stage_bal | **unified** | Master rank |
+|---|---:|---:|---:|---:|---:|
+| `bert-fixed × SocratTeachLLM · fewshot10 · n=681` | 3868 | 7.19 | 60.10 | **66.02** | #22 |
+| `qwen3.5 × SocratTeachLLM · fewshot10 · n=681` | 3990 | 7.33 | 61.78 | **67.54** | #15 |
+| `baseline` = `GPT-4o × SocratTeachLLM · n=681` (canonical paper run) | 4290 | 7.52 | 30.75 | **52.99** | **#38 of 42 unified-ranked cells** |
+
+### Headline finding
+
+The canonical KELE paper implementation we reproduced months ago (`results/baseline/`, 2026-04-14, GPT-4o + SocratTeachLLM at full n=681) is now scored under the memorization-resistant unified metric: **52.99**. This places the paper's headline configuration at **rank 38 of 42** unified-ranked cells in the master leaderboard.
+
+- Locked open-weight headline (`qwen3.5 × Gemma-31B · fewshot10 · n=681`) leads by **+19.25 unified points** (1.36×). The 2.14× state-accuracy lift over baseline is now backed by a memorization-resistant gap of similar magnitude (+19.25 vs the +29.45-pp state-acc gap).
+- Even with the strongest consultant we tested (GPT-4o), the SocratTeachLLM teacher's catastrophic stage-c/d/e routing failure (4.7%, 5.04%, 11.92% per-stage state acc) drags stage_bal to 30.75 — half what any of our open-weight integrations achieve.
+- Judge score (7.52) is *higher* than our `qwen3.5 × STL · n=681` cell (7.33), confirming STL writes locally-plausible teaching responses — but the unified score penalizes routing failure correctly, where the canonical pipeline collapses.
+
+### The n=681 STL cells (rows #15 and #22)
+
+The two cells judged today fill the n=681 sub-leaderboard for the GLM-4-9B-Chat base ablation (2026-05-29) on the STL side. n=50→n=681 promotion shifts unified by less than ±1 point for both consultants, consistent with the contamination-aided cells being sample-size-stable on the published test split.
+
+| Consultant | n=50 unified | n=681 unified | Δ |
+|---|---:|---:|---:|
+| qwen3.5 | 68.21 (master #10) | 67.54 (master #15) | $-0.67$ |
+| bert-fixed | 65.09 (master #27) | 66.02 (master #22) | $+0.93$ |
+
+### Doc updates landed
+
+- `deliverables/overleaf/latex-6pg/acl_latex.tex` — Table~\ref{tab:headline} row for `GPT-4o + SocratTeachLLM` updated from `--- & ---` placeholders to `7.52 & 52.99`. Abstract + Summary-of-findings paragraphs amended to mention the $+19.25$ unified-point gap alongside the existing $2.14\times$ state-accuracy lift framing.
+- `deliverables/overleaf/latex/acl_latex.tex` — Abstract + Introduction "Improvement" paragraph amended likewise.
+- `deliverables/final-presentation/SLIDES.md` (Slide 6 leaderboard) — Added rows for the two n=681 STL cells (#15, #22) and the canonical baseline cell (#38). Speaker notes updated to highlight the canonical baseline's bottom-third position under the unified ranking. Updated overall counts: 143 → 148 configs, 38 → 42 judged.
+- Master leaderboard regenerated to `backtest_stage_balanced_2026_06_02.md`; `_latest` symlink repointed.
+
+### What's NOT included (out of scope per Max, 2026-06-02)
+
+- The two `× GLM-4-9B-Chat-base · n=681` cells from the 2026-05-29 ablation remain un-judged. The Table~\ref{tab:base-ablation} base-ablation deltas continue to report state acc + R-1 + BLEU-4 only.
+
+### Cost
+
+- $66 total ($22 × 3 cells at ~4000 turns each). Same per-cell unit cost as the prior 2026-05-25 TODO #14 judge passes.
+
+---
+
 ## 2026-05-28 (PM) — Stage 2b eval BLOCKED by train/serve schema mismatch (SFT model healthy, eval pipeline shape incompatible — moved to documented future work)
 
 **Symptom.** Launched eval `t4-bert-gemma-sft-fewshot10-n681` with the freshly-quantized KELE Socratic-SFT GGUF at `~/Documents/models/weights/gemma-4-31B-kele-socratic-sft-Q5_K_M.gguf`. After 17 minutes of wall clock, **zero dialogues completed**, only 11 LLM calls processed across 4 workers (vs ~0.87 calls/sec sustained in the bert-fixed × Gemma run). 5 tasks were cancelled by eval clients (HTTP timeout). Compared to 0 cancels across all server logs of the bert-fixed run, this asymmetry was the first quantitative signal that something specific to the SFT model was at fault.
