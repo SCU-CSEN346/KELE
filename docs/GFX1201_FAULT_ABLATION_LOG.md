@@ -73,7 +73,7 @@ Change exactly **one** factor from baseline.
 | ~~contiguous‑B~~ | ~~`BNB_FORCE_B_CONTIGUOUS=1`~~ | ~~#2 (change B layout before GEMM)~~ | fault persists (run #12) | N/A | **DONE** — Python `.contiguous()` on dequant output doesn't reach BLAS descriptor; `DTVB1` intrinsic to `A @ W.T` call structure. |
 | **C** | grad‑ckpt `use_reentrant=True` | #1 (activation lifetime) | | | pending — one‑line, run after probe‑3 if #1 |
 | **D** | `PYTORCH_HIP_ALLOC_CONF=expandable_segments:True` | placement | fault persists (run #10) | N/A | **DONE** — `expandable_segments` silently ignored on gfx1201 (PyTorch warns at startup); fault at ~step 21 addr `0x7f29eb600000`. Confirms: placement irrelevant, fault is kernel stride bug. |
-| **E** | `HSA_ENABLE_SDMA=0` | DMA page‑fault mitigation | | | pending — cheap, stackable |
+| **E** | `HSA_ENABLE_SDMA=0` | DMA page‑fault mitigation | | | **HOLD** — sign unknown (changes the SDMA copy path; could move the fault rate either way). Do **not** stack on the viability baseline. Run as a *separate* arm only if pure‑production is marginal. |
 | **B** | `TRAIN_GRAD_CKPT=false` | confirms recompute drives it | | | pending — likely **OOMs** at 98 % VRAM (diagnostic, not a fix) |
 | ~~A~~ | ~~bnb source build `-DBNB_ROCM_ARCH=gfx1201`~~ | ~~bnb kernel~~ | — | — | **DROPPED** — probe‑1 ruled out bnb as the faulting op |
 | TUN | `PYTORCH_TUNABLEOP_ENABLED=1` | #2 (pick different GEMM) | | | speculative fallback — selects on **speed not correctness**; may re‑pick the bad kernel or crash during tuning |
@@ -116,3 +116,40 @@ nohup env TORCH_USE_HIPBLASLT=0 \
   uv run --no-sync python scripts/train_sft.py --config configs/train-sft-stage2-gemma4-31b.env \
   > "$CKPT/run-$COMMIT.log" 2>&1 &
 ```
+
+---
+
+## Crawl viability measurement (run #13, pending) — go/no‑go decided on a number
+
+With all fix arms exhausted (#11/#12) and the goal set to *31B QLoRA end‑to‑end on
+gfx1201/RDNA4*, the only on‑box path is the brute‑force crawl. Before committing
+wall‑clock, measure **production steps‑per‑crash** and **sticky‑vs‑advancing** under
+the real crawl loop.
+
+**Protocol — launch the pure‑production default** (no SYNC, no probes,
+`TORCH_USE_HIPBLASLT=0`, `TRAIN_SAVE_STEPS=10`, **Arm E held back** — clean baseline):
+
+```bash
+make gpu-preflight                                   # MUST pass
+nohup bash scripts/monitor_stage2.sh > outputs/monitor_stage2.log 2>&1 &
+```
+
+`monitor_stage2.sh` **is** the crawl harness: relaunch‑on‑crash (re‑runs gpu‑preflight),
+KFD‑clean‑before‑relaunch (`test_gpu_stack.sh --wait-clean 180`), `quarantine_bad_checkpoint`
+(partial‑save guard — resume falls back to N‑1), per‑crash log+dmesg archive.
+
+**Two questions, in order:**
+
+1. **Sticky vs. advancing (gating).** Does resume get *past* the fault step, or re‑fault at
+   the same step forever (the M=608 data‑order risk)? Already operationalized: the monitor
+   counts only **consecutive no‑progress** retries — a new checkpoint resets the counter;
+   `MAX_RETRIES=8` with no new checkpoint → posts `STALLED` and exits = **crawl is dead**,
+   upstream fix becomes mandatory even on the RDNA4 path.
+2. **Wall‑clock viability (the number).** ~4,800 steps/epoch × ~70 s/step ≈ **93 h** pure
+   compute. Each crash cycle costs the KFD‑clean wait + ~19 GB reload + preflight (~4–6 min).
+   At a mean of **N steps/crash**, cycles ≈ 4,800 / N:
+   - **GO** if N ≳ 25–30 (~160–190 cycles, ~10–19 h overhead on top of 93 h).
+   - **NO‑GO** if N ≲ 10 consistently (~480+ cycles, 30 h+ overhead) or the monitor `STALL`s.
+
+This threshold is pre‑committed (posted to PR #101) before the first crash so the
+decision is a number, not a vibe.

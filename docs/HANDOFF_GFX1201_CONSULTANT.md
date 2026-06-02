@@ -74,7 +74,7 @@ changed from Python). The only fix is upstream.
 
 ## Pending ablation arms (candidate mitigations, none run)
 
-`HSA_ENABLE_SDMA=0` (cheap, stackable on the production measurement run) · `TRAIN_GRAD_CKPT=false`
+`HSA_ENABLE_SDMA=0` (**held back** — sign unknown; run as a *separate* arm only if the pure‑production baseline is marginal, not stacked on it) · `TRAIN_GRAD_CKPT=false`
 (diagnostic, likely OOMs) · `PYTORCH_TUNABLEOP_ENABLED=1` (speculative — selects on speed not
 correctness). `use_reentrant=True` is **de-prioritized** (targets the refuted Bucket #1).
 
