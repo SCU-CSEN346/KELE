@@ -119,7 +119,19 @@ nohup env TORCH_USE_HIPBLASLT=0 \
 
 ---
 
-## Crawl viability measurement (run #13, pending) — go/no‑go decided on a number
+## Crawl viability measurement (run #13, DONE — STALLED)
+
+**Result (2026-06-01):** crawl is NOT viable from checkpoint-20. 8/8 production-mode resume runs crashed at optimizer step 22 or 24 (within 4 steps of checkpoint-20 every time). No new checkpoint was banked. Monitor exited STALLED per pre-committed MAX_RETRIES=8 no-progress rule.
+
+**N steps/crash: 2–4 (mean ≈ 3).** Pre-committed NO-GO threshold was N ≲ 10.
+
+**Fault is data-order sticky:** HF Trainer restores `rng_state.pth` on resume, replaying identical batches → same samples at steps 21–23 every time → same GEMM shape → deterministic fault. Fault address varies (ASLR) but step is constant. Contrast with run #2 (fresh-from-0, probabilistic, sometimes clears 100 steps): different data trajectory, fault landed at different positions or not at all in 100 steps.
+
+**Next experiment:** `ignore_data_skip=True` on resume — breaks dataloader-state restoration, converts sticky back to probabilistic. Directly predicted by the stickiness mechanism. If this recovers ~100 steps/crash (run-#2-like), arithmetic flips to GO.
+
+---
+
+## Crawl viability measurement (archived — go/no‑go pre‑committed)
 
 With all fix arms exhausted (#11/#12) and the goal set to *31B QLoRA end‑to‑end on
 gfx1201/RDNA4*, the only on‑box path is the brute‑force crawl. Before committing
