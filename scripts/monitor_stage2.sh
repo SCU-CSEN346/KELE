@@ -110,12 +110,16 @@ quarantine_bad_checkpoint() {
 }
 
 start_stage2() {
-    log "Starting Stage 2 training (gpu-preflight gates the launch)"
-    # Must not let a failing launch trip `set -e` and kill the monitor: the make
-    # target now depends on gpu-preflight, which exits non-zero on a dirty GPU.
-    # Swallow that so it falls through to the retry/stall accounting instead.
+    # Use a fresh data_seed each launch so resume presents different samples at each
+    # step — breaking the data-order-sticky fault confirmed in run #13 (PR #101).
+    # Verified (run #14 verif): TRAIN_DATA_SEED genuinely reshuffles the post-resume
+    # order and step 22 (previously the sticky fault step) completed clean under seed 99.
+    # Unix timestamp gives a distinct seed every resume (each cycle is ≥10 min apart).
+    local data_seed
+    data_seed="$(date +%s)"
+    log "Starting Stage 2 training (data_seed=$data_seed, gpu-preflight gates the launch)"
     cd "$REPO_DIR" || return 0
-    make train-gemma4-31b-stage2-unsloth \
+    TRAIN_DATA_SEED="$data_seed" make train-gemma4-31b-stage2-unsloth \
         || log "launch aborted (gpu-preflight failed?) — counts as no forward progress"
     sleep 30
 }
