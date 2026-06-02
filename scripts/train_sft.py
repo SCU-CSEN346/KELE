@@ -35,6 +35,12 @@ Environment variables (see configs/train-sft-qwen25-7b-lora.env for defaults):
     TRAIN_LOGGING_STEPS     Log every N steps (default 10)
     TRAIN_SAVE_STEPS        Save checkpoint every N steps (default 200)
     TRAIN_EVAL_STEPS        Evaluate every N steps (default 200)
+    TRAIN_DATA_SEED         Sampler-order seed, independent of TRAIN_SEED/seed. Unset →
+                            falls back to args.seed. Vary per resume to break the
+                            data-order-deterministic gfx1201 fault (PR #101 run #13).
+    TRAIN_LOG_DATA_ORDER    Diagnostic: log token-length (M) + fingerprint of the first
+                            N samples in consumption order, to verify a knob actually
+                            reshuffles the post-resume order. 0/unset = off.
     WANDB_PROJECT           W&B project name (default: csen346-sft)
     WANDB_RUN_NAME          W&B run name (default: TRAIN_OUTPUT_DIR basename)
     WANDB_API_KEY           W&B API key (or run `wandb login` once)
@@ -337,6 +343,17 @@ def build_sft_config(output_dir: str | None = None, use_wandb: bool = False) -> 
     # in-training eval entirely; the downstream eval pipeline produces
     # paper-grade numbers anyway.
     eval_strategy = _get("TRAIN_EVAL_STRATEGY", "steps").lower()
+    # Resume replays the exact sampler order (HF restores it from rng_state.pth +
+    # the seedable sampler), so a data-order-deterministic fault re-hits the same
+    # step on every resume (PR #101 run #13: stuck at step 22/24 from ckpt-20).
+    # data_seed drives the seedable sampler's permutation independently of args.seed;
+    # changing it per resume reshuffles which samples land at each step while
+    # ignore_data_skip stays False — so the skip still advances through fresh data
+    # and coverage is preserved. (ignore_data_skip=True would instead restart the
+    # epoch at batch 0 every resume and silently train on a tiny prefix — rejected.)
+    # Unset → None → HF falls back to args.seed (stock reproducible behaviour).
+    data_seed_raw = _get("TRAIN_DATA_SEED", "")
+    data_seed = int(data_seed_raw) if data_seed_raw else None
 
     run_name = (os.environ.get("WANDB_RUN_NAME") or Path(output_dir).name) if use_wandb else None
 
@@ -360,6 +377,7 @@ def build_sft_config(output_dir: str | None = None, use_wandb: bool = False) -> 
         output_dir=output_dir,
         num_train_epochs=epochs,
         learning_rate=lr,
+        data_seed=data_seed,
         per_device_train_batch_size=batch,
         gradient_accumulation_steps=grad_accum,
         max_length=max_seq_len,
@@ -621,6 +639,42 @@ def main() -> None:
         print(
             "BNB_FORCE_B_CONTIGUOUS active — forcing dequantized weight row-major before GEMM "
             "(tests DTVB1 col-major B as fault trigger).",
+            flush=True,
+        )
+
+    # DIAGNOSTIC (gfx1201 page fault, PR #101) — TRAIN_LOG_DATA_ORDER=N logs the token
+    # length (M, the GEMM row dim that selects the faulting MT64x64x64 tile) and a
+    # deterministic fingerprint of the first N samples in CONSUMPTION order. Run #13
+    # showed the fault is data-order sticky: every resume replays the same sequence and
+    # re-faults at the same step. This verifies whether TRAIN_DATA_SEED actually changes
+    # that order across resumes — run twice with different seeds and diff the [data_order]
+    # lines. Hooked at the collator (not the sampler): accelerate rewraps the sampler in a
+    # SeedableRandomSampler, so the collator is the one point that sees the true consumed
+    # order. The fingerprint folds token ids (int hashing is unsalted → stable across
+    # processes), so identical [data_order] sequences ⇒ identical data order.
+    if os.environ.get("TRAIN_LOG_DATA_ORDER"):
+        _order_n = int(os.environ["TRAIN_LOG_DATA_ORDER"])
+        _orig_collator = trainer.data_collator
+        _order_seen = 0
+
+        def _order_collator(features, *a, **k):
+            nonlocal _order_seen
+            batch = _orig_collator(features, *a, **k)
+            for f in features:
+                if _order_seen >= _order_n:
+                    break
+                ids = f.get("input_ids") or []
+                fp = 0
+                for v in ids[:64]:
+                    fp = (fp * 1000003 + int(v)) & 0xFFFFFFFF
+                print(f"[data_order] #{_order_seen} M={len(ids)} fp={fp:08x}", flush=True)
+                _order_seen += 1
+            return batch
+
+        trainer.data_collator = _order_collator
+        print(
+            f"TRAIN_LOG_DATA_ORDER active — logging first {_order_n} samples' token length "
+            f"+ fingerprint in consumption order (data_seed={trainer.args.data_seed}).",
             flush=True,
         )
 
