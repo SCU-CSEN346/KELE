@@ -81,7 +81,7 @@ grep -niE "ShaderName|Cijk_" outputs/sft-stage2-gemma4-31b/kernel-name.log | tai
 - Fault address: `0x7f6459a00000`
 - Architecture: gfx1201 (RDNA4/ISA1201), ROCm 7.2
 - Reproducible with `AMD_SERIALIZE_KERNEL=3 HIP_LAUNCH_BLOCKING=1` (serialized → not a race)
-- File at: https://github.com/ROCm/rocBLAS/issues (or rocm/Tensile if ShaderName points there)
+- File at: https://github.com/ROCm/rocm-libraries/issues — component **rocBLAS** (`projects/rocblas/`) / **Tensile** (`shared/tensile/`). The standalone `ROCm/rocBLAS` and `ROCm/Tensile` repos are **retired**; rocm-libraries is the source of truth.
 
 ### Task 2 — `expandable_segments:True` mitigation test
 
