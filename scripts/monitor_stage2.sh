@@ -39,10 +39,17 @@ last_step() {
 }
 
 crash_hint() {
-    if [[ -f "$STAGE2_LOG" ]]; then
-        grep -i "page fault\|traceback\|runtimeerror\|out of memory\|killed" "$STAGE2_LOG" \
-            | tail -3 | sed 's/^/  /' || true
-    fi
+    [[ -f "$STAGE2_LOG" ]] || return 0
+    # The gfx1201 fault prints "Memory access fault by GPU node-1 ... Page not present"
+    # and aborts with "Aborted (core dumped)" — it is NOT the literal string "page fault"
+    # and emits no Python traceback, so the old pattern matched nothing and the PR block
+    # came up empty. Match the real ROCm/HSA signature, and lead with the last tqdm step
+    # so the crash post shows the fault step (the N we are measuring) directly.
+    local step
+    step="$(grep -oE "[0-9]+/[0-9]+" "$STAGE2_LOG" | tail -1 || true)"
+    [[ -n "$step" ]] && printf '  fault near step %s\n' "$step"
+    grep -iE "memory access fault|page not present|hsa_status|aborted|core dumped|out of memory|hip error|cuda error|traceback|runtimeerror" \
+        "$STAGE2_LOG" | tail -4 | sed 's/^/  /' || true
 }
 
 # The make target writes train.log with `>` (truncate), so each relaunch would
