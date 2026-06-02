@@ -1,5 +1,12 @@
 # Handoff — gfx1201 ISA1201 Tensile GEMM wild address: upstream bug report + mitigation
 
+> **⚠️ SUPERSEDED (2026-06-01).** This is a point-in-time snapshot from when Bucket #2 was
+> first confirmed and its "YOUR TWO TASKS" (forward kernel name + `expandable_segments` test)
+> were still pending — **both are now done** (runs #9 and #10), and runs #11/#12 followed.
+> For the current state and the live consultant/reviewer brief, see
+> **`docs/HANDOFF_GFX1201_CONSULTANT.md`**; the canonical run log is
+> **`docs/GFX1201_FAULT_ABLATION_LOG.md`**. Kept below as history.
+
 **Date:** 2026-06-01 · **Branch:** `feat/gfx1201-rdna4-qlora-fla-training` · **PR:** #101
 **For:** a fresh Claude instance picking up from a confirmed root cause.
 
