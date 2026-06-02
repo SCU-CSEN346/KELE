@@ -55,6 +55,8 @@ dirty‑KFD cascade can fault early and confound the result). All runs use basel
 | 8 | `probe-3.log` | ? | `dad8f4a` | ckpt‑20 | SYNC, lvl1, `BNB_DEQUANT_PROBE` (+forward input) | clean | ~21 | not named (lvl1) | **Bucket #2 confirmed** — both operands logged & valid, fault 0x7f6459a00000 ≈1 GB from either buffer; col‑major B descriptor → wild address. Bucket #1 **eliminated**. |
 | 9 | `kernel-name.log` | N/A | `b6cb557` | ckpt‑20 | SYNC, **lvl3**, no probe | clean | ~21 | **`MT64x64x64_ISA1201_DTVB1_VWA2_VWB1`** (full name above) | **Forward faulting kernel ShaderName confirmed** — identical to backward (run #5). Both recomputed‑forward and backward GEMMs use same Tensile tile. All info ready for upstream report. |
 | 10 | `expandable-seg.log` | N/A | `a70a2d1` | ckpt‑20 | SYNC, lvl1, `expandable_segments:True` (ignored) | clean | ~21 | `MT64x64x64 ISA1201` (lvl1, inferred) | **Arm D — fault persists**, addr `0x7f29eb600000`. `expandable_segments` unsupported on gfx1201 (silently ignored). Placement change cannot mask fault → placement irrelevant, confirms pure kernel stride bug. |
+| 11 | `hlt1.log` | `e6srgn90` | `ed92b93` | ckpt‑20 | SYNC, lvl1, **`HIPBLASLT=1`** | clean | ~21 | `MT64x64x64 ISA1201` (Tensile fallback) | **Arm HLT1 — fault persists**. hipBLASLt looked up `MT64x64x64_DTVB1` and returned `Cannot find the function` for 6 modules. Tensile dispatched the same bad ISA1201 kernel, addr `0x7f0ac2e00000`. gfx1201 hipBLASLt has no kernel for col‑major B (`DTVB1`) at this tile. Routing fix unavailable in ROCm 7.2. |
+| 12 | `contiguous-b.log` | N/A | `9a2ea38` | ckpt‑20 | SYNC, lvl1, **`BNB_FORCE_B_CONTIGUOUS=1`** | clean | ~21 | `MT64x64x64 ISA1201 DTVB1` | **Contiguous‑B — fault persists**. Hook confirmed active. Forced `.contiguous()` on `dequantize_4bit` output (stride `(1,21504)→(5376,1)` at Python level). `DTVB1` still dispatched — descriptor is set by PyTorch BLAS call for `A @ W.T`, not by the Python tensor's physical stride. Python‑level copy cannot reach the BLAS transpose flag. **Col‑major B is intrinsic to the 4bit matmul structure**; no Python‑level intervention possible. Fault addr `0x7f6f48c00000`. |
 
 ---
 
@@ -67,7 +69,8 @@ Change exactly **one** factor from baseline.
 
 | Arm | One change | Targets | Axis A result | Axis B result | Status |
 |---|---|---|---|---|---|
-| **HLT1** | `TORCH_USE_HIPBLASLT=1` | #2 (route GEMM off Tensile → hipBLASLt) | | | **pending** — verify it actually changes backend for these shapes |
+| ~~HLT1~~ | ~~`TORCH_USE_HIPBLASLT=1`~~ | ~~#2 (route GEMM off Tensile → hipBLASLt)~~ | fault persists (run #11) | N/A | **DONE** — hipBLASLt has no `MT64x64x64 DTVB1` kernel for gfx1201; falls back to Tensile, same fault. |
+| ~~contiguous‑B~~ | ~~`BNB_FORCE_B_CONTIGUOUS=1`~~ | ~~#2 (change B layout before GEMM)~~ | fault persists (run #12) | N/A | **DONE** — Python `.contiguous()` on dequant output doesn't reach BLAS descriptor; `DTVB1` intrinsic to `A @ W.T` call structure. |
 | **C** | grad‑ckpt `use_reentrant=True` | #1 (activation lifetime) | | | pending — one‑line, run after probe‑3 if #1 |
 | **D** | `PYTORCH_HIP_ALLOC_CONF=expandable_segments:True` | placement | fault persists (run #10) | N/A | **DONE** — `expandable_segments` silently ignored on gfx1201 (PyTorch warns at startup); fault at ~step 21 addr `0x7f29eb600000`. Confirms: placement irrelevant, fault is kernel stride bug. |
 | **E** | `HSA_ENABLE_SDMA=0` | DMA page‑fault mitigation | | | pending — cheap, stackable |

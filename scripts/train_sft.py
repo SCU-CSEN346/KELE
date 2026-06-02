@@ -599,6 +599,31 @@ def main() -> None:
             flush=True,
         )
 
+    # DIAGNOSTIC (gfx1201 page fault, PR #101) — BNB_FORCE_B_CONTIGUOUS=1 forces the
+    # dequantized weight (B) row-major before it reaches the Tensile GEMM. The confirmed
+    # faulting kernel (MT64x64x64 ISA1201) is selected only when B is col-major (DTVB1,
+    # stride=(1,21504)). Forcing contiguous changes the descriptor to DTVB0 → Tensile
+    # should dispatch a different tile. Two outcomes are informative:
+    #   - fault disappears → col-major B is the trigger; workaround exists (slower, extra copy)
+    #   - fault persists with row-major B → stride hypothesis is incomplete; upstream filing
+    #     needs revision before submission.
+    # Stacks cleanly on top of BNB_DEQUANT_PROBE if both are set.
+    if os.environ.get("BNB_FORCE_B_CONTIGUOUS"):
+        import bitsandbytes.functional as _bnbF  # noqa: F811 (re-import is intentional)
+
+        _prev_dequant = _bnbF.dequantize_4bit
+
+        def _contiguous_dequant(*a, **k):
+            out = _prev_dequant(*a, **k)
+            return out.contiguous() if not out.is_contiguous() else out
+
+        _bnbF.dequantize_4bit = _contiguous_dequant
+        print(
+            "BNB_FORCE_B_CONTIGUOUS active — forcing dequantized weight row-major before GEMM "
+            "(tests DTVB1 col-major B as fault trigger).",
+            flush=True,
+        )
+
     print("\nStarting training...")
     if has_checkpoint:
         print(f"  (resuming from latest checkpoint in {sft_cfg.output_dir})")
