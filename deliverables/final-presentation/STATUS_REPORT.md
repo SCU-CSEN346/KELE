@@ -3,7 +3,9 @@
 **Project:** Reproducing and Extending KELE — A Multi-Agent Framework for Structured Socratic Teaching with LLMs
 **Team:** Cyberdyne — Ulises Chavarria · Maximilian Khan *(2-member team; no 3rd member joined)*
 **Course:** CSEN 346, Santa Clara University, Spring 2026
-**Status snapshot date:** 2026-05-25 *(updated 2026-05-26 with locked-headline promotion — see §1.2)*
+**Status snapshot date:** 2026-05-25 *(updated 2026-05-26 with locked-headline promotion — see §1.2; updated 2026-06-02 with canonical-baseline unified score — see next update box)*
+
+> **🎯 Update 2026-06-02 — Canonical KELE baseline now unified-scored at 52.99.** The `results/baseline/` row (GPT-4o + SocratTeachLLM at full n=681, the canonical paper implementation we reproduced 2026-04-14) was previously un-judged and held only state-acc + R-1 + BLEU-4. Today's Sonnet 4.6 LLM-judge pass produced **judge = 7.52, stage_bal = 30.75, unified = 52.99 (master #38 of 42 unified-ranked cells)**. Locked headline lead over the canonical paper run is now **+19.25 unified points** (1.36×) on a memorization-resistant metric, parallel to the existing +29.45-pp / 2.14× state-accuracy lift. Two additional n=681 STL cells were judged in the same pass: `qwen3.5 × STL · n=681` (#15, unified 67.54) and `bert-fixed × STL · n=681` (#22, unified 66.02). Counts updated: 148 configs measured, 42 with full unified score. Paper Table~\ref{tab:headline} row baseline previously `--- & ---` is now `7.52 & 52.99`; abstract + Summary-of-findings extended to mention the +19.25 unified gap.
 
 > **🏆 Update 2026-05-26 — Locked headline promoted; frontier overtaken.** Post-snapshot, TODO #14 cell #2 (`qwen3.5 × Gemma-31B · fewshot10 · n=681`) landed at unified **72.24** (master #1) and was promoted to the paper's locked headline, beating the best frontier configuration we tested (`bert × Claude-Sonnet · top3 · n=681`, unified 70.06) by **+2.18 unified pts** at canonical n=681. The 2026-05-23 parity framing has inverted to overtaking. The prior 2026-05-18 BERT-classifier locked headline (unified 68.65) is now at master #8 and preserved as the BERT-classifier-axis architectural result. TODO #14 status: **3 of 4 cells done**; remaining cell #1 (`bert-fixed × Gemma-31B · n=681`) is no longer load-bearing for the overtaking claim. Section-level updates in §1.2 below; older paragraphs reflect the 2026-05-25 snapshot.
 **Two distinct deliverable dates (per instructor, 2026-05-25):**
@@ -27,7 +29,7 @@ The initial-presentation deck (2026-04-07) proposed four future-improvement dire
 | **(1)** Mixture of Experts for multi-subject teaching (gating) | **Dropped** | SocratDataset is single-domain (elementary science); no multi-subject corpus available within budget. Not pursued. |
 | **(2)** RL-based stage transitions (replace rigid rules) | **Dropped** | Replaced by a stronger empirical finding — KELE's SocRule transitions are not the bottleneck; the *consultant* classifier is. Pivot is documented in `docs/EXPERIMENT_LOG.md`. |
 | **(3)** Learned consultant (discrete classifier replacing LLM) | **✅ Shipped — became the project's locked headline.** | 24M-param `bge-small-zh` BERT consultant. 86.55% stage acc / 61.64% state acc at <100s training. Replaces the GPT-4o consultant entirely; +22.21 pp absolute state-acc lift at n=681. |
-| **(4)** Stronger evaluation (ablation + cross-domain) | **✅ Shipped — significantly expanded.** | 143 model variants measured, 38 with full unified score (as of 2026-05-26), 8-cell cross-teacher matrix, 4-metric memorization-resistant evaluation panel, bootstrap convergence analysis (n=400 sufficient). |
+| **(4)** Stronger evaluation (ablation + cross-domain) | **✅ Shipped — significantly expanded.** | 148 model variants measured, 42 with full unified score (as of 2026-06-02, including the canonical `GPT-4o + STL · n=681` baseline at unified 52.99), 8-cell cross-teacher matrix, 4-metric memorization-resistant evaluation panel, bootstrap convergence analysis (n=400 sufficient). |
 
 **New contributions not in the original pitch (all three load-bearing in the paper):**
 
@@ -166,7 +168,7 @@ Cross-checked against the seven graded sections in `references/requirements/proj
 
 ### 1.4 Experimental campaign at a glance
 
-- **143 model variants** measured end-to-end on the SocratDataset 681-dialogue test split (and subsets), 38 with full unified score (as of 2026-05-26).
+- **148 model variants** measured end-to-end on the SocratDataset 681-dialogue test split (and subsets), 42 with full unified score (as of 2026-06-02).
 - **37 configurations** have both stage_balanced AND LLM-judge scores (the unified-ranking tier).
 - **7 full-scale n=681 runs** (Gemma 31B, A3B-35B, Qwen-27B no-think, Claude Sonnet, Claude Opus, BERT integrations, plus the GPT-4o + SocratTeachLLM baseline reproduction).
 - **8-cell cross-teacher matrix at n=50** (post-fix consultant) for like-for-like comparison.
