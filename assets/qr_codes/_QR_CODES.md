@@ -26,3 +26,11 @@ https://huggingface.co/collections/ulises-c/kele-v2
 
 - Color (Single)
 Red: #A00037
+
+# HF Model Viewer 
+Qwen3.5-0.8B LoRA Training & Evaluatio
+https://hfviewer.com/ulises-c/socrates-state-classifier-qwen3.5-lora
+
+- Color (Radial Gradient)
+Start: #000000
+End #A00037
