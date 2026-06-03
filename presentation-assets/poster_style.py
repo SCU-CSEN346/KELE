@@ -11,7 +11,7 @@ import matplotlib as mpl
 
 # --- Primary palette (SCU brand) ---
 RED = "#A32035"  # SCU Bronco Red (primary brand)
-GOLD = "#DDB94E"  # SCU Mission Gold — accent / callouts / highlights
+GOLD = "#B45309"  # deep burnt amber — accent / callouts / highlights (AAA contrast)
 
 # --- Supporting palette ---
 NAVY = "#0F172A"  # text, axes, frontier ceiling
@@ -24,7 +24,7 @@ AMBER = "#D97706"  # kept as fallback for warning callouts
 LIGHT_BG = "#F8FAFC"
 DIVIDER = "#E5E7EB"
 LIGHT_RED = "#FBE4EA"  # light SCU-red tint for our boxes
-LIGHT_GOLD = "#FAF0D0"  # light SCU-gold tint for accent backgrounds
+LIGHT_GOLD = "#FEF3C7"  # warm pale-amber background for accent boxes
 LIGHT_SLATE = "#E2E8F0"  # light slate for STL/legacy boxes
 
 # Inter not installed locally; Helvetica Neue is the closest modern-sans match.

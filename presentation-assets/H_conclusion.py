@@ -1,27 +1,23 @@
-"""Graphic H - Conclusion section (3 bullets).
+"""Graphic H - Conclusion section (4 bullets).
 
-Architectural and methodological contributions, plus limitations and future
-work. Self-contained text card for the poster's column-3 footer. SCU palette.
+Architectural and methodological contributions, limitations and future work,
+and real-classroom deployment. Sized to match D_algorithm_box (15.5"×9.0").
 """
 import textwrap
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 import poster_style as ps
+from pathlib import Path
 
 ps.apply()
 
-fig, ax = plt.subplots(figsize=(14, 10.0))
-ax.set_xlim(0, 14)
-ax.set_ylim(0, 10.0)
+# Match D_algorithm_box dimensions exactly.
+fig, ax = plt.subplots(figsize=(15.5, 9.0))
+ax.set_xlim(0, 15.5)
+ax.set_ylim(0, 9.0)
 ax.set_aspect("auto")
 ax.axis("off")
-
-# --- Title block (centered, with SCU-red separator strip beneath) ---
-ax.text(7, 9.50, "Conclusion",
-        ha="center", va="center", fontsize=26, fontweight="bold", color=ps.NAVY)
-
-ax.plot([5.5, 8.5], [9.05, 9.05],
-        color=ps.RED, linewidth=4.0, solid_capstyle="round")
 
 # --- Section data (no em dashes; short sentences for readability) ---
 sections = [
@@ -45,57 +41,88 @@ sections = [
     (
         "Limitations and future work",
         "Result is specific to this teacher, prompt, and consultant "
-        "(Chinese-language SocratDataset). Stage 2b QLoRA adapter on the "
-        "Gemma teacher trained successfully, but evaluation is blocked by "
-        "a train/serve prompt-format mismatch. Native English-domain "
-        "benchmark and bilingual classifier co-training are next.",
+        "(Chinese-language SocratDataset). The +2.18 frontier-overtaking "
+        "margin is supported but bounded by the n=400 variance budget. "
+        "A native English-domain benchmark and bilingual classifier "
+        "co-training are next.",
+    ),
+    (
+        "Real classrooms, today",
+        "Elementary-school classrooms anywhere are within reach today. "
+        "The full pipeline fits on a single consumer-grade GPU at near-zero "
+        "per-run cost, and hardware like Nvidia's newly released N1 chip "
+        "enables deployment on shared classroom rigs and individual student "
+        "laptops alike. Completing the scaling work to every language and "
+        "subject is how every student gets access, not only those at "
+        "well-funded schools.",
     ),
 ]
 
-# --- Layout per section ---
-y_top_band = 8.75
-y_bot_band = 1.20
+# --- Layout ---
+y_top_band = 8.85
+y_bot_band = 0.15
 band_total = y_top_band - y_bot_band
 band_h = band_total / len(sections)
 
-BODY_WRAP_WIDTH = 100
+# Wrap width tuned so each bullet uses the full horizontal canvas and wraps
+# to 3–4 lines at fontsize 13.
+BODY_WRAP_WIDTH = 132
 
 for i, (header, body) in enumerate(sections):
     y_band_top = y_top_band - i * band_h
-    y_band_bot = y_band_top - band_h
 
-    # Header row (badge + section header), positioned near band top
-    y_header = y_band_top - 0.45
+    # Header row (badge + section header)
+    y_header = y_band_top - 0.35
 
-    # Numbered badge: solid SCU-red circle with white numeral
-    badge = Circle((0.70, y_header), 0.35,
-                   facecolor=ps.RED, edgecolor="none", zorder=2)
+    badge = Circle(
+        (0.45, y_header),
+        0.28,
+        facecolor=ps.RED,
+        edgecolor="none",
+        zorder=2,
+    )
     ax.add_patch(badge)
-    ax.text(0.70, y_header, str(i + 1),
-            ha="center", va="center",
-            fontsize=18, fontweight="bold", color="white")
+    ax.text(
+        0.45,
+        y_header,
+        str(i + 1),
+        ha="center",
+        va="center",
+        fontsize=14,
+        fontweight="bold",
+        color="white",
+    )
 
-    # Section header in SCU red
-    ax.text(1.40, y_header, header,
-            ha="left", va="center",
-            fontsize=17, fontweight="bold", color=ps.RED)
+    ax.text(
+        0.90,
+        y_header,
+        header,
+        ha="left",
+        va="center",
+        fontsize=17,
+        fontweight="bold",
+        color=ps.RED,
+    )
 
-    # Body text: textwrap-wrapped, navy, generous line spacing
     wrapped = textwrap.fill(body, width=BODY_WRAP_WIDTH)
-    ax.text(1.40, y_band_top - 1.20, wrapped,
-            ha="left", va="top",
-            fontsize=12, color=ps.NAVY,
-            linespacing=1.65)
+    ax.text(
+        0.90,
+        y_band_top - 0.78,
+        wrapped,
+        ha="left",
+        va="top",
+        fontsize=13,
+        color=ps.NAVY,
+        linespacing=1.40,
+    )
 
-    # Subtle divider between sections (except after the last)
-    if i < len(sections) - 1:
-        ax.plot([0.4, 13.6], [y_band_bot, y_band_bot],
-                color=ps.DIVIDER, linewidth=0.8)
-
-# --- Footer tagline (centered, italic, SCU red) ---
-ax.text(7, 0.45,
-        "The same five-diagnostic audit applies to any Socratic-teaching benchmark.",
-        ha="center", va="center",
-        fontsize=13, style="italic", fontweight="bold", color=ps.RED)
-
-ps.save_fig(fig, "H_conclusion", __file__)
+# Save preserving full canvas (avoid bbox="tight" auto-cropping right margin).
+here = Path(__file__).resolve().parent
+png_dir = here / "png"
+pdf_dir = here / "pdf"
+png_dir.mkdir(exist_ok=True)
+pdf_dir.mkdir(exist_ok=True)
+with mpl.rc_context({"savefig.bbox": "standard"}):
+    fig.savefig(png_dir / "H_conclusion.png", dpi=300)
+    fig.savefig(pdf_dir / "H_conclusion.pdf")
+print("wrote png/H_conclusion.png + pdf/H_conclusion.pdf  (15.5×9.0 to match D)")
