@@ -168,4 +168,19 @@ ax.text(
     style="italic",
 )
 
+# Clarifying note: SocRule defines the stages; the Consultant + Teacher
+# architecture (panel C) executes them. Prevents readers from conflating
+# the stage pipeline with the agent architecture.
+ax.text(
+    8,
+    0.45,
+    "KELE's two-agent pipeline executes these stages: a Consultant routes the cognitive state, a Teacher generates the response  ·  see Architecture panel",
+    ha="center",
+    va="center",
+    fontsize=11,
+    color=ps.RED,
+    style="italic",
+    fontweight="bold",
+)
+
 ps.save_fig(fig, "A_socrule_flow", __file__)

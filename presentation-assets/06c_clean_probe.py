@@ -56,10 +56,10 @@ draw(
     ax1,
     stage_bal,
     "Stage-balanced macro state acc (%)",
-    "STL collapses on clean held-out data",
+    "Stage routing collapses on unseen data",
     ymax=92,
 )
-draw(ax2, rouge_1, "ROUGE-1 (%)", "Surface form collapses with it", ymax=60)
+draw(ax2, rouge_1, "ROUGE-1 (%)", "ROUGE-1 collapses with it", ymax=60)
 
 # --- Left panel: drop annotation ---
 # Place a clean STRAIGHT horizontal arrow above bars 0 and 1, well above the
@@ -89,7 +89,7 @@ ax1.text(
 fig.text(
     0.5,
     0.94,
-    "Clean-probe collapse:  STL underperforms its own baseline on truly held-out data",
+    "SocratTeachLLM collapses on truly unseen data",
     ha="center",
     va="center",
     fontsize=18,
@@ -99,8 +99,8 @@ fig.text(
 fig.text(
     0.5,
     0.88,
-    "SocratDataset-SYNTHETIC:  75 Sonnet-generated dialogues, SocRule-compliant, "
-    "verifiably disjoint from the published splits",
+    "75 Sonnet-generated dialogues, disjoint from STL's training set. "
+    "Even ROUGE-1 (the surface-form metric STL was trained to win) collapses on unseen data.",
     ha="center",
     va="center",
     fontsize=12,

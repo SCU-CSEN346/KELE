@@ -24,19 +24,19 @@ sections = [
     (
         "Architectural contribution",
         "A 0.8B-parameter CPU classifier replaces the LLM consultant. "
-        "This eliminates the 21% JSON-schema fallback rate at scale, "
-        "lifts state accuracy by 2.14× (+29.45 pp), and raises the unified "
-        "score by +19.25 points over the GPT-4o + SocratTeachLLM paper "
-        "baseline. All at $0 API cost on one 32 GB consumer GPU.",
+        "Routing runs 30× faster per turn (~50 ms vs. ~1.5 s API round-trip) "
+        "and eliminates the 21% JSON-schema fallback rate at scale. State "
+        "accuracy lifts 2.14× (+29.45 pp) and the unified score rises +19.25 "
+        "points over the GPT-4o + SocratTeachLLM paper baseline. All at $0 "
+        "API cost on one 32 GB consumer GPU.",
     ),
     (
         "Methodological contribution",
-        "Five converging diagnostics establish that ROUGE and BLEU on this "
-        "benchmark systematically reward training-data memorization rather "
-        "than transferable teaching capability. The five diagnostics are "
-        "surface-form rank inversion, monotonic n-gram-length scaling, "
-        "cross-lingual translation reproduction, clean-probe collapse, "
-        "and within-architecture base-model ablation.",
+        "Five converging diagnostics establish that ROUGE/BLEU on this "
+        "benchmark reward training-data memorization, not transferable "
+        "teaching capability. Three are shown above (cross-lingual translation, "
+        "clean-probe collapse, within-architecture ablation); two more (rank "
+        "inversion and n-gram-length scaling) are detailed in the paper.",
     ),
     (
         "Limitations and future work",

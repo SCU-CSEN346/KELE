@@ -12,11 +12,11 @@ import poster_style as ps
 ps.apply()
 
 stages = [
-    ("A", "Questioning"),
-    ("B", "Early reasoning"),
-    ("C", "Induction (22 states)"),
-    ("D", "Resolution"),
-    ("E", "Closure"),
+    ("a", "Student Questioning"),
+    ("b", "Concept Probing"),
+    ("c", "Inductive Reasoning"),
+    ("d", "Rule Construction"),
+    ("e", "Teacher Summary"),
 ]
 
 gpt4o = [95.15, 36.93, 4.70, 5.04, 11.92]
@@ -132,7 +132,7 @@ fig.text(
 fig.text(
     0.5,
     0.90,
-    "Multipliers of 6.6× – 9.2× on stages C, D, and E account for the +29.45 pp overall lift",
+    "Multipliers of 6.6× – 9.2× on SocRule stages c, d, and e account for the +29.45 pp overall lift",
     ha="center",
     va="center",
     fontsize=12,

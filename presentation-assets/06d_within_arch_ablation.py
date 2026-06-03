@@ -154,7 +154,7 @@ ax.set_ylim(0, 80)
 fig.text(
     0.5,
     0.95,
-    "Within-architecture base-model ablation  (n = 681)",
+    "Did SocratTeachLLM actually learn to teach better than its base model?",
     ha="center",
     va="center",
     fontsize=18,
@@ -164,7 +164,7 @@ fig.text(
 fig.text(
     0.5,
     0.90,
-    "STL's LoRA on top of GLM-4-9B-Chat-base  ·  only variable = the adapter trained on SocratDataset",
+    "Within-architecture ablation (n = 681)  ·  SocratTeachLLM = GLM-4-9B-Chat (base) + a LoRA adapter trained on KELE's SocratDataset",
     ha="center",
     va="center",
     fontsize=12,
@@ -176,7 +176,7 @@ fig.text(
 fig.text(
     0.97,
     0.88,
-    "Surface-form gain is 1.68–1.85x\nthe pedagogical gain.\nΔ R-1 above base = contamination overlay.",
+    "Result: LoRA adds +8 pp state acc\nbut +15 pp ROUGE-1 over its base.\nThe extra surface-form inflation\nIS the memorization overlay.",
     ha="right",
     va="top",
     fontsize=11,

@@ -18,7 +18,7 @@ ax.set_ylim(0, 11.5)
 ax.set_aspect("equal")
 ax.axis("off")
 
-box_h = 1.55
+box_h = 2.10  # taller boxes for more visual weight
 
 # Y-bands (top down):
 #   10.5–11.0 : title
@@ -28,8 +28,8 @@ box_h = 1.55
 #   5.50–3.95 : Ours row (boxes)
 #   3.40      : Ours green text
 #   2.70–0.30 : comparison table
-y_top = 6.75
-y_bot = 3.95
+y_top = 6.55
+y_bot = 4.10
 
 
 def add_box(
@@ -42,8 +42,8 @@ def add_box(
     fill,
     edge,
     lw=1.4,
-    fs=12,
-    fsub=10,
+    fs=14,
+    fsub=11,
     text_color=ps.NAVY,
     sub_color=ps.GRAY,
 ):
@@ -128,7 +128,7 @@ add_box(
     bw[1],
     box_h,
     "Consultant: GPT-4o",
-    "JSON schema  ·  API ($)",
+    "JSON schema  ·  API ($)\n25.94% State acc",
     ps.LIGHT_SLATE,
     ps.SLATE,
 )
@@ -183,7 +183,7 @@ add_box(
     bw[1],
     box_h,
     "Classifier:\nQwen3.5-0.8B-LoRA",
-    "1.6 GB  ·  CPU  ·  67.6% State acc",
+    "1.6 GB  ·  CPU\n67.6% State acc",
     ps.RED,
     ps.RED,
     lw=1.8,
@@ -225,21 +225,21 @@ ax.text(
 # ===== Title + subtitle =====
 ax.text(
     8.5,
-    10.75,
-    "Architecture:  LLM consultant  vs  supervised classifier consultant",
+    11.10,
+    "Architecture: LLM consultant vs. Supervised classifier",
     ha="center",
     va="center",
-    fontsize=18,
+    fontsize=20,
     fontweight="bold",
     color=ps.NAVY,
 )
 ax.text(
     8.5,
-    9.95,
-    "Replace the consultant axis; isolate routing from response generation",
+    10.30,
+    "Replacing the consultant axis isolates routing from response generation",
     ha="center",
     va="center",
-    fontsize=13,
+    fontsize=14,
     color=ps.GRAY,
     style="italic",
 )
@@ -262,19 +262,19 @@ tbl_border = FancyBboxPatch(
     tbl_h,
     boxstyle="round,pad=0.02,rounding_size=0.10",
     facecolor=ps.LIGHT_BG,
-    edgecolor=ps.DIVIDER,
-    linewidth=1.0,
+    edgecolor=ps.NAVY,
+    linewidth=1.6,
 )
 ax.add_patch(tbl_border)
 
-header_h = 0.42
+header_h = 0.50
 header = Rectangle(
-    (tbl_x, tbl_y + tbl_h - header_h), tbl_w, header_h, facecolor="#E2E8F0", edgecolor="none"
+    (tbl_x, tbl_y + tbl_h - header_h), tbl_w, header_h, facecolor="#CBD5E1", edgecolor="none"
 )
 ax.add_patch(header)
 
 for x_div in (tbl_x + col_label_w, tbl_x + col_label_w + col_kele_w):
-    ax.plot([x_div, x_div], [tbl_y + 0.05, tbl_y + tbl_h - 0.05], color=ps.DIVIDER, linewidth=0.8)
+    ax.plot([x_div, x_div], [tbl_y + 0.05, tbl_y + tbl_h - 0.05], color=ps.NAVY, linewidth=1.0, alpha=0.5)
 
 header_y = tbl_y + tbl_h - header_h / 2
 ax.text(
@@ -283,7 +283,7 @@ ax.text(
     "Dimension",
     ha="center",
     va="center",
-    fontsize=13,
+    fontsize=15,
     fontweight="bold",
     color=ps.NAVY,
 )
@@ -293,7 +293,7 @@ ax.text(
     "KELE",
     ha="center",
     va="center",
-    fontsize=14,
+    fontsize=16,
     fontweight="bold",
     color=ps.SLATE,
 )
@@ -303,14 +303,14 @@ ax.text(
     "Ours",
     ha="center",
     va="center",
-    fontsize=14,
+    fontsize=16,
     fontweight="bold",
     color=ps.RED,
 )
 
 rows = [
     ("Per-run eval API cost", "~$15 / 1k turns", "$0  (CPU classifier)"),
-    ("Consultant footprint", "API call", "1.6 GB on CPU"),
+    ("Consultant per-turn latency", "~1.5 s  (API round-trip)", "~50 ms  (CPU forward pass)"),
     ("Teacher footprint", "9B  ·  ~19 GB GPU", "31B  ·  32 GB GPU"),
     ("Routing determinism", "LLM-sampled", "Deterministic"),
 ]
@@ -322,15 +322,15 @@ row_dy = (data_top - data_bot) / n_rows
 
 for i, (lab, k, o) in enumerate(rows):
     y_row = data_top - (i + 0.5) * row_dy
-    ax.text(cx_label, y_row, lab, ha="center", va="center", fontsize=11, color=ps.NAVY)
-    ax.text(cx_kele, y_row, k, ha="center", va="center", fontsize=11, color=ps.SLATE)
+    ax.text(cx_label, y_row, lab, ha="center", va="center", fontsize=13, fontweight="bold", color=ps.NAVY)
+    ax.text(cx_kele, y_row, k, ha="center", va="center", fontsize=13, fontweight="bold", color=ps.SLATE)
     ax.text(
-        cx_ours, y_row, o, ha="center", va="center", fontsize=11, color=ps.RED, fontweight="bold"
+        cx_ours, y_row, o, ha="center", va="center", fontsize=13, color=ps.RED, fontweight="bold"
     )
     if i < n_rows - 1:
         y_sep = y_row - row_dy / 2
         ax.plot(
-            [tbl_x + 0.05, tbl_x + tbl_w - 0.05], [y_sep, y_sep], color=ps.DIVIDER, linewidth=0.5
+            [tbl_x + 0.05, tbl_x + tbl_w - 0.05], [y_sep, y_sep], color=ps.DIVIDER, linewidth=0.8
         )
 
 ps.save_fig(fig, "C_architecture", __file__)
