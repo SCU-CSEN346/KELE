@@ -10,7 +10,7 @@ from __future__ import annotations
 import matplotlib as mpl
 
 # --- Primary palette (SCU brand) ---
-RED = "#B30738"  # SCU Bronco Red — OUR WORK (primary)
+RED = "#A32035"  # SCU Bronco Red (primary brand)
 GOLD = "#DDB94E"  # SCU Mission Gold — accent / callouts / highlights
 
 # --- Supporting palette ---
