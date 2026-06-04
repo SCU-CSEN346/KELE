@@ -181,14 +181,27 @@ language-mirror are in the core files.
 
 ---
 
+## What was done this session (2026-06-04)
+
+| Change | File(s) |
+|---|---|
+| Browser auto-opens once Chainlit is ready (background poller, `open`/`xdg-open`) | `scripts/serve_demo_top_performer.sh` |
+| Classifier pre-loaded at module level so browser opens to a warm UI | `src/project/demo_web_ui.py` |
+| FLA install-nag suppressed via `transformers.logging.set_verbosity_error()` (macOS, CPU-only) | `src/project/demo_web_ui.py` |
+| README rebranded to MELE — Memorization-resistant Evaluation for LLM Educators | `README.md` |
+| Chainlit welcome screen replaced with demo-visitor how-to | `chainlit.md` |
+| `DEMO_README.md` added — online, local, and Tailscale topologies | `DEMO_README.md` |
+
+---
+
 ## Known issues / future work
 
 | Issue | Status |
 |---|---|
 | `post-test-runner.sh` hook fails on macOS (`date +%s%3N`, `timeout` not found) | Filed: https://github.com/ulises-c/Computer-Setup/issues/33 — ignore for now |
-| `chainlit.md` welcome page is untracked | Add and commit if a custom welcome screen is wanted for the demo booth |
+| **MELE logo needed** | Next session: have a MELE logo made, then wire into `.chainlit/config.toml` (`logo_file_url`, `default_avatar_file_url`). Put the file in `public/` — Chainlit serves that directory at `/`. The rig photo (`assets/pc-rig.jpeg`) is ready to use as `login_page_image` once `public/` exists. |
+| `.chainlit/config.toml` not yet customized or committed | Blocked on logo. Once logo exists: set `name = "MELE"`, `default_theme = "dark"`, `confirm_new_chat = false`, `cot = "hidden"`, `login_page_image`, `logo_file_url`, `default_avatar_file_url`. Then commit config, gitignore `translations/`. |
 | OpenRouter free tier rate limits mid-demo | Switch to paid tier or use local llama.cpp (`make local-demo`) for heavy live use |
-| `.chainlit/` dir is untracked | Fine to leave untracked; add to `.gitignore` if it becomes noisy |
 | `debug=True` in `demo_web_ui.py` → raw classifier output goes to terminal, not browser | Intentional: terminal = raw debug, browser = polished MELE conversation |
 
 ---
