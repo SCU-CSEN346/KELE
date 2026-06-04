@@ -294,6 +294,7 @@ _demo-preflight:
 	  echo "Classifier checkpoint not found — downloading from HF…"; \
 	  hf download ulises-c/socrates-state-classifier-qwen3.5-lora --local-dir "$(BERT_CKPT)"; \
 	fi
+	uv sync --extra demo --inexact
 
 online-demo: _demo-preflight
 	@if [[ ! -f .env ]] || ! grep -qE '^TEACHER_API_KEY=.+' .env; then \

@@ -159,19 +159,37 @@ else
   fi
 fi
 
-# ── Interactive Socratic teaching session ────────────────────────────────────
-echo
-echo "=== Launching interactive session ==="
-echo "Note: the dataset/headline is Chinese — the student prompt is '你:'."
-echo "      Type your math question, or 'quit'/Ctrl-C to end the conversation."
-if [[ "$ONLINE" != "1" ]]; then
-  echo "      The server stays up for instant restarts (kill: cat $PID_FILE)."
-fi
+# ── Launch ───────────────────────────────────────────────────────────────────
 echo
 
-PATH="$ROOT/.venv/bin:$PATH" \
-KELE_FEW_SHOT_TEACHER=1 KELE_FEW_SHOT_N="$FEW_SHOT_N" \
-  uv run python -m src.project.kele \
-    --experiment "$EXPERIMENT" \
-    interactive \
-    --bert-consultant "$BERT_CKPT"
+if [[ "${WEBUI:-1}" == "1" ]]; then
+  LAN_IP=$(ipconfig getifaddr en0 2>/dev/null \
+        || ipconfig getifaddr en1 2>/dev/null \
+        || echo "localhost")
+  echo "=== Launching web UI ==="
+  echo "Open in browser:  http://${LAN_IP}:8000"
+  echo "(or http://localhost:8000 on this machine)"
+  echo
+  exec env \
+    CHAINLIT_LOG_LEVEL=warning \
+    EXPERIMENT="$EXPERIMENT" \
+    BERT_CKPT="$BERT_CKPT" \
+    KELE_FEW_SHOT_TEACHER=1 \
+    KELE_FEW_SHOT_N="$FEW_SHOT_N" \
+    PATH="$ROOT/.venv/bin:$PATH" \
+    uv run chainlit run src/project/demo_web_ui.py --host 0.0.0.0 --port 8000 --headless
+else
+  echo "=== Launching interactive session ==="
+  echo "Type your math question, or 'exit'/Ctrl-C to end the conversation."
+  if [[ "$ONLINE" != "1" ]]; then
+    echo "The server stays up for instant restarts (kill: cat $PID_FILE)."
+  fi
+  echo
+
+  PATH="$ROOT/.venv/bin:$PATH" \
+  KELE_FEW_SHOT_TEACHER=1 KELE_FEW_SHOT_N="$FEW_SHOT_N" \
+    uv run python -m src.project.kele \
+      --experiment "$EXPERIMENT" \
+      interactive \
+      --bert-consultant "$BERT_CKPT"
+fi

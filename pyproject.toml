@@ -45,6 +45,9 @@ wandb = ["wandb>=0.18.0"]
 # intentionally excluded (only fuses the cheap conv; needs nvcc to build).
 cuda = ["flash-linear-attention>=0.5.0"]
 
+# Web UI for the live demo. Install with `uv sync --extra demo`.
+demo = ["chainlit>=2.4,<3"]
+
 [project.scripts]
 kele = "src.project.kele:main"
 kele-eval = "src.project.evaluate:main"
