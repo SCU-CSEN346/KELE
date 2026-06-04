@@ -287,7 +287,7 @@ Across the campaign we evaluated $\mathbf{143}$ model variants (cross-teacher gr
 
 \paragraph{Limitations.} The $+2.18$-point local-overtakes-frontier result is teacher-, prompt-, and consultant-specific (Gemma~4 31B, 10-shot stage-balanced, Qwen3.5-0.8B-LoRA); two adjacent matched-consultant cells (A3B-35B, Qwen-27B no-think) sit $2.25$ and $3.35$ points behind frontier. The $\leq 2$-pp $n{=}400$ variance budget is comparable to the $+2.18$ margin, so the claim is well-supported but bounded. Surface-form scores on our open-weight teacher remain $\approx 14$~R-1 points below the published baseline; we argue this is the wrong primary metric, but readers who weight reproducible phrasing highly should interpret R-1/BLEU-4 as adequacy-on-imitation rather than instructional quality. Primary experiments are in Chinese; the cross-lingual probe via SocratDataset-EN provides a partial English-side check, but full English-domain pedagogical evaluation remains future work.
 
-\paragraph{Future work.} (a)~The teacher-side Stage~2b QLoRA adapter (Gemma~4 31B, $122$\,M trainable parameters, final loss $0.4359$, merged GGUF Q5\_K\_M $21$\,GB) trained stably but its end-to-end evaluation is currently blocked by a train/serve prompt-format mismatch (training data emits multi-turn user/assistant pairs with Pattern-A markers; the inference pipeline emits stringified-history single-turn prompts). The scope-isolated fix (re-prep training data to match the inference shape; $\approx 11$~GPU-h) is queued. (b)~A broader prompt-engineering tournament (10 utilizations $\times\,n{=}50$, then promote top-3 composition to $n{=}681$) targets closing the residual R-1 gap. (c)~Bilingual co-training of the classifier on the union of SocratDataset and SocratDataset-EN, currently transferable cross-lingually with a $-9.24$~pp macro drop. (d)~A within-stratum stratified $n{=}200$--$300$ sampling protocol may match $n{=}400$ random's decision precision at lower cost; we did not measure this. (e)~An English-domain Socratic-teaching benchmark constructed natively (not as a translation) would help separate language-bound from method-bound effects in future work.
+\paragraph{Future work.} (a)~A broader prompt-engineering tournament (10 utilizations $\times\,n{=}50$, then promote top-3 composition to $n{=}681$) targets closing the residual R-1 gap. (b)~Bilingual co-training of the classifier on the union of SocratDataset and SocratDataset-EN, currently transferable cross-lingually with a $-9.24$~pp macro drop. (c)~A within-stratum stratified $n{=}200$--$300$ sampling protocol may match $n{=}400$ random's decision precision at lower cost; we did not measure this. (d)~An English-domain Socratic-teaching benchmark constructed natively (not as a translation) would help separate language-bound from method-bound effects, and a multi-subject expansion beyond elementary-school science would validate cross-domain transfer of the deterministic-classifier integration.
 
 %% ============================================================
 \section*{Ethics Statement}
@@ -446,42 +446,5 @@ The fusion-architecture retraction described in \S\ref{sec:method} rests on a si
 \end{table}
 
 \paragraph{Predictive value of schema-fallback rate.} The Gemma standalone smoke--mini-average prediction (\S\ref{sec:method}) was $46.71\%$ state accuracy; the realized full-run number was $31.39\%$, a $15.32$-pt overshoot. The mini sample ($n{=}25$ dialogues) showed $0/148$ fallback turns and did not surface the issue. We treat the lesson as methodological: \emph{cross-architecture scaling-prediction protocols must triangulate schema-fallback rates at full scale}, not just at the mini-tier sample.
-
-\section{Stage 2b QLoRA SFT Training Details}
-\label{app:sft}
-
-Future-work item (a) in \S\ref{sec:conclusion} references a Stage~2b QLoRA adapter on Gemma~4 31B that trained successfully but whose end-to-end evaluation is currently blocked by a train/serve prompt-format mismatch. Training-side details are summarized in Table~\ref{tab:app-sft}; loss descended monotonically from $0.65$ to $0.44$ over $2{,}298$ steps with no spikes, no divergence, and a final mean-token-accuracy of $0.86$.
-
-\begin{table}[h]
-  \centering
-  \small
-  \resizebox{\columnwidth}{!}{%
-  \begin{tabular}{@{}lr@{}}
-    \toprule
-    \textbf{Setting} & \textbf{Value} \\
-    \midrule
-    Base model            & \texttt{google/gemma-4-31b-it} \\
-    Method                & QLoRA 4-bit NF4, $r{=}16$, $\alpha{=}32$ \\
-    Targets               & q/k/v/o + gate/up/down proj. \\
-    Learning rate         & $5\times 10^{-5}$ \\
-    Batch / grad-accum    & $1 \times 16 = 16$ \\
-    Sequence length       & $1024$ (forced from $1280$ by VRAM) \\
-    Epochs / steps        & $3$ / $2{,}298$ \\
-    Trainable params      & $122$\,M ($0.39\%$ of $31.4$\,B) \\
-    Final train loss      & $0.4359$ \\
-    Final tok-acc         & $0.8555$ \\
-    Wall clock            & $10$\,h $49$\,m on a single 5090 \\
-    Adapter size          & $468$\,MB safetensors \\
-    Merged GGUF (Q5\_K\_M) & $21$\,GB \\
-    \bottomrule
-  \end{tabular}%
-  }
-  \caption{Stage 2b QLoRA SFT training configuration and outcomes.}
-  \label{tab:app-sft}
-\end{table}
-
-\paragraph{Train/serve schema drift (the eval-blocking failure).} The training data pipeline emits multi-turn user/assistant message pairs whose user role carries the raw student utterance plus two Chinese-language ``Pattern-A'' marker prefixes (English gloss: \emph{``Socratic-consultant evaluation result''} and \emph{``Socratic-consultant suggested action''}). The inference pipeline emits a single-turn message with stringified dialogue history under two different Chinese-language prefixes (gloss: \emph{``Dialogue history''} and \emph{``Current student input''}) that the SFT model never saw during training. On the same checkpoint and server, training-format input produces a clean Socratic question ($20$ tokens, $\text{finish\_reason}{=}\text{stop}$, $0.5$\,s); inference-format input produces a $2{,}048$-token repetition loop ($\text{finish\_reason}{=}\text{length}$). The model is healthy; the eval pipeline is sending it out-of-distribution prompts.
-
-\paragraph{Fix paths.} \textbf{Option A (preferred, scope-isolated):} re-prep the training data such that each user message matches the inference pipeline's stringified-history shape verbatim, then re-run Stage~2b with identical hyperparameters ($\approx 11$~GPU-h on the 5090, no other code change). \textbf{Option B:} modify the inference pipeline to emit alternating user/assistant message pairs, but this would shift the prompts seen by every other teacher LLM in the evaluation suite and require re-baselining the locked-headline-adjacent cells. We prefer Option~A. The training artifacts (adapter, merged GGUF) and the merge+quantize pipeline ship in the repository so a future session can land the eval without re-deriving infrastructure.
 
 \end{document}
