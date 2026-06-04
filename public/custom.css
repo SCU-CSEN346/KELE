@@ -1,0 +1,14 @@
+/* Logo-forward landing: show the large MELE emblem above the starter prompts on
+   the empty/new-chat screen. #starters only renders when the thread is empty, so
+   the logo disappears once a conversation begins. */
+#starters::before {
+  content: "";
+  display: block;
+  width: min(260px, 55vw);
+  aspect-ratio: 1 / 1;
+  margin: 0 auto 1.5rem;
+  background-image: url("/public/logo_light.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}

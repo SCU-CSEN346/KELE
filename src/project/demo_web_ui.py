@@ -30,12 +30,31 @@ _system = create_system(
 )
 
 
+@cl.set_starters
+async def set_starters(user, language) -> list[cl.Starter]:
+    return [
+        cl.Starter(
+            label="Factor a quadratic",
+            message="Help me factor x² + 5x + 6.",
+        ),
+        cl.Starter(
+            label="Stuck on fractions",
+            message="I'm trying to add 2/3 + 1/4 and I keep getting confused.",
+        ),
+        cl.Starter(
+            label="Pythagorean theorem",
+            message="Can you help me understand the Pythagorean theorem?",
+        ),
+        cl.Starter(
+            label="Why neg × neg = pos?",
+            message="Why does a negative number times a negative number equal a positive?",
+        ),
+    ]
+
+
 @cl.on_chat_start
 async def on_chat_start() -> None:
     cl.user_session.set("system", _system)
-    await cl.Message(
-        content="Hi! I'm MELE, your personal tutor, and I use the Socratic teaching method. Ask me a question to get started."
-    ).send()
 
 
 @cl.on_message
