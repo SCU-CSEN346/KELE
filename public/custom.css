@@ -1,7 +1,9 @@
 /* Logo-forward landing: show the large MELE emblem above the starter prompts on
-   the empty/new-chat screen. #starters only renders when the thread is empty, so
-   the logo disappears once a conversation begins. */
-#starters::before {
+   the empty/new-chat screen. Chainlit renders two #starters containers; scope to
+   the centered vertical one (.flex-col) so the logo doesn't also appear on the
+   compact (.flex-wrap) instance below the composer. #starters only renders when
+   the thread is empty, so the logo disappears once a conversation begins. */
+#starters.flex-col::before {
   content: "";
   display: block;
   width: min(260px, 55vw);
