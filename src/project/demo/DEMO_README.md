@@ -14,6 +14,34 @@ Three topologies are supported:
 
 ---
 
+## Replicate from scratch (online demo, no GPU)
+
+Fastest path for someone who only has a laptop. The classifier runs on CPU and the
+teacher is hosted by OpenRouter, so no GPU, CUDA, or llama.cpp setup is required.
+
+```bash
+# 1. Install uv (the project's package manager) if you don't have it
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 2. Clone the repo
+git clone git@github.com:SCU-CSEN346/KELE.git
+cd KELE
+
+# 3. Get a free OpenRouter key at https://openrouter.ai, then create a
+#    gitignored .env at the repo root (never commit this file):
+printf 'TEACHER_API_KEY=sk-or-v1-<your-key>\n' > .env
+
+# 4. Launch. This downloads the classifier checkpoint, runs `uv sync --extra demo`,
+#    starts Chainlit, and opens http://localhost:8000 in your browser.
+make online-demo
+```
+
+That's the whole loop — no other config needs editing (the teacher model and base URL
+live in `configs/gemma4-31b-online.env`). If OpenRouter's free tier rate-limits you during
+a heavy session, see [Rate limiting](#rate-limiting) below.
+
+---
+
 ## Shared prerequisites
 
 **Classifier checkpoint** — downloaded automatically by `make online-demo` / `make local-demo`
