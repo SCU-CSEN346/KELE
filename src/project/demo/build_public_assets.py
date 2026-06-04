@@ -15,7 +15,7 @@ import math
 from pathlib import Path
 from typing import cast
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageChops, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[3]
 SRC = ROOT / "assets" / "logo"
@@ -32,7 +32,7 @@ FAVICON_SRC = "favicon.jpg"  # circular Socrates/android bust
 # --- White-disc landing seal (public/logo_landing.png) ---
 # The emblem composited onto a filled circle so the dark-red wordmark/line-art
 # read on the grey dark theme.
-DISC_COLOR = (250, 195, 0, 0)  # seal background; try a tint e.g. (250,250,245,255)
+DISC_COLOR = (250, 195, 0, 90)  # seal background; alpha 0=transparent..255=opaque
 DISC_PAD = 1.03  # circle radius vs. content's circumscribing radius (1.0 = tight)
 DISC_CONTENT_ALPHA = 120  # px with alpha above this count as "content" when sizing
 SEAL_SIZE = 760  # output px (square)
@@ -81,7 +81,7 @@ def build_seal() -> None:
     side = int(2 * radius)
     base = Image.new("RGBA", (side, side), DISC_COLOR)
     base.alpha_composite(em, (int(radius - cx), int(radius - cy)))
-    base.putalpha(_circular_mask(side))
+    base.putalpha(ImageChops.multiply(base.getchannel("A"), _circular_mask(side)))
     base.resize((SEAL_SIZE, SEAL_SIZE), Image.Resampling.LANCZOS).save(PUBLIC / "logo_landing.png")
     print(f"logo_landing.png  {SEAL_SIZE}px  disc={DISC_COLOR} pad={DISC_PAD}")
 
