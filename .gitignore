@@ -65,3 +65,6 @@ references/KELE-EN/.cache/
 
 # Railguard
 .railguard/*
+
+# macOS
+.DS_Store
