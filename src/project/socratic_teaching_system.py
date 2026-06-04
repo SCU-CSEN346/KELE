@@ -1,3 +1,4 @@
+import contextlib
 import json
 import time
 from typing import Any
@@ -376,8 +377,8 @@ e34：学生正确给出题目答案
                 return result
             except json.JSONDecodeError as json_err:
                 # JSON解析错误，打印原始内容
-                print(f"JSON解析错误: {json_err}")
-                print(f"原始响应内容: {raw_content}")
+                print(f"JSON parse error: {json_err}")
+                print(f"Raw response: {raw_content}")
                 # 返回默认值
                 return {
                     "evaluation": "无法评估当前状态，JSON解析错误",
@@ -385,8 +386,8 @@ e34：学生正确给出题目答案
                 }
 
         except Exception as e:
-            print(f"苏格拉底教学顾问调用失败: {e}")
-            print("无法获取原始响应内容，API调用失败")
+            print(f"Consultant call failed: {e}")
+            print("Could not retrieve raw response — API call failed")
             # 返回默认值
             return {
                 "evaluation": "无法评估当前状态，API调用失败",
@@ -413,6 +414,17 @@ e34：学生正确给出题目答案
 - 除非苏格拉底教学顾问建议的操作要求，否则不能给出过于明显的提示
 - 如果接收到的建议操作为：对题目进行总结，则总结题目且不再提出问题
         """
+
+        # Language override: if KELE_TEACHER_LANG=auto, respond in the student's
+        # language. Gated so evals against Chinese ground truth are unaffected.
+        import os as _os
+
+        if _os.environ.get("KELE_TEACHER_LANG") == "auto":
+            system_prompt = system_prompt.rstrip() + (
+                "\n- Always respond in the same language the student is using. "
+                "If the student writes in English, respond entirely in English. "
+                "If the student writes in Chinese, respond entirely in Chinese.\n"
+            )
 
         # Opt-in: enrich the teacher system prompt with the same N-shot
         # exemplars used by the unified fusion architecture, so two-call
@@ -468,16 +480,32 @@ e34：学生正确给出题目答案
                 teacher_model_name=self.teacher_model_name,
                 formatted_history=formatted_history,
             )
-            return call_teacher_wrapped(
-                self.teacher_client,
-                self.teacher_model_name,
-                system_prompt,
-                user_input,
-                predicted_state=self.current_state,
-            )
+
+            for attempt in range(4):
+                try:
+                    return call_teacher_wrapped(
+                        self.teacher_client,
+                        self.teacher_model_name,
+                        system_prompt,
+                        user_input,
+                        predicted_state=self.current_state,
+                    )
+                except openai.RateLimitError as rle:
+                    if attempt == 3:
+                        raise
+                    retry_after = None
+                    if hasattr(rle, "response") and rle.response is not None:
+                        ra = rle.response.headers.get("retry-after")
+                        if ra is not None:
+                            with contextlib.suppress(ValueError):
+                                retry_after = float(ra)
+                    wait = retry_after if retry_after is not None else min(5 * 2**attempt, 30)
+                    print(f"Rate-limited — retrying in {wait:.0f}s (attempt {attempt + 1}/4)…")
+                    time.sleep(wait)
+            raise RuntimeError("retry loop exhausted without returning")
         except Exception as e:
-            print(f"苏格拉底教师调用失败: {e}")
-            return "我需要思考一下如何回答你的问题。请稍等片刻，让我组织一下思路。"
+            print(f"Teacher call failed: {e}")
+            return "I need a moment to think. Please try again shortly."
 
     def process_student_input(self, student_input: str) -> str:
         """处理学生输入并返回苏格拉底教师的回复"""
@@ -550,13 +578,13 @@ e34：学生正确给出题目答案
 
         # 如果开启调试模式，则打印智能体1的输出
         if self.debug_mode:
-            print("\n=== 苏格拉底教学顾问分析 ===")
+            print("\n=== Consultant analysis ===")
             if state != "a0":
-                print(f"教学阶段对话轮数: {self.teaching_rounds}/{self.max_teaching_rounds}")
-            print(f"评估: {evaluation}")
-            print(f"状态: {state}")
-            print(f"行动: {action}")
-            print("=============================\n")
+                print(f"Teaching rounds: {self.teaching_rounds}/{self.max_teaching_rounds}")
+            print(f"Evaluation: {evaluation}")
+            print(f"State: {state}")
+            print(f"Action: {action}")
+            print("===========================\n")
 
         # 更新当前状态
         self.current_state = state
@@ -571,41 +599,45 @@ e34：学生正确给出题目答案
 
     def start_conversation(self) -> None:
         """开始对话"""
-        print("苏格拉底教学系统已启动。")
-        print("请输入你的问题，与苏格拉底教师开始对话。")
-        print("(输入'exit'退出对话)")
+        print("MELE teaching system started.")
+        print("Type your question to begin the conversation.")
+        print("(Type 'exit' or press Ctrl+C to quit)")
 
         while True:
-            student_input = input("\n你: ")
+            try:
+                student_input = input("\nYou: ")
+            except KeyboardInterrupt:
+                print("\n\nGoodbye!")
+                return
 
             if student_input.lower() == "exit":
-                print("\n感谢使用苏格拉底教学系统，再见！")
+                print("\nGoodbye!")
                 break
 
             teacher_response = self.process_student_input(student_input)
-            print(f"\n苏格拉底: {teacher_response}")
+            print(f"\nMELE: {teacher_response}")
 
-            # 如果到达了e34状态，对话结束，询问是否继续新对话
             if self.current_state == "e34":
-                print("\n对话已完成！苏格拉底教师已总结了本次学习。")
+                print("\nConversation complete! The teacher has summarized this session.")
 
-                # 询问用户是否继续新的教学
                 while True:
-                    continue_choice = input("\n是否开始新的教学对话？(是/否): ")
+                    try:
+                        continue_choice = input("\nStart a new conversation? (yes/no): ")
+                    except KeyboardInterrupt:
+                        print("\n\nGoodbye!")
+                        return
                     if continue_choice.lower() in ["是", "y", "yes"]:
-                        # 重置会话状态
                         self.reset_session()
-                        print("\n新的苏格拉底教学对话已开始。")
-                        print("请输入你的问题，与苏格拉底教师开始对话。")
+                        print("\nNew conversation started.")
+                        print("Type your question to begin.")
                         break
                     elif continue_choice.lower() in ["否", "n", "no"]:
-                        print("\n感谢使用苏格拉底教学系统，再见！")
-                        return  # 结束整个对话
+                        print("\nGoodbye!")
+                        return
                     else:
-                        print("无效输入，请输入'是'或'否'。")
+                        print("Please enter 'yes' or 'no'.")
 
-            # 如果教学轮数达到上限且处于d33状态，提示用户
             elif self.teaching_rounds >= self.max_teaching_rounds and self.current_state == "d33":
                 print(
-                    f"\n【教学阶段已达到最大轮数({self.max_teaching_rounds}轮)，请给出最终答案以进入总结阶段】"
+                    f"\n[Max teaching rounds reached ({self.max_teaching_rounds}). Please give your final answer to move to the summary.]"
                 )

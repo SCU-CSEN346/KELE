@@ -16,7 +16,7 @@ CONSULTANT_MODEL = os.environ.get("CONSULTANT_MODEL_NAME", "gemini-2.0-flash")
 
 
 def _key_is_placeholder(key: str) -> bool:
-    return not key or "your" in key.lower() or key.startswith("<")
+    return not key or "your" in key.lower() or key.startswith("<") or key == "not-needed"
 
 
 @pytest.fixture
