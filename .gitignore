@@ -70,5 +70,7 @@ references/KELE-EN/.cache/
 .DS_Store
 **/.DS_Store
 
-# Chainlit auto-generated default translations (regenerated on run)
-.chainlit/translations/
+# Chainlit auto-generated default translations (regenerated on run),
+# except en-US.json which we customize (e.g. the README header label).
+.chainlit/translations/*
+!.chainlit/translations/en-US.json
