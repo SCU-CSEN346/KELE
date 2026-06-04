@@ -32,7 +32,7 @@ FAVICON_SRC = "favicon.jpg"  # circular Socrates/android bust
 # --- White-disc landing seal (public/logo_landing.png) ---
 # The emblem composited onto a filled circle so the dark-red wordmark/line-art
 # read on the grey dark theme.
-DISC_COLOR = (250, 195, 0, 90)  # seal background; alpha 0=transparent..255=opaque
+DISC_COLOR = (180, 180, 180, 255)  # seal background; alpha 0=transparent..255=opaque
 DISC_PAD = 1.03  # circle radius vs. content's circumscribing radius (1.0 = tight)
 DISC_CONTENT_ALPHA = 120  # px with alpha above this count as "content" when sizing
 SEAL_SIZE = 760  # output px (square)
