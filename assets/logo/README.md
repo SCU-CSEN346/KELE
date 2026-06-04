@@ -14,9 +14,16 @@ the trace splined straight lines and corners, so it was rebuilt by hand using
 | `_PREVIEW_avatar40px.png` | The B avatar at true 40px size (4× nearest-neighbor zoom). |
 
 ## Wordmark
-"MELE" in Open Sans ExtraBold, SCU red. Subtitle all red with the acronym
-letters **M**emorization · **E**valuation · **L**LM · **E**ducators bolded
-(only the leading L of "LLM", per spec).
+"MELE" in Open Sans ExtraBold, SCU red. Subtitle all red, two lines, with the
+acronym letters bolded: **M**emorization resistant **E**valuation for **L**arge
+language model **E**ducators (L = **L**arge, not LLM).
+
+## Neural-net background
+Full-canvas graph (nodes + edges) behind the wreath, low opacity (~0.16) so it
+reads as background texture. Pure geometry, so it's authored directly in vector
+(`neural_net()` in `build_emblem.py`) rather than image-gen — see
+`IMAGE_GEN_PROMPT.md`: the generated emblem must stay on plain white, and this
+net is composited behind it.
 
 ## Known follow-ups (pre-final)
 - Dark theme: the red wordmark is low-contrast on dark — will ship a gold/white

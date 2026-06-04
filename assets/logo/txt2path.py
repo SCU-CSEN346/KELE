@@ -4,10 +4,12 @@
 Glyphs are laid out left-to-right by advance width, scaled to font_size,
 y-flipped to SVG coordinates, baseline placed at (x, y).
 """
+
 import sys
-from fontTools.ttLib import TTFont
+
 from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.pens.transformPen import TransformPen
+from fontTools.ttLib import TTFont
 
 _cache = {}
 
@@ -15,8 +17,7 @@ _cache = {}
 def _load(font_path):
     if font_path not in _cache:
         f = TTFont(font_path)
-        _cache[font_path] = (f, f.getGlyphSet(), f.getBestCmap(),
-                             f["head"].unitsPerEm, f["hmtx"])
+        _cache[font_path] = (f, f.getGlyphSet(), f.getBestCmap(), f["head"].unitsPerEm, f["hmtx"])
     return _cache[font_path]
 
 
@@ -41,7 +42,6 @@ def text_to_path(text, font_path, font_size, x, y, letter_spacing=0.0):
 
 
 def text_width(text, font_path, font_size, letter_spacing=0.0):
-    _, _, advance = None, None, None
     _, w = text_to_path(text, font_path, font_size, 0, 0, letter_spacing)
     return w
 
@@ -50,8 +50,10 @@ if __name__ == "__main__":
     # quick self-test: render MELE
     fp = "/usr/share/fonts/TTF/OpenSans-ExtraBold.ttf"
     d, w = text_to_path("MELE", fp, 200, 20, 220)
-    svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{int(w)+40}" '
-           f'height="260" viewBox="0 0 {int(w)+40} 260">'
-           f'<rect width="100%" height="100%" fill="#f2efe9"/>'
-           f'<path d="{d}" fill="#A00037"/></svg>')
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{int(w) + 40}" '
+        f'height="260" viewBox="0 0 {int(w) + 40} 260">'
+        f'<rect width="100%" height="100%" fill="#f2efe9"/>'
+        f'<path d="{d}" fill="#A00037"/></svg>'
+    )
     sys.stdout.write(svg)

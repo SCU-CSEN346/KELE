@@ -7,6 +7,11 @@ shaded* render. We want the opposite: hard edges, uniform outlines, flat colors.
 **Generate the EMBLEM ONLY — no "MELE" text, no subtitle.** AI text comes out
 garbled; I'll add the wordmark as crisp font outlines afterward.
 
+**Do NOT put the neural-net / graph background in this image either.** Keep the
+background pure flat white. The net (nodes + edges) is pure geometry — I composite
+it as a low-opacity vector layer *behind* the traced emblem. Baking a textured
+background into the raster is exactly what wrecked the last trace.
+
 ---
 
 ## Prompt (paste this)
