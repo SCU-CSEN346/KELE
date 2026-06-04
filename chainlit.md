@@ -1,6 +1,6 @@
 # Welcome to MELE
 
-**MELE** (Memorization-resistant Evaluation for LLM Educators) is a Socratic math tutor
+**MELE** (**M**emorization-resistant **E**valuation for **L**LM **E**ducators) is a Socratic math tutor
 built at Santa Clara University. Instead of giving you the answer, MELE guides you to
 find it yourself through carefully chosen questions — the same method research shows
 produces deeper and more durable learning than direct instruction.
@@ -28,7 +28,7 @@ produces deeper and more durable learning than direct instruction.
 
 ## The research behind it
 
-MELE extends **KELE** (Peng et al., *Findings of EMNLP 2025*), the first academic
+MELE extends **KELE** (Peng et al., _Findings of EMNLP 2025_), the first academic
 framework to structure LLMs for genuine Socratic teaching. Our headline result: a single
 32 GB consumer GPU running an open-weight Gemma 4 31B teacher, guided by a fine-tuned
 Qwen3.5-0.8B state classifier, **overtakes Anthropic's Opus 4.6** on a
@@ -41,4 +41,4 @@ The demo runs the locked top-performer stack:
 
 ---
 
-*Questions about the research? Talk to Ulises or Max at the booth.*
+_Questions about the research? Talk to Ulises or Max at the booth._
