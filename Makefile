@@ -305,7 +305,7 @@ online-demo: _demo-preflight
 	ONLINE=1 KELE_BERT_DEVICE=cpu BERT_CKPT="$(BERT_CKPT)" bash scripts/serve_demo_top_performer.sh
 
 local-demo: _demo-preflight
-	KELE_BERT_DEVICE=cpu BERT_CKPT="$(BERT_CKPT)" bash scripts/serve_demo_top_performer.sh
+	WEBUI=1 KELE_BERT_DEVICE=cpu BERT_CKPT="$(BERT_CKPT)" bash scripts/serve_demo_top_performer.sh
 
 serve-demo:
 	bash scripts/serve_demo_top_performer.sh

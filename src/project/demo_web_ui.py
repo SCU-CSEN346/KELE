@@ -31,7 +31,7 @@ async def on_chat_start() -> None:
     )
     cl.user_session.set("system", system)
     await cl.Message(
-        content="Hi! I'm MELE, your Socratic math tutor. Ask me a question to get started."
+        content="Hi! I'm MELE, your personal tutor, and I use the Socratic teaching method. Ask me a question to get started."
     ).send()
 
 
