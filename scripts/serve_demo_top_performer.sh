@@ -190,7 +190,7 @@ if [[ "${WEBUI:-1}" == "1" ]]; then
     KELE_FEW_SHOT_TEACHER=1 \
     KELE_FEW_SHOT_N="$FEW_SHOT_N" \
     PATH="$ROOT/.venv/bin:$PATH" \
-    uv run chainlit run src/project/demo_web_ui.py --host 0.0.0.0 --port 8000 --headless
+    uv run chainlit run src/project/demo/demo_web_ui.py --host 0.0.0.0 --port 8000 --headless
 else
   echo "=== Launching interactive session ==="
   echo "Type your math question, or 'exit'/Ctrl-C to end the conversation."

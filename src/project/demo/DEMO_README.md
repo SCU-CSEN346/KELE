@@ -183,7 +183,7 @@ WEBUI=0 make local-demo
 | Follow server log | `tail -f results/_demo/server_<timestamp>.log` |
 | Classifier checkpoint (default) | `results/state-clf-qwen3.5-0.8b-lora-wandb/final/` |
 | OpenRouter key | `.env` → `TEACHER_API_KEY=sk-or-v1-...` (gitignored, never commit) |
-| Web UI entry point | `src/project/demo_web_ui.py` |
+| Web UI entry point | `src/project/demo/demo_web_ui.py` |
 | Shell launcher | `scripts/serve_demo_top_performer.sh` |
 | Online teacher config | `configs/gemma4-31b-online.env` |
 | Local teacher config | `configs/gemma4-31b-local.env` |

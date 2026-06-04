@@ -6,7 +6,7 @@ the browser shows the polished MELE ↔ student conversation.
 
 Launch via serve_demo_top_performer.sh (WEBUI=1) or directly:
     EXPERIMENT=gemma4-31b-online BERT_CKPT=results/.../final \\
-        uv run chainlit run src/project/demo_web_ui.py --host 0.0.0.0 --port 8000
+        uv run chainlit run src/project/demo/demo_web_ui.py --host 0.0.0.0 --port 8000
 """
 
 import asyncio

@@ -63,7 +63,7 @@ WEBUI=0 make local-demo
 
 | File | Role |
 |---|---|
-| `src/project/demo_web_ui.py` | **UI-only** Chainlit app — `@cl.on_chat_start`, `@cl.on_message`. No core logic here |
+| `src/project/demo/demo_web_ui.py` | **UI-only** Chainlit app — `@cl.on_chat_start`, `@cl.on_message`. No core logic here |
 | `scripts/serve_demo_top_performer.sh` | Shell launcher: boots llama.cpp (LOCAL) or skips it (ONLINE), then execs `chainlit run` |
 | `configs/gemma4-31b-online.env` | Experiment config for the online topology. All teacher/consultant fields; **no** `TEACHER_API_KEY` (must be in `.env` or exported) |
 | `configs/gemma4-31b-local.env` | Experiment config for the local llama.cpp topology |
@@ -186,8 +186,8 @@ language-mirror are in the core files.
 | Change | File(s) |
 |---|---|
 | Browser auto-opens once Chainlit is ready (background poller, `open`/`xdg-open`) | `scripts/serve_demo_top_performer.sh` |
-| Classifier pre-loaded at module level so browser opens to a warm UI | `src/project/demo_web_ui.py` |
-| FLA install-nag suppressed via `transformers.logging.set_verbosity_error()` (macOS, CPU-only) | `src/project/demo_web_ui.py` |
+| Classifier pre-loaded at module level so browser opens to a warm UI | `src/project/demo/demo_web_ui.py` |
+| FLA install-nag suppressed via `transformers.logging.set_verbosity_error()` (macOS, CPU-only) | `src/project/demo/demo_web_ui.py` |
 | README rebranded to MELE — Memorization-resistant Evaluation for LLM Educators | `README.md` |
 | Chainlit welcome screen replaced with demo-visitor how-to | `chainlit.md` |
 | `DEMO_README.md` added — online, local, and Tailscale topologies | `DEMO_README.md` |
@@ -223,7 +223,7 @@ language-mirror are in the core files.
 | File | Why |
 |---|---|
 | `scripts/serve_demo_top_performer.sh` | Launcher — read for topology logic and all overrides |
-| `src/project/demo_web_ui.py` | Chainlit UI entry point |
+| `src/project/demo/demo_web_ui.py` | Chainlit UI entry point |
 | `configs/gemma4-31b-online.env` | Active config for laptop demo |
 | `src/project/kele.py` | `create_system()` factory |
 | `src/project/socratic_teaching_system.py` | `process_student_input()`, retry, MELE name, English UI strings |
