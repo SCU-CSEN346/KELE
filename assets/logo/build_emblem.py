@@ -77,7 +77,11 @@ def leaf(px, py, deg, L=52, Wd=17, fill=RED):
         f"C {-Wd},{-L * 0.72} {-Wd},{-L * 0.30} 0,0 Z"
     )
     return (
-        f'<path transform="translate({px:.1f},{py:.1f}) rotate({deg:.1f})" d="{d}" fill="{fill}"/>'
+        f'<g transform="translate({px:.1f},{py:.1f}) rotate({deg:.1f})">'
+        f'<path d="{d}" fill="{fill}" stroke="{INK}" stroke-width="1.3" stroke-linejoin="round"/>'
+        f'<path d="M0,-{L * 0.12:.1f} L0,{-L * 0.82:.1f}" stroke="{INK}" '
+        f'stroke-width="1" stroke-linecap="round" opacity="0.45" fill="none"/>'
+        f"</g>"
     )
 
 
@@ -115,34 +119,32 @@ def wreath():
 
 # ---------------------------------------------------------------- torch
 def torch():
-    return f'''<g>
-  <path d="M{CX - 9},190 L{CX - 15},250 L{CX + 15},250 L{CX + 9},190 Z" fill="{GREYD}"/>
+    return f'''<g stroke="{INK}" stroke-width="1.6" stroke-linejoin="round">
+  <path d="M{CX - 9},190 L{CX - 15},250 L{CX + 15},250 L{CX + 9},190 Z" fill="{GREY}"/>
   <rect x="{CX - 20}" y="183" width="40" height="12" rx="4" fill="{GREY}"/>
-  <path d="M{CX},120 C {CX + 34},150 {CX + 30},178 {CX},186
-           C {CX - 30},178 {CX - 34},150 {CX},120 Z" fill="{GOLD}"/>
-  <path d="M{CX},140 C {CX + 16},158 {CX + 14},176 {CX},184
-           C {CX - 14},176 {CX - 16},158 {CX},140 Z" fill="{RED}"/>
+  <path d="M{CX},118 C {CX + 34},150 {CX + 30},178 {CX},186
+           C {CX - 30},178 {CX - 34},150 {CX},118 Z" fill="{GOLD}"/>
+  <path d="M{CX},142 C {CX + 15},158 {CX + 13},176 {CX},184
+           C {CX - 13},176 {CX - 15},158 {CX},142 Z" fill="{RED}" stroke="none"/>
 </g>'''
 
 
 # ---------------------------------------------------------------- pedestal
 def pedestal():
-    return f'''<g>
+    return f'''<g stroke="{INK}" stroke-width="2" stroke-linejoin="round">
   <!-- abacus / slab top -->
-  <rect x="{CX - 150}" y="452" width="300" height="26" rx="4" fill="{GREY}" stroke="{GREYD}" stroke-width="2"/>
+  <rect x="{CX - 150}" y="452" width="300" height="26" rx="4" fill="{GREY}"/>
   <!-- volutes -->
-  <g fill="none" stroke="{GREYD}" stroke-width="9">
-    <path d="M{CX - 120},480 a18,18 0 1 0 0.1,0" fill="{GREY}"/>
-    <path d="M{CX + 120},480 a18,18 0 1 1 -0.1,0" fill="{GREY}"/>
-  </g>
-  <rect x="{CX - 130}" y="478" width="260" height="16" fill="{GREY}" stroke="{GREYD}" stroke-width="2"/>
+  <path d="M{CX - 120},480 a18,18 0 1 0 0.1,0" fill="{GREY}"/>
+  <path d="M{CX + 120},480 a18,18 0 1 1 -0.1,0" fill="{GREY}"/>
+  <rect x="{CX - 130}" y="478" width="260" height="16" fill="{GREY}"/>
   <!-- fluted shaft -->
-  <rect x="{CX - 95}" y="494" width="190" height="120" fill="{GREY}" stroke="{GREYD}" stroke-width="2"/>
-  <g stroke="{GREYD}" stroke-width="3">
+  <rect x="{CX - 95}" y="494" width="190" height="120" fill="{GREY}"/>
+  <g stroke="{GREYD}" stroke-width="2.5">
     {"".join(f'<line x1="{CX - 70 + i * 28}" y1="500" x2="{CX - 70 + i * 28}" y2="608"/>' for i in range(6))}
   </g>
   <!-- base -->
-  <rect x="{CX - 110}" y="612" width="220" height="20" rx="4" fill="{GREY}" stroke="{GREYD}" stroke-width="2"/>
+  <rect x="{CX - 110}" y="612" width="220" height="20" rx="4" fill="{GREY}"/>
 </g>'''
 
 
@@ -164,22 +166,25 @@ def socrates():
         "C 442,256 454,250 468,250 Z"
     )
     return f'''<g>
-  <path d="{sil}" fill="{GREY}"/>
-  <!-- beard mass (darker) -->
-  <path d="M470,372 C 470,420 500,452 538,440 C 552,410 556,384 545,362
-           C 520,392 492,392 470,372 Z" fill="{GREYD}"/>
-  <g fill="none" stroke="{RED}" stroke-width="4" stroke-linecap="round">
-    <path d="M486,404 q16,14 36,8"/>
-    <path d="M484,420 q18,16 42,8"/>
+  <path d="{sil}" fill="{GREY}" stroke="{INK}" stroke-width="2" stroke-linejoin="round"/>
+  <!-- beard rendered as flowing hatch lines (line-art, not a blob) -->
+  <g fill="none" stroke="{GREYD}" stroke-width="2.2" stroke-linecap="round">
+    <path d="M470,380 C 484,414 500,436 524,442"/>
+    <path d="M466,396 C 480,426 498,446 522,452"/>
+    <path d="M486,374 C 500,408 516,430 540,434"/>
+    <path d="M500,372 C 514,400 530,418 548,420"/>
+    <path d="M478,408 C 492,432 508,446 528,450"/>
   </g>
-  <!-- crown curls -->
-  <g fill="{GREYD}">
-    <circle cx="446" cy="276" r="13"/><circle cx="470" cy="264" r="13"/>
-    <circle cx="496" cy="266" r="12"/><circle cx="430" cy="300" r="12"/>
+  <!-- moustache + mouth line -->
+  <path d="M527,358 q12,7 20,1" fill="none" stroke="{INK}" stroke-width="2.6" stroke-linecap="round"/>
+  <!-- crown curls (outlined) -->
+  <g fill="{GREY}" stroke="{INK}" stroke-width="1.8">
+    <circle cx="444" cy="276" r="13"/><circle cx="469" cy="263" r="13"/>
+    <circle cx="495" cy="266" r="12"/><circle cx="429" cy="301" r="12"/>
   </g>
   <!-- brow + eye -->
-  <path d="M512,304 q14,-4 24,2" fill="none" stroke="{RED}" stroke-width="4" stroke-linecap="round"/>
-  <circle cx="522" cy="314" r="4.5" fill="{RED}"/>
+  <path d="M511,302 q15,-5 26,1" fill="none" stroke="{INK}" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="524" cy="314" r="4.5" fill="{INK}"/>
 </g>'''
 
 
@@ -206,27 +211,34 @@ def android():
     )
     return f'''<g>
   <!-- antenna -->
-  <line x1="718" y1="252" x2="718" y2="220" stroke="{GREYD}" stroke-width="6"/>
-  <circle cx="718" cy="215" r="8" fill="{RED}"/>
-  <path d="{sil}" fill="{GREY}"/>
+  <line x1="718" y1="250" x2="718" y2="218" stroke="{INK}" stroke-width="4"/>
+  <circle cx="718" cy="213" r="8" fill="{RED}" stroke="{INK}" stroke-width="1.6"/>
+  <path d="{sil}" fill="{GREY}" stroke="{INK}" stroke-width="2" stroke-linejoin="round"/>
+  <!-- head-plate seam following the skull -->
+  <path d="M634,300 C 632,278 648,260 690,255" fill="none" stroke="{GREYD}" stroke-width="2"/>
   <!-- circuit panel on skull -->
   <rect x="700" y="280" width="78" height="52" rx="8" fill="{INK}"/>
   <g fill="{GOLD}">
     {"".join(f'<circle cx="{712 + (i % 5) * 15}" cy="{293 + (i // 5) * 15}" r="4.2"/>' for i in range(15))}
   </g>
+  <!-- thin circuit traces linking panel to face -->
+  <g stroke="{GOLD}" stroke-width="2" fill="none" opacity="0.9">
+    <path d="M700,300 h-14 v14"/>
+    <path d="M700,322 h-22"/>
+  </g>
   <!-- visor eye (center-facing) -->
-  <rect x="630" y="318" width="40" height="11" rx="5.5" fill="{RED}"/>
+  <rect x="628" y="316" width="42" height="12" rx="6" fill="{RED}" stroke="{INK}" stroke-width="1.6"/>
   <!-- mouth grille -->
-  <g stroke="{INK}" stroke-width="3.5">
-    <line x1="634" y1="366" x2="664" y2="366"/>
-    <line x1="636" y1="374" x2="662" y2="374"/>
+  <g stroke="{INK}" stroke-width="3" stroke-linecap="round">
+    <line x1="632" y1="364" x2="666" y2="364"/>
+    <line x1="634" y1="373" x2="664" y2="373"/>
+    <line x1="638" y1="382" x2="660" y2="382"/>
   </g>
-  <!-- neck seams + trace -->
-  <g stroke="{GREYD}" stroke-width="3">
-    <line x1="648" y1="440" x2="732" y2="440"/>
+  <!-- jaw + neck seams -->
+  <g stroke="{GREYD}" stroke-width="2" fill="none">
+    <path d="M640,408 H766"/>
+    <line x1="648" y1="432" x2="762" y2="432"/>
   </g>
-  <path d="M778,346 h-16 v18" stroke="{RED}" stroke-width="4" fill="none"/>
-  <path d="M704,332 v10 h18" stroke="{RED}" stroke-width="4" fill="none"/>
 </g>'''
 
 
@@ -251,17 +263,18 @@ def book():
   <!-- gold cover rim (sits behind pages) -->
   <path d="M{CX - 262},688 L{CX},676 L{CX + 262},688
            L{CX + 262},702 C {CX + 150},792 {CX + 40},794 {CX},792
-           C {CX - 40},794 {CX - 150},792 {CX - 262},702 Z" fill="{GOLD}"/>
+           C {CX - 40},794 {CX - 150},792 {CX - 262},702 Z"
+        fill="{GOLD}" stroke="{INK}" stroke-width="2" stroke-linejoin="round"/>
   <!-- left page -->
   <path d="M{CX - 248},690 L{CX - 4},680 L{CX - 4},778
            C {CX - 120},776 {CX - 200},762 {CX - 248},752 Z"
-        fill="{CREAM}" stroke="{GREYD}" stroke-width="1.5"/>
+        fill="{CREAM}" stroke="{INK}" stroke-width="1.8"/>
   <!-- right page -->
   <path d="M{CX + 248},690 L{CX + 4},680 L{CX + 4},778
            C {CX + 120},776 {CX + 200},762 {CX + 248},752 Z"
-        fill="{CREAM}" stroke="{GREYD}" stroke-width="1.5"/>
+        fill="{CREAM}" stroke="{INK}" stroke-width="1.8"/>
   <!-- center spine -->
-  <path d="M{CX},676 L{CX},792" stroke="{GOLD}" stroke-width="6"/>
+  <path d="M{CX},676 L{CX},792" stroke="{INK}" stroke-width="3"/>
   {lines(CX - 232, 150, 6)}
   {lines(CX + 82, 150, 6)}
   {binary}
