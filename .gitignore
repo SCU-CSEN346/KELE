@@ -69,3 +69,6 @@ references/KELE-EN/.cache/
 # macOS
 .DS_Store
 **/.DS_Store
+
+# Chainlit auto-generated default translations (regenerated on run)
+.chainlit/translations/
