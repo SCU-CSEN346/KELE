@@ -1,20 +1,21 @@
-# Handoff — Stage 2 Gemma 4 31B QLoRA crawl: training in progress
+# Handoff — Stage 2 Gemma 4 31B QLoRA crawl: STALLED — GPU reset required
 
-**Date:** 2026-06-02 · **Branch:** `feat/gfx1201-rdna4-qlora-fla-training` · **PR:** #101
-**For:** a fresh Claude instance picking up while training is running (or has crashed and resumed).
+**Date:** 2026-06-04 · **Branch:** `feat/gfx1201-rdna4-qlora-fla-training` · **PR:** #101
+**For:** a fresh Claude instance picking up after the monitor STALLed due to a wedged GPU.
 
 ---
 
 ## TL;DR
 
-Stage 2 Gemma 4 31B QLoRA is running autonomously via `monitor_stage2.sh`. The gfx1201
-ISA1201 Tensile kernel bug is still present but **no longer blocking** — the crawl harness
-rotates `TRAIN_DATA_SEED` on every resume, breaking the data-order stickiness that caused
-run #13 to stall. As of handoff: step ~96/4826, checkpoint-90, no crashes since checkpoint-22.
+**Monitor has exited (STALLED 8/8).** Everything is dead. The GPU has a stale 24 GB KFD
+context that survived `pkill -9` — it was left by a tokenization deadlock that followed the
+step-1230 crash. Every subsequent monitor retry failed preflight (GPU dirty), consumed all 8
+retries, and the monitor posted STALLED to PR #101 at 17:19 on 2026-06-03 and exited.
 
-**Your job is to monitor and respond to the outcome**, not to debug the fault (closed) or
-re-run ablation arms (all done). See `docs/GFX1201_FAULT_ABLATION_LOG.md` for the full
-diagnostic record.
+**Before restarting anything you must reset the GPU driver.** Once clean, restart the monitor
+and it will resume from checkpoint-1230. See "If the monitor STALLED" below for exact steps.
+
+Progress banked: **checkpoint-1230 / 4826 steps = ~25.5% complete.**
 
 ---
 
@@ -23,19 +24,20 @@ diagnostic record.
 | Item | Value |
 |---|---|
 | Training script | `scripts/train_sft.py` via `make train-gemma4-31b-stage2-unsloth` |
-| Monitor PID | check `pgrep -f monitor_stage2` |
+| Monitor | **DEAD** — exited after STALL at 17:19 2026-06-03 |
 | Monitor log | `outputs/monitor_stage2.log` |
 | Train log | `outputs/sft-stage2-gemma4-31b/train.log` |
-| Latest checkpoint | `checkpoint-90` (as of handoff; will advance) |
+| Latest checkpoint | `checkpoint-1230` (safe — trainer_state.json intact) |
 | Total steps | 4,826 (1 epoch, 77k records, batch 1×16) |
 | Per-step time | ~71 s/it |
-| Estimated wall clock | ~93 h base compute from step 0 |
+| GPU state | **DIRTY** — 24 GB VRAM consumed, stale KFD context, needs driver reset |
 | W&B project | `csen346-sft` at `uchavarria-santa-clara-university` (active on next resume) |
 
 **Quick status check:**
 ```bash
 tail -5 outputs/monitor_stage2.log
 ls -d outputs/sft-stage2-gemma4-31b/checkpoint-* | sort -V | tail -3
+rocm-smi --showmeminfo vram   # must show near-zero before restart
 ```
 
 ---
@@ -81,19 +83,55 @@ unless it STALLs.
 
 Monitor posted: `## Stage 2 Training: STALLED (no progress in 8 retries)`
 
-This means 8 consecutive resumes all faulted before banking a new checkpoint. Options:
+**Current situation (2026-06-04):** The 8 retries were NOT page-fault stalls — they were
+preflight failures caused by a wedged GPU. The root cause:
 
-1. **Run `make gpu-preflight`** — confirm GPU is actually clean, not stuck in a bad KFD state
-2. **Check the latest crashlog** in `outputs/sft-stage2-gemma4-31b/crashlogs/` — is the
-   fault still a page fault, or is it something new (OOM, driver crash)?
-3. **Relaunch the monitor** with a manually chosen seed far from the timestamp cluster:
+1. Training crashed at step 1230 (normal page fault)
+2. Monitor restarted; tokenization deadlocked in multiprocessing at 12868/77202 samples
+3. `pkill -9` cleared the Python processes but left a stale 24 GB KFD context on the GPU
+4. Every subsequent monitor retry failed preflight (VRAM 24 GB > 1024 MB threshold)
+5. 8 failed preflights = 8 "no progress" retries → STALL → monitor exited
+
+**Fix sequence:**
+
+1. **Verify GPU is still dirty:**
    ```bash
-   TRAIN_DATA_SEED=1234567 make train-gemma4-31b-stage2-unsloth  # one test run
-   # if it advances past a checkpoint:
-   nohup bash scripts/monitor_stage2.sh > outputs/monitor_stage2.log 2>&1 &
+   rocm-smi --showmeminfo vram
+   # expect ~24 GB used despite no processes running
    ```
-4. If consistently stalling regardless of seed → **post to PR #101** and escalate to
-   the consultant. Cloud GPU (CUDA) is the remaining option.
+
+2. **Check if nvtop is holding the KFD context** (it was open on `/dev/kfd` in lsof):
+   ```bash
+   lsof /dev/kfd /dev/dri/renderD128 2>/dev/null | grep -v "^COMMAND"
+   pkill nvtop   # if listed; recheck VRAM after ~5s
+   ```
+
+3. **If VRAM still dirty — reload the GPU driver** (this is the nuclear option but clean):
+   ```bash
+   sudo modprobe -r amdgpu && sudo modprobe amdgpu
+   rocm-smi --showmeminfo vram   # should now show ~57 MB
+   ```
+
+4. **Confirm GPU clean, then restart monitor:**
+   ```bash
+   make gpu-preflight   # must PASS before continuing
+   nohup bash scripts/monitor_stage2.sh > outputs/monitor_stage2.log 2>&1 &
+   tail -f outputs/monitor_stage2.log
+   ```
+   Monitor will resume from checkpoint-1230 automatically.
+
+5. **Watch for tokenization deadlock on the first restart.** If train.log stalls at
+   `Tokenizing train dataset (num_proc=12): XX%` for more than 60 seconds without
+   advancing, the multiprocessing pool deadlocked again. In that case:
+   ```bash
+   pkill -9 -f 'train_sft\.py'
+   # wait for monitor to detect + clean + retry — usually clears on next attempt
+   ```
+   If it deadlocks repeatedly, consider patching `train_sft.py` to use
+   `dataset_num_proc=1` (slower tokenization, no deadlock risk).
+
+6. If monitor STALLs again after a clean GPU restart → **post to PR #101** and escalate.
+   Cloud GPU (CUDA) is the remaining option.
 
 ---
 
@@ -147,15 +185,22 @@ Do not:
 
 ---
 
-## Commit history (this session)
+## Session history
+
+**Session 4 (2026-06-02):** Crawl launched from checkpoint-90. Made forward progress to
+checkpoint-1230 overnight (~50 crashes, all recovered). Tokenization deadlock after
+step-1230 crash wedged the GPU; monitor STALLed 8/8 at 17:19 on 2026-06-03.
+
+**Session 5 (2026-06-04):** Monitor and training dead, GPU dirty (24 GB wedged KFD context).
+No code changes this session — GPU driver reset needed before restart.
 
 ```
+21fc7ab  feat(diag): add rocblas bench capture + replay scripts for gfx1201 repro
+9016f9f  fix(monitor): crash_hint matches the real gfx1201 fault signature
+d4ce31d  feat(train): enable W&B in config (next-crash pickup) + pin run for continuity
+623bb06  docs(handoff): session 4 complete — crawl running, rotating seed fix live
 aebcc3f  feat(monitor): pass WANDB_PROJECT to training launches
 587b60e  feat(monitor): rotate TRAIN_DATA_SEED per resume to break sticky fault
-30509a3  docs(diag): record run #13 — crawl STALLED, data-order sticky fault
-253a749  docs(handoff): session 3 complete — all fix arms exhausted, crawl phase next
-7bd3b7e  feat(train): data_seed lever + data-order dump to break the sticky gfx1201 fault
-6877a95  docs(diag): record crawl viability go/no-go; hold Arm E off the baseline
 ```
 
 ## Key files
