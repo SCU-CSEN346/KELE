@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="dr" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#C20046"/>
+      <stop offset="1" stop-color="#7C002B"/>
+    </linearGradient>
+  </defs>
+  <!-- leaf -->
+  <path d="M136 66 C156 42 190 44 200 50 C194 82 162 90 142 76 Z" fill="#FAC300"/>
+  <!-- stem -->
+  <path d="M130 80 C128 66 132 56 138 50" stroke="#FAC300" stroke-width="9" stroke-linecap="round" fill="none"/>
+  <!-- apple silhouette with a deliberate speech-tail at lower-left -->
+  <path d="M128 88
+           C114 70 92 66 78 76
+           C58 90 52 120 58 150
+           C62 172 75 192 92 201
+           L74 218 L110 200
+           C116 202 122 203 128 203
+           C134 203 138 207 148 207
+           C170 207 192 180 198 150
+           C204 120 198 90 178 76
+           C164 66 142 70 128 88 Z" fill="url(#dr)"/>
+  <!-- question/dialogue dots inside -->
+  <circle cx="108" cy="138" r="9" fill="#FFFFFF"/>
+  <circle cx="138" cy="138" r="9" fill="#FFFFFF"/>
+  <circle cx="168" cy="138" r="9" fill="#FAC300"/>
+</svg>

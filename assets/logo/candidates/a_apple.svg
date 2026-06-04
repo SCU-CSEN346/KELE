@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="ar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#C20046"/>
+      <stop offset="1" stop-color="#7C002B"/>
+    </linearGradient>
+  </defs>
+  <!-- leaf -->
+  <path d="M132 70 C150 44 184 44 196 50 C190 82 160 92 138 80 Z" fill="#FAC300"/>
+  <!-- stem -->
+  <path d="M128 84 C126 70 128 58 132 52" stroke="#FAC300" stroke-width="9" stroke-linecap="round" fill="none"/>
+  <!-- apple body -->
+  <path d="M128 92
+           C114 74 92 70 78 80
+           C58 94 52 122 58 150
+           C64 182 86 208 108 208
+           C118 208 122 203 128 203
+           C134 203 138 208 148 208
+           C170 208 192 182 198 150
+           C204 122 198 94 178 80
+           C164 70 142 74 128 92 Z" fill="url(#ar)"/>
+  <!-- highlight -->
+  <path d="M92 108 C84 118 82 132 86 144" stroke="#FFFFFF" stroke-opacity="0.45" stroke-width="8" stroke-linecap="round" fill="none"/>
+</svg>
