@@ -9,7 +9,7 @@
   width: min(260px, 55vw);
   aspect-ratio: 1 / 1;
   margin: 0 auto 1.5rem;
-  background-image: url("/public/logo_light.png");
+  background-image: url("/public/logo_landing.png");
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
