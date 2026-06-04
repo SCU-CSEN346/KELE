@@ -15,6 +15,7 @@ import os
 import chainlit as cl
 
 from src.project.kele import create_system
+from src.project.socratic_teaching_system import SocraticTeachingSystem
 
 
 @cl.on_chat_start
@@ -36,6 +37,6 @@ async def on_chat_start() -> None:
 
 @cl.on_message
 async def on_message(message: cl.Message) -> None:
-    system = cl.user_session.get("system")
+    system: SocraticTeachingSystem = cl.user_session.get("system")  # type: ignore[assignment]
     response = await asyncio.to_thread(system.process_student_input, message.content)
     await cl.Message(content=response).send()
