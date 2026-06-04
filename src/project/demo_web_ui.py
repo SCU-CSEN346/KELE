@@ -12,7 +12,7 @@ Launch via serve_demo_top_performer.sh (WEBUI=1) or directly:
 import asyncio
 import os
 
-import chainlit as cl
+import chainlit as cl  # pyright: ignore[reportMissingImports]
 import transformers
 
 from src.project.kele import create_system
