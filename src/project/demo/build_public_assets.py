@@ -2,7 +2,7 @@
 
 Edit the CONFIG block below and run:
 
-    uv run python assets/logo/build_public_assets.py
+    uv run python src/project/demo/build_public_assets.py
 
 After regenerating, bump the cache version in .chainlit/config.toml
 (custom_css = "/public/custom.css?v=N") and the in-CSS image URL so browsers
@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
+from typing import cast
 
 from PIL import Image, ImageDraw
 
@@ -55,17 +56,18 @@ AVATAR_SIZE = 128
 def _circular_mask(side: int, supersample: int = 4) -> Image.Image:
     big = Image.new("L", (side * supersample, side * supersample), 0)
     ImageDraw.Draw(big).ellipse([0, 0, side * supersample - 1, side * supersample - 1], fill=255)
-    return big.resize((side, side), Image.LANCZOS)
+    return big.resize((side, side), Image.Resampling.LANCZOS)
 
 
 def build_seal() -> None:
     em = Image.open(SRC / EMBLEM_SRC).convert("RGBA")
     w, h = em.size
     alpha = em.getchannel("A").load()
+    assert alpha is not None
     xs, ys = [], []
     for y in range(0, h, 2):
         for x in range(0, w, 2):
-            if alpha[x, y] > DISC_CONTENT_ALPHA:
+            if cast(int, alpha[x, y]) > DISC_CONTENT_ALPHA:
                 xs.append(x)
                 ys.append(y)
     x0, y0, x1, y1 = min(xs), min(ys), max(xs), max(ys)
@@ -80,13 +82,13 @@ def build_seal() -> None:
     base = Image.new("RGBA", (side, side), DISC_COLOR)
     base.alpha_composite(em, (int(radius - cx), int(radius - cy)))
     base.putalpha(_circular_mask(side))
-    base.resize((SEAL_SIZE, SEAL_SIZE), Image.LANCZOS).save(PUBLIC / "logo_landing.png")
+    base.resize((SEAL_SIZE, SEAL_SIZE), Image.Resampling.LANCZOS).save(PUBLIC / "logo_landing.png")
     print(f"logo_landing.png  {SEAL_SIZE}px  disc={DISC_COLOR} pad={DISC_PAD}")
 
 
 def build_header_logos() -> None:
     em = Image.open(SRC / EMBLEM_SRC).convert("RGBA")
-    em.thumbnail((HEADER_LOGO_SIZE, HEADER_LOGO_SIZE), Image.LANCZOS)
+    em.thumbnail((HEADER_LOGO_SIZE, HEADER_LOGO_SIZE), Image.Resampling.LANCZOS)
     em.save(PUBLIC / "logo_light.png")
     em.save(PUBLIC / "logo_dark.png")
     print(f"logo_light.png / logo_dark.png  {em.size[0]}px")
@@ -96,13 +98,14 @@ def build_favicon_and_avatar() -> None:
     src = Image.open(SRC / FAVICON_SRC).convert("RGB")
     w, h = src.size
     px = src.load()
+    assert px is not None
 
     def is_disc(r: int, g: int, b: int) -> bool:
         return (max(r, g, b) - min(r, g, b)) > FAVICON_DISC_CHROMA or (r + g + b) < 3 * 180
 
     cy, cx = h // 2, w // 2
-    rows = [x for x in range(w) if is_disc(*px[x, cy])]
-    cols = [y for y in range(h) if is_disc(*px[cx, y])]
+    rows = [x for x in range(w) if is_disc(*cast("tuple[int, int, int]", px[x, cy]))]
+    cols = [y for y in range(h) if is_disc(*cast("tuple[int, int, int]", px[cx, y]))]
     x0, x1 = (min(rows), max(rows)) if rows else (0, w - 1)
     y0, y1 = (min(cols), max(cols)) if cols else (0, h - 1)
     dcx, dcy = (x0 + x1) / 2, (y0 + y1) / 2
@@ -114,9 +117,11 @@ def build_favicon_and_avatar() -> None:
     disc.paste(src.crop((int(dcx - rad), int(dcy - rad), int(dcx + rad), int(dcy + rad))), (0, 0))
     disc.putalpha(mask)
 
-    disc.resize((FAVICON_SIZE, FAVICON_SIZE), Image.LANCZOS).save(PUBLIC / "favicon.png")
+    disc.resize((FAVICON_SIZE, FAVICON_SIZE), Image.Resampling.LANCZOS).save(PUBLIC / "favicon.png")
     (PUBLIC / "avatars").mkdir(exist_ok=True)
-    disc.resize((AVATAR_SIZE, AVATAR_SIZE), Image.LANCZOS).save(PUBLIC / "avatars" / "mele.png")
+    disc.resize((AVATAR_SIZE, AVATAR_SIZE), Image.Resampling.LANCZOS).save(
+        PUBLIC / "avatars" / "mele.png"
+    )
     print(
         f"favicon.png {FAVICON_SIZE}px / avatars/mele.png {AVATAR_SIZE}px  chroma={FAVICON_DISC_CHROMA}"
     )
