@@ -1,16 +1,10 @@
-/* Logo-forward landing: show the large MELE emblem above the starter prompts on
-   the empty/new-chat screen. Chainlit renders two #starters containers; scope to
-   the centered vertical one (.flex-col) so the logo doesn't also appear on the
-   compact (.flex-wrap) instance below the composer. #starters only renders when
-   the thread is empty, so the logo disappears once a conversation begins. */
-#starters.flex-col::before {
-  content: "";
-  display: block;
-  width: min(260px, 55vw);
-  aspect-ratio: 1 / 1;
-  margin: 0 auto 1.5rem;
-  background-image: url("/public/logo_landing.png");
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
+/* The empty/landing screen renders Chainlit's native logo (img.logo inside
+   #welcome-screen), which loads the transparent emblem — its dark-red wordmark and
+   subtitle are unreadable on the grey dark theme. Swap it for the white-disc seal
+   so it reads in both themes. Scoped to #welcome-screen so the small header logo
+   (also img.logo) stays the plain transparent emblem. */
+#welcome-screen img.logo {
+  content: url("/public/logo_landing.png?v=3");
+  width: 280px;
+  height: auto;
 }
