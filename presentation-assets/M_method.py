@@ -9,6 +9,7 @@ Sized to match H_conclusion + D_algorithm_box (15.5" x 9.0").
 The 500-dialogue tournament detail (lever sweep + per-lever results) lives in
 the companion N graphic. Campaign scale (143 variants) lives there too.
 """
+
 import textwrap
 
 import matplotlib as mpl

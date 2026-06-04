@@ -27,16 +27,24 @@ BLACK = "#000000"
 # Title strip
 # =============================================================================
 ax.text(
-    7.75, 8.55,
+    7.75,
+    8.55,
     "Per-turn integration pipeline",
-    ha="center", va="center",
-    fontsize=20, fontweight="bold", color=ps.NAVY,
+    ha="center",
+    va="center",
+    fontsize=20,
+    fontweight="bold",
+    color=ps.NAVY,
 )
 ax.text(
-    7.75, 8.05,
+    7.75,
+    8.05,
     "Replaces KELE's LLM-consultant + JSON-schema call with a CPU classifier + deterministic SocRule lookup",
-    ha="center", va="center",
-    fontsize=11, color=ps.GRAY, style="italic",
+    ha="center",
+    va="center",
+    fontsize=11,
+    color=ps.GRAY,
+    style="italic",
 )
 
 # =============================================================================
@@ -48,9 +56,13 @@ card_w = 7.20
 card_h = 6.25
 
 card = FancyBboxPatch(
-    (card_x, card_y), card_w, card_h,
+    (card_x, card_y),
+    card_w,
+    card_h,
     boxstyle="round,pad=0.04,rounding_size=0.22",
-    facecolor=ps.LIGHT_RED, edgecolor=ps.RED, linewidth=1.8,
+    facecolor=ps.LIGHT_RED,
+    edgecolor=ps.RED,
+    linewidth=1.8,
 )
 ax.add_patch(card)
 
@@ -59,8 +71,11 @@ ax.text(
     card_x + card_w / 2,
     card_y + card_h - 0.40,
     "Algorithm 1  ·  Per-turn pipeline",
-    ha="center", va="center",
-    fontsize=13, fontweight="bold", color=ps.RED,
+    ha="center",
+    va="center",
+    fontsize=13,
+    fontweight="bold",
+    color=ps.RED,
 )
 
 # Column anchors
@@ -72,24 +87,68 @@ y_req_a = card_y + card_h - 1.05
 y_req_b = card_y + card_h - 1.50
 y_ens = card_y + card_h - 2.05
 
-ax.text(x_label, y_req_a, "Require:", ha="left", va="center",
-        fontsize=11, fontweight="bold", color=BLACK, family="monospace")
-ax.text(x_code, y_req_a, "dialogue H, utterance u_t,",
-        ha="left", va="center", fontsize=10, color=BLACK, family="monospace")
-ax.text(x_code, y_req_b, "classifier C, teacher T, map A, exemplars E",
-        ha="left", va="center", fontsize=10, color=BLACK, family="monospace")
+ax.text(
+    x_label,
+    y_req_a,
+    "Require:",
+    ha="left",
+    va="center",
+    fontsize=11,
+    fontweight="bold",
+    color=BLACK,
+    family="monospace",
+)
+ax.text(
+    x_code,
+    y_req_a,
+    "dialogue H, utterance u_t,",
+    ha="left",
+    va="center",
+    fontsize=10,
+    color=BLACK,
+    family="monospace",
+)
+ax.text(
+    x_code,
+    y_req_b,
+    "classifier C, teacher T, map A, exemplars E",
+    ha="left",
+    va="center",
+    fontsize=10,
+    color=BLACK,
+    family="monospace",
+)
 
-ax.text(x_label, y_ens, "Ensure:", ha="left", va="center",
-        fontsize=11, fontweight="bold", color=BLACK, family="monospace")
-ax.text(x_code, y_ens, "response r_t, next state s_t",
-        ha="left", va="center", fontsize=10, color=BLACK, family="monospace")
+ax.text(
+    x_label,
+    y_ens,
+    "Ensure:",
+    ha="left",
+    va="center",
+    fontsize=11,
+    fontweight="bold",
+    color=BLACK,
+    family="monospace",
+)
+ax.text(
+    x_code,
+    y_ens,
+    "response r_t, next state s_t",
+    ha="left",
+    va="center",
+    fontsize=10,
+    color=BLACK,
+    family="monospace",
+)
 
 # Divider
 y_div = card_y + card_h - 2.45
 ax.plot(
     [card_x + 0.30, card_x + card_w - 0.30],
     [y_div, y_div],
-    color=BLACK, linewidth=1.0, alpha=0.4,
+    color=BLACK,
+    linewidth=1.0,
+    alpha=0.4,
 )
 
 # Algorithm steps (no inline comments - see sidebar for WHY)
@@ -112,15 +171,26 @@ dy = 0.50
 for i, (lineno, code) in enumerate(steps):
     y = y_step_start - i * dy
     ax.text(
-        x_lineno, y, lineno,
-        ha="left", va="center",
-        fontsize=12, fontweight="bold", color=BLACK,
-        family="monospace", alpha=0.55,
+        x_lineno,
+        y,
+        lineno,
+        ha="left",
+        va="center",
+        fontsize=12,
+        fontweight="bold",
+        color=BLACK,
+        family="monospace",
+        alpha=0.55,
     )
     ax.text(
-        x_step, y, code,
-        ha="left", va="center",
-        fontsize=12, color=BLACK, family="monospace",
+        x_step,
+        y,
+        code,
+        ha="left",
+        va="center",
+        fontsize=12,
+        color=BLACK,
+        family="monospace",
     )
 
 # =============================================================================
@@ -132,9 +202,13 @@ side_w = 7.25
 side_h = 6.25
 
 side = FancyBboxPatch(
-    (side_x, side_y), side_w, side_h,
+    (side_x, side_y),
+    side_w,
+    side_h,
     boxstyle="round,pad=0.04,rounding_size=0.22",
-    facecolor=ps.LIGHT_BG, edgecolor=ps.NAVY, linewidth=1.6,
+    facecolor=ps.LIGHT_BG,
+    edgecolor=ps.NAVY,
+    linewidth=1.6,
 )
 ax.add_patch(side)
 
@@ -143,8 +217,11 @@ ax.text(
     side_x + side_w / 2,
     side_y + side_h - 0.40,
     "What the algorithm guarantees",
-    ha="center", va="center",
-    fontsize=15, fontweight="bold", color=ps.NAVY,
+    ha="center",
+    va="center",
+    fontsize=15,
+    fontweight="bold",
+    color=ps.NAVY,
 )
 
 # Four algorithm-specific insights (NOT architectural - those live in panel C).
@@ -191,27 +268,40 @@ for i, (title, line_ref, description) in enumerate(insights):
 
     # Block title (red bold)
     ax.text(
-        x_text, y_block - 0.05,
+        x_text,
+        y_block - 0.05,
         title,
-        ha="left", va="top",
-        fontsize=12, fontweight="bold", color=ps.RED,
+        ha="left",
+        va="top",
+        fontsize=12,
+        fontweight="bold",
+        color=ps.RED,
     )
     # Line reference (small italic, right-aligned)
     ax.text(
-        x_text_right, y_block - 0.05,
+        x_text_right,
+        y_block - 0.05,
         line_ref,
-        ha="right", va="top",
-        fontsize=10, fontweight="bold", color=ps.RED, style="italic",
+        ha="right",
+        va="top",
+        fontsize=10,
+        fontweight="bold",
+        color=ps.RED,
+        style="italic",
     )
 
     # Description (navy, 2 lines via textwrap)
     import textwrap
+
     wrapped = textwrap.fill(description, width=68)
     ax.text(
-        x_text + 0.05, y_block - 0.50,
+        x_text + 0.05,
+        y_block - 0.50,
         wrapped,
-        ha="left", va="top",
-        fontsize=10, color=ps.NAVY,
+        ha="left",
+        va="top",
+        fontsize=10,
+        color=ps.NAVY,
         linespacing=1.35,
     )
 
@@ -221,17 +311,22 @@ for i, (title, line_ref, description) in enumerate(insights):
         ax.plot(
             [side_x + 0.30, side_x + side_w - 0.30],
             [y_sep, y_sep],
-            color=ps.DIVIDER, linewidth=0.8,
+            color=ps.DIVIDER,
+            linewidth=0.8,
         )
 
 # =============================================================================
 # Footer
 # =============================================================================
 ax.text(
-    7.75, 0.45,
+    7.75,
+    0.45,
     "Takeaway: each numbered step encodes a structural guarantee that an LLM-consultant pipeline cannot provide",
-    ha="center", va="center",
-    fontsize=12, fontweight="bold", color=ps.RED,
+    ha="center",
+    va="center",
+    fontsize=12,
+    fontweight="bold",
+    color=ps.RED,
 )
 
 ps.save_fig(fig, "D_algorithm_box", __file__)

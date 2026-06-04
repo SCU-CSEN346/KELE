@@ -10,6 +10,7 @@ Card hierarchy (top → bottom in each card):
   Primary label (bold navy)
   Sub-label    (small italic gray)
 """
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch

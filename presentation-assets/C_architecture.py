@@ -274,7 +274,13 @@ header = Rectangle(
 ax.add_patch(header)
 
 for x_div in (tbl_x + col_label_w, tbl_x + col_label_w + col_kele_w):
-    ax.plot([x_div, x_div], [tbl_y + 0.05, tbl_y + tbl_h - 0.05], color=ps.NAVY, linewidth=1.0, alpha=0.5)
+    ax.plot(
+        [x_div, x_div],
+        [tbl_y + 0.05, tbl_y + tbl_h - 0.05],
+        color=ps.NAVY,
+        linewidth=1.0,
+        alpha=0.5,
+    )
 
 header_y = tbl_y + tbl_h - header_h / 2
 ax.text(
@@ -322,8 +328,19 @@ row_dy = (data_top - data_bot) / n_rows
 
 for i, (lab, k, o) in enumerate(rows):
     y_row = data_top - (i + 0.5) * row_dy
-    ax.text(cx_label, y_row, lab, ha="center", va="center", fontsize=13, fontweight="bold", color=ps.NAVY)
-    ax.text(cx_kele, y_row, k, ha="center", va="center", fontsize=13, fontweight="bold", color=ps.SLATE)
+    ax.text(
+        cx_label,
+        y_row,
+        lab,
+        ha="center",
+        va="center",
+        fontsize=13,
+        fontweight="bold",
+        color=ps.NAVY,
+    )
+    ax.text(
+        cx_kele, y_row, k, ha="center", va="center", fontsize=13, fontweight="bold", color=ps.SLATE
+    )
     ax.text(
         cx_ours, y_row, o, ha="center", va="center", fontsize=13, color=ps.RED, fontweight="bold"
     )

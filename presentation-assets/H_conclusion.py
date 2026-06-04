@@ -3,6 +3,7 @@
 Architectural and methodological contributions, limitations and future work,
 and real-classroom deployment. Sized to match D_algorithm_box (15.5"×9.0").
 """
+
 import textwrap
 import matplotlib as mpl
 import matplotlib.pyplot as plt

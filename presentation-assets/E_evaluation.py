@@ -4,6 +4,7 @@ Four horizontal SCU-red cards, one per axis. Axis name is the hero; the
 score range sits beneath it as the description. No title, no footer — the
 cards speak for themselves.
 """
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
@@ -22,9 +23,9 @@ ax.axis("off")
 #  Four axis cards
 # =============================================================================
 axes_data = [
-    {"name": "Socratic\nValidity",      "range": "0 - 3"},
-    {"name": "Learning\nAdvancement",   "range": "0 - 3"},
-    {"name": "Age-\nAppropriateness",   "range": "0 - 2"},
+    {"name": "Socratic\nValidity", "range": "0 - 3"},
+    {"name": "Learning\nAdvancement", "range": "0 - 3"},
+    {"name": "Age-\nAppropriateness", "range": "0 - 2"},
     {"name": "Question-Form\nFidelity", "range": "0 - 2"},
 ]
 
