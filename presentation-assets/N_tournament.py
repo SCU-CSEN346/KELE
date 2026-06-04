@@ -8,11 +8,12 @@ Data: results/tournament-cell-*/metrics_summary.json (10 levers, n=50 each,
 500 dialogues total).
 """
 
+from pathlib import Path
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch, Rectangle
 import poster_style as ps
-from pathlib import Path
+from matplotlib.patches import FancyBboxPatch, Rectangle
 
 ps.apply()
 
@@ -86,8 +87,8 @@ y_row_top = 7.00
 row_h = 0.55
 
 # Bar normalization: range over the 10 cells
-state_min = min(l[2] for l in levers)
-state_max = max(l[2] for l in levers)
+state_min = min(row[2] for row in levers)
+state_max = max(row[2] for row in levers)
 bar_w_max = X_BAR_R - X_BAR_L
 
 

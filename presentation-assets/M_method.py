@@ -11,12 +11,12 @@ the companion N graphic. Campaign scale (143 variants) lives there too.
 """
 
 import textwrap
+from pathlib import Path
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch
 import poster_style as ps
-from pathlib import Path
+from matplotlib.patches import FancyBboxPatch
 
 ps.apply()
 

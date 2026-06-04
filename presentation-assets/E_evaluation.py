@@ -5,11 +5,12 @@ score range sits beneath it as the description. No title, no footer — the
 cards speak for themselves.
 """
 
+from pathlib import Path
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch
 import poster_style as ps
-from pathlib import Path
+from matplotlib.patches import FancyBboxPatch
 
 ps.apply()
 

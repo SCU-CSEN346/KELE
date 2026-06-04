@@ -5,11 +5,12 @@ and real-classroom deployment. Sized to match D_algorithm_box (15.5"×9.0").
 """
 
 import textwrap
+from pathlib import Path
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.patches import Circle
 import poster_style as ps
-from pathlib import Path
+from matplotlib.patches import Circle
 
 ps.apply()
 

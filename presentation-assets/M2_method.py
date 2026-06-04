@@ -11,11 +11,12 @@ Card hierarchy (top → bottom in each card):
   Sub-label    (small italic gray)
 """
 
+from pathlib import Path
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch
 import poster_style as ps
-from pathlib import Path
+from matplotlib.patches import FancyBboxPatch
 
 ps.apply()
 
