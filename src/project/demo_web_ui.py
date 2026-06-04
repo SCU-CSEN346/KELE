@@ -13,23 +13,26 @@ import asyncio
 import os
 
 import chainlit as cl
+import transformers
 
 from src.project.kele import create_system
 from src.project.socratic_teaching_system import SocraticTeachingSystem
 
+# flash-linear-attention and causal-conv1d are CUDA/ROCm Triton kernels — not
+# available on macOS or CPU-only machines. The torch fallback is fine for
+# inference on a 0.8B classifier; suppress the install-nag noise.
+transformers.logging.set_verbosity_error()
+
+_system = create_system(
+    debug=True,
+    experiment=os.environ.get("EXPERIMENT", "gemma4-31b-online"),
+    bert_consultant=os.environ.get("BERT_CKPT", "results/state-clf-qwen3.5-0.8b-lora-wandb/final"),
+)
+
 
 @cl.on_chat_start
 async def on_chat_start() -> None:
-    experiment = os.environ.get("EXPERIMENT", "gemma4-31b-online")
-    bert_ckpt = os.environ.get("BERT_CKPT", "results/state-clf-qwen3.5-0.8b-lora-wandb/final")
-
-    system = await asyncio.to_thread(
-        create_system,
-        debug=True,
-        experiment=experiment,
-        bert_consultant=bert_ckpt,
-    )
-    cl.user_session.set("system", system)
+    cl.user_session.set("system", _system)
     await cl.Message(
         content="Hi! I'm MELE, your personal tutor, and I use the Socratic teaching method. Ask me a question to get started."
     ).send()

@@ -170,6 +170,19 @@ if [[ "${WEBUI:-1}" == "1" ]]; then
   echo "Open in browser:  http://${LAN_IP}:8000"
   echo "(or http://localhost:8000 on this machine)"
   echo
+  (
+    for _ in $(seq 60); do
+      if curl -s --max-time 1 http://localhost:8000 > /dev/null 2>&1; then
+        if command -v open &>/dev/null; then
+          open "http://localhost:8000"
+        elif command -v xdg-open &>/dev/null; then
+          xdg-open "http://localhost:8000"
+        fi
+        break
+      fi
+      sleep 1
+    done
+  ) &
   exec env \
     CHAINLIT_LOG_LEVEL=warning \
     EXPERIMENT="$EXPERIMENT" \
