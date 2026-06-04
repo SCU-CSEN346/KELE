@@ -1,0 +1,33 @@
+[
+  {
+    "id": 3977,
+    "grade": "5小学五年级上册",
+    "mission": "判断题",
+    "score": {
+      "overall_score": 3,
+      "meaning_preserved": false,
+      "socratic_tone_preserved": true,
+      "fluency": 5,
+      "flags": [
+        "Critical factual error in the question and answer key: The Chinese source states the answer is 'No' (because the question implies unconditional refraction, ignoring the perpendicular case), but the English translation changes the question to 'When light travels from air into water, refraction occurs' without the 'always' implication, leading the student to answer 'Yes'. This contradicts the source logic where the answer should be 'No'.",
+        "The translation fails to preserve the specific pedagogical logic of the source dialogue regarding the exception (perpendicular incidence), causing a logical inconsistency between the question stem and the correct answer in the translated version."
+      ]
+    }
+  },
+  {
+    "id": 4483,
+    "grade": "5小学五年级下册",
+    "mission": "选择题",
+    "score": {
+      "overall_score": 3,
+      "meaning_preserved": false,
+      "socratic_tone_preserved": true,
+      "fluency": 4,
+      "flags": [
+        "Critical error in question translation: 'For the same species, the larger the environment is, the larger its individual is' incorrectly translates the Chinese conditional 'the colder... the larger'. The original question asks about temperature (cold), not size of the environment.",
+        "Critical error in final student response translation: The student's final answer 'The larger the environment is...' repeats the mistranslated question stem instead of the correct answer 'the larger its individual is' (referring to body size).",
+        "Minor phrasing issue in newAnalyze: 'closely related species' is slightly less precise than 'closely related species' or 'congeneric species' depending on context, but acceptable."
+      ]
+    }
+  }
+]

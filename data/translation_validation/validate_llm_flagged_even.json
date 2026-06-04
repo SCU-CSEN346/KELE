@@ -1,0 +1,133 @@
+[
+  {
+    "id": 1268,
+    "grade": "3小学三年级上册",
+    "mission": "判断题",
+    "score": {
+      "overall_score": 3,
+      "meaning_preserved": false,
+      "socratic_tone_preserved": true,
+      "fluency": 4,
+      "flags": [
+        "Critical terminology error: 'wick' (灯芯) was translated instead of 'inner cone' (焰心). The wick is the cotton thread, while the inner cone is the central blue part of the flame.",
+        "Terminology inconsistency: 'middle flame' is used for '内焰' (inner flame), which is scientifically less precise than 'inner flame' in this context, though understandable.",
+        "Terminology inconsistency: 'outer flame' is used for '外焰' (outer flame), which is acceptable but 'outer flame' is the standard term."
+      ]
+    }
+  },
+  {
+    "id": 52,
+    "grade": "1小学一年级上册",
+    "mission": "选择题",
+    "score": {
+      "overall_score": 3,
+      "meaning_preserved": false,
+      "socratic_tone_preserved": true,
+      "fluency": 4,
+      "flags": [
+        "Critical factual error in 'question' and 'options': The source text states leaves are arranged '互不遮挡' (without blocking/overlapping), but the translation incorrectly translates this as 'where they overlap without blocking each other', creating a logical contradiction. The correct translation should be 'where they are arranged in a mosaic pattern without blocking each other'.",
+        "Critical factual error in 'newAnalyze': The translation repeats the contradiction from the question, stating leaves are arranged 'to overlap without blocking each other', whereas the source clearly says they do not overlap.",
+        "Inconsistent terminology: The source uses '镶嵌排列' (mosaic arrangement), which is a specific botanical term. The translation uses 'arranged in a way', losing the specific scientific terminology."
+      ]
+    }
+  },
+  {
+    "id": 712,
+    "grade": "2小学二年级上册",
+    "mission": "选择题",
+    "score": {
+      "overall_score": 3,
+      "meaning_preserved": false,
+      "socratic_tone_preserved": true,
+      "fluency": 4,
+      "flags": [
+        "Critical translation error in options: '农历初一' (1st day of lunar month) was mistranslated as 'Lunar New Year's Day' (Chinese New Year), which changes the scientific meaning of the question.",
+        "Terminology inconsistency: '农历初七' should be '7th day of the lunar month' (acceptable) but '农历十五' is translated as '15th day of the lunar month' (acceptable), whereas the error in the first option makes the set inconsistent.",
+        "Minor terminology preference: 'mooncake' is culturally specific; 'full moon' might be more universally understood in a general science context, though 'mooncake' is acceptable for cultural retention.",
+        "Formatting inconsistency: The dialogue lines contain extra whitespace at the beginning of student/teacher lines compared to the source."
+      ]
+    }
+  },
+  {
+    "id": 3172,
+    "grade": "4小学四年级下册",
+    "mission": "选择题",
+    "score": {
+      "overall_score": 3,
+      "meaning_preserved": false,
+      "socratic_tone_preserved": true,
+      "fluency": 4,
+      "flags": [
+        "Critical factual error in 'newAnalyze': The translation states 'ovary is part of the bud', whereas the source correctly identifies that the ovary is part of the flower (and the bud is the immature flower). This contradicts the biological fact that the fruit develops from the ovary of the flower.",
+        "Inconsistent terminology: The source uses '花蕾' (flower bud) as the correct answer option, but the explanation clarifies the fruit comes from the '子房' (ovary). The translation keeps 'Bud' as the correct answer in the dialogue conclusion, which is scientifically inaccurate based on the provided knowledge point about the ovary.",
+        "Minor phrasing awkwardness: 'female part of a flowering plant' is slightly clunky; 'pistil' or 'female reproductive part' would be more natural."
+      ]
+    }
+  },
+  {
+    "id": 2938,
+    "grade": "4小学四年级下册",
+    "mission": "选择题",
+    "score": {
+      "overall_score": 2,
+      "meaning_preserved": false,
+      "socratic_tone_preserved": true,
+      "fluency": 4,
+      "flags": [
+        "Critical factual error in 'newAnalyze': The translation states the correct answer is 'enhance soil fertility', whereas the source text explicitly concludes the correct answer is 'enhance soil fertility' only after a logical deduction that contradicts the scientific principle explained (preventing waterlogging). The source text's logic ('Options 1 and 2 are unrelated... Therefore, the correct answer is...') is preserved, but the translation adds 'not directly enhance fertility', creating a contradiction with the source's stated conclusion.",
+        "Critical factual error in dialogue turn [8]: The source text indicates the student answered correctly ('答案是增强土壤的肥力' matches the source's stated correct answer), but the translation incorrectly labels the student's answer as 'incorrect' ('Student's answer is incorrect'). This fundamentally breaks the meaning and the dialogue flow.",
+        "Inconsistency in 'newAnalyze': The source text claims the correct answer is 'enhance soil fertility' based on the elimination of other options, while the translation argues the correct answer is 'manage soil moisture' and explicitly says the fertility option is wrong. This creates a logical conflict between the source and target texts."
+      ]
+    }
+  },
+  {
+    "id": 5148,
+    "grade": "5小学五年级下册",
+    "mission": "选择题",
+    "score": {
+      "overall_score": 3,
+      "meaning_preserved": false,
+      "socratic_tone_preserved": true,
+      "fluency": 4,
+      "flags": [
+        "Critical logical error in the question translation: The source asks for the option that is NOT a reason to worry (我们担忧...的原因不包括), but the translation 'The reason we do not worry... is not' creates a double negative that changes the meaning to 'The reason we DO worry is not', leading to the opposite answer.",
+        "Inconsistent translation of the correct answer: The source identifies 'About three-quarters...' as the correct answer (the one that is NOT a reason to worry), but the translated question implies a different logical structure, causing confusion.",
+        "Minor phrasing awkwardness in the question stem: 'The reason we do not worry... is not' is grammatically clunky and logically confusing in English."
+      ]
+    }
+  },
+  {
+    "id": 5698,
+    "grade": "6小学六年级上册",
+    "mission": "选择题",
+    "score": {
+      "overall_score": 2,
+      "meaning_preserved": false,
+      "socratic_tone_preserved": true,
+      "fluency": 4,
+      "flags": [
+        "Critical factual error in question translation: The source question implies 'harder to screw in' (费力), but the translation says 'easier' (easier it is to screw in). This contradicts the physics and the correct answer provided in the source.",
+        "Critical factual error in newAnalyze: The source analysis concludes '费力且省时间' (more effort and less time), but the translation concludes 'Take more effort and save time'. While the English words match the source characters, the logic is broken because the premise in the translated question ('easier') contradicts the conclusion ('more effort').",
+        "Critical factual error in dialogue turn [5]: The student's summary in the source is '费力而且费时间' (more effort and more time), but the translation renders it as 'more effort and the more time it takes'. The translation fails to capture the 'more time' (费时间) part correctly in the context of the flawed question, or rather, it creates a logical inconsistency where the student says 'more time' but the question stem says 'more time' while the answer key says 'save time'.",
+        "Critical factual error in dialogue turn [6]: The student selects the option 'Take more effort and save time', which matches the source option text, but this option is logically inconsistent with the student's own summary in turn [5] ('more time') and the physical reality described in the knowledge point (more time needed). The translation fails to flag this logical contradiction.",
+        "Minor phrasing issue: 'thread diameter' is slightly less natural than 'thread thickness' or 'coarseness' for '螺纹', though acceptable in some contexts."
+      ]
+    }
+  },
+  {
+    "id": 6768,
+    "grade": "6小学六年级下册",
+    "mission": "选择题",
+    "score": {
+      "overall_score": 3,
+      "meaning_preserved": false,
+      "socratic_tone_preserved": true,
+      "fluency": 4,
+      "flags": [
+        "Critical factual error in 'newKnowledgePoint': The translation incorrectly states 'Altair, Vega, and Altair form the Summer Triangle' instead of 'Altair, Vega, and Deneb'. The source text correctly lists 'Deneb', but the translation repeats 'Altair', changing the scientific meaning.",
+        "Critical factual error in 'newAnalyze': The translation repeats the error from the knowledge point, stating 'Altair, Vega, and Altair form the Summer Triangle' instead of 'Deneb'.",
+        "Minor inconsistency in 'newKnowledgePoint': The source says 'Altair, Vega, and Altair' (likely a typo in source), but the translation corrects it to 'Altair, Vega, and Altair' (still wrong) instead of 'Altair, Vega, and Deneb'. The translation failed to correct the obvious typo in the source regarding the third star of the Summer Triangle."
+      ]
+    }
+  }
+]
