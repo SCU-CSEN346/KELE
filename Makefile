@@ -432,6 +432,8 @@ train-gemma4-31b-stage2-unsloth: gpu-preflight
 	  PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8 \
 	  TRAIN_BASE_MODEL=unsloth/gemma-4-31B-it-unsloth-bnb-4bit \
 	  TRAIN_PREQ=true \
+	  TRAIN_HF_REPO=ulises-c/SocratesLM-31B-stage2b-QLoRA \
+	  TRAIN_HF_PUSH_EVERY=50 \
 	  uv run --no-sync python scripts/train_sft.py \
 	  --config configs/train-sft-stage2-gemma4-31b.env \
 	  > outputs/sft-stage2-gemma4-31b/train.log 2>&1 &
