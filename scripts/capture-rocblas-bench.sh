@@ -48,7 +48,7 @@ fi
 
 # ── 2. GPU preflight ────────────────────────────────────────────────────────
 printf '\nRunning gpu-preflight...\n'
-cd "$REPO_DIR"
+cd "$REPO_DIR" || exit 1
 if ! make gpu-preflight; then
   printf 'gpu-preflight FAILED — aborting (GPU is dirty; clean it first)\n' >&2
   exit 1

@@ -37,6 +37,8 @@ bench_line="$1"
 # Strip a leading "rocblas-bench" token if present so we can prepend the full path.
 bench_args="${bench_line#rocblas-bench}"
 bench_args="${bench_args#"$BENCH_BIN"}"
+# shellcheck requires an array to safely expand a constructed argument list.
+read -ra bench_args_arr <<< "$bench_args"
 
 if [[ ! -x "$BENCH_BIN" ]]; then
   printf 'rocblas-bench not found at %s\n' "$BENCH_BIN" >&2
@@ -55,7 +57,7 @@ printf '\n'
 AMD_LOG_LEVEL=3 \
   AMD_SERIALIZE_KERNEL=3 \
   TORCH_USE_HIPBLASLT=0 \
-  "$BENCH_BIN" $bench_args \
+  "$BENCH_BIN" "${bench_args_arr[@]}" \
   > "$REPLAY_LOG" 2>&1 || true  # non-zero expected if it faults
 
 printf 'Replay exited. Checking results...\n\n'
