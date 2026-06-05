@@ -68,3 +68,5 @@ references/KELE-EN/.cache/
 
 # W&B local run artifacts
 wandb/
+# macOS
+.DS_Store

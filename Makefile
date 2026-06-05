@@ -25,6 +25,11 @@
         tournament-finalize tournament-archive tournament-restore tournament-reset \
         tournament-download tournament-help
 
+# ── Remotes ───────────────────────────────────────────────────────────────────
+# ulises-c/csen-346 is the source of truth; SCU-CSEN346/KELE is a 1:1 mirror.
+SOURCE_REMOTE := git@github.com:ulises-c/csen-346.git
+KELE_REMOTE   := git@github.com:SCU-CSEN346/KELE.git
+
 # Default target
 help:
 	@echo "Usage: make <target>"
@@ -116,27 +121,31 @@ setup: setup-repo install-hooks
 setup-repo:
 	@echo "Configuring dual-push remotes..."
 	# Set the fetch URL
-	git remote set-url origin git@github.com:ulises-c/csen-346.git
+	git remote set-url origin $(SOURCE_REMOTE)
 	# Replace push URL list (--push without --add resets to a single entry)
-	git remote set-url --push origin git@github.com:ulises-c/csen-346.git
+	git remote set-url --push origin $(SOURCE_REMOTE)
 	# Add the second push URL (now idempotent: list was just reset above)
-	git remote set-url --add --push origin git@github.com:SCU-CSEN346/KELE.git
+	git remote set-url --add --push origin $(KELE_REMOTE)
 	@echo "Repository setup complete. Verify with 'git remote -v'."
 
 # ── Dual remote synchronization ────────────────────────────────────────────────────
 
+# Reconcile KELE to match the source of truth 1:1. Needed because the dual-push
+# remote (see setup-repo) never propagates branch *deletions* and only the branch
+# you push gets mirrored — so KELE drifts (stale branches, diverged dependabot).
+# This snapshots source's authoritative refs and force-mirrors all branches + tags,
+# pruning anything on KELE that no longer exists on source. main goes first so it is
+# never left behind even if a later ref fails. WARNING: prunes KELE-only branches.
 sync-mirror:
-	@CURRENT_BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
-	if [ "$$CURRENT_BRANCH" = "main" ]; then \
-		echo "Already on main. Performing standard pull/push sync..."; \
-		git pull origin main; \
-	else \
-		echo "On $$CURRENT_BRANCH. Fetching main..."; \
-		git fetch origin main:main; \
-	fi
-	@git push git@github.com:ulises-c/csen-346.git main --tags
-	@git push --force git@github.com:SCU-CSEN346/KELE.git main:main --tags
-	@echo "Mirror sync successful."
+	@echo "Mirroring $(SOURCE_REMOTE) -> $(KELE_REMOTE) (all branches + tags, pruning stale)..."
+	@git fetch --prune --no-tags $(SOURCE_REMOTE) \
+		'+refs/heads/*:refs/mirror-src/heads/*' \
+		'+refs/tags/*:refs/mirror-src/tags/*'
+	@git push $(KELE_REMOTE) '+refs/mirror-src/heads/main:refs/heads/main'
+	@git push --prune $(KELE_REMOTE) \
+		'+refs/mirror-src/heads/*:refs/heads/*' \
+		'+refs/mirror-src/tags/*:refs/tags/*'
+	@echo "Mirror sync complete. KELE now matches $(SOURCE_REMOTE) 1:1."
 
 # ── Entry point ──────────────────────────────────────────────────────────────
 
