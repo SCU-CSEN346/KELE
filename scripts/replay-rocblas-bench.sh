@@ -37,7 +37,7 @@ bench_line="$1"
 # Strip a leading "rocblas-bench" token if present so we can prepend the full path.
 bench_args="${bench_line#rocblas-bench}"
 bench_args="${bench_args#"$BENCH_BIN"}"
-# shellcheck requires an array to safely expand a constructed argument list.
+# An array is required to safely expand a constructed argument list.
 read -ra bench_args_arr <<< "$bench_args"
 
 if [[ ! -x "$BENCH_BIN" ]]; then
