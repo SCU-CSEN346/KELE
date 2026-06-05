@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="cr" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#C20046"/>
+      <stop offset="1" stop-color="#8A0030"/>
+    </linearGradient>
+  </defs>
+  <!-- rounded square plate -->
+  <rect x="28" y="28" width="200" height="200" rx="48" fill="url(#cr)"/>
+  <!-- M monogram -->
+  <path d="M68 174 V90 Q68 78 80 86 L128 140 L176 86 Q188 78 188 90 V174"
+        stroke="#FFFFFF" stroke-width="18" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+  <!-- therefore glyph (∴) in gold, tucked in the right valley -->
+  <circle cx="150" cy="150" r="7" fill="#FAC300"/>
+  <circle cx="137" cy="173" r="7" fill="#FAC300"/>
+  <circle cx="163" cy="173" r="7" fill="#FAC300"/>
+</svg>

@@ -1,0 +1,11 @@
+# Research code, not production: coverage is reported for visibility but never
+# gates a merge. Targets are 0% so the project/patch checks always pass green
+# while Codecov still computes and comments the actual coverage numbers.
+coverage:
+  status:
+    project:
+      default:
+        target: 0%
+    patch:
+      default:
+        target: 0%

@@ -1,0 +1,10 @@
+/* The empty/landing screen renders Chainlit's native logo (img.logo inside
+   #welcome-screen), which loads the transparent emblem — its dark-red wordmark and
+   subtitle are unreadable on the grey dark theme. Swap it for the white-disc seal
+   so it reads in both themes. Scoped to #welcome-screen so the small header logo
+   (also img.logo) stays the plain transparent emblem. */
+#welcome-screen img.logo {
+  content: url("/public/logo_landing.png?v=3");
+  width: 280px;
+  height: auto;
+}
