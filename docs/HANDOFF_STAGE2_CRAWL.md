@@ -1,21 +1,58 @@
-# Handoff — Stage 2 Gemma 4 31B QLoRA crawl: STALLED — GPU reset required
+# Handoff — Stage 2 Gemma 4 31B QLoRA crawl
 
-**Date:** 2026-06-04 · **Branch:** `feat/gfx1201-rdna4-qlora-fla-training` · **PR:** #101
-**For:** a fresh Claude instance picking up after the monitor STALLed due to a wedged GPU.
+**Branch:** `feat/gfx1201-rdna4-qlora-fla-training` · **PR:** #101
+**For:** a fresh Claude instance picking up after session 6.
 
 ---
 
 ## TL;DR
 
-**Monitor has exited (STALLED 8/8).** Everything is dead. The GPU has a stale 24 GB KFD
-context that survived `pkill -9` — it was left by a tokenization deadlock that followed the
-step-1230 crash. Every subsequent monitor retry failed preflight (GPU dirty), consumed all 8
-retries, and the monitor posted STALLED to PR #101 at 17:19 on 2026-06-03 and exited.
+Training is **NOT running**. GPU state unknown — assume dirty (24 GB wedged KFD context from
+session 4). **Before restarting anything, reset the GPU driver** (see below).
 
-**Before restarting anything you must reset the GPU driver.** Once clean, restart the monitor
-and it will resume from checkpoint-1230. See "If the monitor STALLED" below for exact steps.
+Session 6 added: HF checkpoint backup via `HFCheckpointCallback`, raised `save_total_limit`
+to 5, extracted the callback to `src/project/hf_callback.py` with 7 unit tests. **These
+changes are uncommitted** — commit them before anything else.
 
-Progress banked: **checkpoint-1230 / 4826 steps = ~25.5% complete.**
+Progress banked: **checkpoint-1230 / 4826 steps ≈ 25.5% complete.**
+
+---
+
+## Immediate actions
+
+### 1. Commit session 6 code changes (not yet committed)
+
+```bash
+git add scripts/train_sft.py src/project/hf_callback.py tests/test_hf_callback.py
+git commit -m "refactor(train): extract HFCheckpointCallback to src/project/hf_callback + tests"
+git push origin feat/gfx1201-rdna4-qlora-fla-training
+```
+
+### 2. Check GPU state
+
+```bash
+rocm-smi --showmeminfo vram
+# If >1 GB used with no processes → GPU dirty, needs driver reset
+lsof /dev/kfd /dev/dri/renderD128 2>/dev/null | grep -v "^COMMAND"
+pkill nvtop    # if nvtop is listed, clear it and recheck VRAM
+```
+
+### 3. If GPU still dirty — driver reset
+
+```bash
+sudo modprobe -r amdgpu && sudo modprobe amdgpu
+rocm-smi --showmeminfo vram   # must show ~57 MB
+```
+
+### 4. Restart monitor
+
+```bash
+make gpu-preflight   # must PASS
+nohup bash scripts/monitor_stage2.sh > outputs/monitor_stage2.log 2>&1 &
+tail -f outputs/monitor_stage2.log
+```
+
+Monitor resumes from checkpoint-1230 automatically.
 
 ---
 
@@ -30,15 +67,9 @@ Progress banked: **checkpoint-1230 / 4826 steps = ~25.5% complete.**
 | Latest checkpoint | `checkpoint-1230` (safe — trainer_state.json intact) |
 | Total steps | 4,826 (1 epoch, 77k records, batch 1×16) |
 | Per-step time | ~71 s/it |
-| GPU state | **DIRTY** — 24 GB VRAM consumed, stale KFD context, needs driver reset |
-| W&B project | `csen346-sft` at `uchavarria-santa-clara-university` (active on next resume) |
-
-**Quick status check:**
-```bash
-tail -5 outputs/monitor_stage2.log
-ls -d outputs/sft-stage2-gemma4-31b/checkpoint-* | sort -V | tail -3
-rocm-smi --showmeminfo vram   # must show near-zero before restart
-```
+| GPU state | **Likely dirty** — 24 GB KFD context from session 4 stall |
+| HF backup repo | `ulises-c/SocratesLM-31B-stage2b-QLoRA` (auto-push every 50 steps) |
+| W&B project | `csen346-sft` at `uchavarria-santa-clara-university` |
 
 ---
 
@@ -48,32 +79,32 @@ rocm-smi --showmeminfo vram   # must show near-zero before restart
 log + dmesg, clean GPU (waits up to 180s for KFD to drain), quarantine any partial
 checkpoint, relaunch with a **fresh `TRAIN_DATA_SEED=$(date +%s)`**.
 
-The rotating seed is the key fix (commit `587b60e`): HF Trainer restores `rng_state.pth`
-on resume, which previously pinned the same samples to the same steps and caused the same
-fault every time. A new `data_seed` reshuffles the post-resume sample sequence each cycle,
-converting the sticky-deterministic fault back to the probabilistic regime of run #2
-(which sometimes cleared 100 steps). Verified: all 12 M values differed between seed=default
-and seed=99; step 22 (previously 8/8 fault) completed clean.
+The rotating seed (commit `587b60e`) reshuffles the post-resume sample sequence each cycle,
+converting the sticky-deterministic gfx1201 page fault back to probabilistic. Verified:
+all 12 M values differed between seed=default and seed=99.
 
-**Forward-progress guard:** `MAX_RETRIES=8` consecutive no-progress retries (no new
-checkpoint across 8 tries) → monitor posts `STALLED` to PR #101 and exits. A new checkpoint
-resets the counter, so a crawl that keeps advancing never exhausts it.
+**Forward-progress guard:** `MAX_RETRIES=8` consecutive no-progress retries → monitor posts
+`STALLED` to PR #101 and exits. A new checkpoint resets the counter.
+
+**HF auto-backup:** `HFCheckpointCallback` (via `TRAIN_HF_REPO` env var set in Makefile)
+pushes each saved checkpoint to `ulises-c/SocratesLM-31B-stage2b-QLoRA` in a daemon thread.
+On-disk `save_total_limit=5` keeps only the last 5 local checkpoints; HF keeps all of them.
 
 ---
 
 ## If training is running
 
-Leave it alone. Watch the PR for crash/progress posts from the monitor. The training is
-autonomous — no action needed unless:
-- The monitor posts `STALLED` → see "If STALLED" below
-- A crash post shows something unexpected (e.g., OOM, not a page fault)
+Leave it alone. Watch PR #101 for crash/progress posts. The training is autonomous — no
+action needed unless:
+- The monitor posts `STALLED` → see below
+- A crash post shows something unexpected (OOM, not a page fault)
 - Loss diverges (grad_norm consistently > 50, loss climbing after step 100)
 
 ---
 
 ## If training crashed and the monitor is handling it
 
-Normal — the monitor will clean, reseed, and relaunch. You'll see a PR comment like
+Normal — monitor will clean, reseed, and relaunch. You'll see a PR comment like
 `**Stage 2 CRASHED** (no-progress retry N/8, latest ckpt step X)`. No action needed
 unless it STALLs.
 
@@ -83,55 +114,19 @@ unless it STALLs.
 
 Monitor posted: `## Stage 2 Training: STALLED (no progress in 8 retries)`
 
-**Current situation (2026-06-04):** The 8 retries were NOT page-fault stalls — they were
-preflight failures caused by a wedged GPU. The root cause:
+**Most likely cause:** wedged GPU KFD context, not actual page-fault stalls. See session 5
+root cause in Session History below. Fix sequence:
 
-1. Training crashed at step 1230 (normal page fault)
-2. Monitor restarted; tokenization deadlocked in multiprocessing at 12868/77202 samples
-3. `pkill -9` cleared the Python processes but left a stale 24 GB KFD context on the GPU
-4. Every subsequent monitor retry failed preflight (VRAM 24 GB > 1024 MB threshold)
-5. 8 failed preflights = 8 "no progress" retries → STALL → monitor exited
-
-**Fix sequence:**
-
-1. **Verify GPU is still dirty:**
-   ```bash
-   rocm-smi --showmeminfo vram
-   # expect ~24 GB used despite no processes running
-   ```
-
-2. **Check if nvtop is holding the KFD context** (it was open on `/dev/kfd` in lsof):
-   ```bash
-   lsof /dev/kfd /dev/dri/renderD128 2>/dev/null | grep -v "^COMMAND"
-   pkill nvtop   # if listed; recheck VRAM after ~5s
-   ```
-
-3. **If VRAM still dirty — reload the GPU driver** (this is the nuclear option but clean):
-   ```bash
-   sudo modprobe -r amdgpu && sudo modprobe amdgpu
-   rocm-smi --showmeminfo vram   # should now show ~57 MB
-   ```
-
-4. **Confirm GPU clean, then restart monitor:**
-   ```bash
-   make gpu-preflight   # must PASS before continuing
-   nohup bash scripts/monitor_stage2.sh > outputs/monitor_stage2.log 2>&1 &
-   tail -f outputs/monitor_stage2.log
-   ```
-   Monitor will resume from checkpoint-1230 automatically.
-
-5. **Watch for tokenization deadlock on the first restart.** If train.log stalls at
-   `Tokenizing train dataset (num_proc=12): XX%` for more than 60 seconds without
-   advancing, the multiprocessing pool deadlocked again. In that case:
-   ```bash
-   pkill -9 -f 'train_sft\.py'
-   # wait for monitor to detect + clean + retry — usually clears on next attempt
-   ```
-   If it deadlocks repeatedly, consider patching `train_sft.py` to use
-   `dataset_num_proc=1` (slower tokenization, no deadlock risk).
-
-6. If monitor STALLs again after a clean GPU restart → **post to PR #101** and escalate.
-   Cloud GPU (CUDA) is the remaining option.
+1. Verify GPU dirty: `rocm-smi --showmeminfo vram` → expect ~24 GB despite no processes
+2. `lsof /dev/kfd /dev/dri/renderD128` → `pkill nvtop` if listed; recheck after 5s
+3. If still dirty: `sudo modprobe -r amdgpu && sudo modprobe amdgpu`
+4. `make gpu-preflight` → must PASS
+5. `nohup bash scripts/monitor_stage2.sh > outputs/monitor_stage2.log 2>&1 &`
+6. Watch for tokenization deadlock on first restart: if `train.log` stalls at
+   `Tokenizing train dataset (num_proc=12): XX%` for >60s without advancing, the
+   multiprocessing pool deadlocked. `pkill -9 -f 'train_sft\.py'` — monitor will retry.
+   If repeated: patch `train_sft.py` to use `dataset_num_proc=1`.
+7. If STALLs again after clean GPU → post to PR #101, escalate to cloud GPU.
 
 ---
 
@@ -139,24 +134,20 @@ preflight failures caused by a wedged GPU. The root cause:
 
 Monitor posted: `## Stage 2 Training: COMPLETE ✓`
 
-Adapter is at `outputs/sft-stage2-gemma4-31b/final/`. Next steps:
+Adapter at `outputs/sft-stage2-gemma4-31b/final/`. Next steps:
 
-1. **Verify the adapter loads:**
+1. **Verify adapter loads:**
    ```bash
    uv run --no-sync python -c "
    from peft import PeftModel
-   from transformers import AutoModelForCausalLM
-   m = PeftModel.from_pretrained('outputs/sft-stage2-gemma4-31b/final', 'unsloth/gemma-4-31B-it-unsloth-bnb-4bit')
+   m = PeftModel.from_pretrained('outputs/sft-stage2-gemma4-31b/final',
+       'unsloth/gemma-4-31B-it-unsloth-bnb-4bit')
    print('OK')
    "
    ```
-2. **Merge and export for serving:**
-   ```bash
-   uv run --no-sync python scripts/merge_lora_gemma4_sft.py
-   ```
-3. **Run downstream eval** (BERT consultant routing + LLM judge) — post results to PR #101
-4. **Update ablation log** (`docs/GFX1201_FAULT_ABLATION_LOG.md`) with final step count
-   and any fault events observed
+2. Merge and export: `uv run --no-sync python scripts/merge_lora_gemma4_sft.py`
+3. Run downstream eval (BERT consultant routing + LLM judge) — post to PR #101
+4. Update `docs/GFX1201_FAULT_ABLATION_LOG.md` with final step count + fault events
 
 ---
 
@@ -172,12 +163,18 @@ Adapter is at `outputs/sft-stage2-gemma4-31b/final/`. Next steps:
 
 ## What is closed — do not re-investigate
 
-The gfx1201 ISA1201 Tensile GEMM bug is **fully root-caused and documented**. All ablation
-arms are exhausted. See `docs/GFX1201_FAULT_ABLATION_LOG.md` for the complete record.
-The upstream report is being filed at `ROCm/rocm-libraries` with all necessary artifacts.
+The gfx1201 ISA1201 Tensile GEMM bug is **fully root-caused and documented**. All
+ablation arms are exhausted. See `docs/GFX1201_FAULT_ABLATION_LOG.md`.
+
+The `ROCBLAS_LAYER=2` bench logging path is a dead end through PyTorch: PyTorch routes
+through `libhipblas.so → librocblas.so` internal dispatch, bypassing the C API logging
+hooks. Both B-matrix encodings for `rocblas-bench gemm_ex` dispatch `ISA000` (MLIR
+generic), never `ISA1201`. The `ISA1201 MT64x64x64 DTVB1 BH_Bias_HA_S_SAV_UserArgs`
+kernel requires the `UserArgs/Bias` extension internal to bitsandbytes. Investigated and
+confirmed closed in session 6. Env snapshot: `docs/diagnostics/gfx1201-report-env-20260605-101605.txt`.
 
 Do not:
-- Re-run probe scripts (probes 1–3 are done)
+- Re-run probe scripts (probes 1–3 are done; `capture-rocblas-bench.sh` / `replay-rocblas-bench.sh` confirmed dead end)
 - Try `TORCH_USE_HIPBLASLT=1` (run #11 — no kernel for this shape, Tensile fallback)
 - Try `BNB_FORCE_B_CONTIGUOUS=1` (run #12 — Python `.contiguous()` can't reach BLAS descriptor)
 - Try `expandable_segments:True` (run #10 — silently ignored on gfx1201)
@@ -185,23 +182,47 @@ Do not:
 
 ---
 
+## Open items
+
+- **Upstream rocBLAS reproducer** for `ROCm/rocm-libraries` issue: a ~20-line Python
+  script using `bnb.nn.Linear4bit` at exact shape (M=608, N=5376→21504 NF4 dequant).
+  Not yet written. This would enable AMD to reproduce without full Gemma 4 31B training.
+  See `docs/diagnostics/gfx1201-report-env-20260605-101605.txt` for full env details.
+
+---
+
 ## Session history
 
-**Session 4 (2026-06-02):** Crawl launched from checkpoint-90. Made forward progress to
+**Session 4 (2026-06-02):** Crawl launched from checkpoint-90. Forward progress to
 checkpoint-1230 overnight (~50 crashes, all recovered). Tokenization deadlock after
 step-1230 crash wedged the GPU; monitor STALLed 8/8 at 17:19 on 2026-06-03.
 
-**Session 5 (2026-06-04):** Monitor and training dead, GPU dirty (24 GB wedged KFD context).
-No code changes this session — GPU driver reset needed before restart.
+**Session 5 (2026-06-04):** Monitor and training dead, GPU dirty (24 GB wedged KFD).
+No code changes. Commits: env snapshot script, rocBLAS probe scripts.
+
+**Session 6 (2026-06-05):**
+- Ran `capture-rocblas-bench.sh` + `replay-rocblas-bench.sh` → confirmed `ROCBLAS_LAYER`
+  dead through PyTorch's hipBLAS path; `rocblas-bench gemm_ex` only dispatches `ISA000`
+- Fixed venv torch build regression: `torch+cu130` (CUDA) → `torch+rocm7.2` (`make install`)
+- Env snapshot collected: `docs/diagnostics/gfx1201-report-env-20260605-101605.txt`
+- Created HF model repo `ulises-c/SocratesLM-31B-stage2b-QLoRA` with README + ATTRIBUTION
+- `scripts/train_sft.py`: `save_total_limit` 2→5; `HFCheckpointCallback` added (async
+  HF push every 50 steps via `TRAIN_HF_REPO` + `TRAIN_HF_PUSH_EVERY` env vars)
+- `Makefile`: `train-gemma4-31b-stage2-unsloth` wired with `TRAIN_HF_REPO` + `TRAIN_HF_PUSH_EVERY`
+- Extracted `HFCheckpointCallback` to `src/project/hf_callback.py` (module-level, testable)
+- Added `tests/test_hf_callback.py` — 7 unit tests, all passing (162 pass / 2 skip total)
+- **Uncommitted as of handoff** — commit `scripts/train_sft.py`, `src/project/hf_callback.py`,
+  `tests/test_hf_callback.py` before restarting training
 
 ```
+e6ed01a  feat(train): HF auto-push callback + raise save_total_limit to 5
 21fc7ab  feat(diag): add rocblas bench capture + replay scripts for gfx1201 repro
 9016f9f  fix(monitor): crash_hint matches the real gfx1201 fault signature
 d4ce31d  feat(train): enable W&B in config (next-crash pickup) + pin run for continuity
-623bb06  docs(handoff): session 4 complete — crawl running, rotating seed fix live
-aebcc3f  feat(monitor): pass WANDB_PROJECT to training launches
 587b60e  feat(monitor): rotate TRAIN_DATA_SEED per resume to break sticky fault
 ```
+
+---
 
 ## Key files
 
@@ -209,6 +230,9 @@ aebcc3f  feat(monitor): pass WANDB_PROJECT to training launches
 |---|---|
 | `docs/GFX1201_FAULT_ABLATION_LOG.md` | Canonical run log — append after every run |
 | `scripts/monitor_stage2.sh` | Crawl harness — rotating seed, KFD cleanup, PR posts |
-| `scripts/train_sft.py` | Training script; `TRAIN_DATA_SEED` + `TRAIN_LOG_DATA_ORDER` wired |
+| `scripts/train_sft.py` | Training script; HF auto-push + `TRAIN_DATA_SEED` wired |
+| `src/project/hf_callback.py` | `HFCheckpointCallback` — async HF push, skip-if-in-flight |
+| `tests/test_hf_callback.py` | 7 unit tests for `HFCheckpointCallback` |
 | `outputs/sft-stage2-gemma4-31b/crashlogs/` | Per-crash full log + dmesg archive |
+| `docs/diagnostics/gfx1201-report-env-20260605-101605.txt` | Env snapshot for ROCm upstream report |
 | PR #101 | Full diagnostic thread + all session findings |
