@@ -62,7 +62,10 @@ addopts = "-v -ra"
 
 [tool.coverage.run]
 source = ["src"]
-omit = ["src/project/translate_dataset.py"]  # translation script; not unit-testable in CI
+omit = [
+    "src/project/translate_dataset.py",  # translation script; not unit-testable in CI
+    "src/project/demo/build_public_assets.py",  # PIL asset generator; not unit-testable in CI
+]
 
 [tool.coverage.report]
 show_missing = true
