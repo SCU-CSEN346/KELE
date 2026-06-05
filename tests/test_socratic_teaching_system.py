@@ -9,6 +9,11 @@ import pytest
 
 pytest.importorskip("openai")
 
+import httpx
+import openai
+
+import src.project.socratic_teaching_system as stss
+import src.project.tournament_utilizations as tu
 from src.project.socratic_teaching_system import SocraticTeachingSystem
 
 
@@ -96,3 +101,99 @@ def test_add_to_consultant_history_records_teaching_rounds():
             "teaching_rounds": 3,
         }
     ]
+
+
+def _rate_limit_error(retry_after: str | None = None) -> openai.RateLimitError:
+    headers = {"retry-after": retry_after} if retry_after is not None else {}
+    request = httpx.Request("POST", "http://localhost/v1/chat/completions")
+    response = httpx.Response(429, headers=headers, request=request)
+    return openai.RateLimitError("rate limited", response=response, body=None)
+
+
+@pytest.fixture
+def patched_teacher(monkeypatch):
+    """Patch socrates_teacher's collaborators: no-op pre-call, no real sleep.
+
+    Returns a dict the test fills with `call` (the call_teacher_wrapped stub)
+    and reads `sleeps` from (the recorded backoff durations).
+    """
+    sleeps: list[float] = []
+    monkeypatch.setattr(stss.time, "sleep", lambda s: sleeps.append(s))
+    monkeypatch.setattr(tu, "apply_pre_call", lambda sp, ui, **kw: (sp, ui))
+    state: dict = {"sleeps": sleeps}
+
+    def install(fn):
+        monkeypatch.setattr(tu, "call_teacher_wrapped", fn)
+
+    state["install"] = install
+    return state
+
+
+def test_socrates_teacher_retries_then_succeeds(patched_teacher):
+    calls = {"n": 0}
+
+    def fake_call(client, model, system_prompt, user_input, predicted_state=None):
+        calls["n"] += 1
+        if calls["n"] <= 2:
+            raise _rate_limit_error()
+        return "TEACHER_OK"
+
+    patched_teacher["install"](fake_call)
+
+    sys = make_system()
+    result = sys.socrates_teacher("hi", "eval", "ask")
+
+    assert result == "TEACHER_OK"
+    assert calls["n"] == 3
+    assert patched_teacher["sleeps"] == [5, 10]  # exponential backoff: 5*2**attempt
+
+
+def test_socrates_teacher_honors_retry_after_header(patched_teacher):
+    calls = {"n": 0}
+
+    def fake_call(client, model, system_prompt, user_input, predicted_state=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise _rate_limit_error(retry_after="2")
+        return "OK"
+
+    patched_teacher["install"](fake_call)
+
+    sys = make_system()
+    result = sys.socrates_teacher("hi", "eval", "ask")
+
+    assert result == "OK"
+    assert patched_teacher["sleeps"] == [2.0]  # header wins over exponential backoff
+
+
+def test_socrates_teacher_exhausts_retries_returns_fallback(patched_teacher):
+    def fake_call(client, model, system_prompt, user_input, predicted_state=None):
+        raise _rate_limit_error()
+
+    patched_teacher["install"](fake_call)
+
+    sys = make_system()
+    result = sys.socrates_teacher("hi", "eval", "ask")
+
+    assert result == "I need a moment to think. Please try again shortly."
+    assert patched_teacher["sleeps"] == [5, 10, 20]  # 3 backoffs, 4th attempt re-raises
+
+
+def test_socrates_teacher_language_override_appends_instruction(patched_teacher, monkeypatch):
+    captured: dict = {}
+
+    def fake_call(client, model, system_prompt, user_input, predicted_state=None):
+        captured["sp"] = system_prompt
+        return "ok"
+
+    patched_teacher["install"](fake_call)
+    sys = make_system()
+
+    monkeypatch.setenv("KELE_TEACHER_LANG", "auto")
+    sys.socrates_teacher("Why is the sky blue?", "eval", "ask")
+    assert "Always respond in the same language" in captured["sp"]
+
+    monkeypatch.delenv("KELE_TEACHER_LANG", raising=False)
+    captured.clear()
+    sys.socrates_teacher("Why is the sky blue?", "eval", "ask")
+    assert "Always respond in the same language" not in captured["sp"]

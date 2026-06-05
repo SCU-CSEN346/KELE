@@ -115,3 +115,27 @@ def test_run_single_dialogue_resets_system_before_replay():
     kele.run_single_dialogue(system, item)
 
     assert system.reset_calls == 1
+
+
+def test_interactive_forwards_args_to_create_system(monkeypatch):
+    captured = {}
+
+    class FakeSys:
+        def __init__(self):
+            self.started = False
+
+        def start_conversation(self):
+            self.started = True
+
+    fake = FakeSys()
+
+    def fake_create_system(**kwargs):
+        captured.update(kwargs)
+        return fake
+
+    monkeypatch.setattr(kele, "create_system", fake_create_system)
+
+    kele.interactive(experiment="exp1", bert_consultant="/ckpt", unified=False)
+
+    assert captured == {"experiment": "exp1", "bert_consultant": "/ckpt", "unified": False}
+    assert fake.started is True
