@@ -39,6 +39,10 @@ data/SocratDataset-EN.json
 data/translate.log
 data/translate_checkpoint.json
 data/archive/
+# Translation-validation raw shard outputs — regenerable; keep merged scores + flagged
+data/translation_validation/validate_llm_checkpoint_*.json
+data/translation_validation/validate_llm_scores_even.json
+data/translation_validation/validate_llm_scores_odd.json
 
 # Secrets and local tooling
 .env
