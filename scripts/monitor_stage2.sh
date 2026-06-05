@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# This script builds GitHub-markdown PR comments via printf; the format strings
+# This script builds GitHub-markdown issue comments via printf; the format strings
 # are single-quoted on purpose (%s positional args + literal backticks/newlines),
 # so SC2016 ("expressions don't expand in single quotes") is a false positive.
 # shellcheck disable=SC2016
@@ -10,7 +10,18 @@ OUTPUT_DIR="$REPO_DIR/outputs/sft-stage2-gemma4-31b"
 STAGE2_LOG="$OUTPUT_DIR/train.log"
 FINAL_DIR="$OUTPUT_DIR/final"
 SELF_LOG="$REPO_DIR/outputs/monitor_stage2.log"
-PR_NUMBER=101
+# Progress + crash reports go to the dedicated Training Log issue, not the PR —
+# crash spam was flooding PR #101 (code review). See issue #120.
+ISSUE_NUMBER=120
+# All events append a row to ONE pinned comment (the "Live training log" table on
+# issue #120) instead of posting per-event. Bump this id when starting a brand-new
+# crawl — create a fresh placeholder comment and paste its numeric id here (same
+# convention as WANDB_RUN_ID). The comment body is the source of truth: log_row
+# fetches it, appends a row, and PATCHes it back, so it survives monitor restarts
+# and OUTPUT_DIR wipes without minting a second log comment.
+LOG_COMMENT_ID=4635099006
+# Post a training-metrics progress report every this many steps (loss/grad_norm/lr).
+PROGRESS_EVERY=50
 # The gfx1201 fault is non-deterministic, so the run advances by crashing and
 # resuming from the latest checkpoint (save_steps=10). MAX_RETRIES bounds
 # CONSECUTIVE retries that make NO forward progress — a run that keeps advancing
@@ -19,13 +30,74 @@ PR_NUMBER=101
 MAX_RETRIES=8
 POLL_SECONDS=300
 
+# gh resolves the {owner}/{repo} api placeholders from the cwd's git remote.
+cd "$REPO_DIR" || exit 1
+
 log() {
     printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" | tee -a "$SELF_LOG"
 }
 
-post_pr() {
-    gh pr comment "$PR_NUMBER" --body "$1" >> "$SELF_LOG" 2>&1 || \
-        log "WARNING: gh pr comment failed"
+# ── Live training-log comment ────────────────────────────────────────────────
+# Readable ISO 8601 with numeric offset (not a TZ abbreviation, which isn't ISO
+# and is ambiguous across hosts).
+now_iso() { date '+%Y-%m-%d %H:%M:%S%:z'; }
+
+# Numerator of the latest tqdm "N/total" line — the current training step.
+current_step_num() {
+    local s
+    s="$(last_step)"
+    [[ -n "$s" ]] && printf '%s' "${s%%/*}"
+}
+
+# The HF Trainer logging callback (logging_steps=10) prints a python dict each
+# log: {'loss': 1.234, 'grad_norm': 0.45, 'learning_rate': 4.9e-05, 'epoch': 0.1}.
+# Both stdout and stderr land in train.log (make target redirects 2>&1).
+latest_metrics() {
+    [[ -f "$STAGE2_LOG" ]] || return 0
+    grep -aoE "\{'loss': [^}]*\}" "$STAGE2_LOG" | tail -1 || true
+}
+
+# Split a metrics dict into "loss<TAB>grad_norm<TAB>lr<TAB>epoch" via literal_eval
+# (robust to key order / float formatting); prints nothing if it can't parse.
+parse_metrics() {
+    [[ -n "$1" ]] || return 0
+    python3 - "$1" <<'PY' 2>/dev/null || true
+import ast, sys
+try:
+    d = ast.literal_eval(sys.argv[1])
+except Exception:
+    sys.exit(0)
+print("\t".join(str(d.get(k, "")) for k in ("loss", "grad_norm", "learning_rate", "epoch")))
+PY
+}
+
+# One-line crash signature for the table's Note cell. A literal pipe would break
+# the markdown row, so swap it for a fullwidth bar; the full trace is in crashlogs/.
+crash_signature() {
+    [[ -f "$STAGE2_LOG" ]] || return 0
+    grep -iE "memory access fault|page not present|out of memory|hip error|cuda error|runtimeerror|aborted" \
+        "$STAGE2_LOG" | tail -1 | tr '\n' ' ' | tr -d '`' | sed 's/|/／/g' | cut -c1-140
+}
+
+# Append one row to the pinned comment. The comment body is the source of truth:
+# fetch it, append the row, PATCH it back — so restarts/OUTPUT_DIR wipes never
+# lose history or mint a second comment. Single writer (this monitor), so the
+# read-modify-write has no concurrent-update race.
+log_row() {
+    local body
+    body="$(gh api "repos/{owner}/{repo}/issues/comments/$LOG_COMMENT_ID" --jq '.body' 2>>"$SELF_LOG")" || {
+        log "WARNING: could not fetch log comment $LOG_COMMENT_ID — dropping row: $1"; return 0; }
+    printf '%s\n%s\n' "$body" "$1" \
+        | gh api -X PATCH "repos/{owner}/{repo}/issues/comments/$LOG_COMMENT_ID" -F body=@- >> "$SELF_LOG" 2>&1 \
+        || log "WARNING: gh api PATCH (log comment) failed"
+}
+
+log_progress() {
+    local step loss gn lr epoch
+    step="$(last_step)"
+    IFS=$'\t' read -r loss gn lr epoch < <(parse_metrics "$(latest_metrics)") || true
+    log_row "$(printf '| %s | progress | %s | %s | %s | %s | epoch %s |' \
+        "$(now_iso)" "${step:-?}" "${loss:-}" "${gn:-}" "${lr:-}" "${epoch:-}")"
 }
 
 training_running() {
@@ -131,18 +203,32 @@ start_stage2() {
     sleep 30
 }
 
-log "Stage 2 monitor starting (PR #$PR_NUMBER, poll every ${POLL_SECONDS}s, max $MAX_RETRIES retries)"
-post_pr "**Stage 2 monitoring active** — watching \`outputs/sft-stage2-gemma4-31b/train.log\` for crashes. Will post on completion or failure."
+log "Stage 2 monitor starting (issue #$ISSUE_NUMBER comment $LOG_COMMENT_ID, poll every ${POLL_SECONDS}s, max $MAX_RETRIES retries)"
+log_row "$(printf '| %s | ▶ monitor start | %s | | | | watching train.log; progress every %s steps |' \
+    "$(now_iso)" "$(last_step || true)" "$PROGRESS_EVERY")"
 
 sleep 30  # let it get going before first poll
 
 retries=0
 last_progress_step="$(latest_ckpt_step)"
+# Step at which the last progress report was posted; -PROGRESS_EVERY so the first
+# poll where metrics exist reports immediately (useful "resumed at step N" beat).
+last_reported_step=$(( -PROGRESS_EVERY ))
 
 while true; do
     if training_running; then
         step="$(last_step)"
         log "Stage 2 running${step:+ — step $step}"
+        # Gate on a real metrics line: last_step's N/total also matches the
+        # startup shard-load (2/2) and dataset-map (77000/77000) bars, but the
+        # {'loss':...} dict only appears once the trainer is logging steps — so
+        # this can't fire a spurious progress post before training starts.
+        cur="$(current_step_num)"
+        if [[ -n "$cur" ]] && [[ -n "$(latest_metrics)" ]] \
+            && (( cur - last_reported_step >= PROGRESS_EVERY )); then
+            log_progress
+            last_reported_step="$cur"
+        fi
         sleep "$POLL_SECONDS"
         continue
     fi
@@ -150,7 +236,8 @@ while true; do
     if [[ -d "$FINAL_DIR" ]]; then
         log "Stage 2 complete — adapter at $FINAL_DIR"
         total_steps="$(last_step || true)"
-        post_pr "$(printf '## Stage 2 Training: COMPLETE ✓\n\nFull QLoRA fine-tune finished.\n\n- Adapter: `outputs/sft-stage2-gemma4-31b/final`\n- Last recorded step: %s\n\nNext: serving generation-primer audit before downstream eval (see handoff §2).' "${total_steps:-unknown}")"
+        log_row "$(printf '| %s | ✅ COMPLETE | %s | | | | adapter: outputs/sft-stage2-gemma4-31b/final |' \
+            "$(now_iso)" "${total_steps:-?}")"
         log "Stage 2 done — monitor exiting"
         exit 0
     fi
@@ -173,12 +260,14 @@ while true; do
     archive_crash_log "$ckpt_step"
 
     if (( retries >= MAX_RETRIES )); then
-        post_pr "$(printf '## Stage 2 Training: STALLED (no progress in %d retries)\n\nLatest checkpoint step: %s. The run is not advancing across resumes — manual intervention needed (run `make diagnose-gfx1201-fault`).\n\nCrash hint:\n```\n%s\n```\n\nPer-crash full tracebacks + dmesg: `outputs/sft-stage2-gemma4-31b/crashlogs/`' "$MAX_RETRIES" "$ckpt_step" "$hint")"
+        log_row "$(printf '| %s | ⛔ STALLED | %s | | | | no progress in %d retries — manual intervention (make diagnose-gfx1201-fault); last good ckpt %s — %s |' \
+            "$(now_iso)" "$(last_step || true)" "$MAX_RETRIES" "$ckpt_step" "$(crash_signature)")"
         log "Stalled — no forward progress in $MAX_RETRIES retries — exiting"
         exit 1
     fi
 
-    post_pr "$(printf '**Stage 2 CRASHED** (no-progress retry %d/%d, latest ckpt step %s) — cleaning GPU + resuming.\n\n```\n%s\n```' "$((retries+1))" "$MAX_RETRIES" "$ckpt_step" "$hint")"
+    log_row "$(printf '| %s | 🔴 crash | %s | | | | retry %d/%d, last good ckpt %s — %s |' \
+        "$(now_iso)" "$(last_step || true)" "$((retries+1))" "$MAX_RETRIES" "$ckpt_step" "$(crash_signature)")"
 
     retries=$(( retries + 1 ))
     kill_and_clean

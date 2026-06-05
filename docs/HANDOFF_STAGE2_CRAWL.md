@@ -118,7 +118,15 @@ the fault occurs deterministically within steps 22–24 from checkpoint-20; from
 the window is 0–100 steps (wider, still seed-dependent).
 
 **Forward-progress guard:** `MAX_RETRIES=8` consecutive no-progress retries → monitor posts
-`STALLED` to PR #101 and exits. A new checkpoint resets the counter.
+`STALLED` to the Training Log issue (#120) and exits. A new checkpoint resets the counter.
+
+**Where posts go:** all events — progress (every `PROGRESS_EVERY=50` steps, with
+time/loss/grad_norm/lr), crash, STALLED, COMPLETE — append a row to a **single pinned
+comment** (the "Live training log" table) on **issue #120**, not PR #101. The comment id is
+pinned in `monitor_stage2.sh` as `LOG_COMMENT_ID`; `log_row` fetches that comment, appends a row,
+and PATCHes it back, so restarts and `outputs/` wipes never lose history or mint a second comment.
+**Starting a brand-new crawl:** create a fresh placeholder comment on #120 and paste its numeric id
+into `LOG_COMMENT_ID` (same "bump for a new run" convention as `WANDB_RUN_ID`).
 
 **HF auto-backup:** `HFCheckpointCallback` (via `TRAIN_HF_REPO` env var set in Makefile)
 pushes each saved checkpoint to `ulises-c/SocratesLM-31B-stage2b-QLoRA` in a daemon thread.
@@ -128,7 +136,7 @@ On-disk `save_total_limit=5` keeps only the last 5 local checkpoints; HF keeps a
 
 ## If training is running
 
-Leave it alone. Watch PR #101 for crash/progress posts. The training is autonomous — no
+Leave it alone. Watch issue #120 (Training Log) for crash/progress posts. The training is autonomous — no
 action needed unless:
 - The monitor posts `STALLED` → see below
 - A crash post shows something unexpected (OOM, not a page fault)
@@ -138,7 +146,7 @@ action needed unless:
 
 ## If training crashed and the monitor is handling it
 
-Normal — monitor will clean, reseed, and relaunch. You'll see a PR comment like
+Normal — monitor will clean, reseed, and relaunch. You'll see an issue #120 comment like
 `**Stage 2 CRASHED** (no-progress retry N/8, latest ckpt step X)`. No action needed
 unless it STALLs.
 
@@ -159,7 +167,7 @@ Monitor posted: `## Stage 2 Training: STALLED (no progress in 8 retries)`
    `Tokenizing train dataset (num_proc=12): XX%` for >60s without advancing, the
    multiprocessing pool deadlocked. `pkill -9 -f 'train_sft\.py'` — monitor will retry.
    If repeated: patch `train_sft.py` to use `dataset_num_proc=1`.
-7. If STALLs again after clean GPU → post to PR #101, escalate to cloud GPU.
+7. If STALLs again after clean GPU → note in issue #120, escalate to cloud GPU.
 
 ---
 
@@ -179,7 +187,7 @@ Adapter at `outputs/sft-stage2-gemma4-31b/final/`. Next steps:
    "
    ```
 2. Merge and export: `uv run --no-sync python scripts/merge_lora_gemma4_sft.py`
-3. Run downstream eval (BERT consultant routing + LLM judge) — post to PR #101
+3. Run downstream eval (BERT consultant routing + LLM judge) — post results to issue #120
 4. Update `docs/GFX1201_FAULT_ABLATION_LOG.md` with final step count + fault events
 
 ---
@@ -279,7 +287,7 @@ e6ed01a  feat(train): HF auto-push callback + raise save_total_limit to 5
 | File | Purpose |
 |---|---|
 | `docs/GFX1201_FAULT_ABLATION_LOG.md` | Canonical run log — append after every run |
-| `scripts/monitor_stage2.sh` | Crawl harness — rotating seed, KFD cleanup, PR posts |
+| `scripts/monitor_stage2.sh` | Crawl harness — rotating seed, KFD cleanup, issue #120 progress/crash posts |
 | `scripts/train_sft.py` | Training script; HF auto-push + `TRAIN_DATA_SEED` + `BNB_DEQUANT_PROBE` wired |
 | `scripts/repro_gfx1201_rocblas.py` | Standalone AMD upstream reproducer (dispatches ISA1201 kernel) |
 | `src/project/hf_callback.py` | `HFCheckpointCallback` — async HF push, skip-if-in-flight |
