@@ -5,12 +5,9 @@
 # The weight file is produced by the merge+convert pipeline (see the 12B PoC plan):
 #   scripts/merge_lora_gemma4_sft.py --base google/gemma-4-12b-it \
 #     --adapter outputs/sft-gemma4-12b-qlora/final --out outputs/sft-gemma4-12b-qlora/merged
-#   MERGED_DIR=outputs/sft-gemma4-12b-qlora/merged GGUF_DIR=outputs/sft-gemma4-12b-qlora \
-#     QUANT=Q8_0 bash scripts/convert_gemma4_sft_to_gguf.sh
-#   # convert_gemma4_sft_to_gguf.sh hardcodes a "31B" NAME_TAG — rename to the 12B
-#   # name below, then stage it where this wrapper looks:
-#   mv outputs/sft-gemma4-12b-qlora/gemma-4-31B-kele-socratic-sft-Q8_0.gguf \
-#      ~/Documents/models/weights/gemma-4-12B-kele-socratic-sft-Q8_0.gguf
+#   bash scripts/convert_gemma4_12b_sft_to_gguf.sh
+# The convert wrapper writes gemma-4-12B-kele-socratic-sft-Q8_0.gguf AND stages it
+# into the weights dir below (matching GEMMA4_12B_SFT_WEIGHT_FILE) — no rename needed.
 #
 # Distinct alias "Gemma 4 12B SFT" so the eval orchestrator proves the SFT weights
 # answered (gemma4-12b-sft-local.env). Stop the base server first — one model at a
