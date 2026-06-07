@@ -7,48 +7,35 @@
 
 ## TL;DR
 
-Training is **NOT running**. The monitor was not restarted in session 7 because a diagnostic
-SYNC run is/was occupying the GPU to collect fresh fault data for the AMD upstream bug report.
+Training is **NOT running**. All processes were killed at end of session 8 after another
+page fault crash. Monitor was never restarted.
 
 **Before restarting the monitor:**
-1. Verify the diagnostic process is dead (`pgrep -f train_sft` → should be empty)
-2. Parse the diagnostic log (see Open items below)
-3. `make gpu-preflight` — the diagnostic run deliberately faults the GPU
+1. `make gpu-preflight` — GPU is dirty from the page fault crash
+2. `pgrep -f monitor_stage2` — confirm not already running
+3. `nohup bash scripts/monitor_stage2.sh > outputs/monitor_stage2.log 2>&1 &`
 
-Working tree is **clean**. All session 7 changes committed and pushed at `109eb72`.
+Working tree is **clean**. All session 7–8 changes committed.
 
-Progress banked: **checkpoint-1230 / 4826 steps ≈ 25.5% complete.**
+Progress banked: **checkpoint-1290 / 4826 steps ≈ 26.7% complete.**
+
+The SYNC diagnostic log has been parsed. AMD upstream report is ready to file — all
+evidence collected (see Open items).
 
 ---
 
 ## Immediate actions
 
-### 1. Check diagnostic run status
+### 1. GPU preflight + restart monitor
 
 ```bash
-pgrep -f train_sft   # should be empty — training crashed or completed
-wc -c docs/diagnostics/diag-sync-probe-step1230-20260605-124008.log
+make gpu-preflight   # must PASS
+pgrep -f monitor_stage2   # confirm not already running
+nohup bash scripts/monitor_stage2.sh > outputs/monitor_stage2.log 2>&1 &
+tail -f outputs/monitor_stage2.log
 ```
 
-### 2. Parse the diagnostic log
-
-```bash
-# Get the fault address
-grep "Memory access fault" docs/diagnostics/diag-sync-probe-step1230-20260605-124008.log
-
-# Get fresh operand pointers at checkpoint-1230 VA layout (last probe before fault)
-grep "dequant_probe.*21504" docs/diagnostics/diag-sync-probe-step1230-20260605-124008.log | tail -5
-
-# Confirm ShaderName dispatched
-grep -o 'MT64x64x64[^[:space:]]*ISA1201[^[:space:]]*' \
-  docs/diagnostics/diag-sync-probe-step1230-20260605-124008.log | head -3
-```
-
-Expected: fault address 2 MB-aligned, ~1.6 GB above B.end; same `MT64x64x64…ISA1201…DTVB1…`
-ShaderName as run #9. If the ShaderName doesn't appear in lvl3 log, the fault happened
-before the kernel launched (unlikely under SYNC) — the fault message alone is still valid.
-
-### 3. File the AMD upstream issue
+### 2. File the AMD upstream issue (SYNC log parsed — ready to file)
 
 All evidence is collected. File at **https://github.com/ROCm/rocm-libraries/issues**,
 component: **rocBLAS / Tensile**.
@@ -57,20 +44,12 @@ Include:
 - `scripts/repro_gfx1201_rocblas.py` (standalone reproducer)
 - Full ShaderName from run #9 / diagnostic log
 - Operand descriptors: A=(608,21504) row-major bf16, B=(21504,5376) col-major NF4→bf16
-- Fault addresses (all 2 MB-aligned, ~1.6 GB above B.end — see analysis in session 7)
+- Fault addresses (all 2 MB-aligned — confirmed in SYNC log: fault `0x7efb33000000`)
 - Key finding: `bias=True` required (BH_Bias_UserArgs epilogue selects this tile); col-major B
   is intrinsic to PyTorch + bitsandbytes 4bit matmul — no userspace workaround possible
 - Env snapshot: `docs/diagnostics/gfx1201-report-env-20260605-101605.txt`
+- SYNC log confirms same `MT64x64x64_ISA1201_DTVB1_VWA2_VWB1` ShaderName at fault point
 - Note: standalone reproducer dispatches the kernel but may not crash (sparse VA — see docstring)
-
-### 4. GPU preflight + restart monitor
-
-```bash
-make gpu-preflight   # must PASS (diagnostic run faults GPU)
-pgrep -f monitor_stage2   # confirm not already running
-nohup bash scripts/monitor_stage2.sh > outputs/monitor_stage2.log 2>&1 &
-tail -f outputs/monitor_stage2.log
-```
 
 ---
 
@@ -79,13 +58,13 @@ tail -f outputs/monitor_stage2.log
 | Item | Value |
 |---|---|
 | Training script | `scripts/train_sft.py` via `make train-gemma4-31b-stage2-unsloth` |
-| Monitor | **NOT RUNNING** — not restarted in session 7 (diagnostic run active) |
+| Monitor | **NOT RUNNING** — not restarted in session 8 (processes killed after crash) |
 | Monitor log | `outputs/monitor_stage2.log` |
 | Train log | `outputs/sft-stage2-gemma4-31b/train.log` |
-| Latest checkpoint | `checkpoint-1230` (safe — trainer_state.json intact) |
+| Latest checkpoint | `checkpoint-1290` (safe — trainer_state.json intact) |
 | Total steps | 4,826 (1 epoch, 77k records, batch 1×16) |
 | Per-step time | ~71 s/it (async); slower under SYNC |
-| GPU state | **Dirty after diagnostic** — run `make gpu-preflight` before monitor |
+| GPU state | **Dirty after crash** — run `make gpu-preflight` before monitor |
 | HF backup repo | `ulises-c/SocratesLM-31B-stage2b-QLoRA` (auto-push every 50 steps) |
 | W&B project | `csen346-sft` at `uchavarria-santa-clara-university` |
 
@@ -229,13 +208,12 @@ Do not:
 
 ## Open items
 
-- **Parse session 7 diagnostic log** — `docs/diagnostics/diag-sync-probe-step1230-20260605-124008.log`
-  (SYNC+lvl3+BNB_DEQUANT_PROBE from checkpoint-1230; will have crashed within 0–100 steps).
-  Extract: fault address, B operand pointer, ShaderName. Confirm 2 MB-aligned fault pattern.
-  Append a row to `docs/GFX1201_FAULT_ABLATION_LOG.md` as run #13 (or next available).
-
-- **File AMD upstream issue** — all evidence collected (see Immediate actions §3 above).
+- **File AMD upstream issue** — all evidence collected (see Immediate actions §2 above).
   URL: https://github.com/ROCm/rocm-libraries/issues · component: rocBLAS / Tensile.
+  SYNC log parsed: fault `0x7efb33000000` (2MB-aligned), `MT64x64x64_ISA1201_DTVB1_VWA2_VWB1`
+  kernel confirmed at crash point, last B-operand probe shape=(21504,5376) col-major.
+
+- **Restart monitor** — GPU dirty, `make gpu-preflight` required first (see §1 above).
 
 ---
 
@@ -268,10 +246,20 @@ No code changes. Commits: env snapshot script, rocBLAS probe scripts.
   process (sparse VA); confirmed behaviour expected and documented
 - **Diagnostic SYNC run launched** from checkpoint-1230: AMD_SERIALIZE_KERNEL=3,
   AMD_LOG_LEVEL=3, BNB_DEQUANT_PROBE=1, TRAIN_SAVE_STEPS=99999. Log at
-  `docs/diagnostics/diag-sync-probe-step1230-20260605-124008.log`. Will fault within
-  0–100 steps. Parse this log at start of next session.
+  `docs/diagnostics/diag-sync-probe-step1230-20260605-124008.log`
 - Monitor NOT restarted — diagnostic run occupied GPU at end of session
 - Commit: `109eb72` (standalone reproducer + codespell *.log skip)
+
+**Session 8 (2026-06-05 evening):**
+- **SYNC diagnostic log parsed** (26 GB, 230M lines): Fault confirmed at `0x7efb33000000`
+  (2MB-aligned). `MT64x64x64_ISA1201_DTVB1_VWA2_VWB1` ShaderName confirmed at crash point
+  — same kernel as all prior crashes (runs #5, #7, #9). Last B-operand probe: shape=(21504,5376)
+  col-major. SYNC fault occurred within ~1–2 steps of resuming checkpoint-1230 (SYNC makes
+  it deterministic). All evidence ready for AMD upstream report.
+- **Regular crawl** progressed from checkpoint-1230 → checkpoint-1290 (60 more steps at ~71 s/it)
+- Training crashed again (~step 1290+), process was spinning at 141% CPU
+- All training/wandb processes killed (PIDs 372896, 372901, 373486, 373502)
+- Monitor NOT restarted — GPU dirty after crash
 
 ```
 109eb72  feat(diag): standalone gfx1201 ISA1201 Tensile GEMM reproducer
