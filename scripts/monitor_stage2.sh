@@ -90,14 +90,39 @@ training_running() {
     pgrep -f "train_sft\.py" > /dev/null 2>&1
 }
 
+# Total training steps (max_steps, e.g. 4826) from the latest checkpoint's
+# trainer_state.json — stable for the run and independent of which tqdm bars are
+# in the log, so the fallback denominator is never a Map-bar total.
+train_total_steps() {
+    local step state
+    step="$(latest_ckpt_step)"
+    if (( step < 0 )); then return 0; fi
+    state="$OUTPUT_DIR/checkpoint-$step/trainer_state.json"
+    [[ -f "$state" ]] || return 0
+    python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("max_steps",""))' \
+        "$state" 2>/dev/null || true
+}
+
 last_step() {
-    if [[ -f "$STAGE2_LOG" ]]; then
-        # Skip N/N patterns (100%-complete bars from eval/map/shard ops like 8578/8578);
-        # only training-step tqdm has N < total (e.g. 1380/4826).
-        grep -oE "[0-9]+/[0-9]+" "$STAGE2_LOG" \
-            | awk -F'/' '$1+0 != $2+0' \
-            | tail -1 || true
-    fi
+    [[ -f "$STAGE2_LOG" ]] || return 0
+    # train.log holds THREE N/M tqdm bars: the training step bar (N/4826) and the
+    # one-time dataset tokenization Map bars (N/77202 train, N/8578 eval). The old
+    # "$1 != $2" filter only dropped 100%-complete bars, so an in-progress Map bar
+    # (e.g. 12868/77202) leaked straight into the Step column — and on a relaunch
+    # that faults during load (train.log is truncated each launch), the Map bars
+    # are the ONLY N/M present. Anchor on the rate unit instead: at ~70 s/step the
+    # training bar is the only one rendered as "s/it" (Map → "examples/s", W&B
+    # upload → "MB/s", shard-load → "it/s"). tr '\r'->'\n' splits the \r-joined
+    # tqdm updates so the most recent step wins.
+    local n ckpt total
+    n="$(tr '\r' '\n' < "$STAGE2_LOG" | grep -E 's/it\]' | grep -oE '[0-9]+/[0-9]+' | tail -1 || true)"
+    if [[ -n "$n" ]]; then printf '%s' "$n"; return 0; fi
+    # No training bar yet (crash during model load / tokenization) — degrade to the
+    # latest checkpoint step rather than a Map-bar denominator or a blank cell.
+    ckpt="$(latest_ckpt_step)"
+    if (( ckpt < 0 )); then return 0; fi
+    total="$(train_total_steps)"
+    printf '%s%s' "$ckpt" "${total:+/$total}"
 }
 
 crash_hint() {
@@ -105,11 +130,10 @@ crash_hint() {
     # The gfx1201 fault prints "Memory access fault by GPU node-1 ... Page not present"
     # and aborts with "Aborted (core dumped)" — it is NOT the literal string "page fault"
     # and emits no Python traceback, so the old pattern matched nothing and the PR block
-    # came up empty. Match the real ROCm/HSA signature, and lead with the last tqdm step
-    # so the crash post shows the fault step (the N we are measuring) directly.
+    # came up empty. Match the real ROCm/HSA signature, and lead with the training step
+    # (via last_step, the single parser) so the crash post shows the fault step directly.
     local step
-    step="$(grep -oE "[0-9]+/[0-9]+" "$STAGE2_LOG" \
-        | awk -F'/' '$1+0 != $2+0' | tail -1 || true)"
+    step="$(last_step)"
     [[ -n "$step" ]] && printf '  fault near step %s\n' "$step"
     grep -iE "memory access fault|page not present|hsa_status|aborted|core dumped|out of memory|hip error|cuda error|traceback|runtimeerror" \
         "$STAGE2_LOG" | tail -4 | sed 's/^/  /' || true
