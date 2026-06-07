@@ -76,7 +76,9 @@ PY
 crash_signature() {
     [[ -f "$STAGE2_LOG" ]] || return 0
     grep -iE "memory access fault|page not present|out of memory|hip error|cuda error|runtimeerror|aborted" \
-        "$STAGE2_LOG" | tail -1 | tr '\n' ' ' | tr -d '`' | sed 's/|/／/g' | cut -c1-140
+        "$STAGE2_LOG" | tail -1 | awk -F'\r' '{print $NF}' | tr -d '`' \
+        | sed 's/^[^%]*%|[^]]*\][[:space:]]*//' \
+        | sed 's/|/／/g' | cut -c1-140
 }
 
 # Append one row to the pinned comment. The comment body is the source of truth:
