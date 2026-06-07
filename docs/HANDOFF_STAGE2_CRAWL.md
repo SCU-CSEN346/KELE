@@ -110,8 +110,22 @@ and PATCHes it back, so restarts and `outputs/` wipes never lose history or mint
 into `LOG_COMMENT_ID` (same "bump for a new run" convention as `WANDB_RUN_ID`).
 
 **HF auto-backup:** `HFCheckpointCallback` (via `TRAIN_HF_REPO` env var set in Makefile)
-pushes each saved checkpoint to `ulises-c/SocratesLM-31B-stage2b-QLoRA` in a daemon thread.
-On-disk `save_total_limit=5` keeps only the last 5 local checkpoints; HF keeps all of them.
+pushes each saved checkpoint to `ulises-c/SocratesLM-31B-stage2b-QLoRA` in a daemon thread,
+at a cadence of `TRAIN_HF_PUSH_EVERY` (default 50) step boundaries.
+
+- **Persistence:** After each successful push, the step is recorded in `{output_dir}/.hf_last_push`.
+  On resume, the callback reads this file so already-uploaded checkpoints are skipped.
+- **Crash recovery:** On `on_init` (trainer initialisation), the callback scans
+  `output_dir/checkpoint-*`, picks the highest step, and pushes it **synchronously**
+  if `.hf_last_push` reports a lower step. This catches the scenario where a daemon
+  thread was killed mid-push by a crash — the checkpoint gets uploaded before training
+  resumes, so it is never lost.
+- **Thread safety:** The existing `self._thread.is_alive()` guard prevents concurrent
+  pushes. Since the launch push is synchronous, there is no race with training-time pushes.
+- **On-disk limit:** `save_total_limit=5` keeps only the last 5 local checkpoints;
+  HF stores every checkpoint pushed.
+- **Logging verbosity:** `TRANSFORMERS_VERBOSITY=error` (level 1) is now set in
+  `train_sft.py` to suppress noisy INFO (level 3) output during long SFT runs.
 
 ---
 
@@ -314,8 +328,8 @@ e6ed01a  feat(train): HF auto-push callback + raise save_total_limit to 5
 | `scripts/monitor_stage2.sh` | Crawl harness — rotating seed, KFD cleanup, issue #120 progress/crash posts |
 | `scripts/train_sft.py` | Training script; HF auto-push + `TRAIN_DATA_SEED` + `BNB_DEQUANT_PROBE` wired |
 | `scripts/repro_gfx1201_rocblas.py` | Standalone AMD upstream reproducer (dispatches ISA1201 kernel) |
-| `src/project/hf_callback.py` | `HFCheckpointCallback` — async HF push, skip-if-in-flight |
-| `tests/test_hf_callback.py` | 7 unit tests for `HFCheckpointCallback` |
+| `src/project/hf_callback.py` | `HFCheckpointCallback` — async HF push with `.hf_last_push` persistence, `on_init` crash recovery, skip-if-in-flight |
+| `tests/test_hf_callback.py` | 14 unit tests for `HFCheckpointCallback` |
 | `outputs/sft-stage2-gemma4-31b/crashlogs/` | Per-crash full log + dmesg archive |
 | `docs/diagnostics/diag-sync-probe-step1230-20260605-124008.log` | Session 7 diagnostic — parse first |
 | `docs/diagnostics/gfx1201-report-env-20260605-101605.txt` | Env snapshot for AMD upstream report |

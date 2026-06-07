@@ -500,6 +500,11 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    # Suppress verbose INFO/WARNING churn from transformers/trl during a full
+    # SFT run.  ERROR-only (level 1) keeps logs readable; unset via env to see
+    # the original level-3 noise for debugging.
+    os.environ["TRANSFORMERS_VERBOSITY"] = "error"
+
     if args.config:
         from src.project.config import load_env_file
 

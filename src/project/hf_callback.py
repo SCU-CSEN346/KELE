@@ -18,12 +18,45 @@ class HFCheckpointCallback(TrainerCallback):
     never blocks the training loop; if the previous push is still in-flight
     when the next one fires, the new push is skipped and logged.  Also fires
     unconditionally at on_train_end to capture the final state.
+
+    Persists the last pushed step in ``.hf_last_push`` inside the output dir
+    so that resumed / crash-recovered runs do not re-push already-uploaded
+    checkpoints.  On ``on_init`` the callback scans for the latest on-disk
+    checkpoint and pushes it synchronously if it was never uploaded.
     """
 
     def __init__(self, repo_id: str, push_every: int) -> None:
         self._repo_id = repo_id
         self._push_every = push_every
         self._thread: threading.Thread | None = None
+        self._output_dir: str | None = None
+
+    # ------------------------------------------------------------------
+    # Persistence — track last pushed step so we never re-push on resume
+    # ------------------------------------------------------------------
+
+    def _last_push_file(self) -> Path | None:
+        if not self._output_dir:
+            return None
+        return Path(self._output_dir) / ".hf_last_push"
+
+    def _read_last_pushed(self) -> int:
+        p = self._last_push_file()
+        if p and p.exists():
+            try:
+                return int(p.read_text().strip())
+            except (ValueError, OSError):
+                pass
+        return -1
+
+    def _write_last_pushed(self, step: int) -> None:
+        p = self._last_push_file()
+        if p:
+            p.write_text(str(step))
+
+    # ------------------------------------------------------------------
+    # Push logic
+    # ------------------------------------------------------------------
 
     def _push(self, ckpt_dir: Path, step: int, commit_msg: str) -> None:
         from huggingface_hub import HfApi
@@ -37,6 +70,7 @@ class HFCheckpointCallback(TrainerCallback):
                 commit_message=commit_msg,
             )
             print(f"  [HF] pushed checkpoint-{step} → {self._repo_id}", flush=True)
+            self._write_last_pushed(step)
         except Exception as exc:
             print(f"  [HF] push failed (step {step}): {exc}", flush=True)
 
@@ -48,6 +82,8 @@ class HFCheckpointCallback(TrainerCallback):
     ) -> None:
         step = state.global_step
         if not force and step % self._push_every != 0:
+            return
+        if not force and step <= self._read_last_pushed():
             return
         output_dir = args.output_dir
         if not output_dir:
@@ -77,6 +113,42 @@ class HFCheckpointCallback(TrainerCallback):
         )
         self._thread.start()
         print(f"  [HF] pushing checkpoint-{step} in background...", flush=True)
+
+    # ------------------------------------------------------------------
+    # Launch push — push latest checkpoint on init if not already pushed
+    # ------------------------------------------------------------------
+
+    def _push_latest_on_launch(
+        self,
+        args: TrainingArguments,
+    ) -> None:
+        output_dir = Path(args.output_dir) if args.output_dir else None
+        if not output_dir or not output_dir.exists():
+            return
+        ckpt_dirs = list(output_dir.glob("checkpoint-*"))
+        if not ckpt_dirs:
+            return
+        latest = max(ckpt_dirs, key=lambda d: int(d.name.split("-")[-1]))
+        latest_step = int(latest.name.split("-")[-1])
+        if latest_step <= self._read_last_pushed():
+            return
+        commit_msg = f"checkpoint-{latest_step} (step {latest_step}, resume push)"
+        print(f"  [HF] launch push: checkpoint-{latest_step}", flush=True)
+        self._push(latest, latest_step, commit_msg)
+
+    # ------------------------------------------------------------------
+    # Trainer callback hooks
+    # ------------------------------------------------------------------
+
+    def on_init(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ) -> None:
+        self._output_dir = args.output_dir
+        self._push_latest_on_launch(args)
 
     def on_save(
         self,

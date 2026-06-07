@@ -88,3 +88,102 @@ def test_train_end_joins_alive_thread(tmp_path):
     args = SimpleNamespace(output_dir=str(tmp_path))
     cb.on_train_end(args, _state(37), _ctrl)
     mock_thread.join.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Persistence — .hf_last_push file
+# ---------------------------------------------------------------------------
+
+
+def test_writes_and_reads_last_pushed(tmp_path):
+    cb = HFCheckpointCallback("repo/id", push_every=50)
+    cb._output_dir = str(tmp_path)
+    cb._write_last_pushed(100)
+    assert cb._read_last_pushed() == 100
+    cb._write_last_pushed(200)
+    assert cb._read_last_pushed() == 200
+
+
+def test_last_pushed_defaults_to_neg_one(tmp_path):
+    cb = HFCheckpointCallback("repo/id", push_every=50)
+    assert cb._read_last_pushed() == -1
+
+
+def test_writes_last_pushed_on_successful_push(tmp_path):
+    cb = HFCheckpointCallback("repo/id", push_every=50)
+    cb._output_dir = str(tmp_path)
+    with patch("huggingface_hub.HfApi.upload_folder"):
+        cb._push(tmp_path, 50, "test")
+    assert (tmp_path / ".hf_last_push").read_text() == "50"
+
+
+# ---------------------------------------------------------------------------
+# Step-skip guard — skip if already pushed
+# ---------------------------------------------------------------------------
+
+
+def test_skips_already_pushed_step(tmp_path):
+    cb = HFCheckpointCallback("repo/id", push_every=50)
+    cb._output_dir = str(tmp_path)
+    (tmp_path / ".hf_last_push").write_text("50")
+    args = _args(tmp_path, 50)
+    with patch.object(cb, "_push") as mock_push:
+        cb.on_save(args, _state(50), _ctrl)
+        mock_push.assert_not_called()
+
+
+def test_force_push_bypasses_last_pushed(tmp_path):
+    cb = HFCheckpointCallback("repo/id", push_every=50)
+    cb._output_dir = str(tmp_path)
+    (tmp_path / ".hf_last_push").write_text("50")
+    with patch.object(cb, "_push") as mock_push:
+        cb.on_train_end(_args(tmp_path, 50), _state(50), _ctrl)
+        mock_push.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Launch check — on_init
+# ---------------------------------------------------------------------------
+
+
+def test_on_init_pushes_latest_checkpoint(tmp_path):
+    cb = HFCheckpointCallback("repo/id", push_every=50)
+    (tmp_path / "checkpoint-1000").mkdir()
+    (tmp_path / "checkpoint-1200").mkdir()
+    args = SimpleNamespace(output_dir=str(tmp_path))
+    with patch.object(cb, "_push") as mock_push:
+        cb.on_init(args, SimpleNamespace(), _ctrl)
+        mock_push.assert_called_once()
+        ckpt_dir, step, commit_msg = mock_push.call_args[0]
+        assert step == 1200
+        assert "resume push" in commit_msg
+
+
+def test_on_init_skips_if_already_pushed(tmp_path):
+    cb = HFCheckpointCallback("repo/id", push_every=50)
+    (tmp_path / "checkpoint-1200").mkdir()
+    (tmp_path / ".hf_last_push").write_text("1200")
+    args = SimpleNamespace(output_dir=str(tmp_path))
+    with patch.object(cb, "_push") as mock_push:
+        cb.on_init(args, SimpleNamespace(), _ctrl)
+        mock_push.assert_not_called()
+
+
+def test_on_init_skips_if_no_checkpoints(tmp_path):
+    cb = HFCheckpointCallback("repo/id", push_every=50)
+    args = SimpleNamespace(output_dir=str(tmp_path))
+    with patch.object(cb, "_push") as mock_push:
+        cb.on_init(args, SimpleNamespace(), _ctrl)
+        mock_push.assert_not_called()
+
+
+def test_on_init_picks_highest_step_numerically(tmp_path):
+    cb = HFCheckpointCallback("repo/id", push_every=50)
+    (tmp_path / "checkpoint-90").mkdir()
+    (tmp_path / "checkpoint-100").mkdir()
+    args = SimpleNamespace(output_dir=str(tmp_path))
+    with patch.object(cb, "_push") as mock_push:
+        cb.on_init(args, SimpleNamespace(), _ctrl)
+        mock_push.assert_called_once()
+        _, step, _ = mock_push.call_args[0]
+        assert step == 100
