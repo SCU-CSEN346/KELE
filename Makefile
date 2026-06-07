@@ -1,5 +1,10 @@
 .PHONY: help run install-hooks pre-commit sync-mirror setup setup-repo \
 		online-demo local-demo _demo-preflight \
+		nvidia-preflight _classifier-ckpt \
+		train-gemma4-12b train-gemma4-12b-dry-run \
+		serve-gemma4-12b serve-gemma4-12b-mtp serve-gemma4-12b-sft \
+		eval-gemma4-12b-base-smoke eval-gemma4-12b-base-full \
+		eval-gemma4-12b-sft-smoke eval-gemma4-12b-sft-full \
 		slurm \
         post-eval-shutdown run-eval \
         eval-qwen27b-smoke eval-qwen27b-mini eval-qwen27b-full \
@@ -383,6 +388,68 @@ eval-qwen35b-a3b-fusion-nothink-smoke:
 # Gemma 4 has no thinking-mode equivalent, so only the --unified variant exists.
 eval-gemma4-31b-fusion-smoke:
 	bash scripts/eval_gemma4_31b.sh smoke --unified
+
+# ── Gemma 4 12B SFT-uplift PoC (NVIDIA RTX 4000 Ada) ─────────────────────────
+# Baseline (base 12B teacher) vs 1-epoch Socratic QLoRA SFT, same Qwen3.5-LoRA
+# state classifier as consultant. NVIDIA box — none of the gfx1201/ROCm env that
+# the 31B targets carry. See the 12B PoC plan + configs/train-sft-gemma4-12b-qlora.env.
+# Serving and eval are separate steps: the 20 GB card hosts ONE model at a time, so
+# the eval targets assume the matching server (serve-gemma4-12b{,-sft}) is already up.
+
+# CUDA fwd/bwd smoke through the training kernel paths — the NVIDIA analogue of
+# gpu-preflight (which is the ROCm/gfx1201 gate). Hard gate before train/serve.
+nvidia-preflight:
+	uv run --no-sync python scripts/test_training_gpu_nvidia.py
+
+train-gemma4-12b-dry-run:
+	uv run python scripts/train_sft.py --config configs/train-sft-gemma4-12b-qlora.env --dry-run
+
+# Train from the community unsloth bnb-4bit base (TRAIN_PREQ=true → no BF16 CPU
+# staging). No TORCH_USE_HIPBLASLT / PYTORCH_HIP_ALLOC_CONF (CUDA box).
+train-gemma4-12b: nvidia-preflight
+	mkdir -p outputs/sft-gemma4-12b-qlora
+	nohup env TRAIN_BASE_MODEL=unsloth/gemma-4-12b-it \
+	  TRAIN_PREQ=true \
+	  uv run --no-sync python scripts/train_sft.py \
+	  --config configs/train-sft-gemma4-12b-qlora.env \
+	  > outputs/sft-gemma4-12b-qlora/train.log 2>&1 &
+	@echo "Training started. Monitor: tail -f outputs/sft-gemma4-12b-qlora/train.log"
+
+# Serve (port 8080, one at a time). serve-gemma4-12b-mtp attaches the MTP drafter.
+serve-gemma4-12b:
+	bash scripts/serve_gemma4_12b.sh
+
+serve-gemma4-12b-mtp:
+	MTP=1 bash scripts/serve_gemma4_12b.sh
+
+serve-gemma4-12b-sft:
+	bash scripts/serve_gemma4_12b_sft.sh
+
+# Ensure the Qwen3.5-LoRA classifier checkpoint is present (consultant for both evals).
+_classifier-ckpt:
+	@if [[ ! -f "$(BERT_CKPT)/model.safetensors" ]]; then \
+	  echo "Classifier checkpoint not found — downloading from HF…"; \
+	  hf download ulises-c/socrates-state-classifier-qwen3.5-lora --local-dir "$(BERT_CKPT)"; \
+	fi
+
+# Eval: Qwen3.5-LoRA consultant (on CPU, frees VRAM for the teacher) + Gemma 12B
+# teacher. smoke = n=5 sanity gate; full = n=681. Keep base/SFT invocations
+# identical except the --experiment config so the delta isolates the SFT adapter.
+eval-gemma4-12b-base-smoke: _classifier-ckpt
+	KELE_BERT_DEVICE=cpu uv run python -m src.project.kele --experiment gemma4-12b-local \
+	  test --n 5 --bert-consultant "$(BERT_CKPT)" --output results/gemma4-12b-base-smoke
+
+eval-gemma4-12b-base-full: _classifier-ckpt
+	KELE_BERT_DEVICE=cpu uv run python -m src.project.kele --experiment gemma4-12b-local \
+	  evaluate --bert-consultant "$(BERT_CKPT)" --output results/gemma4-12b-base
+
+eval-gemma4-12b-sft-smoke: _classifier-ckpt
+	KELE_BERT_DEVICE=cpu uv run python -m src.project.kele --experiment gemma4-12b-sft-local \
+	  test --n 5 --bert-consultant "$(BERT_CKPT)" --output results/gemma4-12b-sft-smoke
+
+eval-gemma4-12b-sft-full: _classifier-ckpt
+	KELE_BERT_DEVICE=cpu uv run python -m src.project.kele --experiment gemma4-12b-sft-local \
+	  evaluate --bert-consultant "$(BERT_CKPT)" --output results/gemma4-12b-sft
 
 # ── Gemma 4 31B SFT training (Stage 2b) ──────────────────────────────────────
 # No patch-fla-rocm needed — Gemma 4 uses standard softmax attention (no FLA).
