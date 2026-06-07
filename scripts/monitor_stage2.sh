@@ -108,7 +108,11 @@ training_running() {
 
 last_step() {
     if [[ -f "$STAGE2_LOG" ]]; then
-        grep -oE "[0-9]+/[0-9]+" "$STAGE2_LOG" | tail -1 || true
+        # Skip N/N patterns (100%-complete bars from eval/map/shard ops like 8578/8578);
+        # only training-step tqdm has N < total (e.g. 1380/4826).
+        grep -oE "[0-9]+/[0-9]+" "$STAGE2_LOG" \
+            | awk -F'/' '$1+0 != $2+0' \
+            | tail -1 || true
     fi
 }
 
@@ -120,7 +124,8 @@ crash_hint() {
     # came up empty. Match the real ROCm/HSA signature, and lead with the last tqdm step
     # so the crash post shows the fault step (the N we are measuring) directly.
     local step
-    step="$(grep -oE "[0-9]+/[0-9]+" "$STAGE2_LOG" | tail -1 || true)"
+    step="$(grep -oE "[0-9]+/[0-9]+" "$STAGE2_LOG" \
+        | awk -F'/' '$1+0 != $2+0' | tail -1 || true)"
     [[ -n "$step" ]] && printf '  fault near step %s\n' "$step"
     grep -iE "memory access fault|page not present|hsa_status|aborted|core dumped|out of memory|hip error|cuda error|traceback|runtimeerror" \
         "$STAGE2_LOG" | tail -4 | sed 's/^/  /' || true

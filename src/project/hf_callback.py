@@ -105,7 +105,7 @@ class HFCheckpointCallback(TrainerCallback):
         new_row = self._build_log_row(step, epoch, loss, acc)
         rows[step] = new_row
 
-        lines = [self._LOG_HEADER]
+        lines = [self._LOG_HEADER.rstrip("\n")]
         for s in sorted(rows):
             lines.append(rows[s])
         lines.append("")
@@ -208,6 +208,8 @@ class HFCheckpointCallback(TrainerCallback):
         latest = max(ckpt_dirs, key=lambda d: int(d.name.split("-")[-1]))
         latest_step = int(latest.name.split("-")[-1])
         if latest_step <= self._read_last_pushed():
+            return
+        if latest_step % self._push_every != 0:
             return
         commit_msg = f"checkpoint-{latest_step} (step {latest_step}, resume push)"
         print(f"  [HF] launch push: checkpoint-{latest_step}", flush=True)

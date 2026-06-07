@@ -169,6 +169,15 @@ def test_on_init_skips_if_already_pushed(tmp_path):
         mock_push.assert_not_called()
 
 
+def test_on_init_skips_non_multiple_step(tmp_path):
+    cb = HFCheckpointCallback("repo/id", push_every=50)
+    (tmp_path / "checkpoint-1670").mkdir()  # 1670 % 50 != 0
+    args = SimpleNamespace(output_dir=str(tmp_path))
+    with patch.object(cb, "_push") as mock_push:
+        cb.on_init_end(args, SimpleNamespace(), _ctrl)
+        mock_push.assert_not_called()
+
+
 def test_on_init_skips_if_no_checkpoints(tmp_path):
     cb = HFCheckpointCallback("repo/id", push_every=50)
     args = SimpleNamespace(output_dir=str(tmp_path))
