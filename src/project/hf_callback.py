@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from transformers import TrainerCallback
 
@@ -55,10 +55,86 @@ class HFCheckpointCallback(TrainerCallback):
             p.write_text(str(step))
 
     # ------------------------------------------------------------------
+    # Checkpoint log — SFT_STAGE2B_CHECKPOINT_LOG.md on the HF repo
+    # ------------------------------------------------------------------
+
+    _LOG_HEADER: ClassVar[str] = """# Checkpoints in This Repo
+
+| Checkpoint | Step | Epoch | Loss | Token Accuracy |
+|---|---|---|---|---|
+"""
+
+    @staticmethod
+    def _build_log_row(step: int, epoch: float, loss: float | None, acc: float | None) -> str:
+        loss_str = f"{loss:.4f}" if isinstance(loss, float) else "—"
+        acc_str = f"{acc:.4f}" if isinstance(acc, float) else "—"
+        return f"| checkpoint-{step}/ | {step} | {epoch:.3f} | {loss_str} | {acc_str} |"
+
+    def _update_checkpoint_log(
+        self,
+        step: int,
+        epoch: float,
+        loss: float | None,
+        acc: float | None,
+    ) -> None:
+        from huggingface_hub import HfApi
+
+        api = HfApi()
+        rows: dict[int, str] = {}
+        try:
+            path = api.hf_hub_download(
+                repo_id=self._repo_id,
+                filename="SFT_STAGE2B_CHECKPOINT_LOG.md",
+                repo_type="model",
+            )
+            with open(path) as f:
+                for line in f:
+                    if line.startswith("| checkpoint-"):
+                        parts = [p.strip() for p in line.split("|")]
+                        if len(parts) >= 3:
+                            try:
+                                # part[1] = "checkpoint-1230/"
+                                ckpt_name = parts[1].rstrip("/")
+                                s = int(ckpt_name.split("-")[-1])
+                                rows[s] = line.rstrip()
+                            except (ValueError, IndexError):
+                                pass
+        except Exception:
+            pass
+
+        new_row = self._build_log_row(step, epoch, loss, acc)
+        rows[step] = new_row
+
+        lines = [self._LOG_HEADER]
+        for s in sorted(rows):
+            lines.append(rows[s])
+        lines.append("")
+        content = "\n".join(lines)
+
+        try:
+            api.upload_file(
+                path_or_fileobj=content.encode(),
+                path_in_repo="SFT_STAGE2B_CHECKPOINT_LOG.md",
+                repo_id=self._repo_id,
+                repo_type="model",
+                commit_message=f"checkpoint log: step {step}",
+            )
+        except Exception as exc:
+            print(f"  [HF] checkpoint log update failed (step {step}): {exc}", flush=True)
+
+    # ------------------------------------------------------------------
     # Push logic
     # ------------------------------------------------------------------
 
-    def _push(self, ckpt_dir: Path, step: int, commit_msg: str) -> None:
+    def _push(
+        self,
+        ckpt_dir: Path,
+        step: int,
+        commit_msg: str,
+        epoch: float = 0.0,
+        loss: float | None = None,
+        acc: float | None = None,
+    ) -> None:
         from huggingface_hub import HfApi
 
         try:
@@ -71,6 +147,7 @@ class HFCheckpointCallback(TrainerCallback):
             )
             print(f"  [HF] pushed checkpoint-{step} → {self._repo_id}", flush=True)
             self._write_last_pushed(step)
+            self._update_checkpoint_log(step, epoch, loss, acc)
         except Exception as exc:
             print(f"  [HF] push failed (step {step}): {exc}", flush=True)
 
@@ -109,7 +186,7 @@ class HFCheckpointCallback(TrainerCallback):
         else:
             commit_msg = f"checkpoint-{step} (step {step}, epoch {epoch:.3f})"
         self._thread = threading.Thread(
-            target=self._push, args=(ckpt_dir, step, commit_msg), daemon=True
+            target=self._push, args=(ckpt_dir, step, commit_msg, epoch, loss, acc), daemon=True
         )
         self._thread.start()
         print(f"  [HF] pushing checkpoint-{step} in background...", flush=True)
@@ -134,7 +211,7 @@ class HFCheckpointCallback(TrainerCallback):
             return
         commit_msg = f"checkpoint-{latest_step} (step {latest_step}, resume push)"
         print(f"  [HF] launch push: checkpoint-{latest_step}", flush=True)
-        self._push(latest, latest_step, commit_msg)
+        self._push(latest, latest_step, commit_msg, epoch=0.0, loss=None, acc=None)
 
     # ------------------------------------------------------------------
     # Trainer callback hooks
