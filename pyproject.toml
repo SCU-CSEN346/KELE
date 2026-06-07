@@ -46,6 +46,9 @@ wandb = ["wandb>=0.18.0"]
 # intentionally excluded (only fuses the cheap conv; needs nvcc to build).
 cuda = ["flash-linear-attention>=0.5.0"]
 
+# Web UI for the live demo. Install with `uv sync --extra demo`.
+demo = ["chainlit>=2.4,<3"]
+
 [project.scripts]
 kele = "src.project.kele:main"
 kele-eval = "src.project.evaluate:main"
@@ -60,7 +63,10 @@ addopts = "-v -ra"
 
 [tool.coverage.run]
 source = ["src"]
-omit = ["src/project/translate_dataset.py"]  # translation script; not unit-testable in CI
+omit = [
+    "src/project/translate_dataset.py",  # translation script; not unit-testable in CI
+    "src/project/demo/build_public_assets.py",  # PIL asset generator; not unit-testable in CI
+]
 
 [tool.coverage.report]
 show_missing = true

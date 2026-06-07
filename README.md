@@ -1,11 +1,11 @@
-# csen-346
+# MELE — Memorization-resistant Evaluation for LLM Educators
 
 [![CI](https://github.com/ulises-c/csen-346/actions/workflows/ci.yml/badge.svg)](https://github.com/ulises-c/csen-346/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/ulises-c/csen-346/graph/badge.svg)](https://codecov.io/gh/ulises-c/csen-346)
 
-Natural Language Processing — CSEN 346, Santa Clara University.
+*Maximilian Khan · Ulises Chavarria · Advisor: Dr. Oana Ignat — CSEN 346, Santa Clara University*
 
-This project reproduces and extends **KELE**, a multi-agent framework for structured Socratic teaching with LLMs, and contributes along three axes: (1) a fusion structured-output architecture that collapses the two-agent stack onto a single open-weight backbone; (2) replacing the LLM consultant with a 24M-parameter BERT classifier that routes cognitive state with surgical precision; and (3) **a methodological critique of the published benchmark itself, showing that surface-form metrics (ROUGE/BLEU) systematically reward training-data memorization over teaching capability** — with a proposed four-metric replacement panel.
+**MELE** is a Socratic math-tutoring system and research project that reproduces and extends **KELE** (Peng et al., EMNLP 2025), a multi-agent framework for structured Socratic teaching with LLMs. The repo was originally named `csen-346` after the course; MELE is the name of the system and the paper. MELE contributes along three axes: (1) a fusion structured-output architecture that collapses the two-agent stack onto a single open-weight backbone; (2) replacing the LLM consultant with a fine-tuned Qwen3.5-0.8B-LoRA classifier (upgraded from a 24M-parameter BERT classifier) that routes cognitive state with surgical precision; and (3) **a methodological critique of the published benchmark itself, showing that surface-form metrics (ROUGE/BLEU) systematically reward training-data memorization over teaching capability** — with a proposed four-metric replacement panel (stage-balanced accuracy + LLM judge + semantic ROUGE + stage-progression efficiency).
 
 ## Two leaderboards, one inversion
 

@@ -523,9 +523,17 @@ def run_batch_evaluation(
         print(format_metrics_table(metrics))
 
 
-def interactive() -> None:
+def interactive(
+    experiment: str | None = None,
+    bert_consultant: str | None = None,
+    unified: bool = False,
+) -> None:
     """Launch an interactive Socratic teaching session."""
-    system = create_system()
+    system = create_system(
+        experiment=experiment,
+        bert_consultant=bert_consultant,
+        unified=unified,
+    )
     system.start_conversation()
 
 
@@ -544,7 +552,19 @@ def main() -> None:
     sub = parser.add_subparsers(dest="command")
 
     # Interactive mode
-    sub.add_parser("interactive", help="Start an interactive teaching session")
+    interactive_parser = sub.add_parser("interactive", help="Start an interactive teaching session")
+    interactive_parser.add_argument(
+        "--bert-consultant",
+        type=str,
+        default=None,
+        help="Path to a trained 34-state classifier checkpoint dir. Replaces the "
+        "LLM consultant with the classifier (the headline architecture).",
+    )
+    interactive_parser.add_argument(
+        "--unified",
+        action="store_true",
+        help="Use the single-call fusion architecture (mutually exclusive with --bert-consultant).",
+    )
 
     # Batch evaluation mode
     eval_parser = sub.add_parser("evaluate", help="Run batch evaluation on the dataset")
@@ -634,7 +654,11 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "interactive":
-        interactive()
+        interactive(
+            experiment=args.experiment,
+            bert_consultant=args.bert_consultant,
+            unified=args.unified,
+        )
     elif args.command == "evaluate":
         output = args.output or Path(f"results/{args.experiment or 'baseline'}")
         run_batch_evaluation(

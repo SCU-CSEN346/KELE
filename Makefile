@@ -1,4 +1,5 @@
 .PHONY: help run install-hooks pre-commit sync-mirror setup setup-repo \
+		online-demo local-demo _demo-preflight \
 		slurm \
         post-eval-shutdown run-eval \
         eval-qwen27b-smoke eval-qwen27b-mini eval-qwen27b-full \
@@ -12,6 +13,7 @@
         serve-qwen27b serve-qwen27b-q4 serve-qwen35b-a3b \
         serve-glm47-23b serve-qwopus35b-a3b \
         serve-socratteachllm serve-teacher-online \
+        serve-demo \
         setup-l40s start-local-tl-server \
         test-gpu-stack test-vllm \
         patch-fla-rocm patch-fla-rocm-restore patch-fla-rocm-dry-run \
@@ -65,6 +67,9 @@ help:
 	@echo "  serve-qwopus35b-a3b   Run scripts/serve_qwopus35b_a3b.sh (Qwopus 35B-A3B LoRA fine-tune, 21 GB)"
 	@echo "  serve-socratteachllm  Run scripts/serve_socratteachllm.sh"
 	@echo "  serve-teacher-online  Run scripts/serve_teacher_online.sh"
+	@echo "  online-demo           Laptop demo via OpenRouter free tier (downloads classifier if missing)"
+	@echo "  local-demo            Local demo via llama.cpp on this machine (downloads classifier if missing)"
+	@echo "  serve-demo            Self-host the top-performer stack for a live demo (RTX 5090 + Tailscale)"
 	@echo "  start-local-tl-server  Start local llama.cpp server for dataset translation (Qwen3.5-9B)"
 	@echo "  eval-qwen27b-smoke    Run scripts/eval_qwen27b.sh smoke (n=5,   ~5 min)"
 	@echo "  eval-qwen27b-mini     Run scripts/eval_qwen27b.sh mini  (n=25,  ~15 min)"
@@ -290,6 +295,29 @@ serve-socratteachllm-llamacpp:
 
 serve-teacher-online:
 	bash scripts/serve_teacher_online.sh
+
+BERT_CKPT ?= results/state-clf-qwen3.5-0.8b-lora-wandb/final
+
+_demo-preflight:
+	@if [[ ! -f "$(BERT_CKPT)/model.safetensors" ]]; then \
+	  echo "Classifier checkpoint not found — downloading from HF…"; \
+	  hf download ulises-c/socrates-state-classifier-qwen3.5-lora --local-dir "$(BERT_CKPT)"; \
+	fi
+	uv sync --extra demo --inexact
+
+online-demo: _demo-preflight
+	@if [[ ! -f .env ]] || ! grep -qE '^TEACHER_API_KEY=.+' .env; then \
+	  printf 'error: TEACHER_API_KEY not set.\n'; \
+	  printf '       Add it to .env:  TEACHER_API_KEY=sk-or-...\n'; \
+	  exit 1; \
+	fi
+	ONLINE=1 KELE_BERT_DEVICE=cpu BERT_CKPT="$(BERT_CKPT)" bash scripts/serve_demo_top_performer.sh
+
+local-demo: _demo-preflight
+	WEBUI=1 KELE_BERT_DEVICE=cpu BERT_CKPT="$(BERT_CKPT)" bash scripts/serve_demo_top_performer.sh
+
+serve-demo:
+	bash scripts/serve_demo_top_performer.sh
 
 start-local-tl-server:
 	bash scripts/start_tl_server.sh

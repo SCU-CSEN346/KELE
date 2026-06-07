@@ -46,11 +46,15 @@ GPU_LAYERS=99
 PARALLEL=4
 HOST="0.0.0.0"
 PORT=8080
-# CUDA0 is the canonical device on the RTX 5090. The legacy rocm0 default was
-# from Ulises's R9700 (gfx1201, ROCm) and crashed the eval at server boot on
-# 2026-05-27 08:22 with "invalid device: rocm0". This project runs on the
-# NVIDIA + CUDA platform only. Override: DEV=Vulkan0 ./scripts/serve_gemma4_31b.sh ...
-DEV="${DEV:-CUDA0}"
+# Auto-detect GPU backend: AMD (/dev/kfd present) → Vulkan0 (fastest on gfx1201),
+# NVIDIA → CUDA0. Override: DEV=ROCm0, DEV=CUDA0, etc.
+if [[ -z "${DEV:-}" ]]; then
+  if [[ -e /dev/kfd ]]; then
+    DEV="Vulkan0"
+  else
+    DEV="CUDA0"
+  fi
+fi
 # 2048 is the safe default on 32 GB VRAM with Gemma 4 31B Q5. The earlier 4096
 # default OOM'd on 2026-05-26 (compute buffer at 4096 is ~6.7 GB, not the
 # 1.3 GB the prior comment cited). 2048 drops the compute buffer to ~3.3 GB

@@ -39,6 +39,9 @@ data/SocratDataset-EN.json
 data/translate.log
 data/translate_checkpoint.json
 data/archive/
+# Translation-validation raw outputs — regenerable; keep only flagged + structural summaries
+data/translation_validation/validate_llm_checkpoint_*.json
+data/translation_validation/validate_llm_scores_*.json
 
 # Secrets and local tooling
 .env
@@ -70,3 +73,9 @@ references/KELE-EN/.cache/
 wandb/
 # macOS
 .DS_Store
+**/.DS_Store
+
+# Chainlit auto-generated default translations (regenerated on run),
+# except en-US.json which we customize (e.g. the README header label).
+.chainlit/translations/*
+!.chainlit/translations/en-US.json
