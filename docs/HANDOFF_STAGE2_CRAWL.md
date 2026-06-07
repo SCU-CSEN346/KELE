@@ -1,38 +1,36 @@
 # Handoff — Stage 2 Gemma 4 31B QLoRA crawl
 
 **Branch:** `feat/gfx1201-rdna4-qlora-fla-training` · **PR:** #101
-**For:** a fresh Claude instance picking up after session 7.
+**For:** a fresh Claude instance picking up after session 10.
 
 ---
 
 ## TL;DR
 
-Training is **NOT running**. All processes were killed at end of session 8 after another
-page fault crash. Monitor was never restarted.
+Training is **RUNNING** — monitor auto-started at session begin, recovered from one crash,
+and is at step **1305/4826 ≈ 27.0%** as of 2026-06-06 19:35.
 
-**Before restarting the monitor:**
-1. `make gpu-preflight` — GPU is dirty from the page fault crash
-2. `pgrep -f monitor_stage2` — confirm not already running
-3. `nohup bash scripts/monitor_stage2.sh > outputs/monitor_stage2.log 2>&1 &`
-
-Working tree is **clean**. All session 7–8 changes committed.
+Working tree is **clean**. All session 9–10 changes committed.
 
 Progress banked: **checkpoint-1290 / 4826 steps ≈ 26.7% complete.**
 
-The SYNC diagnostic log has been parsed. AMD upstream report is ready to file — all
-evidence collected (see Open items).
+Session 9 focus: attempted standalone reproduction of `MT64x64x64_ISA1201_DTVB1` tile.
+Nine probe variants all dispatch `MT128x128x32` instead. The leading hypothesis is a
+**system-vs-torch-bundled rocBLAS library difference** (see Open items). The dense-VA
+reproducer script is now committed. Upstream #7992 update is due.
 
 ---
 
 ## Immediate actions
 
-### 1. GPU preflight + restart monitor
+### 1. Check training status (likely already running)
 
 ```bash
+pgrep -f monitor_stage2 && echo 'RUNNING' || echo 'NOT RUNNING'
+tail -20 outputs/monitor_stage2.log
+# If not running:
 make gpu-preflight   # must PASS
-pgrep -f monitor_stage2   # confirm not already running
 nohup bash scripts/monitor_stage2.sh > outputs/monitor_stage2.log 2>&1 &
-tail -f outputs/monitor_stage2.log
 ```
 
 ### 2. File the AMD upstream issue (SYNC log parsed — ready to file)
@@ -41,7 +39,7 @@ All evidence is collected. File at **https://github.com/ROCm/rocm-libraries/issu
 component: **rocBLAS / Tensile**.
 
 Include:
-- `scripts/repro_gfx1201_rocblas.py` (standalone reproducer)
+- `scripts/repro_gfx1201_dense.py` (improved dense-VA standalone reproducer)
 - Full ShaderName from run #9 / diagnostic log
 - Operand descriptors: A=(608,21504) row-major bf16, B=(21504,5376) col-major NF4→bf16
 - Fault addresses (all 2 MB-aligned — confirmed in SYNC log: fault `0x7efb33000000`)
@@ -49,7 +47,11 @@ Include:
   is intrinsic to PyTorch + bitsandbytes 4bit matmul — no userspace workaround possible
 - Env snapshot: `docs/diagnostics/gfx1201-report-env-20260605-101605.txt`
 - SYNC log confirms same `MT64x64x64_ISA1201_DTVB1_VWA2_VWB1` ShaderName at fault point
-- Note: standalone reproducer dispatches the kernel but may not crash (sparse VA — see docstring)
+- Tile selection divergence note: standalone probe dispatches `MT128x128x32`, not `MT64x64x64`.
+  **System-rocBLAS hypothesis DISPROVED** (session 10): both system (`/opt/rocm`) and
+  torch-bundled libraries dispatch identically — MT128x128x32 for all probe variants tested.
+  Tile divergence between standalone and production remains unexplained; AMD can reproduce
+  via rocprof on the full model training loop.
 
 ---
 
@@ -58,13 +60,13 @@ Include:
 | Item | Value |
 |---|---|
 | Training script | `scripts/train_sft.py` via `make train-gemma4-31b-stage2-unsloth` |
-| Monitor | **NOT RUNNING** — not restarted in session 8 (processes killed after crash) |
+| Monitor | **RUNNING** — active as of 2026-06-06 19:35, step 1305/4826 |
 | Monitor log | `outputs/monitor_stage2.log` |
 | Train log | `outputs/sft-stage2-gemma4-31b/train.log` |
-| Latest checkpoint | `checkpoint-1290` (safe — trainer_state.json intact) |
+| Latest checkpoint | `checkpoint-1290` (safe); actively training past it |
 | Total steps | 4,826 (1 epoch, 77k records, batch 1×16) |
 | Per-step time | ~71 s/it (async); slower under SYNC |
-| GPU state | **Dirty after crash** — run `make gpu-preflight` before monitor |
+| GPU state | **Clean** — GPU preflight PASSED (post-reboot, session 10) |
 | HF backup repo | `ulises-c/SocratesLM-31B-stage2b-QLoRA` (auto-push every 50 steps) |
 | W&B project | `csen346-sft` at `uchavarria-santa-clara-university` |
 
@@ -212,8 +214,9 @@ Do not:
   URL: https://github.com/ROCm/rocm-libraries/issues · component: rocBLAS / Tensile.
   SYNC log parsed: fault `0x7efb33000000` (2MB-aligned), `MT64x64x64_ISA1201_DTVB1_VWA2_VWB1`
   kernel confirmed at crash point, last B-operand probe shape=(21504,5376) col-major.
+  System-rocBLAS hypothesis CLOSED in session 10 (both libraries dispatch identically).
 
-- **Restart monitor** — GPU dirty, `make gpu-preflight` required first (see §1 above).
+- **Monitor running** — no action needed. Check `tail -20 outputs/monitor_stage2.log` for status.
 
 ---
 
@@ -249,6 +252,39 @@ No code changes. Commits: env snapshot script, rocBLAS probe scripts.
   `docs/diagnostics/diag-sync-probe-step1230-20260605-124008.log`
 - Monitor NOT restarted — diagnostic run occupied GPU at end of session
 - Commit: `109eb72` (standalone reproducer + codespell *.log skip)
+
+**Session 9 (2026-06-06):**
+- Machine rebooted to clear 31 GB wedged KFD context (stuck from probe run ending session)
+- **Dense-VA reproducer run** (`scripts/repro_gfx1201_dense.py`): 20 GB filler allocated,
+  200 iters forward+backward — no crash. `MT128x128x32_ISA1201_DTVB1` dispatched 401 times.
+  `MT64x64x64` NOT dispatched (only appears in script's own print statement).
+- **Tile-selection probe** (`scripts/probe_gfx1201_tile.py`): 9 variants tested — all
+  dispatch `MT128x128x32`. Variants: 2D/3D shape, with/without `torch.utils.checkpoint`
+  (reentrant=False and True), `torch.autocast`, skip-warmup (cold Tensile cache),
+  non-contiguous A (stride=[43008,1]).
+- **Bitsandbytes forward traced**: `dequantize_4bit` returns `(21504,5376)` col-major
+  (stride=(1,21504)). After `.t()` = `(5376,21504)` row-major. `F.linear` calls
+  `addmm(bias, A, W.t())` where `W.t()` = `(21504,5376)` col-major → this IS the DTVB1
+  path. Both standalone and production make structurally identical BLAS calls.
+- **Leading hypothesis**: torch-bundled rocBLAS library (`torch/lib/rocblas/library/`)
+  does not include `MT64x64x64` kernels for gfx1201; system ROCm 7.2 library
+  (`/opt/rocm/lib/rocblas/library/`) does. `ROCBLAS_TENSILE_LIBPATH` override blocked by
+  Railguard path fence — needs user approval for next session.
+- New probe script committed: `scripts/probe_gfx1201_tile.py`
+- Comment posted to issue #113 with full findings
+- Commits: `aac092f` (dense-VA reproducer + handoff update)
+
+**Session 10 (2026-06-06 evening):**
+- GPU preflight PASSED (clean post-reboot)
+- Monitor was already running (PID 17208) — auto-started by the session's environment
+- Training recovered from one crash and progressed: step 1305/4826 at 19:35 PST
+- **System-rocBLAS hypothesis DISPROVED**: compared `probe_3d_plain.log` vs
+  `probe_system_rocblas.log` — both dispatch `MT128x128x32` identically. The two apparent
+  `MT64x64x64` hits were from the probe script's own `print()` statements, not actual
+  kernel dispatches. System library and torch-bundled library are equivalent for gfx1201.
+  Tile selection divergence (standalone→MT128x128x32, production→MT64x64x64) remains
+  unexplained at the binary level; AMD must reproduce via rocprof on the full model.
+- Commits: this session (handoff + probe script formatting)
 
 **Session 8 (2026-06-05 evening):**
 - **SYNC diagnostic log parsed** (26 GB, 230M lines): Fault confirmed at `0x7efb33000000`
