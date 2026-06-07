@@ -42,35 +42,6 @@ log() {
 # and is ambiguous across hosts).
 now_iso() { date '+%Y-%m-%d %H:%M:%S%:z'; }
 
-# Numerator of the latest tqdm "N/total" line — the current training step.
-current_step_num() {
-    local s
-    s="$(last_step)"
-    [[ -n "$s" ]] && printf '%s' "${s%%/*}"
-}
-
-# The HF Trainer logging callback (logging_steps=10) prints a python dict each
-# log: {'loss': 1.234, 'grad_norm': 0.45, 'learning_rate': 4.9e-05, 'epoch': 0.1}.
-# Both stdout and stderr land in train.log (make target redirects 2>&1).
-latest_metrics() {
-    [[ -f "$STAGE2_LOG" ]] || return 0
-    grep -aoE "\{'loss': [^}]*\}" "$STAGE2_LOG" | tail -1 || true
-}
-
-# Split a metrics dict into "loss<TAB>grad_norm<TAB>lr<TAB>epoch" via literal_eval
-# (robust to key order / float formatting); prints nothing if it can't parse.
-parse_metrics() {
-    [[ -n "$1" ]] || return 0
-    python3 - "$1" <<'PY' 2>/dev/null || true
-import ast, sys
-try:
-    d = ast.literal_eval(sys.argv[1])
-except Exception:
-    sys.exit(0)
-print("\t".join(str(d.get(k, "")) for k in ("loss", "grad_norm", "learning_rate", "epoch")))
-PY
-}
-
 # One-line crash signature for the table's Note cell. A literal pipe would break
 # the markdown row, so swap it for a fullwidth bar; the full trace is in crashlogs/.
 crash_signature() {
@@ -94,12 +65,25 @@ log_row() {
         || log "WARNING: gh api PATCH (log comment) failed"
 }
 
-log_progress() {
-    local step loss gn lr epoch
-    step="$(last_step)"
-    IFS=$'\t' read -r loss gn lr epoch < <(parse_metrics "$(latest_metrics)") || true
-    log_row "$(printf '| %s | progress | %s | %s | %s | %s | epoch %s |' \
-        "$(now_iso)" "${step:-?}" "${loss:-}" "${gn:-}" "${lr:-}" "${epoch:-}")"
+log_progress_from_checkpoint() {
+    local step="$1" epoch loss acc gn lr
+    local state_file="$OUTPUT_DIR/checkpoint-$step/trainer_state.json"
+    [[ -f "$state_file" ]] || return 0
+    IFS=$'\t' read -r epoch loss acc gn lr < <(python3 - "$state_file" <<'PY' 2>/dev/null || true
+import json, sys
+with open(sys.argv[1]) as f:
+    d = json.load(f)
+gs = d.get("global_step", -1)
+hist = d.get("log_history", [])
+m = next((e for e in reversed(hist) if e.get("step") == gs), hist[-1] if hist else {})
+print("\t".join(str(m.get(k, "")) for k in
+    ("epoch", "loss", "mean_token_accuracy", "grad_norm", "learning_rate")))
+PY
+    ) || true
+    local note="epoch ${epoch:-?}"
+    [[ -n "$acc" ]] && note="$note, acc $acc"
+    log_row "$(printf '| %s | 📈 checkpoint | %s | %s | %s | %s | %s |' \
+        "$(now_iso)" "$step" "${loss:-}" "${gn:-}" "${lr:-}" "$note")"
 }
 
 training_running() {
@@ -218,23 +202,17 @@ sleep 30  # let it get going before first poll
 
 retries=0
 last_progress_step="$(latest_ckpt_step)"
-# Step at which the last progress report was posted; -PROGRESS_EVERY so the first
-# poll where metrics exist reports immediately (useful "resumed at step N" beat).
-last_reported_step=$(( -PROGRESS_EVERY ))
+last_reported_ckpt="$(latest_ckpt_step)"
 
 while true; do
     if training_running; then
         step="$(last_step)"
         log "Stage 2 running${step:+ — step $step}"
-        # Gate on a real metrics line: last_step's N/total also matches the
-        # startup shard-load (2/2) and dataset-map (77000/77000) bars, but the
-        # {'loss':...} dict only appears once the trainer is logging steps — so
-        # this can't fire a spurious progress post before training starts.
-        cur="$(current_step_num)"
-        if [[ -n "$cur" ]] && [[ -n "$(latest_metrics)" ]] \
-            && (( cur - last_reported_step >= PROGRESS_EVERY )); then
-            log_progress
-            last_reported_step="$cur"
+        ckpt_now="$(latest_ckpt_step)"
+        if (( ckpt_now > 0 )) && (( ckpt_now % PROGRESS_EVERY == 0 )) \
+            && (( ckpt_now > last_reported_ckpt )); then
+            log_progress_from_checkpoint "$ckpt_now"
+            last_reported_ckpt="$ckpt_now"
         fi
         sleep "$POLL_SECONDS"
         continue
