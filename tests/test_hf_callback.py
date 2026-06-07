@@ -142,7 +142,7 @@ def test_force_push_bypasses_last_pushed(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Launch check — on_init
+# Launch check — on_init_end
 # ---------------------------------------------------------------------------
 
 
@@ -152,7 +152,7 @@ def test_on_init_pushes_latest_checkpoint(tmp_path):
     (tmp_path / "checkpoint-1200").mkdir()
     args = SimpleNamespace(output_dir=str(tmp_path))
     with patch.object(cb, "_push") as mock_push:
-        cb.on_init(args, SimpleNamespace(), _ctrl)
+        cb.on_init_end(args, SimpleNamespace(), _ctrl)
         mock_push.assert_called_once()
         _, step, commit_msg, *_ = mock_push.call_args[0]
         assert step == 1200
@@ -165,7 +165,7 @@ def test_on_init_skips_if_already_pushed(tmp_path):
     (tmp_path / ".hf_last_push").write_text("1200")
     args = SimpleNamespace(output_dir=str(tmp_path))
     with patch.object(cb, "_push") as mock_push:
-        cb.on_init(args, SimpleNamespace(), _ctrl)
+        cb.on_init_end(args, SimpleNamespace(), _ctrl)
         mock_push.assert_not_called()
 
 
@@ -173,7 +173,7 @@ def test_on_init_skips_if_no_checkpoints(tmp_path):
     cb = HFCheckpointCallback("repo/id", push_every=50)
     args = SimpleNamespace(output_dir=str(tmp_path))
     with patch.object(cb, "_push") as mock_push:
-        cb.on_init(args, SimpleNamespace(), _ctrl)
+        cb.on_init_end(args, SimpleNamespace(), _ctrl)
         mock_push.assert_not_called()
 
 
@@ -183,7 +183,7 @@ def test_on_init_picks_highest_step_numerically(tmp_path):
     (tmp_path / "checkpoint-100").mkdir()
     args = SimpleNamespace(output_dir=str(tmp_path))
     with patch.object(cb, "_push") as mock_push:
-        cb.on_init(args, SimpleNamespace(), _ctrl)
+        cb.on_init_end(args, SimpleNamespace(), _ctrl)
         mock_push.assert_called_once()
         _, step, *_ = mock_push.call_args[0]
         assert step == 100

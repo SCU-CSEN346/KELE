@@ -217,7 +217,7 @@ class HFCheckpointCallback(TrainerCallback):
     # Trainer callback hooks
     # ------------------------------------------------------------------
 
-    def on_init(
+    def on_init_end(
         self,
         args: TrainingArguments,
         state: TrainerState,
