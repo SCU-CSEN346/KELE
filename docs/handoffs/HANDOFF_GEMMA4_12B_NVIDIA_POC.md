@@ -27,6 +27,46 @@ so the run leans on frequent checkpoints + `train_sft.py` auto-resume.
 
 ---
 
+## Session update — 2026-06-07 (on-box progress; reconciles the scaffold)
+
+Picked up on the RTX 4000 Ada box. Findings the scaffold didn't anticipate, plus
+corrections — read this before §3:
+
+- **DONE:** G1 preflight ✅. G2 assets ✅ (base `…UD-Q8_K_XL.gguf` 13.6 GB + MTP drafter
+  in `~/Documents/models/weights/`; GGUF repo paths confirmed — but the
+  `unsloth/gemma-4-12b-it-bnb-4bit` repo the `TRAIN_PREQ=true` path implies **404s**, so
+  the 12B pre-quant base is unverified; G5 may need the BF16 live-quant path instead).
+- **Loadability blocker (fixed):** the 12B checkpoints are `model_type=gemma4_unified`,
+  which **transformers 5.9.0 cannot load**. Bumped the lock to **5.10.2**
+  (`uv lock --upgrade-package transformers`; trl→1.5.1, peft 0.19.1, bnb 0.49.2 — clean).
+  The scaffold "dry-run validated" only parsed dataset+LoRA, never instantiated weights.
+- **torch bumped 2.11→2.12.0+cu130** (user call; installed from the cu130 index, *not*
+  in uv.lock). triton→3.7.0. **bnb 0.49.2 QLoRA smoke (Linear4bit fwd/bwd + PagedAdamW8bit)
+  passes on 2.12** — QLoRA path validated.
+- **Attention correction:** Gemma 4 12B text decoder is **pure softmax** (48 layers =
+  40 `sliding_attention` + 8 `full_attention`; verified firsthand). **FLA is irrelevant**
+  to Gemma 4 (the `cuda` extra is Qwen3.5-GDN kernels; classifier runs on CPU). The only
+  lever is FA2-vs-SDPA: **stay on `sdpa`** — no prebuilt flash-attn wheel for torch2.12+cu130,
+  and PyTorch `sdpa` on Ada is already FlashAttention-2-backed. `train_sft.py:227` already
+  pins sdpa (that pin is the gfx1201 FA2-OOM artifact, harmless on NVIDIA). The preflight
+  "FLA NOT active" WARN is genuinely ignorable here.
+- **llama.cpp was NOT installed** (the scaffold assumed it) — a hard prereq for ALL eval
+  gates. Now building from today's `main` (HEAD `9e3b928`; gemma4 + gemma4-assistant +
+  `draft-mtp`/`spec-type` all present) → `~/Documents/models/llama.cpp/build/bin/llama-server`,
+  CUDA on, `-DCMAKE_CUDA_ARCHITECTURES=89`. Toolchain: nvcc 13.2 (`/opt/cuda`, host gcc 15.2.1),
+  needed only `cmake`+`ccache` (pacman). **ptxas SIGSEGV at `-j 24` with 90 GB RAM free →
+  flaky silicon; rebuild at `-j 6`.**
+- **#111 Weave wired:** `weave` optional extra + env-gated `weave.init()` in `kele.py`
+  (auto-patches the openai clients; off unless `WEAVE_PROJECT` set). Run one base + one
+  SFT eval with it set to evaluate debugging value (cloud-egress caveat).
+- **GPU is faulty under load** (power surge). Power-cap **`sudo nvidia-smi -pl 85`** before
+  the GPU-heavy phases (serve/eval, train); lean on `save_steps=50` auto-resume.
+
+New gates inserted into §3: **G1.5** (transformers→5.10.2 + torch→2.12, verify load/bnb)
+and **G2.5** (build llama.cpp) — both before G3.
+
+---
+
 ## Project context — 5-bullet refresher
 
 - CSEN-346 NLP project reproducing/extending **KELE** (multi-agent Socratic
@@ -89,11 +129,20 @@ shellcheck clean; `make -n` parses all targets; venv torch is `2.11.0+cu130`
 
 ```
 G1  make nvidia-preflight                 # HARD GATE: CUDA fwd/bwd must pass
+G1.5 uv lock --upgrade-package transformers   # → 5.10.2; uv sync. gemma4_unified needs ≥5.10
+     uv pip install --index-url https://download.pytorch.org/whl/cu130 torch==2.12.0  # optional bump
+     # verify: AutoConfig.from_pretrained("unsloth/gemma-4-12b-it") loads + bnb 4-bit smoke
 G2  Assets:
       hf download unsloth/gemma-4-12b-it-GGUF gemma-4-12b-it-UD-Q8_K_XL.gguf --local-dir ~/Documents/models/weights
       hf download unsloth/gemma-4-12b-it-GGUF MTP/gemma-4-12B-it-MTP-Q8_0.gguf --local-dir ~/Documents/models/weights
       # classifier auto-downloads on first eval (target: BERT_CKPT)
-G3  make serve-gemma4-12b   (bg) ; poll: curl localhost:8080/v1/models  (alias "Gemma 4 12B")
+G2.5 Build llama.cpp (NOT installed by default — hard prereq for all eval gates):
+      git clone --depth 1 https://github.com/ggml-org/llama.cpp ~/Documents/models/llama.cpp
+      cmake -B build -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=89 -DCMAKE_BUILD_TYPE=Release
+      cmake --build build --target llama-server -j 6    # -j 6 not 24: ptxas SIGSEGVs on flaky silicon
+      # needs main ≥ PR #23398 for gemma4-assistant/MTP (today's main has it)
+G3  sudo nvidia-smi -pl 85                 # power-cap the faulty GPU before serving
+    make serve-gemma4-12b   (bg) ; poll: curl localhost:8080/v1/models  (alias "Gemma 4 12B")
     make eval-gemma4-12b-base-smoke         # SANITY GATE: non-degenerate state_accuracy
 G4  make eval-gemma4-12b-base-full          # → results/gemma4-12b-base   (CHECKPOINT)
     [MTP] make serve-gemma4-12b-mtp ; benchmark tok/s on vs off + a smoke quality-parity eval
