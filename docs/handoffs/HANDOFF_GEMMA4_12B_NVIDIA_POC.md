@@ -50,20 +50,32 @@ corrections — read this before §3:
   and PyTorch `sdpa` on Ada is already FlashAttention-2-backed. `train_sft.py:227` already
   pins sdpa (that pin is the gfx1201 FA2-OOM artifact, harmless on NVIDIA). The preflight
   "FLA NOT active" WARN is genuinely ignorable here.
-- **llama.cpp was NOT installed** (the scaffold assumed it) — a hard prereq for ALL eval
-  gates. Now building from today's `main` (HEAD `9e3b928`; gemma4 + gemma4-assistant +
-  `draft-mtp`/`spec-type` all present) → `~/Documents/models/llama.cpp/build/bin/llama-server`,
-  CUDA on, `-DCMAKE_CUDA_ARCHITECTURES=89`. Toolchain: nvcc 13.2 (`/opt/cuda`, host gcc 15.2.1),
-  needed only `cmake`+`ccache` (pacman). **ptxas SIGSEGV at `-j 24` with 90 GB RAM free →
-  flaky silicon; rebuild at `-j 6`.**
-- **#111 Weave wired:** `weave` optional extra + env-gated `weave.init()` in `kele.py`
-  (auto-patches the openai clients; off unless `WEAVE_PROJECT` set). Run one base + one
-  SFT eval with it set to evaluate debugging value (cloud-egress caveat).
+- **llama.cpp BUILT** (the scaffold assumed it present; it wasn't — hard prereq for ALL
+  eval gates). Built from today's `main` (HEAD `9e3b928`; gemma4 + gemma4-assistant +
+  `draft-mtp`/`spec-type` all confirmed in source) → `~/Documents/models/llama.cpp/build/bin/llama-server`
+  (CUDA, `-DCMAKE_CUDA_ARCHITECTURES=89`; binary runs). The serve scripts auto-find this path.
+  Toolchain: nvcc 13.2 (`/opt/cuda`, host gcc 15.2.1), needed only `cmake`+`ccache` (pacman).
+  **ptxas SIGSEGV at `-j 24` with 90 GB RAM free → flaky silicon; built at `-j 6`.** The full
+  gemma4_unified GGUF load-verify is still pending — it's the first action of G3.
+- **W&B set up for BOTH sft and eval** (auth already valid: entity
+  `uchavarria-santa-clara-university`). SFT (G5) auto-logs via `train_sft.py:_check_wandb`.
+  Eval: `kele._log_eval_to_wandb` logs metrics as a run when **`WANDB_EVAL=1`** (already set
+  on the `eval-…-full` make targets; smoke stays off) → base vs SFT compare in one dashboard.
+  Plus **#111 Weave** call-tracing: env-gated `weave.init()` in `kele.py` (auto-patches the
+  openai clients; off unless `WEAVE_PROJECT` set). To use Weave: `uv sync --extra weave` +
+  export `WEAVE_PROJECT` for one base + one SFT eval (cloud-egress caveat).
 - **GPU is faulty under load** (power surge). Power-cap **`sudo nvidia-smi -pl 85`** before
   the GPU-heavy phases (serve/eval, train); lean on `save_steps=50` auto-resume.
 
 New gates inserted into §3: **G1.5** (transformers→5.10.2 + torch→2.12, verify load/bnb)
 and **G2.5** (build llama.cpp) — both before G3.
+
+### → Next instance: START AT G3.
+G1–G2.5 done; FA2/SDPA decided (sdpa). PR **#129** (draft) tracks this branch. First action:
+`sudo nvidia-smi -pl 85`, then `make serve-gemma4-12b` and confirm `/v1/models` serves the
+`gemma4_unified` GGUF (this also closes the G2.5 load-verify), then the base-smoke gate.
+Use **`uv run --no-sync`** for python/pytest (bare pytest isn't on PATH; torch is pinned
+outside uv.lock). Note the unsloth 12B bnb-4bit 404 → G5 `TRAIN_PREQ` base unverified.
 
 ---
 
