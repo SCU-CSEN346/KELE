@@ -452,36 +452,6 @@ def dry_run() -> None:
 
 
 # ---------------------------------------------------------------------------
-# W&B auth check
-# ---------------------------------------------------------------------------
-
-
-def _check_wandb() -> bool:
-    """Return True if wandb is installed and has a usable API key.
-
-    relogin=False avoids interactive prompts in nohup runs.
-    Guards against the local wandb/ run-artifacts directory shadowing the package.
-    """
-    try:
-        import wandb
-
-        if not callable(getattr(wandb, "login", None)):
-            raise ImportError("wandb package not importable (shadowed by local wandb/ dir?)")
-        ok = wandb.login(relogin=False)
-        if ok:
-            os.environ.setdefault("WANDB_PROJECT", "csen346-sft")
-            return True
-    except Exception:
-        pass
-    print(
-        "WARNING: W&B not authenticated — tracking disabled. "
-        "Run `wandb login` or set WANDB_API_KEY to enable.",
-        file=sys.stderr,
-    )
-    return False
-
-
-# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -514,7 +484,9 @@ def main() -> None:
         dry_run()
         return
 
-    use_wandb = _check_wandb()
+    from src.project.wandb_tracking import SftTracker
+
+    use_wandb = SftTracker().enabled
 
     # ── Full training run ────────────────────────────────────────────────────
     from peft import get_peft_model
