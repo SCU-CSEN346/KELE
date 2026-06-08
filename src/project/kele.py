@@ -653,6 +653,14 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    # weave.init auto-patches the openai clients in socratic_teaching_system, so a
+    # single gated call here traces the whole consultant→teacher loop. Off unless set.
+    weave_project = os.getenv("WEAVE_PROJECT")
+    if weave_project:
+        import weave  # pyright: ignore[reportMissingImports]
+
+        weave.init(weave_project)
+
     if args.command == "interactive":
         interactive(
             experiment=args.experiment,

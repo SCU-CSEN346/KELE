@@ -49,6 +49,13 @@ cuda = ["flash-linear-attention>=0.5.0"]
 # Web UI for the live demo. Install with `uv sync --extra demo`.
 demo = ["chainlit>=2.4,<3"]
 
+# LLM call tracing + eval (issue #111) for the inference/eval side. Opt in with
+# `uv sync --extra weave`; gated at runtime behind WEAVE_PROJECT (default off, no
+# behavior change when unset). weave.init() auto-patches the openai clients in
+# socratic_teaching_system — traces the consultant→teacher dialogue loop. Traces
+# (dialogue text) egress to the W&B cloud; keep off on the headless training box.
+weave = ["weave>=0.52"]
+
 [project.scripts]
 kele = "src.project.kele:main"
 kele-eval = "src.project.evaluate:main"
