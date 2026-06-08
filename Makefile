@@ -77,12 +77,12 @@ help:
 	@echo "  local-demo            Local demo via llama.cpp on this machine (downloads classifier if missing)"
 	@echo "  serve-demo            Self-host the top-performer stack for a live demo (RTX 5090 + Tailscale)"
 	@echo "  start-local-tl-server  Start local llama.cpp server for dataset translation (Qwen3.5-9B)"
-	@echo "  eval-qwen27b-smoke    Run scripts/eval_qwen27b.sh smoke (n=5,   ~5 min)"
-	@echo "  eval-qwen27b-mini     Run scripts/eval_qwen27b.sh mini  (n=25,  ~15 min)"
-	@echo "  eval-qwen27b-full     Run scripts/eval_qwen27b.sh full  (n=681, ~75 h — measured)"
-	@echo "  eval-qwen35b-a3b-smoke Run scripts/eval_qwen35b_a3b.sh smoke (n=5,   ~2 min projected)"
-	@echo "  eval-qwen35b-a3b-mini  Run scripts/eval_qwen35b_a3b.sh mini  (n=25,  ~5 min projected)"
-	@echo "  eval-qwen35b-a3b-full  Run scripts/eval_qwen35b_a3b.sh full  (n=681, ~20-30 h projected)"
+	@echo "  eval-qwen27b-smoke    Run scripts/eval_llamacpp.sh qwen27b smoke (n=5,   ~5 min)"
+	@echo "  eval-qwen27b-mini     Run scripts/eval_llamacpp.sh qwen27b mini  (n=25,  ~15 min)"
+	@echo "  eval-qwen27b-full     Run scripts/eval_llamacpp.sh qwen27b full  (n=681, ~75 h — measured)"
+	@echo "  eval-qwen35b-a3b-smoke Run scripts/eval_llamacpp.sh qwen35b-a3b smoke (n=5,   ~2 min projected)"
+	@echo "  eval-qwen35b-a3b-mini  Run scripts/eval_llamacpp.sh qwen35b-a3b mini  (n=25,  ~5 min projected)"
+	@echo "  eval-qwen35b-a3b-full  Run scripts/eval_llamacpp.sh qwen35b-a3b full  (n=681, ~20-30 h projected)"
 	@echo "  download-gemma4-31b         Download google/gemma-4-31b-it weights to HF cache (~60 GB)"
 	@echo "  prequant-gemma4-31b-l40s    Print instructions for pre-quantizing to NF4 on L40S"
 	@echo "  transfer-gemma4-31b-nf4     rsync NF4 checkpoint from L40S (HOST=user@host)"
@@ -93,9 +93,9 @@ help:
 	@echo "  gpu-preflight                Fast GPU gate (clean KFD + fwd/bwd) — run before any (re)launch"
 	@echo "  diagnose-gfx1201-fault       Serialized-kernel run to localize the backward page fault"
 	@echo "  profile-gemma4-31b           Profile a real Stage 2 step (attention vs NF4-dequant; FA2 de-risk)"
-	@echo "  eval-gemma4-31b-smoke  Run scripts/eval_gemma4_31b.sh smoke  (n=5)"
-	@echo "  eval-gemma4-31b-mini   Run scripts/eval_gemma4_31b.sh mini   (n=25)"
-	@echo "  eval-gemma4-31b-full   Run scripts/eval_gemma4_31b.sh full   (n=681)"
+	@echo "  eval-gemma4-31b-smoke  Run scripts/eval_llamacpp.sh gemma4-31b smoke  (n=5)"
+	@echo "  eval-gemma4-31b-mini   Run scripts/eval_llamacpp.sh gemma4-31b mini   (n=25)"
+	@echo "  eval-gemma4-31b-full   Run scripts/eval_llamacpp.sh gemma4-31b full   (n=681)"
 	@echo ""
 	@echo "  Fusion smoke targets (single-call architecture, see SOCRATIC_FUSION_PLAN.md):"
 	@echo "  eval-qwen27b-fusion-smoke           27B + unified (think on)"
@@ -335,13 +335,13 @@ test-vllm:
 	bash scripts/test_vllm_rocm.sh
 
 eval-qwen27b-smoke:
-	bash scripts/eval_qwen27b.sh smoke
+	bash scripts/eval_llamacpp.sh qwen27b smoke
 
 eval-qwen27b-mini:
-	bash scripts/eval_qwen27b.sh mini
+	bash scripts/eval_llamacpp.sh qwen27b mini
 
 eval-qwen27b-full:
-	bash scripts/eval_qwen27b.sh full
+	bash scripts/eval_llamacpp.sh qwen27b full
 
 serve-qwen35b-a3b:
 	bash scripts/serve_qwen35b_a3b.sh
@@ -353,42 +353,42 @@ serve-qwopus35b-a3b:
 	bash scripts/serve_qwopus35b_a3b.sh
 
 eval-qwen35b-a3b-smoke:
-	bash scripts/eval_qwen35b_a3b.sh smoke
+	bash scripts/eval_llamacpp.sh qwen35b-a3b smoke
 
 eval-qwen35b-a3b-mini:
-	bash scripts/eval_qwen35b_a3b.sh mini
+	bash scripts/eval_llamacpp.sh qwen35b-a3b mini
 
 eval-qwen35b-a3b-full:
-	bash scripts/eval_qwen35b_a3b.sh full
+	bash scripts/eval_llamacpp.sh qwen35b-a3b full
 
 eval-gemma4-31b-smoke:
-	bash scripts/eval_gemma4_31b.sh smoke
+	bash scripts/eval_llamacpp.sh gemma4-31b smoke
 
 eval-gemma4-31b-mini:
-	bash scripts/eval_gemma4_31b.sh mini
+	bash scripts/eval_llamacpp.sh gemma4-31b mini
 
 eval-gemma4-31b-full:
-	bash scripts/eval_gemma4_31b.sh full
+	bash scripts/eval_llamacpp.sh gemma4-31b full
 
 # ── Fusion smoke targets (single-call architecture) ──────────────────────────
 # See docs/SOCRATIC_FUSION_PLAN.md. Each writes to a distinct results/ dir
 # so all four can coexist alongside the existing two-call smoke results.
 
 eval-qwen27b-fusion-smoke:
-	bash scripts/eval_qwen27b.sh smoke --unified
+	bash scripts/eval_llamacpp.sh qwen27b smoke --unified
 
 eval-qwen27b-fusion-nothink-smoke:
-	bash scripts/eval_qwen27b.sh smoke --unified --nothink
+	bash scripts/eval_llamacpp.sh qwen27b smoke --unified --nothink
 
 eval-qwen35b-a3b-fusion-smoke:
-	bash scripts/eval_qwen35b_a3b.sh smoke --unified
+	bash scripts/eval_llamacpp.sh qwen35b-a3b smoke --unified
 
 eval-qwen35b-a3b-fusion-nothink-smoke:
-	bash scripts/eval_qwen35b_a3b.sh smoke --unified --nothink
+	bash scripts/eval_llamacpp.sh qwen35b-a3b smoke --unified --nothink
 
 # Gemma 4 has no thinking-mode equivalent, so only the --unified variant exists.
 eval-gemma4-31b-fusion-smoke:
-	bash scripts/eval_gemma4_31b.sh smoke --unified
+	bash scripts/eval_llamacpp.sh gemma4-31b smoke --unified
 
 # ── Gemma 4 12B SFT-uplift PoC (NVIDIA RTX 4000 Ada) ─────────────────────────
 # Baseline (base 12B teacher) vs 1-epoch Socratic QLoRA SFT, same Qwen3.5-LoRA
