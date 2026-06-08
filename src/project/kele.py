@@ -524,7 +524,11 @@ def run_batch_evaluation(
         with open(output_dir / "metrics_summary.json", "w") as f:
             json.dump(metrics, f, indent=2)
         print(format_metrics_table(metrics))
-        EvalTracker().log(metrics, run_name=(experiment or output_dir.name))
+        # WANDB_EVAL_RUN_NAME lets a caller distinguish runs that share an
+        # --experiment but differ otherwise (e.g. the same teacher served with
+        # MTP off vs on → distinct output dirs, same experiment config).
+        run_name = os.environ.get("WANDB_EVAL_RUN_NAME") or experiment or output_dir.name
+        EvalTracker().log(metrics, run_name=run_name)
 
 
 def interactive(

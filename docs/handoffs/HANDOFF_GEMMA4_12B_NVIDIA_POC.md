@@ -87,6 +87,49 @@ unverified. Pre-existing pyright warnings in `scripts/train_sft.py` are outside
 
 ---
 
+## Session update — 2026-06-07 (cont.) — eval tooling + refined run plan
+
+User refined the plan and added eval‑side crash tooling (this is the NVIDIA sibling
+of the 31B's training monitor). Read this before §3 — it overrides parts of it:
+
+- **Eval is now THREE phases, not "1 full + short MTP benchmark":**
+  1. **Base eval = TWO full n=681 runs — MTP OFF first, then MTP ON.** `results/
+     gemma4-12b-base` and `results/gemma4-12b-base-mtp`. MTP is lossless spec‑decode,
+     so accuracy *should* match; the runs confirm that and pick the **winner on
+     accuracy & speed**. (Was a short tok/s benchmark — now a full A/B.)
+  2. **Stage‑2b SFT** (`make train-gemma4-12b`).
+  3. **SFT eval served with the MTP winner** from phase 1.
+- **Eval flight recorder = issue #130** (sibling of #120). Live‑log comment id
+  `4644703104` is wired into the monitor.
+- **NEW `scripts/monitor_eval_gemma4_12b.sh`** (+ `make monitor-eval-gemma4-12b-{base,sft}`,
+  `MTP=1` toggles the drafter & a `-mtp` output suffix). It OWNS serve+eval and
+  crawls across crashes. Key difference from the training monitor, and the whole
+  reason it exists: on this box a GPU fault kills the **llama.cpp server**, but the
+  eval **client is CPU+HTTP so it survives** and error‑stamps the rest of the
+  dataset, exiting 0 with a truncated `metrics_summary.json`. So the monitor (a)
+  uses **server `/v1/models` health** as the crash signal, not process death; (b)
+  **repairs** (deletes error/truncated dialogue JSONs) before each relaunch, since
+  `kele.py:448` counts any non‑zero file as done; (c) defines **COMPLETE = valid
+  (non‑error) dialogue count == dataset size**, not "metrics file exists".
+- **Power is now an ADAPTIVE SEARCH, not a fixed `-pl 85`.** The monitor starts at
+  the card's max limit and steps **−10 W per crash** (floor ~70 W) until a crawl
+  completes — highest stable power wins. Safe because per‑dialogue checkpointing
+  makes a fault cost only the in‑flight dialogue + a server cold‑reload. Override
+  with `POWER_START_W` / `POWER_STEP_W` / `POWER_FLOOR_W`. Pre‑authorize `sudo` (it
+  uses `sudo -n nvidia-smi -pl`; warns and continues if it can't).
+- **SFT now auto‑pushes to HF every 50 steps** like the 31B: `train-gemma4-12b` sets
+  `TRAIN_HF_REPO=ulises-c/SocratesLM-12B-QLoRA TRAIN_HF_PUSH_EVERY=50` (rename the
+  repo if you want a different name). Guards the adapter against a host crash.
+- **`serve_gemma4_12b_sft.sh` now honors `MTP=1`** (base‑derived drafter; lower
+  acceptance on the SFT distribution but still lossless) so phase 3 can serve the winner.
+
+### → Next instance: START AT phase 1a (base, MTP off).
+`make monitor-eval-gemma4-12b-base` after confirming the GGUF load‑verify (G2.5) by
+serving once. Then `MTP=1 make monitor-eval-gemma4-12b-base`. The monitor handles the
+power search, crash‑crawl, and issue‑#130 logging. Still use `uv run --no-sync`.
+
+---
+
 ## Project context — 5-bullet refresher
 
 - CSEN-346 NLP project reproducing/extending **KELE** (multi-agent Socratic
@@ -161,20 +204,21 @@ G2.5 Build llama.cpp (NOT installed by default — hard prereq for all eval gate
       cmake -B build -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=89 -DCMAKE_BUILD_TYPE=Release
       cmake --build build --target llama-server -j 6    # -j 6 not 24: ptxas SIGSEGVs on flaky silicon
       # needs main ≥ PR #23398 for gemma4-assistant/MTP (today's main has it)
-G3  sudo nvidia-smi -pl 85                 # power-cap the faulty GPU before serving
-    make serve-gemma4-12b   (bg) ; poll: curl localhost:8080/v1/models  (alias "Gemma 4 12B")
-    make eval-gemma4-12b-base-smoke         # SANITY GATE: non-degenerate state_accuracy
-G4  make eval-gemma4-12b-base-full          # → results/gemma4-12b-base   (CHECKPOINT)
-    [MTP] make serve-gemma4-12b-mtp ; benchmark tok/s on vs off + a smoke quality-parity eval
-    stop server (free VRAM)
-G5  make train-gemma4-12b                   # ~4826 steps; on crash, re-run → auto-resumes (save_steps=50)
-                                            # GATE: outputs/sft-gemma4-12b-qlora/final/adapter_model.safetensors
+G3  make serve-gemma4-12b   (bg) ; poll: curl localhost:8080/v1/models  (alias "Gemma 4 12B")
+    make eval-gemma4-12b-base-smoke         # SANITY GATE: non-degenerate state_accuracy; then stop server
+                                            # (power-cap / crash-crawl is now the MONITOR's job, see below)
+G4  make monitor-eval-gemma4-12b-base       # phase 1a: base MTP OFF → results/gemma4-12b-base   (CHECKPOINT)
+    MTP=1 make monitor-eval-gemma4-12b-base # phase 1b: base MTP ON  → results/gemma4-12b-base-mtp (CHECKPOINT)
+    # monitor owns serve+eval, power search (start max, -10W/crash), repair-resume, issue #130 logging.
+    # pick the winner on accuracy (should be ~equal) & tok/s; that MTP setting carries to phase 3.
+G5  make train-gemma4-12b                   # ~4826 steps; auto-resumes (save_steps=50) + HF push every 50
+                                            # (→ ulises-c/SocratesLM-12B-QLoRA). GATE: outputs/sft-gemma4-12b-qlora/final/adapter_model.safetensors
 G6  scripts/merge_lora_gemma4_sft.py --base google/gemma-4-12b-it \
       --adapter outputs/sft-gemma4-12b-qlora/final --out outputs/sft-gemma4-12b-qlora/merged
     bash scripts/convert_gemma4_12b_sft_to_gguf.sh   # → Q8_0 GGUF, auto-staged to weights dir
                                             # needs ~24 GB system RAM (BF16 staging); GPU idle
-G7  make serve-gemma4-12b-sft ; make eval-gemma4-12b-sft-smoke    # SANITY GATE
-G8  make eval-gemma4-12b-sft-full           # → results/gemma4-12b-sft   (CHECKPOINT)
+G7  make serve-gemma4-12b-sft ; make eval-gemma4-12b-sft-smoke    # SANITY GATE; then stop server
+G8  [MTP=1] make monitor-eval-gemma4-12b-sft  # phase 3: SFT served with the phase-1 winner → results/gemma4-12b-sft(-mtp) (CHECKPOINT)
 G9  python -m src.project.evaluate --compare results/gemma4-12b-base results/gemma4-12b-sft
     # uplift = SFT − base on state_accuracy (overall + per-stage), rouge*, bleu4
 ```

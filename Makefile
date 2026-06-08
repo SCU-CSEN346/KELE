@@ -5,6 +5,7 @@
 		serve-gemma4-12b serve-gemma4-12b-mtp serve-gemma4-12b-sft \
 		eval-gemma4-12b-base-smoke eval-gemma4-12b-base-full \
 		eval-gemma4-12b-sft-smoke eval-gemma4-12b-sft-full \
+		monitor-eval-gemma4-12b-base monitor-eval-gemma4-12b-sft \
 		slurm \
         post-eval-shutdown run-eval \
         eval-qwen27b-smoke eval-qwen27b-mini eval-qwen27b-full \
@@ -410,6 +411,8 @@ train-gemma4-12b: nvidia-preflight
 	mkdir -p outputs/sft-gemma4-12b-qlora
 	nohup env TRAIN_BASE_MODEL=unsloth/gemma-4-12b-it \
 	  TRAIN_PREQ=true \
+	  TRAIN_HF_REPO=ulises-c/SocratesLM-12B-QLoRA \
+	  TRAIN_HF_PUSH_EVERY=50 \
 	  uv run --no-sync python scripts/train_sft.py \
 	  --config configs/train-sft-gemma4-12b-qlora.env \
 	  > outputs/sft-gemma4-12b-qlora/train.log 2>&1 &
@@ -450,6 +453,19 @@ eval-gemma4-12b-sft-smoke: _classifier-ckpt
 eval-gemma4-12b-sft-full: _classifier-ckpt
 	WANDB_EVAL=1 KELE_BERT_DEVICE=cpu uv run python -m src.project.kele --experiment gemma4-12b-sft-local \
 	  evaluate --bert-consultant "$(BERT_CKPT)" --output results/gemma4-12b-sft
+
+# Monitored eval crawl for the known-unstable box: owns serve+eval, polls server
+# health out-of-band, repairs error/truncated dialogues before relaunch, walks the
+# GPU power limit down per crash, and logs to issue #130. MTP=1 attaches the
+# drafter (-mtp output suffix). See scripts/monitor_eval_gemma4_12b.sh.
+#   make monitor-eval-gemma4-12b-base            # base, MTP off  → results/gemma4-12b-base
+#   MTP=1 make monitor-eval-gemma4-12b-base      # base, MTP on   → results/gemma4-12b-base-mtp
+#   make monitor-eval-gemma4-12b-sft             # SFT            → results/gemma4-12b-sft
+monitor-eval-gemma4-12b-base: _classifier-ckpt
+	bash scripts/monitor_eval_gemma4_12b.sh base
+
+monitor-eval-gemma4-12b-sft: _classifier-ckpt
+	bash scripts/monitor_eval_gemma4_12b.sh sft
 
 # ── Gemma 4 31B SFT training (Stage 2b) ──────────────────────────────────────
 # No patch-fla-rocm needed — Gemma 4 uses standard softmax attention (no FLA).

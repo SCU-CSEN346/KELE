@@ -21,9 +21,31 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 GEMMA4_12B_WEIGHTS_DIR="${GEMMA4_12B_WEIGHTS_DIR:-$HOME/Documents/models/weights}"
 WEIGHT_FILE="${GEMMA4_12B_SFT_WEIGHT_FILE:-gemma-4-12B-kele-socratic-sft-Q8_0.gguf}"
+MTP_FILE="${GEMMA4_12B_MTP_FILE:-MTP/gemma-4-12B-it-MTP-Q8_0.gguf}"
+
+# MTP=1 attaches the same base-derived drafter as the base server. The drafter
+# sees the SFT'd distribution → lower acceptance / smaller speedup than on base,
+# but it stays lossless. Used by stage 3 when MTP wins the base on/off A/B.
+MTP_ARGS=()
+if [[ "${MTP:-0}" == "1" ]]; then
+  mtp_path="$GEMMA4_12B_WEIGHTS_DIR/$MTP_FILE"
+  if [[ ! -f "$mtp_path" ]]; then
+    printf 'error: MTP=1 but drafter not found at %s\n' "$mtp_path" >&2
+    printf '       hf download unsloth/gemma-4-12b-it-GGUF %s --local-dir %s\n' \
+      "$MTP_FILE" "$GEMMA4_12B_WEIGHTS_DIR" >&2
+    exit 1
+  fi
+  MTP_ARGS=(
+    --spec-type draft-mtp
+    --spec-draft-model "$mtp_path"
+    --spec-draft-n-max "${GEMMA4_12B_MTP_NMAX:-4}"
+    -ctk f16 -ctv f16
+  )
+fi
 
 exec "$SCRIPT_DIR/serve_gemma4_31b.sh" \
   -m "$GEMMA4_12B_WEIGHTS_DIR/$WEIGHT_FILE" \
   -a "Gemma 4 12B SFT" \
   -c "${GEMMA4_12B_CTX:-32768}" \
+  "${MTP_ARGS[@]}" \
   "$@"
