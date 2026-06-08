@@ -58,12 +58,17 @@ corrections — read this before §3:
   **ptxas SIGSEGV at `-j 24` with 90 GB RAM free → flaky silicon; built at `-j 6`.** The full
   gemma4_unified GGUF load-verify is still pending — it's the first action of G3.
 - **W&B set up for BOTH sft and eval** (auth already valid: entity
-  `uchavarria-santa-clara-university`). SFT (G5) auto-logs via `train_sft.py:_check_wandb`.
-  Eval: `kele._log_eval_to_wandb` logs metrics as a run when **`WANDB_EVAL=1`** (already set
-  on the `eval-…-full` make targets; smoke stays off) → base vs SFT compare in one dashboard.
-  Plus **#111 Weave** call-tracing: env-gated `weave.init()` in `kele.py` (auto-patches the
-  openai clients; off unless `WEAVE_PROJECT` set). To use Weave: `uv sync --extra weave` +
-  export `WEAVE_PROJECT` for one base + one SFT eval (cloud-egress caveat).
+  `uchavarria-santa-clara-university`). All wandb logic now lives in
+  **`src/project/wandb_tracking.py`** — three classes: `WandbAuth` (shared auth),
+  `SftTracker` (`.enabled`; used by `train_sft.py`, SFTTrainer does the `wandb.init`)
+  and `EvalTracker` (`.log()`; used by `kele.py`). SFT (G5) auto-logs. Eval logs metrics
+  as a run when **`WANDB_EVAL=1`** (already set on the `eval-…-full` make targets; smoke
+  stays off) → base vs SFT compare in one dashboard. Plus **#111 Weave** call-tracing:
+  env-gated `weave.init()` in `kele.py` (auto-patches the openai clients; off unless
+  `WEAVE_PROJECT` set; `weave` extra already in uv.lock). To use Weave: export
+  `WEAVE_PROJECT` for one base + one SFT eval (cloud-egress caveat).
+- **TODO in `kele.py` (top):** rename `kele.py`→`MELE.py` + update imports across the
+  board — a major architectural change, deferred. Touch only when explicitly doing it.
 - **GPU is faulty under load** (power surge). Power-cap **`sudo nvidia-smi -pl 85`** before
   the GPU-heavy phases (serve/eval, train); lean on `save_steps=50` auto-resume.
 
@@ -71,11 +76,14 @@ New gates inserted into §3: **G1.5** (transformers→5.10.2 + torch→2.12, ver
 and **G2.5** (build llama.cpp) — both before G3.
 
 ### → Next instance: START AT G3.
-G1–G2.5 done; FA2/SDPA decided (sdpa). PR **#129** (draft) tracks this branch. First action:
-`sudo nvidia-smi -pl 85`, then `make serve-gemma4-12b` and confirm `/v1/models` serves the
-`gemma4_unified` GGUF (this also closes the G2.5 load-verify), then the base-smoke gate.
+G1–G2.5 done; FA2/SDPA decided (sdpa); W&B wired for sft+eval. PR **#129** (draft) tracks
+this branch (HEAD `8b7e04a`). First action: `sudo nvidia-smi -pl 85`, then
+`make serve-gemma4-12b` and confirm `/v1/models` serves the `gemma4_unified` GGUF (this
+also closes the G2.5 load-verify), then the base-smoke gate (`make eval-gemma4-12b-base-smoke`).
 Use **`uv run --no-sync`** for python/pytest (bare pytest isn't on PATH; torch is pinned
-outside uv.lock). Note the unsloth 12B bnb-4bit 404 → G5 `TRAIN_PREQ` base unverified.
+outside uv.lock at 2.12.0+cu130). Note the unsloth 12B bnb-4bit 404 → G5 `TRAIN_PREQ` base
+unverified. Pre-existing pyright warnings in `scripts/train_sft.py` are outside
+`include=["src"]` and don't gate commits.
 
 ---
 
