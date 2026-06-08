@@ -75,15 +75,16 @@ corrections — read this before §3:
 New gates inserted into §3: **G1.5** (transformers→5.10.2 + torch→2.12, verify load/bnb)
 and **G2.5** (build llama.cpp) — both before G3.
 
-### → Next instance: START AT G3.
+### → START POINTER moved: see "Session update — 2026-06-07 (cont.)" below.
 G1–G2.5 done; FA2/SDPA decided (sdpa); W&B wired for sft+eval. PR **#129** (draft) tracks
-this branch (HEAD `8b7e04a`). First action: `sudo nvidia-smi -pl 85`, then
-`make serve-gemma4-12b` and confirm `/v1/models` serves the `gemma4_unified` GGUF (this
-also closes the G2.5 load-verify), then the base-smoke gate (`make eval-gemma4-12b-base-smoke`).
-Use **`uv run --no-sync`** for python/pytest (bare pytest isn't on PATH; torch is pinned
-outside uv.lock at 2.12.0+cu130). Note the unsloth 12B bnb-4bit 404 → G5 `TRAIN_PREQ` base
-unverified. Pre-existing pyright warnings in `scripts/train_sft.py` are outside
-`include=["src"]` and don't gate commits.
+this branch (eval crash tooling landed in `f638af2`). The "START AT G3 / `sudo nvidia-smi
+-pl 85`" first-action that used to live here is **superseded** — the eval monitor now owns
+serving, the power search, and the crash-crawl. Read the (cont.) section for the current
+START pointer. Still: confirm the GGUF load-verify (G2.5) by serving once, use
+**`uv run --no-sync`** for python/pytest (bare pytest isn't on PATH; torch is pinned outside
+uv.lock at 2.12.0+cu130), note the unsloth 12B bnb-4bit 404 → G5 `TRAIN_PREQ` base unverified,
+and pre-existing pyright warnings in `scripts/train_sft.py` are outside `include=["src"]`
+and don't gate commits.
 
 ---
 
@@ -124,9 +125,16 @@ of the 31B's training monitor). Read this before §3 — it overrides parts of i
   acceptance on the SFT distribution but still lossless) so phase 3 can serve the winner.
 
 ### → Next instance: START AT phase 1a (base, MTP off).
-`make monitor-eval-gemma4-12b-base` after confirming the GGUF load‑verify (G2.5) by
-serving once. Then `MTP=1 make monitor-eval-gemma4-12b-base`. The monitor handles the
-power search, crash‑crawl, and issue‑#130 logging. Still use `uv run --no-sync`.
+Pre-flight: (1) pre-authorize `sudo` so the monitor's `sudo -n nvidia-smi -pl` power
+search works (else it warns + runs at the current limit); (2) confirm the GGUF
+load-verify (G2.5) by serving once; (3) run a **base smoke** (`make
+eval-gemma4-12b-base-smoke`) and confirm **0 error-stamped dialogues** — that's what
+makes the monitor's "any error == GPU fault" assumption sound.
+Then: `make monitor-eval-gemma4-12b-base`, then `MTP=1 make monitor-eval-gemma4-12b-base`.
+The monitor owns serve+eval, the power search, the crash-crawl (server-health signal,
+debounced; repairs error/truncated dialogues; only steps power on a real server fault),
+and issue-#130 logging. MTP off/on log as distinct W&B runs via `WANDB_EVAL_RUN_NAME`.
+Still use `uv run --no-sync`. Tooling committed in `f638af2`.
 
 ---
 
