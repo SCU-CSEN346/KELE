@@ -321,6 +321,38 @@ def _run_parallel(
     return completed_box[0], worker_systems
 
 
+def _log_eval_to_wandb(metrics: dict, run_name: str) -> None:
+    """Log eval metrics as a W&B run when WANDB_EVAL is set — mirrors the SFT
+    side (scripts/train_sft.py) so base vs SFT eval compare in one dashboard.
+    No-op unless WANDB_EVAL is set, so smoke/sanity runs don't spawn runs."""
+    if not os.getenv("WANDB_EVAL"):
+        return
+    import wandb  # pyright: ignore[reportMissingImports]
+
+    if not wandb.login(relogin=False):
+        print("WANDB_EVAL set but wandb is not authed — skipping. Run `wandb login`.")
+        return
+    state_acc = metrics.get("state_accuracy", {})
+    flat = {
+        "eval/rouge1": metrics.get("rouge1"),
+        "eval/rouge2": metrics.get("rouge2"),
+        "eval/rougeL": metrics.get("rougeL"),
+        "eval/bleu4": metrics.get("bleu4"),
+        "eval/state_accuracy_overall": state_acc.get("overall"),
+    }
+    for stage, acc in state_acc.get("per_stage", {}).items():
+        flat[f"eval/state_acc/{stage}"] = acc
+    run = wandb.init(
+        project=os.getenv("WANDB_PROJECT", "csen346-eval"),
+        name=run_name,
+        job_type="eval",
+        config={"experiment": run_name},
+        reinit=True,
+    )
+    run.log(flat)
+    run.finish()
+
+
 def run_batch_evaluation(
     output_dir: Path,
     dataset_path: Path | None = None,
@@ -521,6 +553,7 @@ def run_batch_evaluation(
         with open(output_dir / "metrics_summary.json", "w") as f:
             json.dump(metrics, f, indent=2)
         print(format_metrics_table(metrics))
+        _log_eval_to_wandb(metrics, run_name=(experiment or output_dir.name))
 
 
 def interactive(

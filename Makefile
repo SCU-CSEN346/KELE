@@ -440,7 +440,7 @@ eval-gemma4-12b-base-smoke: _classifier-ckpt
 	  test --n 5 --bert-consultant "$(BERT_CKPT)" --output results/gemma4-12b-base-smoke
 
 eval-gemma4-12b-base-full: _classifier-ckpt
-	KELE_BERT_DEVICE=cpu uv run python -m src.project.kele --experiment gemma4-12b-local \
+	WANDB_EVAL=1 KELE_BERT_DEVICE=cpu uv run python -m src.project.kele --experiment gemma4-12b-local \
 	  evaluate --bert-consultant "$(BERT_CKPT)" --output results/gemma4-12b-base
 
 eval-gemma4-12b-sft-smoke: _classifier-ckpt
@@ -448,7 +448,7 @@ eval-gemma4-12b-sft-smoke: _classifier-ckpt
 	  test --n 5 --bert-consultant "$(BERT_CKPT)" --output results/gemma4-12b-sft-smoke
 
 eval-gemma4-12b-sft-full: _classifier-ckpt
-	KELE_BERT_DEVICE=cpu uv run python -m src.project.kele --experiment gemma4-12b-sft-local \
+	WANDB_EVAL=1 KELE_BERT_DEVICE=cpu uv run python -m src.project.kele --experiment gemma4-12b-sft-local \
 	  evaluate --bert-consultant "$(BERT_CKPT)" --output results/gemma4-12b-sft
 
 # ── Gemma 4 31B SFT training (Stage 2b) ──────────────────────────────────────
