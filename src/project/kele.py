@@ -82,7 +82,7 @@ def load_dataset(
     seed: int = 42,
     source: str = "hf",
     hf_repo: str | list[str] = [  # noqa: B006
-        "ulises-c/SocratDataset-EN",
+        # "ulises-c/SocratDataset-EN",  # uncomment to eval the bilingual set (zh+en, ~1361 test)
         "ulises-c/SocratDataset",
     ],
 ) -> list[dict]:
