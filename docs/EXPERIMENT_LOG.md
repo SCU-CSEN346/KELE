@@ -4,6 +4,39 @@ Engineering decisions, what we've tried, and what's next. Each entry is dated an
 
 ---
 
+## 2026-06-10 — Gemma 4 12B BASE, MTP OFF complete ✅ — losslessness confirmed at n=681, run-to-run σ calibrated
+
+**Ran:** Full Chinese test set (n=681), identical to the 06-09 MTP-on baseline except the drafter: MTP OFF, f16 KV pinned via the new `GEMMA4_12B_KV=f16` (the engine default q4_0 would have been a second variable), 85 W pinned (`POWER_START_W=85`), **4 eval workers against `-np 4`** (the MTP-on run was sequential). Monitor crawl, 681/681 valid, **0 errors, 0 crashes in 17.4 h**. First run with `bert_consultant` recorded in `run_config.json`.
+
+### MTP on/off quality A/B (the 1:1 the drafter promised)
+
+| metric | MTP ON (n=3991 turns) | MTP OFF (n=4033 turns) | Δ |
+|---|---:|---:|---:|
+| state_accuracy | 50.30 | 49.62 | −0.68 pp |
+| rouge1 | 28.69 | 28.56 | −0.13 |
+| rougeL | 21.24 | 21.02 | −0.22 |
+| bleu4 | 5.28 | 5.22 | −0.06 |
+
+Every delta is within sampling noise — **MTP losslessness empirically confirmed at full n=681**. Per-stage shapes match (a=100 both; b/c/d/e within ~2 pp).
+
+### Bonus: run-to-run σ for the convergence budget
+
+These are two identical-config full runs differing only as seeds do — the cleanest variance estimate we have: **state accuracy run-to-run spread ≈ 0.7 pp at n=681**. Combined with the 06-09 convergence curve (±1 pp band entered at n≈200–300), a partial eval at n≈300 reads the state-acc headline to within ~1–1.5 pp total uncertainty.
+
+### Throughput: parallelism vs MTP at 85 W
+
+- MTP ON, 1 stream: 23.6 dlg/hr.
+- MTP OFF, 4 streams: **39.1 dlg/hr** (1.66× aggregate) — but per-stream only ~9.8 dlg/hr, i.e. batching at the 85 W cap costs ~58% per-stream speed.
+- **Winner for step 3 (SFT eval): MTP ON** on per-stream speed; MTP + 4 workers is untested and likely the true optimum if VRAM allows (drafter + f16 KV + 4 slots fit before, so it should).
+
+### Ops notes
+
+- W&B incident "Metric ingestion delayed" (Jun 9 16:47 PDT) made all charts render empty for hours despite the server acknowledging every row (`historyKeys` counted them) — backlog drained by Jun 10 afternoon, all runs fully queryable, no data loss. Lesson: check status.wandb.com before debugging the client.
+- One transient gh 401 dropped the 450-dialogue progress row on issue #130 — single occurrence, auth healthy before and after.
+- Artifacts: `results/gemma4-12b-base/`, W&B `gemma4-12b-base` (qitilwco, 69 live curve points logged through the incident).
+
+---
+
 ## 2026-06-09 (PM) — Per-dialogue W&B metric curves + 12B-base leaderboard placement
 
 **Ran:** No new model eval. Built incremental metric logging for the eval pipeline, replayed the completed `gemma4-12b-base-mtp` run into a 69-point convergence curve, and placed the run on the master leaderboard with corrected consultant attribution.
