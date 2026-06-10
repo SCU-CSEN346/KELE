@@ -218,8 +218,8 @@ archive_crash_log() {
     local done="$1" ts dest
     ts="$(date '+%Y%m%d-%H%M%S')"
     dest="$CRASH_DIR/crash-${PHASE}-done${done}-${ts}"
-    [[ -f "$EVAL_LOG" ]]   && cp "$EVAL_LOG"   "${dest}.eval.log"   2>/dev/null || true
-    [[ -f "$SERVER_LOG" ]] && cp "$SERVER_LOG" "${dest}.server.log" 2>/dev/null || true
+    if [[ -f "$EVAL_LOG" ]]; then cp "$EVAL_LOG" "${dest}.eval.log" 2>/dev/null || true; fi
+    if [[ -f "$SERVER_LOG" ]]; then cp "$SERVER_LOG" "${dest}.server.log" 2>/dev/null || true; fi
     if command -v nvidia-smi >/dev/null 2>&1; then
         nvidia-smi > "${dest}.nvidia-smi.txt" 2>&1 || true
     fi
