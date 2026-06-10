@@ -4,6 +4,53 @@ Engineering decisions, what we've tried, and what's next. Each entry is dated an
 
 ---
 
+## 2026-06-09 — Gemma 4 12B BASE teacher baseline COMPLETE ✅ (NVIDIA SFT-uplift PoC, phase 1)
+
+**Ran:** Full Chinese test set (`ulises-c/SocratDataset`, n=681) — base `gemma-4-12b-it` (Unsloth UD-Q8_K_XL GGUF) as teacher, Qwen3.5-0.8B-LoRA state classifier (`ulises-c/socrates-state-classifier-qwen3.5-lora`) as consultant, dual-role on llama.cpp port 8080. **MTP speculative drafter ON**, GPU power-capped at 85 W. Driven by `scripts/monitor_eval_gemma4_12b.sh` (crash-crawl). This is the **base baseline** for the 1-epoch Socratic QLoRA SFT-uplift question; uplift = SFT − base on state accuracy.
+
+### Final metrics (`results/gemma4-12b-base-mtp/metrics_summary.json`)
+
+| stage | state acc |
+|---|---:|
+| a | 100.0% |
+| b | 44.55% |
+| c | 32.85% |
+| d | 35.98% |
+| e | 60.21% |
+| **overall** | **50.3%** |
+
+Text-overlap (diagnostic, memorization-prone — weight lightly): ROUGE-1 28.69 · ROUGE-2 11.90 · ROUGE-L 21.24 · BLEU-4 5.28 (681 dialogues, 3991 turns).
+
+### Headlines
+
+- **Overall state accuracy 50.3%** is the number SFT must beat. Per-stage shape: perfect opener (a = 100%), collapse through the middle states (b/c/d ≈ 33–45%), partial recovery at the summary (e = 60%).
+- The noisy n=5 smoke read 56.25% — the full n=681 (50.3%) is the stable baseline; do not compare against the smoke.
+- Eval samples at the llama.cpp default (temp 0.8); MTP is distribution-lossless, so on-vs-off differ only as seeds do.
+
+### MTP on/off throughput A/B (see issue #130, comment 4653475343)
+
+- **Decode:** 21.6 → 48.8 tok/s = **2.3×**, ~50–55% draft acceptance (f16 KV avoids the q8_0 0%-acceptance failure mode).
+- **End-to-end** (same 5 dialogues, `elapsed_seconds`): 281 → 141 s/dlg = **~2.0×** (12.8 → 25.6 dlg/hr). MTP roughly halves wall-clock; an MTP-off full run would be ~52 h vs the ~29 h observed.
+
+### Run health
+
+681/681 valid, **0 errors, 0 crashes across ~29 h (1732 min) at 85 W**, 23.6 dlg/hr. The "fault every 30 min–2 h" risk did not materialize at this cap — 85 W is stable for inference on this card.
+
+### Artifact pointers
+
+- Results: `results/gemma4-12b-base-mtp/` (per-dialogue JSONs + `metrics_summary.json`)
+- W&B: `csen346-eval` run `gemma4-12b-base-mtp` → https://wandb.ai/uchavarria-santa-clara-university/csen346-eval/runs/537mjkk2
+- Live eval log: issue #130 (pinned table + MTP A/B comment 4653475343)
+- Eval restricted to Chinese-only via `kele.load_dataset` default (`ulises-c/SocratDataset`); the bilingual `+SocratDataset-EN` default added in `73adf12` was reverted for this PoC.
+
+### Next
+
+- **G5 SFT train** (`make train-gemma4-12b`, QLoRA 1 epoch → `ulises-c/SocratesLM-12B-QLoRA`) — compute-bound, so max power (`-pl 130`) is worth it there.
+- **G8 SFT eval** (MTP-on, same Chinese n=681) → **G9 compare** vs this 50.3% baseline.
+- Open (proposed in #130): live per-checkpoint `state_accuracy` in the eval log + an MTP-off run to test whether n≈400 suffices vs full 681.
+
+---
+
 ## 2026-06-02 — Canonical-baseline unified score landed (`GPT-4o + SocratTeachLLM · n=681` at unified 52.99) + n=681 STL leaderboard rows
 
 **Ran:** Three LLM-judge passes against previously un-judged n=681 cells, on branch `mk/unified-for-gpt4o-stl`. Sonnet 4.6 judge, 10 workers. Total wall-clock ≈ 33 min × 3 in parallel, total cost ≈ $66.
