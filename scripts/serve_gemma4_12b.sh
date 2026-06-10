@@ -28,6 +28,14 @@ GEMMA4_12B_WEIGHTS_DIR="${GEMMA4_12B_WEIGHTS_DIR:-$HOME/Documents/models/weights
 WEIGHT_FILE="${GEMMA4_12B_WEIGHT_FILE:-gemma-4-12b-it-UD-Q8_K_XL.gguf}"
 MTP_FILE="${GEMMA4_12B_MTP_FILE:-MTP/gemma-4-12B-it-MTP-Q8_0.gguf}"
 
+# GEMMA4_12B_KV=f16 forces the KV cache type without MTP — needed for 1:1
+# MTP on/off comparisons, since MTP forces f16 below while the engine default
+# is q4_0 (a second variable otherwise).
+KV_ARGS=()
+if [[ -n "${GEMMA4_12B_KV:-}" ]]; then
+  KV_ARGS=(-ctk "$GEMMA4_12B_KV" -ctv "$GEMMA4_12B_KV")
+fi
+
 MTP_ARGS=()
 if [[ "${MTP:-0}" == "1" ]]; then
   mtp_path="$GEMMA4_12B_WEIGHTS_DIR/$MTP_FILE"
@@ -49,5 +57,6 @@ exec "$SCRIPT_DIR/serve_gemma4_31b.sh" \
   -m "$GEMMA4_12B_WEIGHTS_DIR/$WEIGHT_FILE" \
   -a "Gemma 4 12B" \
   -c "${GEMMA4_12B_CTX:-32768}" \
+  "${KV_ARGS[@]}" \
   "${MTP_ARGS[@]}" \
   "$@"
