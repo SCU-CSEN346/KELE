@@ -4,6 +4,35 @@ Engineering decisions, what we've tried, and what's next. Each entry is dated an
 
 ---
 
+## 2026-06-09 (PM) — Per-dialogue W&B metric curves + 12B-base leaderboard placement
+
+**Ran:** No new model eval. Built incremental metric logging for the eval pipeline, replayed the completed `gemma4-12b-base-mtp` run into a 69-point convergence curve, and placed the run on the master leaderboard with corrected consultant attribution.
+
+### Tooling (kele.py / metrics.py / wandb_tracking.py)
+
+- **Live per-N-dialogue W&B logging:** evals with `WANDB_EVAL=1` now keep the W&B run open and log the full metric set every `WANDB_EVAL_LOG_EVERY` completed dialogues (default 10, `0` disables), step = completed-dialogue count, in both sequential and parallel paths. Crash-resumes start a new same-named W&B run whose steps continue where the last stopped (curves overlay in the UI). Closes the "live per-checkpoint state_accuracy" item proposed in #130.
+- **`wandb-replay` subcommand:** `python -m src.project.kele wandb-replay --output results/<exp> [--every N] [--order completion|id]` recomputes metrics over growing prefixes of the saved per-dialogue JSONs and logs a metric-vs-n curve for an already-finished run — no re-eval.
+- `eval/n_turns` is logged alongside every point (metrics are computed per-turn, ~5.9 turns/dialogue) and can be used as the chart x-axis.
+
+### Convergence read (replay of `gemma4-12b-base-mtp`, W&B run `gemma4-12b-base-mtp-curve` / vcj442ce)
+
+Answers the open "is n≈400 enough?" question, per metric:
+
+- **state_accuracy:** within ~1 pp of the n=681 value (50.30) from **n≈200**, within ~0.5 pp from n≈450. Partial evals are fine for the state-acc headline.
+- **ROUGE/BLEU:** slow monotone downward drift the whole run (rouge1 30.83 @ n=50 → 29.28 @ n=400 → 28.69 @ n=681); only within ~0.5 pp of final around **n≈450–500**. Caveat: the replay used completion order (file mtime), which correlates with dialogue length/difficulty — part of the drift may be ordering bias, not sampling error. A `--order id` (or shuffled) replay would disambiguate before locking a text-overlap budget.
+- Implication for cross-run comparison: **n=50 cells read ~1–2 pp high on rouge1** relative to full runs.
+
+### Leaderboard placement (state accuracy, the metric that matters here)
+
+`gemma4-12b-base-mtp` ranks **#4 of the full n=681 runs** and #26/107 overall. Corrected attribution: its consultant is the **T4 Qwen3.5-0.8B LoRA classifier** (`state-clf-qwen3.5-0.8b-lora-wandb/final`, via `--bert-consultant`) — the **same classifier family as the `t4-bert-*` leaders** — with a bare (no `fewshot10`) Gemma4-12B-base teacher. Within the T4 full-run family: 55.39 (gemma+fewshot10) / 53.40 (a3b+fewshot10) / 53.04 (qwen27b-nothink+fewshot10) / **50.30 (this run, no fewshot)**. Same classifier ⇒ the 3–5 pp gap is a *context* effect (the classifier reads teacher responses in the dialogue history), so SFT-improving the teacher should pull state acc toward the 53–55 band via cleaner classifier inputs.
+
+### Gotchas logged
+
+- **`run_config.json` misstates the consultant.** It copies `CONSULTANT_MODEL_NAME` from the env config ("Gemma 4 12B") and does not record `--bert-consultant`; the actual consultant was the T4 classifier. Fixed same day: `run_batch_evaluation` now writes `bert_consultant` (ckpt path or null) into `run_config.json`; configs written before the fix lack the field.
+- **W&B history-ingestion lag:** freshly finished runs show "no data for the selected runs" in charts and 0 rows via the API even though the server's `historyKeys` metadata counts all uploaded rows (filestream accepted 69/69 with no errors). Runs ≥ ~18 h old query fine. Server-side indexing delay — wait before debugging the client. Curve run was still un-queryable ~30 min after finish.
+
+---
+
 ## 2026-06-09 — Gemma 4 12B BASE teacher baseline COMPLETE ✅ (NVIDIA SFT-uplift PoC, phase 1)
 
 **Ran:** Full Chinese test set (`ulises-c/SocratDataset`, n=681) — base `gemma-4-12b-it` (Unsloth UD-Q8_K_XL GGUF) as teacher, Qwen3.5-0.8B-LoRA state classifier (`ulises-c/socrates-state-classifier-qwen3.5-lora`) as consultant, dual-role on llama.cpp port 8080. **MTP speculative drafter ON**, GPU power-capped at 85 W. Driven by `scripts/monitor_eval_gemma4_12b.sh` (crash-crawl). This is the **base baseline** for the 1-epoch Socratic QLoRA SFT-uplift question; uplift = SFT − base on state accuracy.
