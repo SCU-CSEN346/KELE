@@ -62,23 +62,30 @@ class SftTracker:
 class EvalTracker:
     """Eval-side tracking. Logs rouge/bleu + state-accuracy as a W&B run when
     ``WANDB_EVAL`` is set and wandb is authed. Off by default so smoke/sanity
-    runs don't spawn runs."""
+    runs don't spawn runs.
+
+    The run stays open across the eval so metrics can be logged incrementally
+    (``log_step`` per N completed dialogues, step = completed count). A
+    crash-resumed eval starts a fresh W&B run whose steps continue from where
+    the previous one stopped; same-named runs overlay into one curve in the UI.
+    """
 
     DEFAULT_PROJECT = "csen346-eval"
 
     def __init__(self) -> None:
         self._requested = bool(os.getenv("WANDB_EVAL"))
         self.enabled = self._requested and WandbAuth.authed()
+        self._run = None
 
-    def log(self, metrics: dict, run_name: str) -> None:
-        if not self.enabled:
-            if self._requested:
-                print("WANDB_EVAL set but wandb is not authed — skipping. Run `wandb login`.")
-            return
-        import wandb  # pyright: ignore[reportMissingImports]
+    @property
+    def active(self) -> bool:
+        return self._run is not None
 
+    @staticmethod
+    def _flatten(metrics: dict) -> dict:
         state_acc = metrics.get("state_accuracy", {})
         flat = {
+            "eval/n_turns": metrics.get("n_turns"),
             "eval/rouge1": metrics.get("rouge1"),
             "eval/rouge2": metrics.get("rouge2"),
             "eval/rougeL": metrics.get("rougeL"),
@@ -87,12 +94,31 @@ class EvalTracker:
         }
         for stage, acc in state_acc.get("per_stage", {}).items():
             flat[f"eval/state_acc/{stage}"] = acc
-        run = wandb.init(
+        return flat
+
+    def start(self, run_name: str) -> None:
+        if not self.enabled:
+            if self._requested:
+                print("WANDB_EVAL set but wandb is not authed — skipping. Run `wandb login`.")
+            return
+        import wandb  # pyright: ignore[reportMissingImports]
+
+        self._run = wandb.init(
             project=os.getenv("WANDB_PROJECT", self.DEFAULT_PROJECT),
             name=run_name,
             job_type="eval",
             config={"experiment": run_name},
             reinit=True,
         )
-        run.log(flat)
-        run.finish()
+
+    def log_step(self, metrics: dict, step: int) -> None:
+        if self._run is not None:
+            self._run.log(self._flatten(metrics), step=step)
+
+    def finish(self, metrics: dict | None = None, step: int | None = None) -> None:
+        if self._run is None:
+            return
+        if metrics is not None:
+            self._run.log(self._flatten(metrics), step=step)
+        self._run.finish()
+        self._run = None
