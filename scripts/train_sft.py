@@ -493,6 +493,11 @@ def main() -> None:
     from trl import SFTTrainer
 
     train_ds, eval_ds = build_hf_datasets()
+    # With eval_strategy=no the eval split is never evaluated, but SFTTrainer still
+    # tokenizes whatever eval_dataset it's handed in __init__ — wasted work that also
+    # crashed the multiprocessing map on the RAM-constrained NVIDIA box. Drop it.
+    if _get("TRAIN_EVAL_STRATEGY", "steps").lower() == "no":
+        eval_ds = None
     model, tokenizer = build_model_and_tokenizer()
     lora_cfg = build_lora_config()
     sft_cfg = build_sft_config(use_wandb=use_wandb)
