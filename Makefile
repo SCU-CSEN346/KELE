@@ -1,7 +1,7 @@
 .PHONY: help run install-hooks pre-commit sync-mirror setup setup-repo \
 		online-demo local-demo _demo-preflight \
 		nvidia-preflight _classifier-ckpt \
-		train-gemma4-12b train-gemma4-12b-dry-run \
+		train-gemma4-12b train-gemma4-12b-dry-run monitor-train-gemma4-12b \
 		serve-gemma4-12b serve-gemma4-12b-mtp serve-gemma4-12b-sft \
 		eval-gemma4-12b-base-smoke eval-gemma4-12b-base-full \
 		eval-gemma4-12b-sft-smoke eval-gemma4-12b-sft-full \
@@ -417,6 +417,15 @@ train-gemma4-12b: nvidia-preflight
 	  --config configs/train-sft-gemma4-12b-qlora.env \
 	  > outputs/sft-gemma4-12b-qlora/train.log 2>&1 &
 	@echo "Training started. Monitor: tail -f outputs/sft-gemma4-12b-qlora/train.log"
+
+# Auto-resume training crawl for the known-unstable box: owns the train→crash→
+# resume loop, archives each fault, quarantines partial checkpoints, walks the GPU
+# power limit DOWN per crash (stability search), and logs to issue #130. Re-invokes
+# `make train-gemma4-12b` (nvidia-preflight + auto-resume) on every fault. Set
+# LOG_COMMENT_ID=<id> to post rows to a pinned issue comment; unset = local log only.
+# See scripts/monitor_train_gemma4_12b.sh.
+monitor-train-gemma4-12b:
+	bash scripts/monitor_train_gemma4_12b.sh
 
 # Serve (port 8080, one at a time). serve-gemma4-12b-mtp attaches the MTP drafter.
 serve-gemma4-12b:
