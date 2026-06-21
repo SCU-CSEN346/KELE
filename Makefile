@@ -405,12 +405,16 @@ nvidia-preflight:
 train-gemma4-12b-dry-run:
 	uv run python scripts/train_sft.py --config configs/train-sft-gemma4-12b-qlora.env --dry-run
 
-# Train from the community unsloth bnb-4bit base (TRAIN_PREQ=true → no BF16 CPU
-# staging). No TORCH_USE_HIPBLASLT / PYTORCH_HIP_ALLOC_CONF (CUDA box).
+# Live-quantize the bf16 base to NF4 on load (TRAIN_PREQ=false → the code builds
+# the bnb 4-bit config). unsloth/gemma-4-12b-it is the FULL bf16 model, not a
+# bnb-4bit checkpoint, so TRAIN_PREQ=true loaded it in bf16 (~24 GB) and OOM'd on
+# the 20 GB card; live quant is ~7.7 GB resident, leaving ~13 GB for activations.
+# expandable_segments avoids allocator fragmentation at the VRAM edge (CUDA box).
 train-gemma4-12b: nvidia-preflight
 	mkdir -p outputs/sft-gemma4-12b-qlora
 	nohup env TRAIN_BASE_MODEL=unsloth/gemma-4-12b-it \
-	  TRAIN_PREQ=true \
+	  TRAIN_PREQ=false \
+	  PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
 	  TRAIN_HF_REPO=ulises-c/SocratesLM-12B-QLoRA \
 	  TRAIN_HF_PUSH_EVERY=50 \
 	  uv run --no-sync python scripts/train_sft.py \

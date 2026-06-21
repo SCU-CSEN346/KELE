@@ -156,6 +156,14 @@ crash_hint() {
         "$TRAIN_LOG" | tail -4 | sed 's/^/  /' || true
 }
 
+# An OOM is DETERMINISTIC — the same config will OOM identically every relaunch, so
+# retrying (and stepping power down, which OOM ignores) is futile. Distinguished
+# from the probabilistic GPU surge fault this monitor exists to crawl through.
+is_oom_crash() {
+    [[ -f "$TRAIN_LOG" ]] || return 1
+    grep -qiE "outofmemoryerror|cuda out of memory|torch\.cuda\.OutOfMemory" "$TRAIN_LOG"
+}
+
 # The make target writes train.log with `>` (truncate), so each relaunch would
 # overwrite the crashed run's full traceback. Archive the whole log + an nvidia-smi
 # + dmesg snapshot per crash BEFORE relaunch so an overnight crawl leaves a
@@ -333,6 +341,16 @@ while true; do
     log "CRASH DETECTED (consecutive no-progress retries $retries/$MAX_RETRIES, latest ckpt step $ckpt_step, power ${CURRENT_POWER}W)"
     [[ -n "$hint" ]] && log "Log tail:$hint"
     archive_crash_log "$ckpt_step"
+
+    # OOM before any checkpoint = the config does not fit in VRAM. Deterministic;
+    # relaunching/stepping power never helps. Bail immediately with a clear cause
+    # instead of burning MAX_RETRIES on the identical failure.
+    if (( ckpt_step < 0 )) && is_oom_crash; then
+        log_row "$(printf '| %s | ⛔ OOM | %s | | | | config exceeds VRAM at load/step 0 (not a surge fault) — fix config, do not retry; %s |' \
+            "$(now_iso)" "$(last_step || true)" "$(crash_signature)")"
+        log "OOM before any checkpoint — config does not fit in VRAM; retrying is futile — exiting"
+        exit 1
+    fi
 
     if (( retries >= MAX_RETRIES )); then
         log_row "$(printf '| %s | ⛔ STALLED | %s | | | | no progress in %d retries @ %sW — manual intervention; last good ckpt %s — %s |' \
