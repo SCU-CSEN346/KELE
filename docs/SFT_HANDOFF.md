@@ -1,184 +1,163 @@
-# SFT Handoff — Gemma 4 12B Socratic QLoRA (NVIDIA PoC, phase 2)
+# SFT Handoff — Gemma 4 12B Socratic QLoRA (NVIDIA PoC, eval phase)
 
-**Written 2026-06-10.** For a fresh session picking up the SFT-uplift work. Phase 1
-(base teacher baseline) is complete; **SFT training has not started yet.** This doc
-is the single source of truth for what to run, in what order, and what to watch out
-for. Cross-check against `docs/EXPERIMENT_LOG.md` (newest entries at top) and the
-live eval log on GitHub issue #130.
+**Updated 2026-06-22.** For a fresh session picking up the eval/compare work.
+**Training is DONE (recovered — see below); the merge has run; eval has NOT started.**
+This doc is the single source of truth for what to run next and the hazards. Cross-check
+against `docs/EXPERIMENT_LOG.md` (newest at top) and the live logs on GitHub issue #130.
 
-Branch: `feat/gemma4-12b-sft-poc-nvidia`. All phase-1 work is committed and pushed
-(HEAD `74ce6b6`).
+Branch: `feat/gemma4-12b-sft-poc-nvidia`. All code fixes from this phase are committed and
+pushed (HEAD `66becca` + monitor `730906a` + live-quant `73c72e0`).
 
 ---
 
 ## The one-sentence goal
 
-Measure whether **1 epoch of Socratic QLoRA SFT on Gemma 4 12B** improves the KELE
-eval over the **base** Gemma 4 12B teacher, with everything else held fixed. Uplift
-= SFT − base on **state accuracy**.
+Measure whether Socratic QLoRA SFT on Gemma 4 12B improves the KELE eval over the **base**
+Gemma 4 12B teacher, everything else fixed. Uplift = SFT − base on **state accuracy**.
 
 ## The number to beat
 
-**State accuracy 50.30%** — the base teacher, MTP-on, full Chinese test set (n=681).
-This is the canonical baseline.
-
-| | state acc | rouge1 | rougeL | bleu4 | turns |
-|---|---:|---:|---:|---:|---:|
-| base, MTP **on** (`results/gemma4-12b-base-mtp`) | **50.30** | 28.69 | 21.24 | 5.28 | 3991 |
-| base, MTP **off** (`results/gemma4-12b-base`) | 49.62 | 28.56 | 21.02 | 5.22 | 4033 |
-
-Per-stage (MTP-on): a 100.0 · b 44.55 · c 32.85 · d 35.98 · e 60.21. The middle
-states (b/c/d) are where there's headroom; a is already perfect, e partial.
-
-**Run-to-run σ ≈ 0.7 pp on state accuracy** (the two rows above are identical-config
-runs differing only as seeds do — they calibrate the noise floor). So an SFT uplift
-is only real if it clears ~1.5 pp. Also: the convergence curve (06-09 log entry)
-shows state accuracy stable within ±1 pp from **n ≈ 200–300**, so a partial SFT eval
-at n≈300 is a valid early read if you want a fast signal before committing the full
-~17 h run.
+**State accuracy 50.30%** — base teacher, MTP-on, full Chinese test set (n=681)
+(`results/gemma4-12b-base-mtp`). Run-to-run σ ≈ 0.7 pp, so an uplift is only real if it
+clears **~1.5 pp**. Per-stage base (MTP-on): a 100.0 · b 44.55 · c 32.85 · d 35.98 · e 60.21.
 
 ---
 
-## What is FIXED between base and SFT (do not change — it's what isolates the delta)
+## Tracking — where eval progress is recorded
+
+- **GitHub issue #130** is the live tracker. The eval monitor (`monitor_eval_gemma4_12b.sh`)
+  **auto-appends** progress/crash/complete rows to its pinned eval-log comment (`4644703104`).
+  Do **not** post separate handoff/status comments on #130 — the only comments there are the
+  monitor's train/eval log tables. This markdown doc is the handoff; #130 is the live log.
+- **W&B** is the metrics tracker. Eval → project **`csen346-eval`** (org
+  `uchavarria-santa-clara-university`), run auto-named after the output-dir basename
+  (`gemma4-12b-sft-mtp`); per-dialogue metric curves log every 10 dialogues (`WANDB_EVAL_LOG_EVERY`).
+  `WANDB_EVAL=1` is set by the monitored eval target. Training W&B (reference): `csen346-sft`,
+  run `gemma4-12b-qlora-poc` (shows the NaN spike).
+
+---
+
+## ⚠️ What the SFT adapter actually is (read this — provenance matters)
+
+The training run **diverged to NaN at step ~4260 / 4826 (epoch 0.88)** — a single bad batch
+blew the loss to 1.5e8, grad → NaN, weights corrupted. `save_total_limit=5` then evicted every
+clean **local** checkpoint before the NaN was noticed. **It was recovered from HuggingFace
+commit history** (HF keeps all commits; local eviction is not mirrored). The recovered adapter:
+
+- **`checkpoint-4250`** — step 4250, **epoch 0.881**, loss 0.6041, mean_token_accuracy 0.8052,
+  verified **0/656 tensors NaN**. This is a well-converged **0.88-epoch** adapter (the missing
+  12% was at LR decaying 6e-6→0, so negligible — but **report it as ~0.88 epoch, not "1 epoch",**
+  in the experiment log so the result isn't overstated).
+- Staged locally at **`outputs/sft-gemma4-12b-qlora/recovered-4250/`** (adapter_config.json +
+  adapter_model.safetensors + tokenizer).
+- Also on HF `ulises-c/SocratesLM-12B-QLoRA` at HEAD (NaN dirs 4300–4750 were deleted; HEAD is
+  now clean `checkpoint-3200..4250`). Commit `38cdcc8299` is a known-good snapshot.
+
+See memory `sft-nan-divergence-checkpoint-eviction` for the full story + the lesson
+(check `list_repo_commits` before declaring a diverged run lost).
+
+---
+
+## What is FIXED between base and SFT (do not change — it isolates the delta)
 
 - **Consultant = Qwen3.5-0.8B LoRA state classifier** (`results/state-clf-qwen3.5-0.8b-lora-wandb/final`,
-  HF `ulises-c/socrates-state-classifier-qwen3.5-lora`), passed via `--bert-consultant`,
-  **runs on CPU** (`KELE_BERT_DEVICE=cpu`) to free VRAM for the teacher. Despite the
-  "bert" naming everywhere, this is the Qwen3.5 classifier, not a BERT. The teacher is
-  the ONLY thing that changes between base and SFT.
-- **Bare teacher prompt** — no `KELE_FEW_SHOT_TEACHER` / fewshot10. Both base and SFT
-  evals run bare, so the delta is purely the adapter. (Note for leaderboard context:
-  the `t4-bert-*` runs that out-rank the base on state acc also use fewshot10, so they
-  confound prompting with the model. Don't compare SFT-bare against those directly.)
-- **Dataset**: Chinese-only test split, n=681 (`ulises-c/SocratDataset`, the
-  `load_dataset` default). The English default was reverted for this PoC.
-- **MTP = ON for the SFT eval.** The base on/off A/B proved MTP is lossless at n=681
-  (deltas within the 0.7 pp σ) and ~2× faster per stream, so the SFT eval uses MTP.
+  HF `ulises-c/socrates-state-classifier-qwen3.5-lora`), passed via `--bert-consultant`, runs on
+  **CPU** (`KELE_BERT_DEVICE=cpu`). Despite the "bert" naming, it's the Qwen3.5 classifier. The
+  teacher is the ONLY thing that changes between base and SFT.
+- **Bare teacher prompt** — no fewshot. Both base and SFT run bare.
+- **Dataset**: Chinese-only test split, n=681 (`ulises-c/SocratDataset` default).
+- **MTP = ON for the SFT eval** (proven lossless at n=681, ~2× faster).
+- **Base lineage = `unsloth/gemma-4-12b-it`** — NOT google. The base-teacher GGUF was
+  `unsloth/gemma-4-12b-it-GGUF` and the adapter was trained on `unsloth/gemma-4-12b-it`, so the
+  merge MUST use the unsloth base (the handoff's old `google/...` ref was wrong).
 
 ---
 
-## The pipeline — five steps, in order
+## The pipeline — what's done and what remains
 
-### Step 2 — Train (NOT YET RUN)
+### Step 2 — Train ✅ DONE (recovered, see above). Adapter = `recovered-4250/`.
 
-```
-make train-gemma4-12b          # nvidia-preflight gate runs first, then nohup training
-tail -f outputs/sft-gemma4-12b-qlora/train.log
-```
-
-- QLoRA r16/α32, 1 epoch over ~77k per-turn records ≈ **4826 steps** @ effective batch 16.
-- Trains from `unsloth/gemma-4-12b-it` bnb-4bit base (`TRAIN_PREQ=true`, no BF16 CPU staging).
-- Adapter saved to `outputs/sft-gemma4-12b-qlora/` every 50 steps; **auto-pushed to HF
-  `ulises-c/SocratesLM-12B-QLoRA` every 50 steps**.
-- W&B: project `csen346-sft`, run id `gemma4-12b-qlora-poc`, `resume=allow` (crash-resumes
-  append to one continuous step axis). Config: `configs/train-sft-gemma4-12b-qlora.env`.
-- `train_sft.py` **auto-resumes** from the latest `checkpoint-*` in the output dir. If you
-  change `TRAIN_EPOCHS`, you MUST `rm -rf outputs/sft-gemma4-12b-qlora/checkpoint-*` first
-  (resume assumes the old schedule).
-- Dry run (no weights touched): `make train-gemma4-12b-dry-run`.
-
-### Step 3 — Merge LoRA → HF BF16
+### Step 3 — Merge LoRA → HF BF16 ✅ DONE (or finishing)
 
 ```
 uv run --no-sync python scripts/merge_lora_gemma4_sft.py \
-  --base google/gemma-4-12b-it \
-  --adapter outputs/sft-gemma4-12b-qlora/final \
+  --base unsloth/gemma-4-12b-it \
+  --adapter outputs/sft-gemma4-12b-qlora/recovered-4250 \
   --out outputs/sft-gemma4-12b-qlora/merged
 ```
 
-### Step 4 — Convert merged → Q8_0 GGUF (and auto-stage)
+Output: `outputs/sft-gemma4-12b-qlora/merged/` (BF16, ~24 GB, CPU merge, ~10-15 min).
+**Verify it finished**: `merged/` should hold `model-*.safetensors` totaling ~24 GB + config.
+If `merge.log` shows "Done"/all shards written, it's complete; if interrupted, just re-run the
+command (idempotent overwrite).
+
+### Step 4 — Convert merged → Q8_0 GGUF (NOT YET RUN)
 
 ```
 bash scripts/convert_gemma4_12b_sft_to_gguf.sh
 ```
 
-Writes `gemma-4-12B-kele-socratic-sft-Q8_0.gguf` and copies it into the weights dir
-where the serve wrapper looks — no rename needed. Q8_0 matches the base teacher's
-bit budget so the quant delta is noise. The script pre-flights its llama.cpp deps
-and fails loud if missing (see hazards).
+Writes `gemma-4-12B-kele-socratic-sft-Q8_0.gguf` and stages it where the serve wrapper looks.
+Q8_0 matches the base teacher's bit budget so the quant delta is noise. The script pre-flights
+its llama.cpp deps (`~/Documents/models/llama.cpp`: `convert_hf_to_gguf.py` + `build/bin/llama-quantize`)
+and fails loud if missing. **This step has not been exercised this phase — watch for missing
+llama.cpp binaries** (memory `gemma4-12b-nvidia-poc-stack` flagged a possible build gap).
 
-### Step 5 — Eval (MTP on) + compare
+### Step 5 — Eval (MTP on) + compare (NOT YET RUN)
 
 ```
 MTP=1 make monitor-eval-gemma4-12b-sft        # → results/gemma4-12b-sft-mtp
-# (the monitor owns serve+eval, auto-resumes on crash, logs to issue #130)
-python -m src.project.evaluate --compare results/gemma4-12b-base results/gemma4-12b-sft-mtp
+python -m src.project.evaluate --compare results/gemma4-12b-base-mtp results/gemma4-12b-sft-mtp
 ```
 
-Sanity-gate first if you like: `make eval-gemma4-12b-sft-smoke` (n=5, no monitor).
-W&B eval run lands in project `csen346-eval` named after the output dir basename.
-Per-dialogue metric curves log every 10 dialogues (`WANDB_EVAL_LOG_EVERY`).
+Sanity-gate first: `make eval-gemma4-12b-sft-smoke` (n=5, no monitor). Compare SFT against the
+**MTP-on** base (`results/gemma4-12b-base-mtp`, 50.30) for a like-for-like (both MTP) read.
+A partial eval at n≈300 is a valid early signal (convergence stable from n≈200-300).
 
 ---
 
 ## Hazards & gotchas (read before launching)
 
-1. **The box is KNOWN-UNSTABLE.** The RTX 4000 Ada (20 GB) took a power surge and
-   crashes under load (see memory `training-host-hardware-fault`). Eval crawls proved
-   stable at **85 W**. Training is compute-bound so higher power helps throughput —
-   but that's exactly the regime that historically faulted. Expect crashes; rely on
-   checkpoint-every-50 + auto-resume.
-
-2. **There is NO training monitor for the 12B yet** — this is the main gap. `make
-   train-gemma4-12b` is a bare `nohup`; on a GPU fault it dies and does NOT relaunch
-   itself (train_sft.py auto-resumes only when re-invoked). `scripts/monitor_stage2.sh`
-   exists but is **hardcoded to the 31B** (`outputs/sft-stage2-gemma4-31b`, calls
-   `make train-gemma4-31b-stage2-unsloth`). Options for the new session:
-   (a) babysit `train.log` and re-run `make train-gemma4-12b` on each crash (auto-resume
-   makes this safe), or (b) adapt `monitor_stage2.sh` to 12B (parameterize OUTPUT_DIR +
-   the make target + add a power-step-down search like `monitor_eval_gemma4_12b.sh`
-   already has). (b) is the robust path if crashes are frequent.
-
-3. **`nvidia-preflight` is a hard gate** before training (CUDA fwd/bwd smoke through the
-   kernel paths). `make train-gemma4-12b` runs it automatically; if it fails, the GPU/
-   driver is in a bad state — do not force past it.
-
-4. **GGUF conversion depends on a built llama.cpp** at `~/Documents/models/llama.cpp`
-   (`convert_hf_to_gguf.py` + `build/bin/llama-quantize`). The base teacher is already
-   served via llama-server, so llama.cpp is present and built — but the memory note
-   `gemma4-12b-nvidia-poc-stack` flagged it as needing a build (cmake/gcc16-vs-nvcc
-   friction), so if step 4 errors on a missing binary, that's where to look. The convert
-   script pre-flights both paths and prints the exact missing file.
-
-5. **One model fits at a time** on the 20 GB card. Stop the base server before serving
-   the SFT model (both bind port 8080). The SFT serve uses a distinct alias "Gemma 4 12B
-   SFT" so the eval fails fast if it accidentally hits base weights.
-
-6. **VRAM math for the SFT eval**: base MTP-on (drafter + f16 KV + `-np 4`) fit in ~16.4
-   GB, so SFT MTP-on should fit identically. The SFT serve script's MTP path forces f16
-   KV (same as base). Note the SFT serve script does NOT have the `GEMMA4_12B_KV` env
-   passthrough the base one got (commit `d5565c7`) — irrelevant since the SFT eval uses
-   MTP=1 which forces f16 anyway, but flag it if you ever want SFT MTP-off.
-
-7. **Eval `run_config.json` now records `bert_consultant`** (fixed `74ce6b6` era) — older
-   runs lack the field and misattribute the consultant to `consultant_model` ("Gemma 4
-   12B"), which is wrong; the real consultant is the Qwen3.5 classifier.
+1. **Box is KNOWN-UNSTABLE** (RTX 4000 Ada 20 GB, power surge → crashes under load). Eval crawls
+   proved stable at **85 W**; the monitor (`scripts/monitor_eval_gemma4_12b.sh`) auto-resumes the
+   eval, repairs error/truncated dialogues, polls server health out-of-band, logs to issue #130.
+2. **GPU power step-down is INERT** — passwordless sudo is unavailable, so the monitors' power
+   search can't change the limit; the card stays at whatever's persisted (85 W). Logged wattage in
+   issue rows is cosmetic. Safe (85 W is the stable point). See memory `power-step-down-needs-passwordless-sudo`.
+3. **One model fits at a time** on the 20 GB card. Stop the base server before serving SFT (both
+   bind 8080). SFT serve uses alias "Gemma 4 12B SFT" so eval fails fast if it hits base weights.
+4. **GGUF conversion (step 4) is the untested link this phase.** If it errors on a missing binary,
+   build llama.cpp (cmake/gcc-vs-nvcc friction noted in memory). The base teacher is already served
+   via llama-server, so llama.cpp is present — but the quantize/convert binaries may need building.
+5. **SFT serve script** (`scripts/serve_gemma4_12b_sft.sh`) lacks the `GEMMA4_12B_KV` passthrough
+   the base one has — irrelevant for the MTP=1 eval (MTP forces f16 KV anyway).
+6. **The training monitor now fast-fails on OOM and self-heals on divergence-abort** — not needed
+   for eval, but if you ever retrain: it relaunches with a fresh data_seed from the latest local
+   checkpoint. To retrain cleanly, add a NaN-abort callback + raise `save_total_limit` (currently 5,
+   which caused the eviction). The training-side OOM/eval-skip/live-quant fixes are committed.
 
 ---
 
 ## Where things live
 
-- **Plan + live status**: GitHub issue **#130** — pinned comment has the run checklist
-  (items 1a/1b base on/off are ✅; step 2 SFT train is the next unchecked box) and a
-  per-event table the eval monitor appends to.
-- **Experiment log**: `docs/EXPERIMENT_LOG.md` (06-09 baseline + convergence, 06-10 MTP
-  A/B — newest at top).
-- **Configs**: `configs/train-sft-gemma4-12b-qlora.env` (training),
-  `configs/gemma4-12b-sft-local.env` (SFT eval), `configs/gemma4-12b-local.env` (base eval).
-- **Scripts**: `scripts/train_sft.py`, `scripts/merge_lora_gemma4_sft.py`,
-  `scripts/convert_gemma4_12b_sft_to_gguf.sh`, `scripts/serve_gemma4_12b_sft.sh`,
-  `scripts/monitor_eval_gemma4_12b.sh` (eval crawl, handles base + sft phases).
-- **W&B**: training → `csen346-sft`; eval → `csen346-eval` (org
-  `uchavarria-santa-clara-university`).
-- **Tests/commits**: a pre-commit hook runs ruff + pyright + codespell + shellcheck +
-  the full pytest suite on every commit; expect ~9 s and keep it green. Use `uv run
-  --no-sync` for any Python (torch is pinned outside uv.lock).
-- **Relevant memories**: `training-host-hardware-fault`, `gemma4-12b-nvidia-poc-stack`,
-  `use-uv-run-for-tests`, `coverage-non-blocking-research-code`.
+- **Plan + live status**: GitHub issue **#130** (eval log comment `4644703104`; the training log
+  comment `4761132326` holds the NaN-run history).
+- **Recovered adapter**: `outputs/sft-gemma4-12b-qlora/recovered-4250/`; HF `ulises-c/SocratesLM-12B-QLoRA`.
+- **Merged model**: `outputs/sft-gemma4-12b-qlora/merged/` (step 3 output).
+- **Configs**: `configs/gemma4-12b-sft-local.env` (SFT eval), `configs/gemma4-12b-local.env` (base eval),
+  `configs/train-sft-gemma4-12b-qlora.env` (training).
+- **Scripts**: `scripts/merge_lora_gemma4_sft.py`, `scripts/convert_gemma4_12b_sft_to_gguf.sh`,
+  `scripts/serve_gemma4_12b_sft.sh`, `scripts/monitor_eval_gemma4_12b.sh`,
+  `scripts/monitor_train_gemma4_12b.sh` (training babysitter, new this phase).
+- **W&B**: training → `csen346-sft` (run `gemma4-12b-qlora-poc`); eval → `csen346-eval`.
+- **Tests**: pre-commit runs ruff + pyright + codespell + shellcheck + full pytest (~9 s). Use
+  `uv run --no-sync` for Python.
+- **Relevant memories**: `sft-nan-divergence-checkpoint-eviction`, `power-step-down-needs-passwordless-sudo`,
+  `gemma4-12b-nvidia-poc-stack`, `training-host-hardware-fault`, `use-uv-run-for-tests`.
 
 ## Definition of done
 
-`results/gemma4-12b-sft-mtp/metrics_summary.json` exists with 681/681 valid dialogues,
-the `--compare` output quantifies SFT − base state accuracy (real only if > ~1.5 pp),
-issue #130's checklist items 2/3/compare are checked, and an `EXPERIMENT_LOG.md` entry
-records the uplift with per-stage breakdown.
+`results/gemma4-12b-sft-mtp/metrics_summary.json` exists with 681/681 valid dialogues; the
+`--compare` output quantifies SFT − base state accuracy (real only if > ~1.5 pp); issue #130's
+checklist is updated; and an `EXPERIMENT_LOG.md` entry records the uplift with per-stage breakdown
+**and notes the adapter is a ~0.88-epoch checkpoint recovered from HF after a NaN divergence.**
