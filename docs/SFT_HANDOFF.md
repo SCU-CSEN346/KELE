@@ -56,6 +56,55 @@ commit history** (HF keeps all commits; local eviction is not mirrored). The rec
 See memory `sft-nan-divergence-checkpoint-eviction` for the full story + the lesson
 (check `list_repo_commits` before declaring a diverged run lost).
 
+### Why training was stopped (not resumed/restarted)
+
+Training was **manually stopped at step ~4800**, deep into a NaN run that began at ~4260. We did
+**not** resume or restart because:
+- checkpoint-4250 (the last clean step) is a **well-converged adapter** — loss had plateaued at
+  ~0.60 since step ~3000 (epoch ~0.62), and the remaining ~12% of the epoch was at LR decaying
+  6e-6→0, i.e. near-zero additional learning. So 0.88 epoch ≈ a full epoch for practical purposes.
+- Resuming would have re-loaded a NaN local checkpoint (all surviving local checkpoints were NaN);
+  resuming from the HF-recovered 4250 to finish 576 steps risked re-diverging for negligible gain.
+- The PoC's question (does SFT beat the 50.30 base?) is answerable with checkpoint-4250 **now**;
+  a cleaner full run can follow if the uplift is promising.
+
+---
+
+## Recommendations for a future / better SFT run
+
+If the eval shows promise and a cleaner or stronger run is wanted, prioritize **stability first**
+(the NaN divergence, not undertraining, was the failure):
+
+**Stability (do these — this is what bit us):**
+1. **NaN/inf-abort callback** — stop training the instant `grad_norm` or `loss` is non-finite
+   (detect at `logging_steps=10`, which beats `save_steps=50`). Turns a silent 500-step NaN bleed
+   into an immediate, recoverable stop. If it exits non-zero, `monitor_train_gemma4_12b.sh`
+   relaunches from the latest checkpoint with a fresh `TRAIN_DATA_SEED` → steps over the bad batch.
+2. **Protect checkpoints** — raise `save_total_limit` (currently **5** in `scripts/train_sft.py`,
+   which evicted the last-good checkpoint before the NaN was noticed) to ~20, or keep a permanent
+   checkpoint every N steps. HF history saved us this time; don't rely on it.
+3. **Tighten `max_grad_norm`** to ~0.3 (HF default 1.0). The step before divergence had grad_norm
+   2.247; tighter clipping buys margin against a grad-driven spike.
+4. **Compute the loss/logits in fp32.** The likely root cause is an inf-logit *forward* spike over
+   Gemma's 262k vocab in bf16 (divergence happened at LR≈6e-6, so it's not an LR-magnitude blow-up).
+   An fp32 final-logits / cross-entropy path is the most direct fix; consider also a
+   skip-non-finite-grad optimizer step for true single-bad-batch tolerance.
+5. Optionally identify/quarantine the offending record (the batch near step 4260 under
+   `data_seed=1782102499`) if divergence recurs across seeds.
+
+**Learning rate / schedule:** current = `5e-5` linear decay, **no warmup**. LR magnitude probably
+wasn't the trigger (divergence was late, at low LR), but adding `warmup_ratio≈0.03` and/or lowering
+peak LR to **2–3e-5** is standard for 12B QLoRA and adds margin.
+
+**Epochs:** this run was ~0.88 epoch and loss had already plateaued (~0.60 from step ~3000). More
+epochs (2–3) are the natural lever for *more* SFT, but watch for overfitting on the per-turn set and
+note each epoch is **~30 h** at 85 W (~29 s/step) on this box — let the eval uplift decide whether
+additional epochs are worth the wallclock + instability exposure.
+
+**Throughput / box:** ~29 s/step at the stable 85 W → ~30 h/epoch; the 20 GB card + power surge are
+the bottleneck and instability risk grows with wallclock. A bigger/stable GPU would allow higher
+power, a larger batch (currently 1×16), and shorter, safer runs.
+
 ---
 
 ## What is FIXED between base and SFT (do not change — it isolates the delta)
