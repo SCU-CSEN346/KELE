@@ -67,6 +67,23 @@ if [[ "${MTP:-0}" == "1" ]]; then
     PHASE_LABEL="${PHASE}+mtp"
 fi
 
+# Dataset override: eval a non-default HF set (EN held-out / synthetic OOD) on the
+# same served model. EVAL_HF_REPO may be space-separated for concatenation; EVAL_SPLIT
+# is "test" (held-out 10%) or "all" (whole set — for the tiny never-trained synthetic
+# sets). EVAL_OUT_SUFFIX keeps each set's results + W&B run cleanly separated.
+EVAL_DATA_ARGS=()
+if [[ -n "${EVAL_HF_REPO:-}" ]]; then
+    read -r -a _eval_repos <<< "$EVAL_HF_REPO"
+    EVAL_DATA_ARGS+=(--hf-repo "${_eval_repos[@]}")
+    PHASE_LABEL="${PHASE_LABEL} ${EVAL_HF_REPO##*/}"
+fi
+if [[ -n "${EVAL_SPLIT:-}" ]]; then
+    EVAL_DATA_ARGS+=(--split "$EVAL_SPLIT")
+fi
+if [[ -n "${EVAL_OUT_SUFFIX:-}" ]]; then
+    OUT_DIR="${OUT_DIR}-${EVAL_OUT_SUFFIX}"
+fi
+
 # ── Constants ────────────────────────────────────────────────────────────────
 ISSUE_NUMBER=130
 # All events append a row to ONE pinned comment (the "Live eval log" table on
@@ -332,6 +349,7 @@ start_eval() {
         --experiment "$EXPERIMENT" evaluate \
         --bert-consultant "$BERT_CKPT" \
         --output "$OUT_DIR" \
+        "${EVAL_DATA_ARGS[@]}" \
         > "$EVAL_LOG" 2>&1 &
     sleep 5
 }

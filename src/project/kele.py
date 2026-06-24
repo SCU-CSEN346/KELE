@@ -367,6 +367,7 @@ def run_batch_evaluation(
     bert_consultant: str | None = None,
     workers: int | None = None,
     sample_seed: int | None = None,
+    hf_repo: str | list[str] | None = None,
 ) -> None:
     """Run the full evaluation pipeline on the dataset.
 
@@ -386,7 +387,10 @@ def run_batch_evaluation(
     if workers < 1:
         workers = 1
 
-    dataset = load_dataset(dataset_path, split=split)
+    if hf_repo:
+        dataset = load_dataset(dataset_path, split=split, hf_repo=hf_repo)
+    else:
+        dataset = load_dataset(dataset_path, split=split)
     total = len(dataset)
 
     # Filter to start_id, optionally random-subsample, then apply limit.
@@ -717,6 +721,16 @@ def main() -> None:
         "at least this value.",
     )
     eval_parser.add_argument(
+        "--hf-repo",
+        type=str,
+        nargs="+",
+        default=None,
+        help="One or more HuggingFace dataset repo IDs to evaluate (concatenated). "
+        "Default: ulises-c/SocratDataset (ZH). Use e.g. ulises-c/SocratDataset-EN "
+        "(held-out EN) or ulises-c/SocratDataset-SYNTHETIC{,-EN} with --split all "
+        "(synthetic sets are tiny, never-trained OOD probes).",
+    )
+    eval_parser.add_argument(
         "--dataset-path",
         type=Path,
         default=None,
@@ -802,6 +816,7 @@ def main() -> None:
             bert_consultant=args.bert_consultant,
             workers=args.workers,
             sample_seed=args.sample_seed,
+            hf_repo=args.hf_repo,
         )
     elif args.command == "wandb-replay":
         replay_wandb(
