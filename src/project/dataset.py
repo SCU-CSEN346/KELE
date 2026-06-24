@@ -355,15 +355,15 @@ def load_socrat_synthetic(
     seed: int = 42,
     hf_repo: str = "ulises-c/SocratDataset-SYNTHETIC",
 ) -> list[dict]:
-    """Load SocratDataset-SYNTHETIC from HuggingFace (both configs, combined).
+    """Load SocratDataset-SYNTHETIC from HuggingFace (75 records, single config).
 
-    Merges the `default` (37 records) and `n75_extension` (38 records) configs
-    into a single pool of 75 records before splitting.
+    The 38-record extension (ids 100038-100075) was merged into the default config
+    2026-06-24, so the repo's single `train` split now holds all 75 ZH synthetic
+    dialogues. (Previously default held 37 + a separate n75_extension config of 38.)
     """
     from datasets import load_dataset as hf_load
 
-    raw_default = [dict(r) for r in hf_load(hf_repo, split="train")]
-    raw_ext = [dict(r) for r in hf_load(hf_repo, name="n75_extension", split="train")]
+    raw = [dict(r) for r in hf_load(hf_repo, split="train")]
 
     def _convert(r: dict) -> dict:
         q = r["question"]
@@ -386,7 +386,7 @@ def load_socrat_synthetic(
             "ground_truth_states": states if states else None,
         }
 
-    converted = [_convert(r) for r in raw_default + raw_ext]
+    converted = [_convert(r) for r in raw]
     if split == "all":
         return converted
     return _split(converted, split, seed)
