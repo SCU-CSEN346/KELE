@@ -36,7 +36,10 @@ QUANT="${QUANT:-Q8_0}"
 
 LLAMA_CPP_DIR="${LLAMA_CPP_DIR:-$HOME/Documents/models/llama.cpp}"
 CONVERT="$LLAMA_CPP_DIR/convert_hf_to_gguf.py"
-QUANTIZE="$LLAMA_CPP_DIR/build/bin/llama-quantize"
+# Override QUANTIZE to a CPU-only build of llama-quantize: on the unstable NVIDIA
+# box a CUDA recompile of ggml segfaults (nvcc Error 139 under load), and quantize
+# is a CPU op that needs no GPU backend — see scripts/serve note / memory.
+QUANTIZE="${QUANTIZE:-$LLAMA_CPP_DIR/build/bin/llama-quantize}"
 
 # KELE-tagged filenames — must NOT collide with base gemma-4-12b-it-*.gguf.
 NAME_TAG="gemma-4-12B-kele-socratic-sft"
