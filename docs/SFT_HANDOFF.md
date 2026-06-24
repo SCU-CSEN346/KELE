@@ -115,7 +115,9 @@ power, a larger batch (currently 1×16), and shorter, safer runs.
   teacher is the ONLY thing that changes between base and SFT.
 - **Bare teacher prompt** — no fewshot. Both base and SFT run bare.
 - **Dataset**: Chinese-only test split, n=681 (`ulises-c/SocratDataset` default).
-- **MTP = ON for the SFT eval** (proven lossless at n=681, ~2× faster).
+- **MTP = OFF for the SFT eval, run concurrent** (`KELE_PARALLEL_WORKERS≥4`). MTP is lossless but
+  a single-stream latency win that loses on wall-clock to concurrency on this box — see Step 5's
+  rationale. Sampling is stochastic (no temp/seed) so neither MTP nor batching biases the metric.
 - **Base lineage = `unsloth/gemma-4-12b-it`** — NOT google. The base-teacher GGUF was
   `unsloth/gemma-4-12b-it-GGUF` and the adapter was trained on `unsloth/gemma-4-12b-it`, so the
   merge MUST use the unsloth base (the handoff's old `google/...` ref was wrong).
@@ -152,16 +154,54 @@ its llama.cpp deps (`~/Documents/models/llama.cpp`: `convert_hf_to_gguf.py` + `b
 and fails loud if missing. **This step has not been exercised this phase — watch for missing
 llama.cpp binaries** (memory `gemma4-12b-nvidia-poc-stack` flagged a possible build gap).
 
-### Step 5 — Eval (MTP on) + compare (NOT YET RUN)
+### Step 5 — Eval (MTP **off**, concurrent) + compare (NOT YET RUN)
 
 ```
-MTP=1 make monitor-eval-gemma4-12b-sft        # → results/gemma4-12b-sft-mtp
-python -m src.project.evaluate --compare results/gemma4-12b-base-mtp results/gemma4-12b-sft-mtp
+make serve-gemma4-12b-sft                                   # NO MTP=1 → -np 4, q4_0 KV
+KELE_PARALLEL_WORKERS=4 make monitor-eval-gemma4-12b-sft    # → results/gemma4-12b-sft
+python -m src.project.evaluate --compare results/gemma4-12b-base results/gemma4-12b-sft
 ```
 
-Sanity-gate first: `make eval-gemma4-12b-sft-smoke` (n=5, no monitor). Compare SFT against the
-**MTP-on** base (`results/gemma4-12b-base-mtp`, 50.30) for a like-for-like (both MTP) read.
-A partial eval at n≈300 is a valid early signal (convergence stable from n≈200-300).
+Sanity-gate first: `make eval-gemma4-12b-sft-smoke` (n=5, no monitor).
+
+**Why MTP-off + concurrent (decided 2026-06-22 — supersedes the old "MTP on, serial" plan).**
+The two base runs already on disk are a natural A/B:
+
+| run | MTP | workers | throughput | wall-clock | state acc |
+|---|---|---|---|---|---|
+| `gemma4-12b-base-mtp` | on | 1 | 23.6 dlg/hr | 28.9 h | 50.30 |
+| `gemma4-12b-base`     | off | 4 | 39.1 dlg/hr | **17.4 h** | 49.62 |
+
+- **MTP and concurrency fight on this 20 GB box, so you pick one.** MTP forces f16 KV
+  (`-ctk/-ctv f16`, 2× the q4_0 footprint) → OOM/checkpoint-bloat risk with >1 slot (the
+  documented 2026-05-26 crash). Speculative decoding is a *single-stream latency* win; under
+  continuous batching the GPU is already saturated so the draft+verify overhead competes and
+  the gain collapses — worse here because the base-derived drafter has low acceptance on the
+  SFT'd distribution. That's why the MTP run was (correctly) serial — and serial made it the
+  *slower* wall-clock despite the "~2× faster" single-stream claim.
+- **Neither MTP nor batching biases the metric.** The teacher call sets no temperature/seed
+  (`tournament_utilizations.py:440` → server default ≈0.8, stochastic); both MTP and continuous
+  batching are distribution-preserving. So the 0.68 pp gap between the two base runs is pure
+  sampling noise (this is the σ≈0.7 pp estimate), and the SFT accuracy is comparable to **either**
+  base regardless of speed config. We optimize purely for **min wall-clock at the stable 85 W
+  point**, because instability exposure scales with wallclock on this box.
+- **Concurrency is the live lever, not MTP** — but it plateaus fast. Smoke A/B on the Q8_0 SFT
+  GGUF (n=18, same dialogues, `-np 6` server, 2026-06-23): **workers=4 → 226.0 dlg/hr**,
+  workers=6 → 245.3 dlg/hr (+8.5% for +50% slots, 0 errors). The GPU is compute-bound at 4
+  concurrent decodes, so the extra slots barely help and `-np 6` carries the documented
+  KV-checkpoint-bloat crash risk over a 681-run. **Chosen: workers=4 / `-np 4`** (serve default).
+  Clean-burst 226 dlg/hr ⇒ ~3 h of compute for the full 681 (the base's 17 h effective rate was
+  inflated by crash/resume overhead, not raw speed). q4_0 KV gives headroom MTP's f16 KV wouldn't.
+
+**Compare against BOTH bases.** The honest baseline band is **49.6–50.3**; gate the uplift on the
+higher (50.30), so SFT must clear **~51.8** (>1.5 pp ≈ 2σ) to be real. A partial eval at n≈300 is a
+valid early signal (convergence stable from n≈200-300).
+
+**Optional MTP confirm run afterward.** If the concurrent SFT eval lands close to the gate and the
+result hinges on it, a follow-up `MTP=1 … KELE_PARALLEL_WORKERS=1 make monitor-eval-gemma4-12b-sft`
+(→ `results/gemma4-12b-sft-mtp`, serial, ~29 h) re-measures under the exact MTP-on config the
+50.30 base used — removing any lingering "but the base was MTP-on" objection. Skip it if the
+concurrent run is a clear pass or clear fail.
 
 ---
 
@@ -192,7 +232,10 @@ A partial eval at n≈300 is a valid early signal (convergence stable from n≈2
 - **Plan + live status**: GitHub issue **#130** (eval log comment `4644703104`; the training log
   comment `4761132326` holds the NaN-run history).
 - **Recovered adapter**: `outputs/sft-gemma4-12b-qlora/recovered-4250/`; HF `ulises-c/SocratesLM-12B-QLoRA`.
-- **Merged model**: `outputs/sft-gemma4-12b-qlora/merged/` (step 3 output).
+- **Merged model**: `outputs/sft-gemma4-12b-qlora/merged/` (step 3 output, BF16 24 GB);
+  HF `ulises-c/SocratesLM-12B` (private).
+- **Q8_0 GGUF**: `outputs/sft-gemma4-12b-qlora/gemma-4-12B-kele-socratic-sft-Q8_0.gguf` (12 GB,
+  step 4 output, staged to the serve weights dir); HF `ulises-c/SocratesLM-12B-GGUF` (private).
 - **Configs**: `configs/gemma4-12b-sft-local.env` (SFT eval), `configs/gemma4-12b-local.env` (base eval),
   `configs/train-sft-gemma4-12b-qlora.env` (training).
 - **Scripts**: `scripts/merge_lora_gemma4_sft.py`, `scripts/convert_gemma4_12b_sft_to_gguf.sh`,
@@ -206,7 +249,7 @@ A partial eval at n≈300 is a valid early signal (convergence stable from n≈2
 
 ## Definition of done
 
-`results/gemma4-12b-sft-mtp/metrics_summary.json` exists with 681/681 valid dialogues; the
+`results/gemma4-12b-sft/metrics_summary.json` exists with 681/681 valid dialogues; the
 `--compare` output quantifies SFT − base state accuracy (real only if > ~1.5 pp); issue #130's
 checklist is updated; and an `EXPERIMENT_LOG.md` entry records the uplift with per-stage breakdown
 **and notes the adapter is a ~0.88-epoch checkpoint recovered from HF after a NaN divergence.**
