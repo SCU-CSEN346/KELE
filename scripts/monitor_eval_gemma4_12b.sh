@@ -285,7 +285,9 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # CURRENT_POWER walks down from POWER_START_W (the card max) by POWER_STEP_W on
-# each crash, floored at POWER_FLOOR_W.
+# each crash, floored at POWER_FLOOR_W. After every apply_power it is re-synced to
+# the GPU's ACTUAL enforced limit, so logged wattage reflects reality even when the
+# step-down is inert (no passwordless sudo → the card stays at its persisted limit).
 CURRENT_POWER=""
 
 gpu_max_power() {
@@ -295,8 +297,20 @@ gpu_max_power() {
     [[ "$m" =~ ^[0-9]+$ ]] && printf '%s' "$m" || printf '130'
 }
 
+# The GPU's currently ENFORCED power limit (not the card max). This is what the
+# card actually runs at, which differs from CURRENT_POWER's target when the
+# sudo -pl below is denied.
+gpu_power_limit() {
+    command -v nvidia-smi >/dev/null 2>&1 || return 1
+    local m
+    m="$(nvidia-smi --query-gpu=power.limit --format=csv,noheader,nounits 2>/dev/null | head -1 | cut -d. -f1)"
+    [[ "$m" =~ ^[0-9]+$ ]] && printf '%s' "$m" || return 1
+}
+
 # Apply CURRENT_POWER as the GPU power limit. Best-effort + non-interactive: the
 # user may have to pre-authorize sudo; -n avoids a password prompt stalling the loop.
+# Either way, re-sync CURRENT_POWER to the actual enforced limit so the issue-#130
+# log rows never claim a wattage the card isn't running at.
 apply_power() {
     command -v nvidia-smi >/dev/null 2>&1 || return 0
     [[ -z "$CURRENT_POWER" ]] && return 0
@@ -307,6 +321,8 @@ apply_power() {
     else
         log "WARNING: could not set power (sudo -n failed) — run 'sudo nvidia-smi -pl ${CURRENT_POWER}' manually"
     fi
+    local actual
+    actual="$(gpu_power_limit)" && CURRENT_POWER="$actual"
 }
 
 # Step the power limit down one notch (called on each crash), not below the floor.
