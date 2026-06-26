@@ -41,15 +41,18 @@ removed** (the model self-tracks state), and more broadly treat **the consultant
    without it, add an env toggle (e.g. `NO_CONSULTANT=1` → drop the flag + suffix the out-dir), the
    same pattern as the `EVAL_HF_REPO`/`EVAL_SPLIT`/`EVAL_OUT_SUFFIX` block already there. Otherwise
    run `kele` directly (loses auto-resume; risky on this unstable box for a 30 h base run).
-3. **SFT was trained in an inference format that emits state/action inline**, not necessarily as the
-   dual-role consultant's JSON. So the self-consult call may be slightly off-distribution for the
-   SFT. Two readings, run/inspect both if time:
-   - **(a) dual-role self-consult** (recommended primary): same mechanism for base & SFT → clean
-     apples-to-apples "can the model track its own state?".
-   - **(b) parse state from the SFT's own teacher output** (the format it was trained to emit) — a
-     truer "SFT self-tracking" number, but base doesn't emit parseable state, so it's SFT-only /
-     not a clean base comparison. Inspect a few `dialogues/*.json` from an existing SFT run to see
-     the emitted format before deciding whether (b) is worth wiring.
+3. **The SFT CONSUMES the consultant, it does not emit state** (verified in `dataset.py:608–647`,
+   `socrat-zh-sft`/`socrat-en-sft`): its training prompt = system rules + history + student input +
+   `苏格拉底教学顾问评估结果: {evaluation}` + `苏格拉底教学顾问建议的操作: {action}`, and the target is a
+   **clean teacher turn** (no inline state). Implications:
+   - The scored `state` comes from the **consultant**, never parsed from teacher output — so
+     "parse state from the SFT's output" is **not viable** (output carries no state).
+   - **Fully dropping the consultant** (no assessment line at all) runs the SFT **off its training
+     distribution** AND leaves nothing to score `state_accuracy` → ROUGE/BLEU only. It's a
+     robustness probe, not the SFT's normal operating mode.
+   - **Self-consult keeps the SFT in-format**: the LLM produces the assessment itself, then consumes
+     it — the assessment line is still present, just self-generated. This is the recommended "no
+     external classifier" run.
 4. **Everything else stays pinned** (so only the consultant + model vary): Q8_0 GGUF, `-np 4`,
    q4_0 KV, MTP off, workers=4, 8 rounds, stochastic server-default sampling, ZH `SocratDataset`
    test split. Serve base via `make serve-gemma4-12b` (alias "Gemma 4 12B"), SFT via
@@ -94,12 +97,24 @@ What each contrast answers:
 - **Interaction** — does SFT's advantage shrink, hold, or *grow* when the crutch is removed? A gain
   that grows without the classifier is the strongest evidence the SFT learned the skill.
 
+Note on what the metrics mean here: the scored `state_accuracy` is the **consultant's** prediction
+(only indirectly shaped by the teacher, via the dialogue history the classifier reads), whereas
+**ROUGE/BLEU directly measure teacher-turn quality** — and that's where the SFT's cleanest wins are
+(ROUGE-1 28→48 on ZH). The consultant-variable runs that drop/weaken state prediction naturally
+lean on the text metrics.
+
 Stretch consultant levels (only if the core 2×2 is promising):
-- **`--unified`** — fused single-call mode; another way the SFT can self-track.
+- **`--unified`** — fused single-call mode; another way the model self-tracks.
 - **Strong external consultant** (Claude as classifier; configs exist:
-  `configs/claude-*-as-consultant.env`) — upper-bound on how much a *better* consultant lifts each
+  `configs/claude-*-as-consultant.env`) — upper bound on how much a *better* consultant lifts each
   teacher, and whether SFT still adds value on top of a strong classifier.
-- **Parse-from-output (gotcha 3b)** — SFT-only intrinsic state number.
+- **Oracle consultant (feed ground-truth state/action)** — small code change: a consultant that
+  returns the dialogue's GT state instead of predicting. Makes `state_accuracy` trivially perfect,
+  so compare on **ROUGE/BLEU** — this isolates *pure teacher-turn quality given correct state*, the
+  cleanest "does SFT write better Socratic turns?" measure (removes classifier quality as a
+  confound). Arguably more informative than fully-bare.
+- **Fully bare (no consultant at all)** — needs code (strip the assessment+action lines, skip state
+  scoring). SFT runs off-distribution; ROUGE/BLEU only. A robustness probe, not normal operation.
 
 Keep each cell to ZH test first (the reference set); extend to EN/synthetic only for cells that
 matter, since each base cell is expensive.
