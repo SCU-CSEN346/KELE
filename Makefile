@@ -480,6 +480,13 @@ monitor-eval-gemma4-12b-base: _classifier-ckpt
 monitor-eval-gemma4-12b-sft: _classifier-ckpt
 	bash scripts/monitor_eval_gemma4_12b.sh sft
 
+# Consultant ablation (handoff T1.1): both no-consultant (self-consult) arms back to
+# back, SFT then base, one model at a time. No _classifier-ckpt dep — self-consult
+# uses no external classifier. Long-running; launch detached (nohup … &).
+#   nohup make noconsult-chain-gemma4-12b > outputs/noconsult_chain.nohup 2>&1 &
+noconsult-chain-gemma4-12b:
+	bash scripts/noconsult_chain_gemma4_12b.sh
+
 # ── Gemma 4 31B SFT training (Stage 2b) ──────────────────────────────────────
 # No patch-fla-rocm needed — Gemma 4 uses standard softmax attention (no FLA).
 #
