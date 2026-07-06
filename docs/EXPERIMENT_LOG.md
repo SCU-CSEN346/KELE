@@ -4,6 +4,40 @@ Engineering decisions, what we've tried, and what's next. Each entry is dated an
 
 ---
 
+## 2026-07-06 — Consultant ablation (T1.1) COMPLETE ✅ — SFT internalized teacher-turn *quality*, not *state-tracking*
+
+**Ran:** ZH-test 2×2 with the external Qwen classifier **removed** — base and SFT each self-consult (dual-role: the served LLM produces the state assessment itself, then consumes it). All other settings pinned to the headline runs (Q8_0 GGUF, `-np 4`, q4_0 KV, MTP off, 8 rounds, stochastic sampling). Both arms **681/681 valid, 0 errors**. Chained SFT→base via `make noconsult-chain-gemma4-12b` (`NO_CONSULTANT=1` toggle, new this entry). SFT arm ~12 h; base arm **~7 days** (Jun 26 14:23 → Jul 3 19:44) — self-consult is 2 LLM calls/turn and the unstable box stepped power 130 W→85 W across auto-resumed crashes, but reached a full run. Results in `results/gemma4-12b-{base,sft}-noconsult/`.
+
+### The 2×2 (ZH test) — consultant is the only variable besides the model
+
+**State accuracy (overall %) — the classifier's job:**
+
+| | Qwen classifier | self-consult | Δ (self − Qwen) |
+|---|---:|---:|---:|
+| base | 49.62 | 34.45 | −15.17 |
+| SFT | 59.93 | **26.80** | **−33.13** |
+| **SFT − base** | **+10.31** | **−7.65** | *advantage inverts* |
+
+**Teacher-turn quality (SFT − base gap, Qwen → self-consult):**
+
+| metric | base Qwen→self | SFT Qwen→self | **SFT − base gap** |
+|---|---:|---:|---:|
+| ROUGE-1 | 28.56 → 28.02 | 48.13 → 44.21 | **+19.57 → +16.19** |
+| ROUGE-L | 21.02 → 20.35 | 40.94 → 37.62 | **+19.92 → +17.27** |
+| BLEU-4  | 5.22 → 4.80   | 20.12 → 18.31 | **+14.90 → +13.51** |
+
+### Finding — the two skills decouple cleanly
+
+- **Teacher-turn quality is intrinsic and survives.** With no external classifier, the SFT still writes far better Socratic turns than base: **+16.2 ROUGE-1, +17.3 ROUGE-L, +13.5 BLEU-4**. The SFT-vs-base text gap shrinks only ~3 pp of a ~20 pp gap when the crutch is removed. Strong evidence the SFT internalized Socratic *writing*.
+- **State-tracking was entirely the classifier and does not survive.** The SFT's +10.3 pp state advantage *inverts* to −7.65 pp: self-classifying, the SFT (26.80) is **worse than base** (34.45), losing on every hard stage (b 24.4 vs 41.7, c 5.9 vs 16.5, e 27.1 vs 36.0).
+- **Cause (predicted, `dataset.py:608–647`):** the SFT was trained to **consume** the consultant's assessment+action and emit a clean teacher turn — it never learned to *emit* state. So `state_accuracy` in self-consult measures a skill it never trained, and it appears to have regressed below base's zero-shot classification (it learned to expect state to be handed to it).
+
+### Takeaway
+
+The SFT's own contribution is **teacher-turn quality**, not state-tracking. In deployment it still wants the external classifier (or an equivalent state source) for the state label; on its own it brings the better Socratic turns. This reframes the headline table as "SFT + classifier vs base + classifier," not "SFT alone." Written up in `docs/SFT_RESULTS_REPORT.md` (new consultant-ablation section). Next: LLM-judge on absolute Socratic quality, oracle-consultant run (isolate teacher quality with the classifier confound removed), multi-seed error bars.
+
+---
+
 ## 2026-06-10 — Gemma 4 12B BASE, MTP OFF complete ✅ — losslessness confirmed at n=681, run-to-run σ calibrated
 
 **Ran:** Full Chinese test set (n=681), identical to the 06-09 MTP-on baseline except the drafter: MTP OFF, f16 KV pinned via the new `GEMMA4_12B_KV=f16` (the engine default q4_0 would have been a second variable), 85 W pinned (`POWER_START_W=85`), **4 eval workers against `-np 4`** (the MTP-on run was sequential). Monitor crawl, 681/681 valid, **0 errors, 0 crashes in 17.4 h**. First run with `bert_consultant` recorded in `run_config.json`.
