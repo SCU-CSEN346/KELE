@@ -83,13 +83,24 @@ fi
 if [[ -n "${EVAL_OUT_SUFFIX:-}" ]]; then
     OUT_DIR="${OUT_DIR}-${EVAL_OUT_SUFFIX}"
 fi
-# NO_CONSULTANT=1 drops the external Qwen classifier so the served LLM self-consults
-# (dual-role) — the apples-to-apples "no external classifier" ablation (handoff T1.1).
-# Suffix the out-dir + W&B run so these stay separate from the --bert-consultant runs.
+# Consultant mode toggles (mutually exclusive; default = external Qwen classifier).
+# Both suffix the out-dir + W&B run so they stay separate from the classifier runs.
 # CONSULTANT_ARGS is built below, once BERT_CKPT is defined.
+#   NO_CONSULTANT=1      drops the classifier so the served LLM self-consults (dual-role)
+#                        — the "no external classifier" ablation (handoff T1.1).
+#   ORACLE_CONSULTANT=1  feeds the ground-truth state each turn (--oracle-consultant) —
+#                        isolates teacher-turn quality; state_accuracy ~perfect, score
+#                        on ROUGE/BLEU. 1 teacher call/turn (as fast as the classifier).
+if [[ "${NO_CONSULTANT:-0}" == "1" && "${ORACLE_CONSULTANT:-0}" == "1" ]]; then
+    printf 'error: NO_CONSULTANT and ORACLE_CONSULTANT are mutually exclusive\n' >&2
+    exit 2
+fi
 if [[ "${NO_CONSULTANT:-0}" == "1" ]]; then
     OUT_DIR="${OUT_DIR}-noconsult"
     PHASE_LABEL="${PHASE_LABEL} noconsult"
+elif [[ "${ORACLE_CONSULTANT:-0}" == "1" ]]; then
+    OUT_DIR="${OUT_DIR}-oracle"
+    PHASE_LABEL="${PHASE_LABEL} oracle"
 fi
 
 # ── Constants ────────────────────────────────────────────────────────────────
@@ -117,9 +128,12 @@ POWER_FLOOR_W="${POWER_FLOOR_W:-70}"   # below ~65-70% perf knee it's not worth 
 PORT="${PORT:-8080}"
 LLAMA_URL="http://localhost:${PORT}"
 BERT_CKPT="${BERT_CKPT:-$REPO_DIR/results/state-clf-qwen3.5-0.8b-lora-wandb/final}"
-# Empty (self-consult) when NO_CONSULTANT=1, else the external classifier flag.
+# Consultant flag: empty (self-consult) for NO_CONSULTANT, --oracle-consultant for
+# ORACLE_CONSULTANT, else the external classifier checkpoint.
 if [[ "${NO_CONSULTANT:-0}" == "1" ]]; then
     CONSULTANT_ARGS=()
+elif [[ "${ORACLE_CONSULTANT:-0}" == "1" ]]; then
+    CONSULTANT_ARGS=(--oracle-consultant)
 else
     CONSULTANT_ARGS=(--bert-consultant "$BERT_CKPT")
 fi
@@ -390,8 +404,8 @@ eval_running() { pgrep -f "src\.project\.kele" >/dev/null 2>&1; }
 log "Eval monitor starting: phase=$PHASE, issue #$ISSUE_NUMBER comment $LOG_COMMENT_ID, poll ${POLL_SECONDS}s, max $MAX_RETRIES retries"
 
 # Ensure the consultant classifier is present (the make eval targets' _classifier-ckpt dep).
-# Skipped entirely in self-consult mode — there is no external classifier to fetch.
-if [[ "${NO_CONSULTANT:-0}" != "1" && ! -f "$BERT_CKPT/model.safetensors" ]]; then
+# Skipped in self-consult and oracle modes — neither uses the external classifier.
+if [[ "${NO_CONSULTANT:-0}" != "1" && "${ORACLE_CONSULTANT:-0}" != "1" && ! -f "$BERT_CKPT/model.safetensors" ]]; then
     log "Classifier checkpoint missing — downloading"
     hf download ulises-c/socrates-state-classifier-qwen3.5-lora --local-dir "$BERT_CKPT" >>"$SELF_LOG" 2>&1 || \
         log "WARNING: classifier download failed — eval will error until $BERT_CKPT exists"

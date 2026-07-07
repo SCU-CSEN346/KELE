@@ -653,3 +653,64 @@ e34：学生正确给出题目答案
                 print(
                     f"\n[Max teaching rounds reached ({self.max_teaching_rounds}). Please give your final answer to move to the summary.]"
                 )
+
+
+_STAGE_NAMES = {
+    "a": "学生提问",
+    "b": "概念探查",
+    "c": "归纳推理",
+    "d": "规则建构",
+    "e": "教师总结",
+}
+
+
+class SocraticTeachingSystemOracle(SocraticTeachingSystem):
+    """Oracle consultant: instead of *predicting* the Socratic state, it is HANDED
+    the ground-truth state for each turn (primed by the eval loop via
+    ``prime_oracle_state``) and derives the action from the shared state→action
+    table. The teacher half is unchanged, so this isolates *pure teacher-turn
+    quality given the correct state* — removing classifier accuracy as a confound.
+    See docs/SFT_RESULTS_REPORT.md (consultant ablation, T1.1).
+
+    Because the state is authoritative, ``process_student_input`` is overridden to
+    a streamlined path that sets ``current_state`` to the GT value directly and
+    **bypasses the anti-regression + max-round correction guards** of the base
+    class (those exist to fix a *predicting* consultant's mistakes; an oracle has
+    none, and the max-round guard would otherwise force ``d33`` on any dialogue
+    with more than ``max_teaching_rounds`` teaching turns, corrupting the GT
+    state). ``state_accuracy`` is therefore ~perfect by construction — this run is
+    scored on ROUGE/BLEU only.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._oracle_state: str | None = None
+
+    def prime_oracle_state(self, state: str) -> None:
+        """Set the ground-truth state for the next ``process_student_input`` call."""
+        self._oracle_state = state
+
+    def process_student_input(self, student_input: str) -> str:
+        self.add_to_history("student", student_input)
+
+        previous_state = self.current_state
+        state = self._oracle_state or self.current_state
+        action = self.get_action_for_state(state)
+        stage = state[0] if state else "a"
+        evaluation = (
+            f"根据当前对话内容，学生处于 {stage}({_STAGE_NAMES.get(stage, '')}) 阶段的 "
+            f"{state} 状态（标准答案状态）。按照苏格拉底教学法，应采取的操作是：{action}。"
+            f"请基于该状态和操作，针对学生当前的表现，给出合适的教学回复。"
+        )
+
+        if previous_state == "a0" and state != "a0":
+            self.teaching_rounds = 1
+        elif previous_state != "a0" and state != "a0":
+            self.teaching_rounds += 1
+
+        self.add_to_consultant_history(evaluation, state, action)
+        self.current_state = state
+
+        socrates_response = self.socrates_teacher(student_input, evaluation, action)
+        self.add_to_history("teacher", socrates_response)
+        return socrates_response

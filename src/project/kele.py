@@ -29,6 +29,7 @@ def create_system(
     experiment: str | None = None,
     unified: bool = False,
     bert_consultant: str | None = None,
+    oracle_consultant: bool = False,
 ) -> SocraticTeachingSystem:
     """Create a SocraticTeachingSystem from environment config.
 
@@ -40,10 +41,17 @@ def create_system(
     use SocraticTeachingSystemBertConsultant: BERT predicts the state and
     the LLM only generates the teacher response (two-call style). Mutually
     exclusive with unified=True.
+
+    If oracle_consultant=True, use SocraticTeachingSystemOracle: the eval loop
+    hands it the ground-truth state each turn (no prediction), isolating pure
+    teacher-turn quality. state_accuracy is ~perfect by construction — score on
+    ROUGE/BLEU. Mutually exclusive with unified and bert_consultant.
     """
     cfg = load_config(experiment=experiment)
-    if bert_consultant and unified:
-        raise ValueError("--unified and --bert-consultant are mutually exclusive")
+    if sum([bool(bert_consultant), bool(unified), bool(oracle_consultant)]) > 1:
+        raise ValueError(
+            "--bert-consultant, --unified, and --oracle-consultant are mutually exclusive"
+        )
 
     if bert_consultant:
         from src.project.socratic_teaching_bert_consultant import (
@@ -56,6 +64,11 @@ def create_system(
         from src.project.socratic_teaching_unified import SocraticTeachingSystemUnified
 
         cls = SocraticTeachingSystemUnified
+        extra_kwargs = {}
+    elif oracle_consultant:
+        from src.project.socratic_teaching_system import SocraticTeachingSystemOracle
+
+        cls = SocraticTeachingSystemOracle
         extra_kwargs = {}
     else:
         cls = SocraticTeachingSystem
@@ -141,6 +154,9 @@ def run_single_dialogue(system: SocraticTeachingSystem, item: dict) -> dict:
 
     for turn in ground_truth:
         student_input = turn["student"]
+        # Oracle consultant: hand the GT state in before the turn (no-op otherwise).
+        if hasattr(system, "prime_oracle_state"):
+            system.prime_oracle_state(turn["state"])
         teacher_response = system.process_student_input(student_input)
 
         turn_record: dict = {
@@ -284,6 +300,7 @@ def _run_parallel(
     experiment: str | None,
     unified: bool,
     bert_consultant: str | None,
+    oracle_consultant: bool = False,
     on_result: Callable[[int], None] | None = None,
 ) -> tuple[int, list[SocraticTeachingSystem]]:
     """Run pending dialogues concurrently using a ThreadPoolExecutor.
@@ -310,6 +327,7 @@ def _run_parallel(
                 experiment=experiment,
                 unified=unified,
                 bert_consultant=bert_consultant,
+                oracle_consultant=oracle_consultant,
             )
             thread_local.system = sys_
             with worker_systems_lock:
@@ -365,6 +383,7 @@ def run_batch_evaluation(
     worker_id: int = 0,
     num_workers: int = 1,
     bert_consultant: str | None = None,
+    oracle_consultant: bool = False,
     workers: int | None = None,
     sample_seed: int | None = None,
     hf_repo: str | list[str] | None = None,
@@ -410,7 +429,11 @@ def run_batch_evaluation(
     # In sequential mode this is also the workhorse; in parallel mode each
     # worker thread creates its own via thread-local storage.
     system = create_system(
-        debug=False, experiment=experiment, unified=unified, bert_consultant=bert_consultant
+        debug=False,
+        experiment=experiment,
+        unified=unified,
+        bert_consultant=bert_consultant,
+        oracle_consultant=oracle_consultant,
     )
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -520,6 +543,7 @@ def run_batch_evaluation(
             experiment=experiment,
             unified=unified,
             bert_consultant=bert_consultant,
+            oracle_consultant=oracle_consultant,
             on_result=on_result,
         )
         # Aggregate fallback counts across worker systems for unified mode.
@@ -543,6 +567,7 @@ def run_batch_evaluation(
         # --bert-consultant replaces the LLM consultant entirely; without this
         # field run_config misattributes state decisions to consultant_model.
         "bert_consultant": bert_consultant,
+        "oracle_consultant": oracle_consultant,
         "thinking_budget": cfg.consultant.thinking_budget,
         "max_teaching_rounds": cfg.max_teaching_rounds,
         "unified": unified,
@@ -712,6 +737,14 @@ def main() -> None:
         "generates the teacher response (two-call style).",
     )
     eval_parser.add_argument(
+        "--oracle-consultant",
+        action="store_true",
+        help="Feed the ground-truth state each turn instead of predicting it "
+        "(no consultant call). Isolates teacher-turn quality given correct "
+        "state; state_accuracy is ~perfect by construction, so score on "
+        "ROUGE/BLEU. Mutually exclusive with --bert-consultant/--unified.",
+    )
+    eval_parser.add_argument(
         "--workers",
         type=int,
         default=None,
@@ -777,6 +810,11 @@ def main() -> None:
         help="Path to a trained 34-state BERT classifier checkpoint dir.",
     )
     test_parser.add_argument(
+        "--oracle-consultant",
+        action="store_true",
+        help="Feed the ground-truth state each turn instead of predicting it.",
+    )
+    test_parser.add_argument(
         "--input",
         type=Path,
         default=None,
@@ -814,6 +852,7 @@ def main() -> None:
             worker_id=args.worker_id,
             num_workers=args.num_workers,
             bert_consultant=args.bert_consultant,
+            oracle_consultant=args.oracle_consultant,
             workers=args.workers,
             sample_seed=args.sample_seed,
             hf_repo=args.hf_repo,
@@ -833,6 +872,7 @@ def main() -> None:
             experiment=args.experiment,
             unified=args.unified,
             bert_consultant=args.bert_consultant,
+            oracle_consultant=args.oracle_consultant,
             split="all" if args.dataset_path else "test",
         )
     else:
