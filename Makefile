@@ -487,6 +487,14 @@ monitor-eval-gemma4-12b-sft: _classifier-ckpt
 noconsult-chain-gemma4-12b:
 	bash scripts/noconsult_chain_gemma4_12b.sh
 
+# Oracle-consultant ablation (T1.1 follow-on): both oracle arms (GT state fed each
+# turn), SFT then base, one model at a time. No _classifier-ckpt dep — oracle uses
+# no external classifier. state_accuracy is ~perfect by construction → compare on
+# ROUGE/BLEU. ~3 h (SFT) + ~17 h (base). Launch detached:
+#   nohup make oracle-chain-gemma4-12b > outputs/oracle_chain.nohup 2>&1 &
+oracle-chain-gemma4-12b:
+	bash scripts/oracle_chain_gemma4_12b.sh
+
 # ── Gemma 4 31B SFT training (Stage 2b) ──────────────────────────────────────
 # No patch-fla-rocm needed — Gemma 4 uses standard softmax attention (no FLA).
 #
