@@ -18,7 +18,10 @@ from datetime import datetime
 from pathlib import Path
 
 from src.project.config import load_config
-from src.project.socratic_teaching_system import SocraticTeachingSystem
+from src.project.socratic_teaching_system import (
+    SocraticTeachingSystem,
+    SocraticTeachingSystemOracle,
+)
 from src.project.wandb_tracking import EvalTracker
 
 RESOURCES_DIR = Path(__file__).resolve().parents[2] / "references" / "KELE"
@@ -66,8 +69,6 @@ def create_system(
         cls = SocraticTeachingSystemUnified
         extra_kwargs = {}
     elif oracle_consultant:
-        from src.project.socratic_teaching_system import SocraticTeachingSystemOracle
-
         cls = SocraticTeachingSystemOracle
         extra_kwargs = {}
     else:
@@ -155,7 +156,7 @@ def run_single_dialogue(system: SocraticTeachingSystem, item: dict) -> dict:
     for turn in ground_truth:
         student_input = turn["student"]
         # Oracle consultant: hand the GT state in before the turn (no-op otherwise).
-        if hasattr(system, "prime_oracle_state"):
+        if isinstance(system, SocraticTeachingSystemOracle):
             system.prime_oracle_state(turn["state"])
         teacher_response = system.process_student_input(student_input)
 
