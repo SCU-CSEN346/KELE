@@ -1,6 +1,6 @@
 # Socratic QLoRA SFT vs Base — Results Report
 
-**Gemma 4 12B-it, NVIDIA PoC.** Branch `feat/gemma4-12b-sft-poc-nvidia`. Updated 2026-07-06.
+**Gemma 4 12B-it, NVIDIA PoC.** Branch `feat/gemma4-12b-sft-poc-nvidia`. Updated 2026-07-09.
 Companion to `docs/SFT_HANDOFF.md` (pipeline/provenance) and `docs/SFT_VS_BASE_ANALYSIS_PLAN.md`
 (follow-on ablations). Live tracker: GitHub issue #130.
 
@@ -69,58 +69,74 @@ not just state labels:
 
 ## Consultant ablation (T1.1): does the advantage survive removing the classifier?
 
-Every result above gave **both** base and SFT the same external Qwen state classifier, so those
-numbers don't isolate the SFT's *own* contribution. This ablation reruns the ZH-test 2×2 with the
-external classifier **removed** — the served LLM self-consults (dual-role: it produces the state
-assessment itself, then consumes it), the apples-to-apples "no external classifier" baseline. All
-other settings pinned (Q8_0, `-np 4`, q4_0 KV, MTP off, 8 rounds). Both arms 681/681, 0 errors
-(base self-consult ran ~7 days across auto-resumed crashes on the unstable box).
+Every headline result gave **both** base and SFT the same external Qwen state classifier, so those
+numbers don't isolate the SFT's *own* contribution. This ablation reruns the ZH-test 2×2 across
+**three consultant modes**, varying only where the scored state comes from (all else pinned: Q8_0,
+`-np 4`, q4_0 KV, MTP off, 8 rounds; every arm 681/681, 0 errors):
 
-**The two skills decouple cleanly.** Teacher-turn *quality* is intrinsic to the SFT and survives;
-*state-tracking* was entirely the external classifier and does not.
+- **Qwen classifier** (headline): shared external classifier, ~55–60% accurate, for both models.
+- **self-consult**: no external classifier — the served LLM produces the state assessment itself
+  then consumes it (dual-role). The apples-to-apples "no external classifier" baseline.
+- **oracle**: the ground-truth state is *fed in* each turn (`--oracle-consultant`), so
+  `state_accuracy` is 100% by construction. Removes classifier accuracy as a confound entirely —
+  the cleanest measure of *teacher-turn quality given correct state*.
 
-### State accuracy (overall %) — the classifier's job
+(The two long arms ran on the unstable box across auto-resumed crashes: base self-consult ~7 days,
+base oracle ~2 days.)
 
-| | Qwen classifier | self-consult | Δ (self − Qwen) |
+**The two skills decouple cleanly.** Teacher-turn *quality* is intrinsic to the SFT — and is in fact
+*largest* once the state confound is removed (oracle). *State-tracking* was entirely the external
+classifier and is worse than base when the SFT must self-track.
+
+### State accuracy (overall %) — the classifier's job, not the SFT's
+
+| | Qwen classifier | self-consult | oracle |
 |---|---:|---:|---:|
-| base | 49.62 | 34.45 | −15.17 |
-| SFT | 59.93 | **26.80** | **−33.13** |
-| **SFT − base** | **+10.31** | **−7.65** | *advantage inverts* |
+| base | 49.62 | 34.45 | 100 (by construction) |
+| SFT | 59.93 | **26.80** | 100 (by construction) |
+| **SFT − base** | **+10.31** | **−7.65** | — |
 
-### Teacher-turn quality (SFT − base gap, Qwen → self-consult) — the SFT's real deliverable
+The SFT's +10.3 pp state edge under the shared classifier *inverts* to −7.65 pp when it must
+self-track (it loses on every hard stage: b 24.4 vs 41.7, c 5.9 vs 16.5, e 27.1 vs 36.0). Oracle
+pins both to 100, so state accuracy carries no signal there — score oracle on ROUGE/BLEU only.
 
-| metric | base Qwen→self | SFT Qwen→self | **SFT − base gap** |
+### Teacher-turn quality — the SFT's real deliverable (ROUGE/BLEU, SFT − base gap)
+
+| metric | base: self / Qwen / oracle | SFT: self / Qwen / oracle | **SFT − base gap: self / Qwen / oracle** |
 |---|---:|---:|---:|
-| ROUGE-1 | 28.56 → 28.02 | 48.13 → 44.21 | **+19.57 → +16.19** |
-| ROUGE-L | 21.02 → 20.35 | 40.94 → 37.62 | **+19.92 → +17.27** |
-| BLEU-4  | 5.22 → 4.80   | 20.12 → 18.31 | **+14.90 → +13.51** |
+| ROUGE-1 | 28.02 / 28.56 / 29.03 | 44.21 / 48.13 / 51.77 | **+16.19 / +19.57 / +22.74** |
+| ROUGE-L | 20.35 / 21.02 / 21.76 | 37.62 / 40.94 / 44.80 | **+17.27 / +19.92 / +23.04** |
+| BLEU-4  | 4.80 / 5.22 / 5.73    | 18.31 / 20.12 / 24.80 | **+13.51 / +14.90 / +19.07** |
 
-### What each contrast says
+### What the three modes together show
 
-- **SFT(self) vs SFT(Qwen)** — text metrics barely move (ROUGE-1 −3.9, BLEU −1.8), but state
-  accuracy **collapses** 59.93 → 26.80. The SFT's Socratic *writing* is classifier-independent; its
-  scored *state* was the classifier's.
-- **SFT(self) vs base(self)** *(the key comparison — no external help on either side)* — the SFT
-  still writes far better turns: **+16.2 ROUGE-1, +17.3 ROUGE-L, +13.5 BLEU-4**. But it self-tracks
-  state **worse** than base (26.80 vs 34.45), losing on every hard stage (b 24.4 vs 41.7, c 5.9 vs
-  16.5, e 27.1 vs 36.0).
-- **Interaction** — the SFT's text advantage *holds* (shrinks only ~3 pp of a ~20 pp gap) while its
-  state advantage *inverts* (+10.3 → −7.65).
+- **The SFT climbs monotonically with state quality; base is flat.** SFT ROUGE-1: 44.2 (self, ~27%
+  state) → 48.1 (Qwen, ~55–60%) → **51.8 (oracle, 100%)**. Base sits at **28.0 → 28.6 → 29.0** across
+  the same axis. The SFT *learned to condition on state* — hand it a better state and it writes a
+  better turn; base can't exploit better state at all (it rambles regardless). That conditioning is
+  itself a learned skill, not phrasing memorization.
+- **The gap is *largest* with the confound removed.** Oracle (correct state, both sides) gives the
+  SFT its biggest edge — **+22.7 ROUGE-1, +23.0 ROUGE-L, +19.1 BLEU-4** — bigger than under either
+  the classifier or self-consult. So "the SFT writes better Socratic turns" is unambiguous.
+- **Self-consult was an *underestimate*, not the ceiling.** It showed the smallest gap (+16.2)
+  precisely because the SFT was penalized there — conditioned on its own worse self-classification
+  (27%). Removing that penalty (oracle) reveals the true ceiling; the "survives removing the
+  classifier" conclusion is thereby *strengthened*, not merely upheld.
 
 ### Interpretation
 
 Consistent with the SFT's training format (`dataset.py:608–647`): the SFT was trained to **consume**
 the consultant's assessment + action and emit a clean teacher turn — it **never learned to emit
 state**. So `state_accuracy` in self-consult mode measures a skill the SFT never trained, and it
-appears to have *regressed below base's zero-shot classification* (it learned to expect state to be
-handed to it). The base model, never specialized, is the better self-classifier.
+regressed below base's zero-shot classification (it learned to expect state to be handed to it). The
+base model, never specialized, is the better self-classifier.
 
 **Headline answer:** the SFT genuinely internalized how to *write* Socratic turns — that advantage
-survives removing the external classifier almost entirely (+16 ROUGE-1, +13.5 BLEU-4 with zero
-external help). It did **not** internalize how to *track* state — that gain was the external
-classifier's, and self-tracking is worse than base. In deployment the SFT still wants the external
-classifier (or an equivalent state source) for the state label; what it brings on its own is the
-teacher-turn quality. Results: `results/gemma4-12b-{base,sft}-noconsult/`.
+not only survives removing the external classifier, it is **largest** when the state confound is
+removed (+22.7 ROUGE-1, +19.1 BLEU-4 given correct state). It did **not** internalize how to *track*
+state — that gain was the external classifier's, and self-tracking is worse than base. In deployment
+the SFT wants an external state source, and it rewards a *better* one with proportionally better
+turns. Results: `results/gemma4-12b-{base,sft}-{noconsult,oracle}/`.
 
 ## Method (held fixed; only model + dataset vary)
 
@@ -142,11 +158,12 @@ teacher-turn quality. Results: `results/gemma4-12b-{base,sft}-noconsult/`.
   signal, not σ-tight. State accuracy is per-turn, so steadier than the dialogue count implies.
 - **Stochastic decoding** — no temperature/seed pinned, so each run carries ~0.7 pp noise. Greedy
   and multi-seed runs (analysis plan T2.1/T2.2) would tighten the point estimates.
-- **Consultant-free control DONE** (see the consultant-ablation section above) — the headline
-  state-accuracy numbers rely on the shared external classifier and do **not** reflect the SFT's own
-  state-tracking (self-consult drops SFT to 26.8, below base). The SFT's *teacher-turn quality*,
-  however, is classifier-independent (+16 ROUGE-1 self-consult vs base). Read the headline table as
-  "SFT + classifier vs base + classifier," not "SFT alone."
+- **Consultant ablation DONE** (all three modes — see the consultant-ablation section above) — the
+  headline state-accuracy numbers rely on the shared external classifier and do **not** reflect the
+  SFT's own state-tracking (self-consult drops SFT to 26.8, below base). The SFT's *teacher-turn
+  quality*, however, is classifier-independent and *largest* with the confound removed (+22.7
+  ROUGE-1 oracle vs base). Read the headline table as "SFT + classifier vs base + classifier," not
+  "SFT alone."
 
 ## Artifacts
 
@@ -154,7 +171,8 @@ teacher-turn quality. Results: `results/gemma4-12b-{base,sft}-noconsult/`.
   `ulises-c/SocratesLM-12B`; Q8_0 GGUF `ulises-c/SocratesLM-12B-GGUF`.
 - **Datasets:** `ulises-c/SocratDataset{,-EN,-SYNTHETIC,-SYNTHETIC-EN}` (synthetic ZH completed to
   75 this PR).
-- **Results:** `results/gemma4-12b-{base,sft}{,-en,-synth-zh,-synth-en}/` + `-base-mtp`.
+- **Results:** `results/gemma4-12b-{base,sft}{,-en,-synth-zh,-synth-en,-noconsult,-oracle}/` +
+  `-base-mtp`.
 
 ## What this PR changed (code)
 
@@ -179,10 +197,10 @@ python -m src.project.evaluate --compare results/<base-run> results/<sft-run>
 
 ## Next
 
-Deeper analysis is scoped in `docs/SFT_VS_BASE_ANALYSIS_PLAN.md`. No-consultant ablation (T1.1) is
-**done** (above): the SFT internalized teacher-turn *quality*, not *state-tracking*. Remaining top
-picks: **LLM-judge on Socratic quality** (the text-quality win begs an absolute-quality read, not
-just overlap-vs-reference), **oracle-consultant run** (feed ground-truth state → isolates
-teacher-turn quality with the classifier confound removed entirely), and **multi-seed error bars**.
-Also worth a **strong-consultant** cell (Claude as classifier) to bound how much a better state
-source lifts each teacher.
+Deeper analysis is scoped in `docs/SFT_VS_BASE_ANALYSIS_PLAN.md`. The consultant ablation (T1.1) is
+**done** across all three modes (above): the SFT internalized teacher-turn *quality* (largest under
+oracle, +22.7 ROUGE-1), not *state-tracking*. Remaining top picks: **LLM-judge on Socratic quality**
+(the text-quality win begs an absolute-quality read, not just overlap-vs-reference — and it's the
+natural way to confirm the oracle result independently of ROUGE), **multi-seed error bars**, and a
+**strong-consultant** cell (Claude as classifier) to bound how much a better state source lifts each
+teacher between the ~55–60% Qwen point and the oracle's 100%.

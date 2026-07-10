@@ -4,6 +4,30 @@ Engineering decisions, what we've tried, and what's next. Each entry is dated an
 
 ---
 
+## 2026-07-09 — Oracle-consultant arm COMPLETE ✅ — SFT teacher-turn quality is *largest* with the state confound removed
+
+**Ran:** the third consultant mode for the ZH-test ablation — the ground-truth state is fed to the teacher each turn (`--oracle-consultant`, `ORACLE_CONSULTANT=1 make ... via oracle_chain_gemma4_12b.sh`), so `state_accuracy` is 100% by construction and the arms are compared on ROUGE/BLEU alone. This removes classifier accuracy as a confound entirely — the cleanest "does the SFT write better Socratic turns given correct state?" measure. Both arms **681/681 valid, 0 errors** (SFT ~1.5 h; base ~2 days across auto-resumed crashes at 85 W). Results in `results/gemma4-12b-{base,sft}-oracle/`. 1 teacher call/turn (as fast as the classifier path, unlike the 2-call self-consult arms).
+
+### Teacher-turn quality across all three consultant modes (ZH test, SFT − base gap)
+
+| metric | base: self / Qwen / oracle | SFT: self / Qwen / oracle | **SFT − base gap: self / Qwen / oracle** |
+|---|---:|---:|---:|
+| ROUGE-1 | 28.02 / 28.56 / 29.03 | 44.21 / 48.13 / 51.77 | **+16.19 / +19.57 / +22.74** |
+| ROUGE-L | 20.35 / 21.02 / 21.76 | 37.62 / 40.94 / 44.80 | **+17.27 / +19.92 / +23.04** |
+| BLEU-4  | 4.80 / 5.22 / 5.73    | 18.31 / 20.12 / 24.80 | **+13.51 / +14.90 / +19.07** |
+
+### Finding
+
+- **The SFT climbs monotonically with state quality; base is flat.** SFT ROUGE-1: 44.2 (self, ~27% state) → 48.1 (Qwen, ~55–60%) → **51.8 (oracle, 100%)**. Base: **28.0 → 28.6 → 29.0**. The SFT *learned to condition on state* — better state in → better turn out; base can't exploit better state (it rambles regardless). That conditioning is itself a learned skill.
+- **The gap is largest with the confound removed** — oracle gives the SFT its biggest edge (**+22.7 ROUGE-1, +23.0 ROUGE-L, +19.1 BLEU-4**), bigger than under the classifier or self-consult. "The SFT writes better Socratic turns" is unambiguous.
+- **Self-consult was an underestimate, not the ceiling** — it was smallest (+16.2) because the SFT was penalized there, conditioned on its own worse self-classification (27%). Oracle reveals the true ceiling, *strengthening* the 07-06 "survives removing the classifier" conclusion rather than merely upholding it.
+
+### Takeaway
+
+Confirms and sharpens 07-06: the SFT's own contribution is **teacher-turn quality** (real, intrinsic, biggest given correct state), not state-tracking. In deployment it wants an external state source and rewards a better one with proportionally better turns. Written into `docs/SFT_RESULTS_REPORT.md` (oracle column added to the consultant-ablation section). Next: LLM-judge on absolute Socratic quality (independent confirmation of the oracle result), multi-seed error bars, optional strong-consultant (Claude) cell between the Qwen and oracle state-quality points.
+
+---
+
 ## 2026-07-06 — Consultant ablation (T1.1) COMPLETE ✅ — SFT internalized teacher-turn *quality*, not *state-tracking*
 
 **Ran:** ZH-test 2×2 with the external Qwen classifier **removed** — base and SFT each self-consult (dual-role: the served LLM produces the state assessment itself, then consumes it). All other settings pinned to the headline runs (Q8_0 GGUF, `-np 4`, q4_0 KV, MTP off, 8 rounds, stochastic sampling). Both arms **681/681 valid, 0 errors**. Chained SFT→base via `make noconsult-chain-gemma4-12b` (`NO_CONSULTANT=1` toggle, new this entry). SFT arm ~12 h; base arm **~7 days** (Jun 26 14:23 → Jul 3 19:44) — self-consult is 2 LLM calls/turn and the unstable box stepped power 130 W→85 W across auto-resumed crashes, but reached a full run. Results in `results/gemma4-12b-{base,sft}-noconsult/`.
