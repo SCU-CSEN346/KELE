@@ -457,6 +457,125 @@ def judge_results_dir(
     )
 
 
+def build_stratified_sample(
+    dialogues_dir: Path, per_stage: int, stages: str, seed: int
+) -> list[tuple[str, int, str]]:
+    """Pick `per_stage` turns for each Socratic stage in `stages`, seeded.
+
+    Returns (dialogue_file, turn_idx, stage) tuples. Both oracle arms replay the
+    same ground-truth student turns and hit e34 at the same turn, so a sample keyed
+    on (file, turn_idx) is identical and comparable across arms — a paired design.
+    """
+    import random
+
+    by_stage: dict[str, list[tuple[str, int, str]]] = {s: [] for s in stages}
+    for dfile in sorted(dialogues_dir.glob("*.json")):
+        d = json.loads(dfile.read_text())
+        for i, turn in enumerate(d.get("dialogue", [])):
+            gt = turn.get("ground_truth_state") or turn.get("state") or "?"
+            stage = gt[0] if gt else "?"
+            if stage in by_stage:
+                by_stage[stage].append((dfile.name, i, stage))
+
+    rng = random.Random(seed)
+    sample: list[tuple[str, int, str]] = []
+    for s in stages:
+        pool = by_stage[s]
+        if len(pool) <= per_stage:
+            print(f"  stage {s}: {len(pool)} available <= {per_stage} requested — taking all")
+            sample.extend(pool)
+        else:
+            sample.extend(rng.sample(pool, per_stage))
+    return sample
+
+
+def _judge_arm_on_sample(
+    arm_dir: Path, sample: list[tuple[str, int, str]], model: str, backend: str
+) -> list[dict]:
+    """Score every sampled (file, turn_idx) turn in one arm. Sequential (subscription)."""
+    dialogues_dir = arm_dir / "dialogues"
+    cache: dict[str, dict] = {}
+    scores: list[dict] = []
+    for n, (fname, turn_idx, stage) in enumerate(sample, 1):
+        if fname not in cache:
+            cache[fname] = json.loads((dialogues_dir / fname).read_text())
+        s = score_turn(None, model, cache[fname], turn_idx, backend=backend)
+        if s is not None:
+            s["turn_idx"] = turn_idx
+            s["ground_truth_state"] = cache[fname]["dialogue"][turn_idx].get(
+                "ground_truth_state", "?"
+            )
+            scores.append(s)
+            print(
+                f"  [{arm_dir.name}] {n}/{len(sample)} {fname}#{turn_idx} "
+                f"({stage}): {s['total']}/10",
+                flush=True,
+            )
+    return scores
+
+
+def judge_paired_compare(
+    arm_a: Path,
+    arm_b: Path,
+    model: str,
+    backend: str,
+    per_stage: int,
+    stages: str,
+    seed: int,
+    out_path: Path,
+) -> dict:
+    """Judge both arms on ONE stratified paired sample; report per-arm scores + A−B deltas."""
+    sample = build_stratified_sample(arm_a / "dialogues", per_stage, stages, seed)
+    print(f"\nStratified sample: {len(sample)} turns/arm across stages '{stages}' (seed {seed})")
+
+    started = time.time()
+    arm_scores = {}
+    for arm in (arm_a, arm_b):
+        print(f"\n=== Judging arm: {arm.name} ({len(sample)} turns, {model}) ===")
+        scores = _judge_arm_on_sample(arm, sample, model, backend)
+        arm_scores[arm.name] = _summarize(
+            arm, model, backend, scores, [], time.time() - started, f".judge_{arm.name}.tmp.json"
+        )
+        (arm / f".judge_{arm.name}.tmp.json").unlink(missing_ok=True)
+
+    a, b = arm_scores[arm_a.name], arm_scores[arm_b.name]
+    axes = ["socratic_validity", "advancement", "age_appropriateness", "question_form"]
+    delta = {
+        "overall": round(a["overall_avg"] - b["overall_avg"], 3),
+        "axes": {ax: round(a["axis_avgs"][ax] - b["axis_avgs"][ax], 3) for ax in axes},
+        "per_stage": {
+            s: round(a["per_stage"][s]["avg"] - b["per_stage"][s]["avg"], 3)
+            for s in stages
+            if a["per_stage"][s]["n"] and b["per_stage"][s]["n"]
+        },
+    }
+    out = {
+        "judge_model": model,
+        "backend": backend,
+        "arm_a": arm_a.name,
+        "arm_b": arm_b.name,
+        "per_stage_n": per_stage,
+        "stages": stages,
+        "seed": seed,
+        "sample_size_per_arm": len(sample),
+        "wall_clock_seconds": round(time.time() - started, 1),
+        "arms": {
+            arm_a.name: {k: a[k] for k in ("overall_avg", "axis_avgs", "per_stage", "cost_usd")},
+            arm_b.name: {k: b[k] for k in ("overall_avg", "axis_avgs", "per_stage", "cost_usd")},
+        },
+        "delta_a_minus_b": delta,
+        "sample": sample,
+    }
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(out, indent=2, ensure_ascii=False))
+    print(f"\nComparison written to {out_path}")
+    print(
+        f"{arm_a.name} {a['overall_avg']:.2f}  vs  {arm_b.name} {b['overall_avg']:.2f}  "
+        f"→ Δ(a−b) = {delta['overall']:+.2f}/10"
+    )
+    return out
+
+
 def main():
     parser = argparse.ArgumentParser(description="LLM-judge eval over saved dialogues")
     parser.add_argument("results_dir", type=Path, help="Path to results dir containing dialogues/")
@@ -490,7 +609,59 @@ def main():
         default="https://api.anthropic.com/v1/",
         help="OpenAI-compat endpoint base URL (api backend)",
     )
+    # Paired stratified compare (the absolute-quality scenario): judge results_dir
+    # (arm A) and --compare-with (arm B) on ONE stratified sample; report A−B deltas.
+    parser.add_argument(
+        "--compare-with",
+        type=Path,
+        default=None,
+        help="Second results dir (arm B). Enables paired stratified compare mode.",
+    )
+    parser.add_argument(
+        "--per-stage", type=int, default=40, help="Turns sampled per Socratic stage (compare mode)."
+    )
+    parser.add_argument(
+        "--stages", default="bcde", help="Stages to sample (compare mode; 'a' is a trivial opener)."
+    )
+    parser.add_argument("--seed", type=int, default=42, help="Sampling seed (compare mode).")
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=Path("results/llm_judge_oracle_compare.json"),
+        help="Output path for the compare summary.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Compare mode: build + report the sample and estimated calls, judge nothing.",
+    )
     args = parser.parse_args()
+
+    if args.compare_with is not None:
+        model = args.model or (
+            "claude-opus-4-8" if args.backend == "claude-code" else "claude-sonnet-4-6"
+        )
+        if args.dry_run:
+            sample = build_stratified_sample(
+                args.results_dir / "dialogues", args.per_stage, args.stages, args.seed
+            )
+            counts: dict[str, int] = {}
+            for _f, _i, s in sample:
+                counts[s] = counts.get(s, 0) + 1
+            print(f"\nDRY RUN — no judging. Sample per arm: {len(sample)} turns {counts}")
+            print(f"Both arms → {2 * len(sample)} total {model} calls (~sequential).")
+            return
+        judge_paired_compare(
+            args.results_dir,
+            args.compare_with,
+            model,
+            args.backend,
+            args.per_stage,
+            args.stages,
+            args.seed,
+            args.out,
+        )
+        return
 
     if args.backend == "claude-code":
         model = args.model or "claude-opus-4-8"
