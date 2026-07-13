@@ -138,6 +138,49 @@ state — that gain was the external classifier's, and self-tracking is worse th
 the SFT wants an external state source, and it rewards a *better* one with proportionally better
 turns. Results: `results/gemma4-12b-{base,sft}-{noconsult,oracle}/`.
 
+## LLM-judge (absolute pedagogical quality) — does the oracle ROUGE win hold on *quality*, not overlap?
+
+ROUGE/BLEU only measure overlap with the reference teacher turn. To test whether the oracle win
+reflects genuinely better teaching, we scored both **oracle arms** with **Claude Opus 4.8** on an
+absolute 0–10 rubric (socratic_validity 0–3, advancement 0–3, age_appropriateness 0–2,
+question_form 0–2). The rubric shows the GT reference "as one valid move, do not penalize routing
+differences" **on purpose** — so it rewards quality, not ROUGE-like overlap. Paired stratified
+sample: 200 turns/arm, identical `(file, turn_idx)` keys across arms, stages b–e (opener `a`
+excluded), seed 42, `--per-stage 50` (400 Opus calls, ~62 min/arm). Single run, headless subscription
+(not temperature-0). `results/llm_judge_oracle_compare.json`.
+
+| | SFT-oracle | base-oracle | **Δ (SFT − base)** |
+|---|---:|---:|---:|
+| **overall /10** | **8.13** | 7.75 | **+0.38** |
+| socratic_validity /3 | 2.56 | 2.46 | +0.10 |
+| advancement /3 | 2.43 | 2.435 | **−0.01 (tied)** |
+| age_appropriateness /2 | 1.93 | 1.845 | +0.09 |
+| question_form /2 | 1.21 | 1.01 | **+0.20** |
+| stage b /10 | 8.28 | 8.14 | +0.14 |
+| stage c /10 | 8.64 | 8.00 | **+0.64** |
+| stage d /10 | 8.12 | 7.36 | **+0.76** |
+| stage e /10 | 7.48 | 7.50 | −0.02 (tied) |
+
+**Verdict: confirms the *direction*, corrects the *magnitude*.** The judge independently agrees the SFT
+writes better Socratic turns given correct state (+0.38/10 overall, and it wins or ties every axis and
+stage). But the gap is **far smaller than ROUGE implied**: +0.38/10 (~5% relative) vs +22.7 ROUGE-1
+(~78% relative). Both models produce pedagogically solid turns given correct state (7.75 vs 8.13 are
+both high) — so most of the ROUGE advantage was **reference-phrasing overlap, not teaching quality**.
+The SFT learned to phrase turns the way the corpus does; that shows up huge in ROUGE but only modestly
+in absolute pedagogy.
+
+Two honest caveats the pattern surfaces:
+- **`advancement` is a dead tie** (2.43 vs 2.435). Given correct state, base moves the lesson forward
+  just as well as the SFT. The SFT's real, judge-visible edge is **question_form** (+0.20, the largest
+  axis delta) and **socratic_validity** (+0.10) — *how* it asks, not *whether* it progresses.
+- **The win concentrates in the middle stages** where there's pedagogical work to do — c (+0.64) and
+  d (+0.76) — and vanishes at the endpoints (b +0.14, e −0.02). Coherent, but it means the headline
+  +0.38 is an average over a strongly stage-dependent effect, not a uniform lift.
+- **No error bars** (single run, non-greedy subscription decoding). The +0.38 headline is a point
+  estimate; the internally-consistent per-axis/per-stage pattern is what lends it confidence, not the
+  scalar alone. (Aside: base cost *more* to judge — $15.02 vs $13.86 — i.e. base emits more tokens,
+  consistent with the "base rambles regardless" finding.)
+
 ## Method (held fixed; only model + dataset vary)
 
 - **Teacher** = the only variable under test: base `unsloth/gemma-4-12b-it` vs the merged Socratic

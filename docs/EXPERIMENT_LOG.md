@@ -4,6 +4,33 @@ Engineering decisions, what we've tried, and what's next. Each entry is dated an
 
 ---
 
+## 2026-07-13 — LLM-judge on absolute Socratic quality COMPLETE ✅ — confirms the oracle win's *direction*, shrinks its *magnitude*
+
+**Ran:** the LLM-judge analysis-plan item — scored both **oracle arms** with **Claude Opus 4.8** (subscription, `claude -p` headless, tools off) on an absolute 0–10 pedagogy rubric (socratic_validity 0–3, advancement 0–3, age_appropriateness 0–2, question_form 0–2). Paired stratified sample, 200 turns/arm on identical `(file, turn_idx)` keys, stages b–e, seed 42, `--per-stage 50` → **400 Opus calls, ~2 h wall, ~$29 subscription-equivalent, 0 errors**. `scripts/llm_judge_eval.py` → `results/llm_judge_oracle_compare.json`. The rubric deliberately shows the GT reference as "one valid move, do not penalize routing differences" so it rewards *quality*, not ROUGE-overlap — the whole point is independence from ROUGE.
+
+### Result (SFT-oracle vs base-oracle, judged /10)
+
+| | overall | socratic_validity /3 | advancement /3 | age_approp /2 | question_form /2 |
+|---|---:|---:|---:|---:|---:|
+| SFT-oracle | **8.13** | 2.56 | 2.43 | 1.93 | 1.21 |
+| base-oracle | 7.75 | 2.46 | 2.435 | 1.845 | 1.01 |
+| **Δ (SFT − base)** | **+0.38** | +0.10 | **−0.01 (tied)** | +0.09 | **+0.20** |
+
+Per-stage Δ: b +0.14, **c +0.64, d +0.76**, e −0.02. The win concentrates in the middle reasoning stages and vanishes at the endpoints.
+
+### Finding
+
+- **Confirms the direction, corrects the magnitude.** The judge independently agrees SFT > base on absolute quality given correct state (+0.38/10; wins or ties every axis and stage). But +0.38/10 (~5% rel.) is **far smaller** than the +22.7 ROUGE-1 (~78% rel.) it's confirming. Both arms are pedagogically solid (7.75 vs 8.13) — so **most of the ROUGE gap was reference-phrasing overlap, not teaching quality.** The SFT learned to phrase like the corpus; ROUGE loves that, absolute pedagogy only modestly.
+- **`advancement` is a dead tie** (2.43 vs 2.435) — given correct state, base advances the lesson as well as the SFT. The SFT's judge-visible edge is **question_form** (+0.20, largest axis) and **socratic_validity** (+0.10): *how* it asks, not *whether* it progresses.
+- **Base costs *more* to judge** ($15.02 vs $13.86) — it emits more tokens, consistent with the earlier "base rambles regardless" observation.
+- **Caveat:** single run, non-greedy headless subscription decoding — no error bars. The +0.38 headline is a point estimate; the internally-consistent per-axis/per-stage pattern is what earns it confidence.
+
+### Takeaway
+
+The oracle ROUGE result was real but *oversized* as a quality claim. A truer statement: **the SFT writes better-formed, more clearly Socratic questions than base and is never worse — but the two are neck-and-neck on actually advancing the dialogue once state is correct, and the corpus-phrasing overlap that drives the dramatic ROUGE numbers is largely cosmetic.** Written into `docs/SFT_RESULTS_REPORT.md` (new "LLM-judge (absolute pedagogical quality)" subsection) and issue #130. Remaining analysis-plan picks (both optional): multi-seed error bars, a strong-consultant (Claude-as-classifier) cell between the ~55–60% Qwen and 100% oracle state-quality points.
+
+---
+
 ## 2026-07-09 — Oracle-consultant arm COMPLETE ✅ — SFT teacher-turn quality is *largest* with the state confound removed
 
 **Ran:** the third consultant mode for the ZH-test ablation — the ground-truth state is fed to the teacher each turn (`--oracle-consultant`, `ORACLE_CONSULTANT=1 make ... via oracle_chain_gemma4_12b.sh`), so `state_accuracy` is 100% by construction and the arms are compared on ROUGE/BLEU alone. This removes classifier accuracy as a confound entirely — the cleanest "does the SFT write better Socratic turns given correct state?" measure. Both arms **681/681 valid, 0 errors** (SFT ~1.5 h; base ~2 days across auto-resumed crashes at 85 W). Results in `results/gemma4-12b-{base,sft}-oracle/`. 1 teacher call/turn (as fast as the classifier path, unlike the 2-call self-consult arms).
