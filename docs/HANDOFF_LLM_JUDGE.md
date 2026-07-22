@@ -1,5 +1,10 @@
 # Handoff — LLM-judge on absolute Socratic quality (Opus 4.8 via subscription)
 
+> **✅ SUPERSEDED — this run is DONE** (commit `90f78ec`, 2026-07-13). Result:
+> `results/llm_judge_oracle_compare.json`, SFT +0.38/10 overall (confirms the oracle direction,
+> corrects the magnitude — see `docs/SFT_RESULTS_REPORT.md` "LLM-judge" section). Ignore the
+> "run to launch" below; kept for provenance. For what's next see `docs/HANDOFF_SFT_POST_JUDGE.md`.
+
 **Created 2026-07-12.** For a fresh Claude session. Branch `feat/gemma4-12b-sft-poc-nvidia`.
 Read alongside `docs/SFT_RESULTS_REPORT.md` (all results so far, incl. the consultant ablation +
 oracle), `docs/SFT_VS_BASE_ANALYSIS_PLAN.md` (analysis menu — this is the **LLM-judge** item), and

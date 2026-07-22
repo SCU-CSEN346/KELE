@@ -240,10 +240,12 @@ python -m src.project.evaluate --compare results/<base-run> results/<sft-run>
 
 ## Next
 
-Deeper analysis is scoped in `docs/SFT_VS_BASE_ANALYSIS_PLAN.md`. The consultant ablation (T1.1) is
-**done** across all three modes (above): the SFT internalized teacher-turn *quality* (largest under
-oracle, +22.7 ROUGE-1), not *state-tracking*. Remaining top picks: **LLM-judge on Socratic quality**
-(the text-quality win begs an absolute-quality read, not just overlap-vs-reference — and it's the
-natural way to confirm the oracle result independently of ROUGE), **multi-seed error bars**, and a
-**strong-consultant** cell (Claude as classifier) to bound how much a better state source lifts each
-teacher between the ~55–60% Qwen point and the oracle's 100%.
+Deeper analysis is scoped in `docs/SFT_VS_BASE_ANALYSIS_PLAN.md`; live next-steps in
+`docs/HANDOFF_SFT_POST_JUDGE.md`. The consultant ablation (T1.1, all three modes) **and** the
+LLM-judge (T1.2) are **done** (above): the SFT internalized teacher-turn *quality* (largest under
+oracle; judge confirms the direction at +0.38/10 but ROUGE overstated the magnitude), not
+*state-tracking*. Remaining picks, all optional: **T0.1 termination/length/style metrics** (free,
+on-disk — quantifies the still-unquantified "base rambles" claim in §4 above), **multi-seed error
+bars** (every number is a single-run point estimate), **earlier-checkpoint eval** (3200 vs 4250 —
+decides whether a clean full-epoch run is worth ~30 h), and a **strong-consultant** cell (Claude as
+classifier) between the ~55–60% Qwen point and the oracle's 100%.
