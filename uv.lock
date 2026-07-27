@@ -638,7 +638,7 @@ requires-dist = [
     { name = "tiktoken", specifier = ">=0.7.0" },
     { name = "tqdm", specifier = ">=4.68.3" },
     { name = "transformers", specifier = ">=5.14.1" },
-    { name = "trl", specifier = ">=1.8.0" },
+    { name = "trl", specifier = ">=1.9.1" },
     { name = "uvicorn", specifier = ">=0.51.0" },
     { name = "wandb", marker = "extra == 'wandb'", specifier = ">=0.28.1" },
 ]
@@ -3094,7 +3094,7 @@ wheels = [
 
 [[package]]
 name = "trl"
-version = "1.8.0"
+version = "1.9.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "accelerate" },
@@ -3103,9 +3103,9 @@ dependencies = [
     { name = "packaging" },
     { name = "transformers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/69/d2/0bde76fff71f577dd3497ac2daefe4fa093f28791dd636228ebd17165bd5/trl-1.8.0.tar.gz", hash = "sha256:b7fc6ed021bb288e02f8530a4f809a182fe689440c84a47c9d8e35897bea0af1", size = 717196, upload-time = "2026-07-09T18:32:19.279Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/63/02/5e519b8640f6a54ef7d7b24221a07fa7132c1dc04e297a65eb5ced6f43c7/trl-1.9.1.tar.gz", hash = "sha256:c92ce832841609f01536739372778c1caa1dc9d46813f6f415746458d3c3143e", size = 740892, upload-time = "2026-07-26T16:47:03.018Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/eb/ad/0eede5c5d5a643aa8fab3336a01645fe38a3cb1b64a0df665c06c3d1ac17/trl-1.8.0-py3-none-any.whl", hash = "sha256:6fae1e592162907f952d3a909c8e152e3e046851c870ae9b973cbe9e259b0005", size = 863216, upload-time = "2026-07-09T18:32:17.64Z" },
+    { url = "https://files.pythonhosted.org/packages/5b/9d/8dac669b96e486f2c8c4d4a56c0c4ce1c0248468385b4412b486a0462761/trl-1.9.1-py3-none-any.whl", hash = "sha256:39e082710ee17a710ba1ec05296955b077a4e4caa889514b8a6bb788d9c0aea7", size = 889037, upload-time = "2026-07-26T16:47:01.347Z" },
 ]
 
 [[package]]
