@@ -83,7 +83,7 @@ dev = [
     "pytest>=9.1.1",
     "pytest-cov>=6.0.0",
     "pyright>=1.1.411",
-    "ruff>=0.16.0",
+    "ruff>=0.16.1",
     "codespell>=2.4.3",
     "matplotlib>=3.11.1",
 ]
